@@ -181,3 +181,80 @@ typechecked: a private address, plain http and a `javascript:` URL are all refus
 and a real request to `ring.indienodes.us/ring.json` succeeds. The same SSRF rules the ring
 client enforces on-device apply here too, on a developer's own machine, which is exactly the
 network position worth protecting.
+
+## 2026-09-23: Following does not fetch, so Today catches up on its first visit
+
+`store.follow()` only ever saves who a person is and which feeds they publish. It was never
+going to fetch what they have actually written, because that belongs to the refresh pipeline
+(`refresh.ts`), not to the follow flow, and the two were built in separate milestones.
+
+The gap that leaves: a reader follows someone from Discover or Follow, taps through to Today,
+and finds it empty, because nothing has fetched that feed yet. The brief's pull to refresh and
+background refresh both assume something is already there to look stale.
+
+**`TodayState.loadAndCatchUp()`** loads from storage first, then checks whether any enabled
+feed has never been fetched at all and triggers one refresh if so. This runs once, on Today's
+first mount per session, not on every visit: an established follow list costs nothing beyond
+the conditional GETs `refreshAll` already sends. A reader's first look at the app after
+following someone is worth one extra fetch on the way in.
+
+## 2026-09-23: The sliding pill indicator is measured, not guessed
+
+The first build used a percentage width for Today's filter indicator, assuming all four pills
+were the same width. They are not, by design: pills size to their own label, matching the
+reference prototype, so "Everything" and "Watch" are different widths. Percentage math against
+the container clipped the longer labels against the indicator's own rounded edge.
+
+Screenshotting the build against the prototype at 390x844 caught this immediately, in both
+themes. The fix follows the prototype's own JavaScript rather than approximating it in CSS:
+each pill's real `offsetLeft` and `offsetWidth` are measured after render and on resize, and
+the indicator's `transform` and `width` are driven from those numbers.
+
+## 2026-09-23: Touch targets grow past the prototype where the brief requires it
+
+Two controls copied the prototype's pixel values exactly and landed under the 44px minimum the
+brief lists under "Rules that don't bend": Today's filter pills (38px) and the Follow screen's
+switches (28px tall). Both are fixed by growing the tappable area to 44px while keeping the
+visible pill or track at its original size, the same technique used elsewhere for a small
+visual control that needs a bigger hit area. A Playwright assertion on target size is what
+caught both; screenshots alone would not have.
+
+## 2026-09-23: Inactive Today panes are `inert`
+
+All four of Today's panes stay mounted side by side so each keeps its own scroll position; only
+the track that holds them translates. Nothing initially stopped a reader tabbing through an
+off-screen pane's buttons, or a screen reader announcing all four panes' content in sequence
+regardless of which pill was selected. Every pane but the active one now carries `inert`, the
+standard fix for exactly this shape of always-mounted, visually-paged content.
+
+## 2026-09-23: Today ships as a flat, staggered list; the 3D card stack is deferred
+
+The brief's card stack (cards standing up as they rise, tipping back and dimming as they pass
+the top, driven by `animation-timeline: view()` with a passive-scroll fallback) is explicitly
+optional in its own wording, and reduced motion's documented answer for it is "a flat list, no
+stack," exactly what ships now. Building the scroll-driven version correctly, including a
+faithful rAF fallback for browsers without it, is a substantial, fiddly piece of work on its
+own, and Today's data correctness, filters, categorization and the refresh pipeline underneath
+it were worth finishing and testing properly first rather than splitting attention across both
+at once.
+
+The flat list is not a stand-in with missing pieces bolted on later: every yip already flies in
+staggered by the shared motion system, which is the same entrance the stack's own resting state
+would use. Adding the stand-up and tip-back animation on top is additive, not a rebuild, and is
+recorded here as an open item rather than left silently undone.
+
+## 2026-09-23: Listen and the full-screen player do not exist yet; a listen or watch yip opens externally for now
+
+The brief bundles "Today (with Listen and the player)" as one screen inventory item. Splitting
+it was a deliberate scope decision, not an oversight: the player is the single largest piece of
+remaining work in the brief, its own shared `HTMLAudioElement`, a mini player, a full screen
+player with a queue, wavesurfer.js integration with on-device peak caching, playback speed, and
+the Media Session API for lock screen controls, each with its own real testing surface.
+
+**For now, `YipCard` opens a listen or watch yip in the system browser**, the same as every
+other yip, with a comment marking this as temporary. Nothing about that choice is wrong on its
+own: every yip does link out to its creator, which the brief requires unconditionally. It is
+temporary only in the sense that once the player exists, a listen yip should open it instead of
+leaving the app. Today's data model is already built for that day: `StoredYip.category` already
+distinguishes listen and watch, `formatDuration` and the waveform-shaped affordance are already
+in the card, and `PeaksRecord` already exists in the `Store` interface waiting for a caller.

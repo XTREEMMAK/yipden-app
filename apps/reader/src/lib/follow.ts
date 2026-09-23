@@ -29,7 +29,19 @@ function personFromRing(entry: RingEntry): Person {
 	};
 }
 
-function feedsFrom(personId: string, found: DiscoveredFeed[]): Feed[] {
+/**
+ * The minimal shape `feedsFrom` needs. `kind` is a plain string, not the closed `FeedKind`
+ * union `@yipden/feeds` discovers with, because a ring entry's own `feeds[].type` is
+ * documented as free text: a new platform never needs a client release to be followable.
+ */
+interface FeedCandidate {
+	url: string;
+	kind: string;
+	title: string;
+	verified: boolean;
+}
+
+function feedsFrom(personId: string, found: FeedCandidate[]): Feed[] {
 	return found.map((feed) => ({
 		id: feed.url,
 		personId,
@@ -57,9 +69,8 @@ export async function followRingEntry(entry: RingEntry): Promise<FollowOutcome> 
 			person.id,
 			entry.feeds.map((feed) => ({
 				url: feed.url,
-				kind: (feed.type as DiscoveredFeed['kind']) ?? 'blog',
+				kind: feed.type || 'blog',
 				title: entry.creator,
-				via: 'known-pattern' as const,
 				verified: feed.verified === true
 			}))
 		);

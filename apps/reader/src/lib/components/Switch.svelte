@@ -40,10 +40,19 @@
 	 * intercept each other's clicks and taps, invisibly. This wrapper is the fix, not the
 	 * caller's job.
 	 */
+	/*
+	 * The visual track stays the prototype's 46x28 pill, but the tappable area around it grows
+	 * to the brief's 44px touch target floor rather than matching the track's own size, the
+	 * same reasoning as Today's pills.
+	 */
 	.switch {
 		position: relative;
 		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		flex: 0 0 auto;
+		min-width: 44px;
+		min-height: 44px;
 	}
 
 	/*

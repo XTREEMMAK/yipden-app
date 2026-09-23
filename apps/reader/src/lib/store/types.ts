@@ -1,5 +1,7 @@
-import type { FeedKind, Item } from '@yipden/feeds';
+import type { Item } from '@yipden/feeds';
 import type { RingCacheRecord } from '@yipden/ring-client';
+
+export type { Item } from '@yipden/feeds';
 
 /**
  * Everything a reader owns, behind one interface.
@@ -27,7 +29,13 @@ export interface Feed {
 	id: string;
 	personId: string;
 	url: string;
-	kind: FeedKind;
+	/**
+	 * Free text, not the closed FeedKind union `@yipden/feeds` discovers with. The ring's own
+	 * feeds[].type field is documented as free text so a new platform never needs a client
+	 * release, and a value that arrived from there must be representable here too. UI code
+	 * that wants a label for one falls back to something generic for a kind it does not know.
+	 */
+	kind: string;
 	title: string;
 	verified: boolean;
 	/** Conditional request validators from the last fetch, so the next one costs nothing. */
@@ -53,7 +61,8 @@ export interface StoredYip extends Item {
 	/** Unique across feeds: an item id is only stable within the feed that published it. */
 	key: string;
 	personId: string;
-	feedKind: FeedKind;
+	/** See `Feed.kind`: free text, not the closed union. */
+	feedKind: string;
 	category: YipCategory;
 	readAt?: string;
 	/** When this reader first saw it, which is how "new" is counted. */

@@ -31,6 +31,16 @@ Every notable change to YipDen, newest first. The format follows
 - Follow: paste a link, see every feed discovery found, toggle which of it to keep, and follow
   only what was left on. A dev only Vite proxy lets the browser try real feeds in development,
   enforcing the same address safety rules as the rest of the app, without ever shipping.
+- The refresh pipeline: `refreshAll` fetches every followed feed conditionally, categorizes each
+  item into Posts, Watch or Listen from its media, and stores it without disturbing a reader's
+  existing read state. One feed failing never stops the rest, and a feed past five consecutive
+  failures backs off from automatic refreshes.
+- Today: the merged, reverse chronological feed in four panes a reader pages between by pill or
+  by swipe, with a measured sliding indicator, pull to refresh, a background catch-up on the
+  first visit after following someone, and a "From the ring" section of ring tracks in Listen.
+  Media and text cards match the reference prototype. The 3D card stack and the full playback
+  experience (the shared audio element, the mini and full screen players, Media Session) are
+  deferred; see DECISIONS.md.
 
 ## [0.0.1] - 2026-09-22
 
