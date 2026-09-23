@@ -61,6 +61,27 @@ Every notable change to YipDen, newest first. The format follows
   player's gradient, header and body fading and rising in only once the art has landed. Falls
   back to the plain slide up wherever the browser lacks view transition support, the reader has
   asked for reduced motion, or the card has nothing to morph from.
+- Lock screen and notification media controls, and reliable background playback, through
+  `@capgo/capacitor-media-session`. See DECISIONS.md for why this plugin over the alternatives.
+- The Android hardware and gesture back button now steps back through Discover, Today, Follow
+  and You's own navigation history before it exits the app, matching every other Android app,
+  instead of exiting on the first press.
+
+### Fixed
+
+- Discover's incoming name and "why" text flew in from straight below regardless of swipe
+  direction; it now flies in from the edge the swipe (or the prev/next buttons) actually came
+  from, matching the hero image's own motion.
+- Today's card stack could be tipped further than intended by a normal overscroll past the
+  pane's top or bottom, since the rubber band bounce briefly reports a `scrollTop` outside the
+  pane's real bounds. The bounce is now suppressed on that one pane rather than every scroll
+  area in the app.
+- `--dock`, the token every scroll area's bottom padding, Discover's bottom section and the
+  mini player's position are all measured against, did not account for
+  `env(safe-area-inset-bottom)`, even though the tab bar it is meant to clear does. On a phone
+  with a tall gesture navigation inset (found on a Galaxy S23 Ultra), this hid Discover's
+  filter chips, the mini player, and the bottom of any scrolled-down list behind the real
+  system bar despite scrolling having reached its actual end.
 
 ## [0.0.1] - 2026-09-22
 

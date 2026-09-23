@@ -1,4 +1,5 @@
 import { flushSync } from 'svelte';
+import { MediaSession, type MediaSessionAction } from '@capgo/capacitor-media-session';
 import { prefersReducedMotion } from './motion.js';
 import { store, type PeaksRecord } from './store/index.js';
 
@@ -92,6 +93,7 @@ class PlayerState {
 			});
 			element.addEventListener('durationchange', () => {
 				if (Number.isFinite(element.duration)) this.duration = element.duration;
+				this.updateMediaSessionPosition();
 			});
 			element.addEventListener('loadedmetadata', () => {
 				if (this.pendingSeek === null) return;
@@ -102,10 +104,12 @@ class PlayerState {
 			element.addEventListener('play', () => {
 				this.playing = true;
 				this.updateMediaSessionState();
+				this.updateMediaSessionPosition();
 			});
 			element.addEventListener('pause', () => {
 				this.playing = false;
 				this.updateMediaSessionState();
+				this.updateMediaSessionPosition();
 			});
 			element.addEventListener('ended', () => this.advance());
 			this._audio = element;
@@ -229,6 +233,7 @@ class PlayerState {
 
 		audio.currentTime = Math.max(0, Math.min(this.seekableEnd(), seconds));
 		this.currentTime = audio.currentTime;
+		this.updateMediaSessionPosition();
 	}
 
 	/**
@@ -265,6 +270,7 @@ class PlayerState {
 		const at = RATES.indexOf(this.rate);
 		this.rate = RATES[(at + 1) % RATES.length]!;
 		this.audio.playbackRate = this.rate;
+		this.updateMediaSessionPosition();
 	}
 
 	collapse(): void {
@@ -303,30 +309,53 @@ class PlayerState {
 
 	// ---------- Media Session: lock screen and notification controls ----------
 
+	/**
+	 * `@capgo/capacitor-media-session` rather than `navigator.mediaSession` directly: the
+	 * Android WebView never surfaces the Web Media Session API to the system lock screen or
+	 * notification shade the way Chrome does, so without it there is nothing here for the OS
+	 * to show at all, plugin or not. On the web and on iOS the plugin's own fallback wraps the
+	 * same `navigator.mediaSession` this used to call directly, so this is one call site for
+	 * every platform rather than two.
+	 *
+	 * Every call is fire-and-forget: a platform with no media session support (an older
+	 * WebView, a browser without the API) rejects the promise, and playback itself must never
+	 * depend on that succeeding.
+	 */
 	private setMediaSessionMetadata(item: QueueItem): void {
-		if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
-		navigator.mediaSession.metadata = new MediaMetadata({
+		void MediaSession.setMetadata({
 			title: item.title,
 			artist: item.creator,
 			artwork: item.artUrl ? [{ src: item.artUrl, sizes: '512x512' }] : []
-		});
+		}).catch(() => {});
 		this.updateMediaSessionState();
+		this.updateMediaSessionPosition();
 	}
 
 	private updateMediaSessionState(): void {
-		if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
-		navigator.mediaSession.playbackState = this.playing ? 'playing' : 'paused';
+		void MediaSession.setPlaybackState({
+			playbackState: this.playing ? 'playing' : 'paused'
+		}).catch(() => {});
+	}
+
+	/** The lock screen's own scrubber, kept in step with seeks and rate changes, not every frame. */
+	private updateMediaSessionPosition(): void {
+		void MediaSession.setPositionState({
+			duration: this.duration,
+			position: this.currentTime,
+			playbackRate: this.rate
+		}).catch(() => {});
 	}
 
 	private wireMediaSession(): void {
-		if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
-		const session = navigator.mediaSession;
-		session.setActionHandler('play', () => this.toggle());
-		session.setActionHandler('pause', () => this.toggle());
-		session.setActionHandler('seekbackward', () => this.skip(-15));
-		session.setActionHandler('seekforward', () => this.skip(30));
-		session.setActionHandler('previoustrack', () => this.back());
-		session.setActionHandler('nexttrack', () => this.advance());
+		const bind = (action: MediaSessionAction, handler: () => void) => {
+			void MediaSession.setActionHandler({ action }, handler).catch(() => {});
+		};
+		bind('play', () => this.toggle());
+		bind('pause', () => this.toggle());
+		bind('seekbackward', () => this.skip(-15));
+		bind('seekforward', () => this.skip(30));
+		bind('previoustrack', () => this.back());
+		bind('nexttrack', () => this.advance());
 	}
 }
 

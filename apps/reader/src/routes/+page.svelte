@@ -21,18 +21,34 @@
 	let following = $state(false);
 	let dragX = $state(0);
 	let dragging = $state(false);
+	/**
+	 * Which way the next member's name and "why" should fly in from: -1 after `next()` (they
+	 * come from the right, the same edge a left drag reveals), 1 after `prev()` (from the
+	 * left), 0 for shuffle and the filter chips, which have no direction of their own.
+	 */
+	let navDirection = $state<-1 | 0 | 1>(0);
 
 	onMount(() => {
 		void ring.load();
 	});
+
+	function goNext() {
+		navDirection = -1;
+		ring.next();
+	}
+
+	function goPrev() {
+		navDirection = 1;
+		ring.prev();
+	}
 
 	/** The member card follows the finger, then settles whichever way the release went. */
 	function onSwipeEnd(commit: boolean, direction: -1 | 0 | 1) {
 		dragging = false;
 		dragX = 0;
 		if (!commit) return;
-		if (direction < 0) ring.next();
-		else if (direction > 0) ring.prev();
+		if (direction < 0) goNext();
+		else if (direction > 0) goPrev();
 	}
 
 	async function follow() {
@@ -134,7 +150,14 @@
 			</svg>
 			YipDen
 		</span>
-		<button class="round" onclick={() => ring.shuffle()} aria-label="Shuffle the ring">
+		<button
+			class="round"
+			onclick={() => {
+				navDirection = 0;
+				ring.shuffle();
+			}}
+			aria-label="Shuffle the ring"
+		>
 			<svg viewBox="0 0 24 24" aria-hidden="true">
 				<path d="M3 7h3.5c2 0 3.3 1 4.3 2.6l2.4 4.8C14.2 16 15.5 17 17.5 17H21" />
 				<path d="M18 14l3 3-3 3" />
@@ -152,7 +175,7 @@
 	>
 		{#if ring.current}
 			{#key ring.current.id}
-				<div class="body-inner" in:fly={flyIn()}>
+				<div class="body-inner" in:fly={flyIn({ x: navDirection * -32 })}>
 					<span class="glass-chip">
 						{ring.isNodeOfTheDay
 							? 'Node of the day'
@@ -223,10 +246,10 @@
 					: ''}
 			</span>
 			<span class="pn">
-				<button class="round" onclick={() => ring.prev()} aria-label="Previous in the ring">
+				<button class="round" onclick={goPrev} aria-label="Previous in the ring">
 					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
 				</button>
-				<button class="round" onclick={() => ring.next()} aria-label="Next in the ring">
+				<button class="round" onclick={goNext} aria-label="Next in the ring">
 					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
 				</button>
 			</span>
@@ -237,7 +260,10 @@
 				<button
 					class="chip"
 					aria-pressed={ring.filter === chip.key}
-					onclick={() => ring.setFilter(chip.key as RingFilterKey)}
+					onclick={() => {
+						navDirection = 0;
+						ring.setFilter(chip.key as RingFilterKey);
+					}}
 				>
 					{chip.label}
 				</button>

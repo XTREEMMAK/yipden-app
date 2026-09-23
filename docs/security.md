@@ -99,11 +99,15 @@ through the same checks before it is followed.
 
 The brief's "no UI framework, no gesture library, no animation library" is also a security
 position: every dependency is code shipped to a device that renders hostile input. v0.9's
-runtime dependency list is Svelte, SvelteKit, Capacitor and wavesurfer.js. `ring-client` and
-`feeds` have zero runtime dependencies.
+runtime dependency list is Svelte, SvelteKit, Capacitor, wavesurfer.js and
+`@capgo/capacitor-media-session`. `ring-client` and `feeds` have zero runtime dependencies.
 
-Anything with native code, including the background audio plugin, is asked about before it is
-added. CI pins GitHub Actions to commit SHAs rather than tags.
+Anything with native code is asked about before it is added, which is how
+`@capgo/capacitor-media-session` (lock screen and notification controls, and the foreground
+service background playback needs) was chosen over the alternatives: see DECISIONS.md for the
+comparison. It adds one manifest permission, `FOREGROUND_SERVICE_MEDIA_PLAYBACK`, declared in
+this app's own `AndroidManifest.xml` since the plugin's own only declares the older,
+unqualified `FOREGROUND_SERVICE`. CI pins GitHub Actions to commit SHAs rather than tags.
 
 ## Where to look when changing things
 

@@ -352,7 +352,14 @@
 		gap: 12px;
 		padding: 6px 16px calc(var(--dock) + 20px);
 		overflow-y: auto;
-		overscroll-behavior: contain;
+		/*
+		 * `none`, not `contain`: the stack action reads `scrollTop` every frame, and rubber
+		 * band overscroll can carry it past the pane's real bounds while bouncing back, which
+		 * the top card's tip-back math reads as scrolling further than the finger actually
+		 * went. Blocking the bounce here, where a transform reacts to scroll position every
+		 * frame, is a narrower fix than turning it off for every scroll area in the app.
+		 */
+		overscroll-behavior-y: none;
 		scrollbar-width: none;
 		touch-action: pan-y;
 	}

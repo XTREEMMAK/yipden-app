@@ -41,4 +41,12 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+      Android 14 (API 34) requires this alongside the plain FOREGROUND_SERVICE permission for
+      any service declaring foregroundServiceType="mediaPlayback", which is how
+      @capgo/capacitor-media-session keeps the lock screen and notification controls alive.
+      Its own manifest declares FOREGROUND_SERVICE but not this one, so it is added here.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 </manifest>

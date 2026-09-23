@@ -386,3 +386,77 @@ stated priority, and the gap is disclosed here rather than hidden behind a test 
 quietly rewritten to stop noticing it. The end to end suite exercises the realistic case,
 seeking during active playback, which works reliably; the pathological case is a candidate for
 a native `Store`-backed local caching layer later, not a v0.9 fix.
+
+## 2026-09-23: `@capgo/capacitor-media-session` closes the background audio gap, chosen over three alternatives
+
+The brief asks for Media Session metadata and lock screen controls, and separately flags that
+reliable background playback on Android needs a native plugin with a foreground service, to be
+proposed and asked about before adding. `player.svelte.ts` shipped calling
+`navigator.mediaSession` directly, which is correct web platform code and works when testing in
+a real browser, but real device testing surfaced the actual gap the brief anticipated: **the
+Android System WebView, unlike Chrome, never surfaces the Web Media Session API to the OS lock
+screen or notification shade at all.** Nothing showed up, not because playback was wrong, but
+because there was nothing on the native side for Android to show. This is the same limitation
+covered by the original deferred decision; on-device testing is what turned it from a
+documented risk into an observed, reproducible gap, which is why it was raised again rather
+than left as a standing deferral.
+
+Four options were compared before adding anything:
+
+- **`@jofr/capacitor-media-session`**, the original: last published August 2024, peer
+  dependency locked to `@capacitor/core ^6.0.0`. Two major Capacitor versions behind this
+  app's Capacitor 8.
+- **`@capawesome-team/capacitor-media-session`**: actively maintained and Capacitor 8 native,
+  but proprietary, gated behind a paid license key. Every other runtime dependency in this app
+  is open source; this would have been the exception.
+- **`@mediagrid/capacitor-native-audio`**: Capacitor 8 native, but it replaces the WebView's
+  `<audio>` element with native playback entirely. Adopting it would mean rearchitecting away
+  from the one shared `HTMLAudioElement` wavesurfer.js is handed through its `media` option,
+  to solve a problem that is only about what shows on the lock screen. It over-solves it.
+- **`@capgo/capacitor-media-session`**, the one chosen: MPL-2.0, `@capacitor/core >=8.0.0`,
+  published the day before this decision was made, 0 open issues at the time. Its Android
+  source was read directly rather than trusted from documentation alone: a real
+  `android.app.Service` declaring `foregroundServiceType="mediaPlayback"`, built on the
+  standard, non-deprecated `MediaSessionCompat` / `PlaybackStateCompat` /
+  `NotificationCompat.MediaStyle` APIs, with a `MediaButtonReceiver` for hardware and Bluetooth
+  media keys. Its manifest requests only `FOREGROUND_SERVICE`; Android 14 additionally wants
+  `FOREGROUND_SERVICE_MEDIA_PLAYBACK` declared for a `mediaPlayback` service, which this app's
+  own `AndroidManifest.xml` now adds directly since the plugin's does not.
+
+**Integration replaced `navigator.mediaSession` rather than sitting beside it.** The plugin
+registers `web` and `ios` fallbacks that wrap the same `navigator.mediaSession` the old code
+called directly, so `setMediaSessionMetadata`, `updateMediaSessionState` and `wireMediaSession`
+in `player.svelte.ts` now call the plugin's `setMetadata` / `setPlaybackState` /
+`setActionHandler` unconditionally, one call site for web, iOS and Android instead of two code
+paths. Every call is fire-and-forget (`.catch(() => {})`): a platform with no media session
+support rejects the promise, and playback itself must never depend on that succeeding, the
+same principle the waveform decode failure already follows. `setPositionState`, which the
+brief did not call out explicitly but which is what puts a scrubber on the lock screen widget
+rather than just play and pause buttons, is now called on play, pause, seek and rate change.
+
+Not yet verified: the exact foreground service lifecycle (does it tear itself down promptly
+once paused, does the persistent "app is running" notification look right against this app's
+own iconography) is a real device question the next testing pass should answer, not something
+confirmed from reading source.
+
+## 2026-09-23: The hardware back button steps back through routes only, not player or confirm state
+
+The brief does not mention the Android back button at all. `BridgeActivity`'s platform default
+is to exit the app on the first press, discovered by on-device testing: with four real routes
+behind Discover, Today, Follow and You, that read as broken rather than merely unspecified.
+
+**`MainActivity.java` now overrides `onBackPressed()`** to defer to the WebView's own
+`canGoBack()` / `goBack()` before falling through to the platform default. This needed no new
+dependency: SvelteKit's router uses the History API for its client-side navigation, which the
+WebView already tracks, so `goBack()` correctly replays it. This fixes exactly the reported
+bug, tab to tab and into any pushed route, with a plain native change confined to a file
+already part of the generated Android project.
+
+**What it does not do**: collapse the full screen player, or cancel an inline confirm (You's
+Unfollow row, for instance) before falling through to route history or exiting. Neither of
+those is a URL change, so nothing in the WebView's own history knows about them; reaching
+them means intercepting the back button in JavaScript, which needs `@capacitor/app`'s
+`backButton` event; a native dependency the brief's own rule says to ask about before adding.
+Left as a known, disclosed gap rather than bundled into this fix without asking; worth doing
+if collapsing the player on back turns out to matter as much on a real device as it reads on
+paper.

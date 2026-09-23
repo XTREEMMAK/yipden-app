@@ -69,7 +69,7 @@
 		position: absolute;
 		left: 10px;
 		right: 10px;
-		bottom: 92px;
+		bottom: calc(92px + env(safe-area-inset-bottom, 0px));
 		z-index: 19;
 		display: flex;
 		align-items: center;

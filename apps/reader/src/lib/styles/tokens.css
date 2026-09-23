@@ -52,8 +52,14 @@
 	/*
 	 * The bottom of every scroll area, and where toasts sit. Grows when the mini player is
 	 * showing, which is why it is one token rather than a number in each screen.
+	 *
+	 * Carries `env(safe-area-inset-bottom)` because the tab bar itself does: TabBar.svelte adds
+	 * that inset to its own bottom padding, so on a phone with a gesture nav bar the tab bar is
+	 * taller than `--tabbar-h` alone. Every scroll area, Discover's bottom padding and the mini
+	 * player's fixed position all read this one token, so leaving the inset out here meant they
+	 * all quietly sat behind the real nav bar on exactly that kind of phone.
 	 */
-	--dock: 88px;
+	--dock: calc(88px + env(safe-area-inset-bottom, 0px));
 	--tabbar-h: 84px;
 	--mini-h: 64px;
 	--gutter: 16px;
@@ -122,7 +128,7 @@
 
 /* The mini player pushes every scroll area and the toast up by its own height. */
 :root[data-mini='true'] {
-	--dock: 162px;
+	--dock: calc(162px + env(safe-area-inset-bottom, 0px));
 }
 
 /*

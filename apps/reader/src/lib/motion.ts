@@ -47,6 +47,7 @@ export function prefersReducedMotion(): boolean {
 }
 
 export interface FlyOptions {
+	x?: number;
 	y?: number;
 	delay?: number;
 	duration?: number;
@@ -55,12 +56,18 @@ export interface FlyOptions {
 /**
  * The standard entrance: things fly in rather than appear.
  *
+ * Vertical by default (`y: 18`), the shape most lists and sheets want. A caller that passes
+ * `x` (Discover's swipe-direction fly-in is the one that does) gets a purely horizontal slide
+ * instead, since a card sliding in from the side and drifting up at the same time reads as
+ * sloppy rather than directional.
+ *
  * Under reduced motion this becomes a plain fade of the same shape, so callers never branch.
  */
 export function flyIn(options: FlyOptions = {}) {
 	const reduced = prefersReducedMotion();
 	return {
-		y: reduced ? 0 : (options.y ?? 18),
+		x: reduced ? 0 : (options.x ?? 0),
+		y: reduced ? 0 : (options.y ?? (options.x ? 0 : 18)),
 		duration: reduced ? duration.s : (options.duration ?? duration.m),
 		delay: options.delay ?? 0,
 		opacity: 0,
