@@ -154,3 +154,30 @@ serves is one that does not bend: 4.5:1 contrast, including text on images and o
 
 The same reasoning applies anywhere else a fixed dark surface uses a theme aware ink, including
 the player, which is `--player` in both themes.
+
+## 2026-09-23: A visually hidden input must not reuse the clipped `.visually-hidden` utility
+
+Building the Follow switches surfaced a real interaction bug, caught by writing end to end
+tests rather than by eye: every switch on the screen collapsed onto the same point and blocked
+each other's clicks, both in Playwright and, it turned out, for a real finger.
+
+Two things were wrong at once. First, `Switch.svelte`'s hidden `<input>` was `position:
+absolute` with no positioned ancestor, so it sat at the origin of the page rather than inside
+its own row. Second, it reused the shared `.visually-hidden` utility from `app.css`, which is
+`!important` and clips to 1x1px for screen reader only text; that rule beat the component's own
+override regardless of Svelte's scoping, so even after adding a positioned wrapper the input
+stayed pinned to a single pixel.
+
+**The fix, and the rule going forward**: a control that needs to receive real clicks (an input
+standing in for a custom switch, checkbox or radio) is invisible but full sized, layered over
+its own visual with `pointer-events: none` on the decoration beneath it, and it gets its own
+class rather than sharing a name with the "clipped to nothing" utility meant for text. The two
+patterns solve different problems and must never share a selector.
+
+## 2026-09-23: The dev fetch proxy is exercised, not just present
+
+`vite-plugins/dev-fetch-proxy.ts` was verified against the running dev server rather than only
+typechecked: a private address, plain http and a `javascript:` URL are all refused with a 400,
+and a real request to `ring.indienodes.us/ring.json` succeeds. The same SSRF rules the ring
+client enforces on-device apply here too, on a developer's own machine, which is exactly the
+network position worth protecting.

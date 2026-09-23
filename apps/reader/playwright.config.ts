@@ -17,6 +17,9 @@ export default defineConfig({
 		baseURL: 'http://localhost:4173',
 		trace: 'on-first-retry'
 	},
+	// Discovery does real, sequential round trips per host it checks (robots.txt, then the
+	// page itself), which routinely takes longer than the 5s default even fully mocked.
+	expect: { timeout: 10_000 },
 	projects: [
 		{
 			name: 'phone',

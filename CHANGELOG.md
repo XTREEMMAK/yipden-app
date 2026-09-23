@@ -28,6 +28,9 @@ Every notable change to YipDen, newest first. The format follows
   by button, filtered by chips, shuffled, and rendering from cache when the ring cannot be
   reached. One tap follows a member everywhere they publish.
 - A script that screenshots the build beside the reference prototype at 390x844 in both themes.
+- Follow: paste a link, see every feed discovery found, toggle which of it to keep, and follow
+  only what was left on. A dev only Vite proxy lets the browser try real feeds in development,
+  enforcing the same address safety rules as the rest of the app, without ever shipping.
 
 ## [0.0.1] - 2026-09-22
 

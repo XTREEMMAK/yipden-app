@@ -40,16 +40,27 @@ const nativeFetch: FetchLike = async (url, init) => {
 	};
 };
 
+/**
+ * In a browser, almost no feed sends the CORS headers that would let a page read it. In
+ * development the request goes through a Vite middleware that is never part of a build; in a
+ * built web page it goes direct and will usually be refused, which is correct: the web build
+ * exists for development and testing, not as a second product.
+ */
 const browserFetch: FetchLike = async (url, init) => {
-	const response = await fetch(url, {
+	const direct = !import.meta.env.DEV;
+	const target = direct ? url : `/__dev/fetch?url=${encodeURIComponent(url)}`;
+
+	const response = await fetch(target, {
 		method: init?.method ?? 'GET',
 		headers: init?.headers ?? {},
 		...(init?.signal ? { signal: init.signal } : {}),
-		redirect: init?.redirect ?? 'follow'
+		// The proxy resolves redirects itself, checking every hop.
+		redirect: direct ? (init?.redirect ?? 'follow') : 'follow'
 	});
+
 	return {
 		status: response.status,
-		url: response.url,
+		url: response.headers.get('x-yipden-final-url') ?? response.url,
 		headers: { get: (name: string) => response.headers.get(name) },
 		text: () => response.text()
 	};
