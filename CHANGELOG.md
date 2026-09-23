@@ -71,6 +71,10 @@ Every notable change to YipDen, newest first. The format follows
   the reference prototype's own shader. The plain CSS crossfade it was built on top of never
   stops running underneath, so any failure, no WebGL, a photo host with no CORS headers, a lost
   context, falls back to it rather than a blank canvas. See DECISIONS.md.
+- Live reload for Android: `CAP_LIVE_RELOAD_URL` points an installed debug build at `pnpm dev`
+  instead of its own bundled files, so a web layer change reaches the device the moment Vite
+  rebuilds it, with no further rebuild or reinstall. Never set for a real build. See
+  `docs/android-testing.md` and DECISIONS.md.
 
 ### Fixed
 
@@ -102,6 +106,11 @@ Every notable change to YipDen, newest first. The format follows
   session where the first photo failed (the common case for a personal site with no CORS
   headers) looked like the hero was doing nothing rather than falling back. It now gives up
   for the rest of the session after the first failure. See DECISIONS.md.
+- A latent Android manifest merge conflict (`capacitor-cordova-android-plugins` declares
+  `usesCleartextTraffic="true"`, this app declares `"false"`) would fail any genuinely clean
+  build or one on CI without a warm Gradle cache; only masked locally because nothing had
+  invalidated the cached merge result since the very first build. Fixed with an explicit
+  `tools:replace`. See DECISIONS.md.
 
 ### Changed
 

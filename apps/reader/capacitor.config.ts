@@ -21,7 +21,19 @@ const config: CapacitorConfig = {
 	server: {
 		// The WebView's own origin. https rather than a custom scheme so storage, service
 		// workers and fetch all behave the way they do in a browser.
-		androidScheme: 'https'
+		androidScheme: 'https',
+		/*
+		 * Live reload, opt in only: with CAP_LIVE_RELOAD_URL set, the installed app loads the
+		 * dev server directly instead of the bundled build, so a screen or style change reaches
+		 * the device the moment Vite rebuilds it, with no further `cap sync` or reinstall.
+		 * Never set for `android:apk`/`android:install`, which is what every real build and
+		 * every device testing round before this one used, and is what a release build must
+		 * keep using: this is exclusively for the "run instead of build every time" loop
+		 * documented in docs/android-testing.md.
+		 */
+		...(process.env.CAP_LIVE_RELOAD_URL
+			? { url: process.env.CAP_LIVE_RELOAD_URL, cleartext: true }
+			: {})
 	},
 	plugins: {
 		/*

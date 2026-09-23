@@ -135,6 +135,41 @@ Watch the app's own logs:
 adb logcat --pid=$(adb shell pidof com.yipden.app)
 ```
 
+### Live reload: install once, iterate without rebuilding
+
+Rebuilding and reinstalling for every change is slow, and almost none of the app is
+Android-specific: a screen, a style or a bug fix is a web change first. Live reload points the
+installed app's WebView directly at `pnpm dev`'s own dev server instead of the bundled files,
+so the moment Vite rebuilds something, the device shows it, the same as a browser tab open to
+the same URL. No further `cap sync`, no further install, for as long as the app stays open.
+
+```bash
+cd apps/reader
+pnpm dev                                              # leave this running
+CAP_LIVE_RELOAD_URL=http://<this-machine-ip>:5173 \
+  pnpm android:live                                   # builds once, installs, done
+```
+
+Open the app on the phone; it is now showing whatever `pnpm dev` is serving, live. Use the
+phone's own reachable address for this machine, the same one wireless debugging already
+proved works (the VPN IP, when the phone is reaching it that way), and the port `pnpm dev`
+actually printed, since it moves to the next free one if `5173` is already taken.
+
+Two things this changes on purpose, only for a debug build, and are exactly why
+`CAP_LIVE_RELOAD_URL` is never set for `android:apk` or `android:install`:
+
+- The WebView's origin becomes the plain `http://` dev server instead of `https://localhost`,
+  which needs `android/app/src/debug/res/xml/network_security_config.xml`, a debug-only
+  override of the release-hardened one in `src/main` that refuses cleartext traffic outright
+  (see DECISIONS.md). A release build has no such override and stays refused.
+- Every native-only check (the back button, lock screen controls, the foreground service) is
+  unaffected: those live in the native shell live reload never touches. Only the web layer
+  is served live.
+
+Going back to a normal build needs nothing more than running `pnpm android:install` again
+without the environment variable set; `capacitor.config.ts` only adds `server.url` when it
+sees one.
+
 ### If the phone is not on this machine's network
 
 The pairing route needs a route between the two. When there is not one, build here and move
@@ -167,7 +202,9 @@ only the phone.
 If a physical phone stops being available at some point, that second machine's own hardware
 accelerated emulator (assuming it has the virtualization this KVM guest lacks) is a reasonable
 stand-in for anything that is not motion-sensitive; still confirm any 60fps judgment on real
-hardware before trusting it.
+hardware before trusting it. Live reload (above) works the same way against an emulator as it
+does against a real phone, since it only needs the emulator to reach this machine's dev server,
+which a typical emulator's own networking already allows without any VPN involved at all.
 
 ## What to check on the device, specifically
 

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Debug builds only, merged over src/main's cleartext-refusing config by Android's own build
+    variant system, never present in a release build.
+
+    Live reload (CAP_LIVE_RELOAD_URL, see capacitor.config.ts and docs/android-testing.md)
+    points the WebView's own origin at a plain http dev server, which src/main's config would
+    otherwise refuse outright at the platform level regardless of Capacitor's own cleartext
+    setting. Scoped to cleartext only, not to a weaker certificate policy: https traffic still
+    goes through src/main's trust anchors unchanged.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

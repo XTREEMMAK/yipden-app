@@ -14,7 +14,8 @@
     "test:e2e": "playwright test",
     "cap:sync": "pnpm build && cap sync android",
     "android:apk": "pnpm cap:sync && cd android && ./gradlew assembleDebug",
-    "android:install": "pnpm android:apk && adb install -r android/app/build/outputs/apk/debug/app-debug.apk"
+    "android:install": "pnpm android:apk && adb install -r android/app/build/outputs/apk/debug/app-debug.apk",
+    "android:live": "cap sync android && cd android && ./gradlew installDebug"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.2",

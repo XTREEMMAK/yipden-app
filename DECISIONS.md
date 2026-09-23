@@ -637,3 +637,56 @@ The lesson worth keeping: a report described as a "scroll jump" does not necessa
 bug is in scroll handling. Chasing `scrollTop` twice, correctly, and cleanly both times, said
 nothing about a sibling element's own layout impact, since it is a completely different
 mechanism that happens to produce a similar-looking visual symptom.
+
+## 2026-09-23: The waveform's CORS limitation is real, but likely narrower on Android than on web
+
+Asked directly: why do waveforms never seem to draw. `Waveform.svelte` already documented the
+expected cause ("Decoding failed, commonly a CORS refusal from a host that never expected
+this") and it is confirmed as the actual one: wavesurfer.js's own `fetcher.js` calls a plain
+`fetch(url, requestInit)` to read a track's raw bytes for decoding, and a `fetch()` reading a
+cross-origin response body needs the same `Access-Control-Allow-Origin` header a member's
+photo host was just found not to send. This is the same limitation as the WebGL hero's photos,
+for the same underlying reason, on a different resource.
+
+**Read `@capacitor/android`'s own native-bridge.js rather than assume the two are identical**:
+`CapacitorHttp: { enabled: true }` overrides `window.fetch` itself on Android, routing a GET
+through a native proxy path (`CapacitorWebFetch`) that is not subject to CORS. wavesurfer's
+fetch is a plain `fetch()` call, which that override catches like any other; the WebGL hero's
+`new Image()` texture loads do not go through `fetch()` at all, so they get no such benefit
+and stay CORS-limited even natively (see the WebGL entries above). The two features that looked
+like the same problem in the browser are not necessarily the same problem on the device: the
+waveform has a real chance of actually drawing for a real track on the APK, unencoded by
+anything short of the target site itself blocking the request outright (rate limiting,
+hotlink protection, being offline), where the WebGL hero does not. Worth confirming on the
+next device pass specifically, not assumed from the browser result.
+
+## 2026-09-23: Live reload, and a latent manifest merge bug it happened to surface
+
+Rebuilding and reinstalling an APK for every change tests the wrong thing most of the time:
+nearly everything in this app is a web change, and Capacitor supports pointing an installed
+shell at a running dev server instead of its own bundled files. Added as `CAP_LIVE_RELOAD_URL`,
+read only by `capacitor.config.ts`, never set by `android:apk` or `android:install`, which
+every device testing round before this one used and which a real build must keep using
+untouched. `docs/android-testing.md` has the workflow.
+
+This needs the WebView's own origin to become a plain `http://` dev server, which
+`network_security_config.xml`'s `cleartextTrafficPermitted="false"` (a deliberate, hardened,
+platform-enforced choice recorded when it was written, see `docs/security.md`) refuses
+outright regardless of what Capacitor's own `server.cleartext` option says. Rather than loosen
+that file, `android/app/src/debug/res/xml/network_security_config.xml` overrides it for debug
+builds only, which is what Android's own build variant system is for: a release build has no
+`src/release` equivalent and stays exactly as hardened as it already was.
+
+**Building the debug variant with that new file present failed outright**, on a manifest merge
+conflict that had nothing to do with live reload: `capacitor-cordova-android-plugins`, a module
+Capacitor bundles rather than something this app added, declares its own
+`usesCleartextTraffic="true"`, conflicting with this app's own `"false"`. Gradle's merger
+treats a genuine value conflict as a hard failure rather than picking one silently, which is
+the correct behavior; what is notable is that this had apparently never actually run since the
+very first build, since Gradle caches a manifest merge result and nothing had invalidated it
+since. **This was a real, pre-existing fragility a genuinely clean build, or CI without a warm
+cache, would always have hit**, discovered only because a new resource file happened to
+invalidate the cache. Fixed with `tools:replace="android:usesCleartextTraffic"` on the
+`<application>` element, which tells the merger explicitly that this app's own value always
+wins; the real enforcement was already the network security config, never this attribute, so
+nothing about the app's actual hardening changed.
