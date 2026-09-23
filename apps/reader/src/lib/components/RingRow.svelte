@@ -23,7 +23,7 @@
 
 <button
 	class="trk"
-	onclick={() => player.play(queue, index)}
+	onclick={(event) => player.play(queue, index, event.currentTarget as HTMLElement)}
 	aria-label={`Play ${track.label} by ${entry.creator}`}
 >
 	<span

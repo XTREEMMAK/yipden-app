@@ -56,6 +56,11 @@ Every notable change to YipDen, newest first. The format follows
   slides over them, driven by `animation-timeline: view()` where it exists and a
   `requestAnimationFrame` fallback with the same geometry where it does not. Only the front
   card takes taps. Disabled under reduced motion, which keeps the flat, staggered list.
+- The card-to-player shared element morph: opening a listen yip carries its card's art and
+  title into the full screen player through a real `document.startViewTransition`, with the
+  player's gradient, header and body fading and rising in only once the art has landed. Falls
+  back to the plain slide up wherever the browser lacks view transition support, the reader has
+  asked for reduced motion, or the card has nothing to morph from.
 
 ## [0.0.1] - 2026-09-22
 

@@ -34,13 +34,13 @@
 	 * yip still gets the play icon, matching a video's own affordance, but this app does not
 	 * play video: it opens the creator's page the same as a post does.
 	 */
-	function open() {
+	function open(event: MouseEvent) {
 		void today.markRead(yip.key);
 		if (yip.category === 'listen') {
 			const queue = buildListenQueue(today.panes.listen, ring.all);
 			const index = queue.findIndex((item) => item.id === yip.key);
 			if (index !== -1) {
-				player.play(queue, index);
+				player.play(queue, index, event.currentTarget as HTMLElement);
 				return;
 			}
 		}

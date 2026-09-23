@@ -321,16 +321,41 @@ anything was loaded, with no check for whether the full player was also open, so
 in the DOM simultaneously (confirmed by Playwright's strict mode catching two elements both
 labeled "Pause"). The mini player now also checks `sheet === 'mini'`.
 
-## 2026-09-23: The card-to-player shared element morph is deferred
+## 2026-09-23: The card-to-player shared element morph shipped, and needed a Vitest fix to test
 
 The brief describes opening a yip into the player as a shared `view-transition-name` morph from
-the card's own image and title. This app's version opens the player with a plain slide up
-instead, the documented fallback the brief itself allows "where the View Transitions API isn't
-available." Building the full morph correctly, coordinating names across every card type and
-the player, plus the scrim and header fade timing the brief specifies, is real additional work
-on top of an already large milestone, and the plain slide already carries the same information
-using the same shared duration and easing. Recorded here as an open, disclosed item, not a
-silent cut, the same treatment as the 3D card stack in Today.
+the card's own image and title, with the player's gradient, header and body fading and rising
+in only once the art has landed. The first pass shipped a plain slide up instead, the
+documented fallback the brief itself allows "where the View Transitions API isn't available,"
+recorded as an open, disclosed item rather than a silent cut, the same treatment as the 3D card
+stack in Today.
+
+**The morph itself now exists.** `player.play()` takes an optional third argument, the DOM
+element that was tapped; `PlayerState.morphOpen()` in `src/lib/player.svelte.ts` reads that
+element's `.art` and `.ttl`, names them `yip-art` and `yip-title` just before
+`document.startViewTransition()` starts, then inside its callback clears those names, flushes
+the queue and sheet state change with Svelte 5's `flushSync` so the player exists in the "after"
+snapshot, and names its own `.pl-art`, `.pl-title`, `.pl-shade`, `.pl-top` and `.pl-body` to
+match. `yip-art` and `yip-title` are shared with the card, so the browser morphs one into the
+other; the rest are unique to the player, so `app.css` only fades and rises them in, delayed by
+`--dur-l` so nothing pops in behind the gradient, matching the reference prototype's own
+`openPlayer()` down to the two keyframe names. `YipCard.svelte` and `RingRow.svelte` both pass
+their own clicked element through; every other call site is unaffected, since the argument is
+optional and its absence, no browser support, or a card with no `.art` all fall back to the
+plain open `play()` already had.
+
+Building this exposed a real gap in how this project's own tests run: Vite resolves the
+`svelte` package through its `default` export condition unless something asks for `browser`
+explicitly, and that `default` condition is the **server** build, where `flushSync` is aliased
+straight to a no-op. Every assertion in a first draft of `morphOpen()`'s tests that depended on
+`flushSync` actually having run silently failed, not because the production code was wrong, but
+because the test environment was running the wrong build of Svelte entirely, one that Vitest
+happened to reach only because nothing had ever called `flushSync` before. `apps/reader/vite.config.ts`
+now sets `resolve.conditions: ['browser']` under `process.env.VITEST`, so tests exercise the
+same client build the browser gets. `src/app.d.ts`'s old custom ambient declaration for
+`Document.startViewTransition`, written before this TypeScript version shipped the real DOM
+type, was deleted once it started fighting that real type on assignment rather than the plain
+calls it was written for.
 
 ## 2026-09-23: Two seeking bugs, both found only because a real audio file was used in tests
 

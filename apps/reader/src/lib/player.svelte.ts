@@ -1,3 +1,5 @@
+import { flushSync } from 'svelte';
+import { prefersReducedMotion } from './motion.js';
 import { store, type PeaksRecord } from './store/index.js';
 
 /**
@@ -26,6 +28,20 @@ export const RATES = [1, 1.25, 1.5, 2] as const;
 
 /** Peaks past this age are worth recomputing: a re-encoded file could change without an ETag. */
 const PEAKS_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+
+/**
+ * The full screen player's own elements, matched to the view-transition-name each one carries
+ * during the card-to-player morph. `yip-art` and `yip-title` are shared with the tapped card, so
+ * the browser morphs one into the other; the rest are unique to the player, so they simply fade
+ * or rise in on their own.
+ */
+const PLAYER_MORPH_TARGETS: readonly [selector: string, name: string][] = [
+	['.pl-art', 'yip-art'],
+	['.pl-title', 'yip-title'],
+	['.pl-shade', 'pl-shade'],
+	['.pl-top', 'pl-top'],
+	['.pl-body', 'pl-body']
+];
 
 /**
  * Some environments return `undefined` from `HTMLMediaElement.play()` instead of a rejectable
@@ -98,10 +114,79 @@ class PlayerState {
 		return this._audio;
 	}
 
-	/** Replace the queue and start playing at `startIndex`. */
-	play(queue: QueueItem[], startIndex: number): void {
+	/**
+	 * Replace the queue and start playing at `startIndex`.
+	 *
+	 * `fromEl` is the card or row that was tapped, if any. When the player is not already open,
+	 * the browser supports view transitions and the reader has not asked for reduced motion,
+	 * its `.art` and `.ttl` morph into the full screen player rather than the sheet simply
+	 * sliding up over them.
+	 */
+	play(queue: QueueItem[], startIndex: number, fromEl?: HTMLElement): void {
+		const opening = this.sheet !== 'full';
+		if (opening && fromEl && !prefersReducedMotion() && typeof document !== 'undefined') {
+			this.morphOpen(queue, startIndex, fromEl);
+			return;
+		}
 		this.queue = queue;
 		this.load(startIndex);
+	}
+
+	/**
+	 * The shared element morph: the tapped card's art and title carry a `view-transition-name`
+	 * into the transition's "before" snapshot, the state change is flushed synchronously so the
+	 * player exists in its "after" snapshot, and the player's own art and title pick up those
+	 * same two names so the browser interpolates position and size between them. The gradient,
+	 * header and body get their own names purely so they fade and rise in on a delay, defined in
+	 * app.css, rather than popping in the instant the art lands.
+	 *
+	 * Falls back to a plain open, no different from `play()` without a source element, wherever
+	 * the browser lacks `startViewTransition` or the card has no `.art` to morph from.
+	 */
+	private morphOpen(queue: QueueItem[], startIndex: number, fromEl: HTMLElement): void {
+		if (!document.startViewTransition) {
+			this.queue = queue;
+			this.load(startIndex);
+			return;
+		}
+
+		const artEl = fromEl.querySelector<HTMLElement>('.art');
+		const ttlEl = fromEl.querySelector<HTMLElement>('.ttl');
+		if (!artEl) {
+			this.queue = queue;
+			this.load(startIndex);
+			return;
+		}
+
+		artEl.style.viewTransitionName = 'yip-art';
+		if (ttlEl) ttlEl.style.viewTransitionName = 'yip-title';
+
+		const morphed: HTMLElement[] = [];
+		const transition = document.startViewTransition(() => {
+			artEl.style.viewTransitionName = '';
+			if (ttlEl) ttlEl.style.viewTransitionName = '';
+
+			flushSync(() => {
+				this.queue = queue;
+				this.load(startIndex);
+			});
+
+			const section = document.querySelector<HTMLElement>('.player');
+			for (const [selector, name] of PLAYER_MORPH_TARGETS) {
+				const el = section?.querySelector<HTMLElement>(selector);
+				if (!el) continue;
+				el.style.viewTransitionName = name;
+				morphed.push(el);
+			}
+		});
+
+		transition.finished
+			.finally(() => {
+				for (const el of morphed) el.style.viewTransitionName = '';
+			})
+			.catch(() => {
+				// A skipped or interrupted transition. The names are still cleared above.
+			});
 	}
 
 	private load(index: number): void {

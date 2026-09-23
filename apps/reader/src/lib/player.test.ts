@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { formatTime, player, RATES, type QueueItem } from './player.svelte.js';
 import { store } from './store/index.js';
@@ -112,6 +112,153 @@ describe('the sheet', () => {
 	it('does not expand with nothing loaded', () => {
 		player.expand();
 		expect(player.sheet).toBe('hidden');
+	});
+});
+
+describe('the card to player morph', () => {
+	function card(withArt = true): HTMLElement {
+		const el = document.createElement('button');
+		if (withArt) el.appendChild(tag('art'));
+		el.appendChild(tag('ttl'));
+		document.body.appendChild(el);
+		return el;
+	}
+
+	function tag(className: string): HTMLElement {
+		const el = document.createElement('span');
+		el.className = className;
+		return el;
+	}
+
+	/** The full screen player's own morph targets, exactly as `.player` in Player.svelte lays them out. */
+	function mountPlayerSection(): Record<'art' | 'title' | 'shade' | 'top' | 'body', HTMLElement> {
+		const section = document.createElement('section');
+		section.className = 'player';
+		const els = {
+			art: tag('pl-art'),
+			title: tag('pl-title'),
+			shade: tag('pl-shade'),
+			top: tag('pl-top'),
+			body: tag('pl-body')
+		};
+		for (const el of Object.values(els)) section.appendChild(el);
+		document.body.appendChild(section);
+		return els;
+	}
+
+	/** The bits of a real `ViewTransition` this suite cares about; `types`/`skipTransition` unused. */
+	function fakeTransition(finished: Promise<void>) {
+		return {
+			finished,
+			ready: Promise.resolve(),
+			updateCallbackDone: Promise.resolve(),
+			types: new Set(),
+			skipTransition: () => {}
+		} as unknown as ViewTransition;
+	}
+
+	/** A `startViewTransition` stub that runs its callback synchronously, like the real thing. */
+	function stubViewTransition() {
+		let resolveFinished!: () => void;
+		const finished = new Promise<void>((resolve) => {
+			resolveFinished = resolve;
+		});
+		const spy = vi.fn((callback: () => void) => {
+			callback();
+			return fakeTransition(finished);
+		});
+		document.startViewTransition = spy as unknown as typeof document.startViewTransition;
+		return { spy, resolveFinished };
+	}
+
+	afterEach(() => {
+		// jsdom has no real `startViewTransition`; this just undoes what each test stubbed in.
+		document.startViewTransition = undefined as unknown as typeof document.startViewTransition;
+		document.body.innerHTML = '';
+	});
+
+	it('opens the sheet the plain way when no source element is given', () => {
+		player.play([item()], 0);
+		expect(player.sheet).toBe('full');
+		expect(player.current?.id).toBe('a');
+	});
+
+	it('opens the sheet the plain way when the browser has no view transition support', () => {
+		const source = card();
+		player.play([item()], 0, source);
+		expect(player.sheet).toBe('full');
+		expect(player.current?.id).toBe('a');
+	});
+
+	it('starts a view transition when the browser supports one and a source element is given', () => {
+		const { spy } = stubViewTransition();
+		const source = card();
+		player.play([item()], 0, source);
+		expect(spy).toHaveBeenCalledOnce();
+		expect(player.sheet).toBe('full');
+	});
+
+	it('names the source art and title only for the moment the transition is captured', () => {
+		let nameAtCapture = '';
+		const source = card();
+		document.startViewTransition = vi.fn((callback: () => void) => {
+			nameAtCapture = source.querySelector<HTMLElement>('.art')!.style.viewTransitionName;
+			callback();
+			return fakeTransition(Promise.resolve());
+		}) as unknown as typeof document.startViewTransition;
+
+		player.play([item()], 0, source);
+
+		expect(nameAtCapture).toBe('yip-art');
+		expect(source.querySelector<HTMLElement>('.art')!.style.viewTransitionName).toBe('');
+		expect(source.querySelector<HTMLElement>('.ttl')!.style.viewTransitionName).toBe('');
+	});
+
+	it('hands the player its own elements the shared and its own transition names', () => {
+		stubViewTransition();
+		const source = card();
+		const target = mountPlayerSection();
+
+		player.play([item()], 0, source);
+
+		expect(target.art.style.viewTransitionName).toBe('yip-art');
+		expect(target.title.style.viewTransitionName).toBe('yip-title');
+		expect(target.shade.style.viewTransitionName).toBe('pl-shade');
+		expect(target.top.style.viewTransitionName).toBe('pl-top');
+		expect(target.body.style.viewTransitionName).toBe('pl-body');
+	});
+
+	it('clears the player elements transition names once the transition finishes', async () => {
+		const { resolveFinished } = stubViewTransition();
+		const source = card();
+		const target = mountPlayerSection();
+
+		player.play([item()], 0, source);
+		resolveFinished();
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(target.art.style.viewTransitionName).toBe('');
+		expect(target.title.style.viewTransitionName).toBe('');
+	});
+
+	it('skips the transition when the source element has no art to morph', () => {
+		const { spy } = stubViewTransition();
+		const source = card(false);
+
+		player.play([item()], 0, source);
+
+		expect(spy).not.toHaveBeenCalled();
+		expect(player.current?.id).toBe('a');
+	});
+
+	it('does not start a second transition while the sheet is already open', () => {
+		const { spy } = stubViewTransition();
+		player.play([item({ id: 'a' })], 0, card());
+		player.play([item({ id: 'b' })], 0, card());
+
+		expect(spy).toHaveBeenCalledOnce();
+		expect(player.current?.id).toBe('b');
 	});
 });
 

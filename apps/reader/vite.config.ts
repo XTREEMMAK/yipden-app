@@ -9,6 +9,10 @@ export default defineConfig({
 		port: 5173,
 		strictPort: false
 	},
+	// Without this, Vitest resolves `svelte` through its server export condition, which is meant
+	// for SSR and silently no-ops client-only APIs such as `flushSync`. The reader is a client
+	// app; its tests should run against the same client build the browser gets.
+	...(process.env.VITEST ? { resolve: { conditions: ['browser'] } } : {}),
 	test: {
 		include: ['src/**/*.test.ts'],
 		environment: 'jsdom',

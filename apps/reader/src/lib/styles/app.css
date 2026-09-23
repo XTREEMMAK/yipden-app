@@ -210,3 +210,54 @@ button {
 		transform: translateX(-100%);
 	}
 }
+
+/* ---------- player morph: a tapped card's art and title become the full screen player's ---------- */
+
+/*
+ * `yip-art` and `yip-title` are shared with the card, so the browser interpolates position and
+ * size between the two rather than crossfading them. `::view-transition-group(*)` above already
+ * covers duration and easing for every named group here, so this only adds what differs: the
+ * art's snapshot clipped to its own bounds while it resizes, and the player's gradient, header
+ * and body fading and rising in only once the art has landed, so nothing pops in behind it.
+ */
+@media not (prefers-reduced-motion: reduce) {
+	::view-transition-group(yip-art) {
+		overflow: hidden;
+	}
+
+	::view-transition-old(yip-art),
+	::view-transition-new(yip-art) {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	::view-transition-new(pl-shade),
+	::view-transition-new(pl-top) {
+		animation: vt-fade var(--dur-m) var(--ease) var(--dur-l) both;
+	}
+
+	::view-transition-new(pl-body) {
+		animation: vt-rise var(--dur-m) var(--ease) var(--dur-l) both;
+	}
+}
+
+@keyframes vt-fade {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes vt-rise {
+	from {
+		opacity: 0;
+		transform: translateY(18px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
