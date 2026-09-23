@@ -609,3 +609,31 @@ is not something within this app's control. If the WebGL hero seeing regular rea
 matters enough later, the fix would live on the ring side (serving `thumb_url` through
 IndieNodes' own CORS-friendly infrastructure rather than a direct link to each member's site),
 not here.
+
+## 2026-09-23: The top-of-scroll jump, found: a normal-flow sibling, not scroll physics at all
+
+The earlier "not reproduced" entry above chased the wrong signal. Both attempts to catch this
+watched `scrollTop` through a real touch drag, and `scrollTop` was never the problem: the pull
+to refresh indicator, `{#if pulling || pullY > 0}<div class="pull">…`, was a normal flex
+sibling between the header and `.viewport`. `pulling` turns true on `pointerdown` alone, at
+zero drag distance, whenever the pane is already at the top, which means the indicator's own
+~34px of height was inserted into the layout the instant a reader so much as pressed down to
+start scrolling, pushing every card down by that much, then removed again on release when the
+gesture turned out to be an ordinary scroll rather than a pull. Nothing about `scrollTop`
+changes when a sibling element's own presence pushes the pane's content down; only the cards'
+own rendered position does, which is exactly the measurement neither earlier attempt took.
+
+Found this time with a plain `pointerdown` and no movement at all, dispatched directly rather
+than simulated through CDP touch input, reading `getBoundingClientRect()` on the first card
+before, during, and after: it moved down about 41px on press and back up on release, with the
+drag distance held at exactly zero throughout. **Fixed by taking the indicator out of the flex
+flow entirely**: `.pull` is now `position: absolute` inside `.viewport`, overlaying the top of
+the list rather than sitting beside it, so its own mount and unmount can never move anything
+else. A new test in `feeds.spec.ts` asserts the first card's own `y` position is unchanged
+across a `pointerdown`/`pointerup` pair with no movement between them; confirmed against the
+pre-fix code that it actually fails there (a ~41px jump), not just that it passes now.
+
+The lesson worth keeping: a report described as a "scroll jump" does not necessarily mean the
+bug is in scroll handling. Chasing `scrollTop` twice, correctly, and cleanly both times, said
+nothing about a sibling element's own layout impact, since it is a completely different
+mechanism that happens to produce a similar-looking visual symptom.

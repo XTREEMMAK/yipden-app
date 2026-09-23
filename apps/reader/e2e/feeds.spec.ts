@@ -68,6 +68,31 @@ test.describe('Feeds', () => {
 		await expect(everything.getByText('A short film')).toBeVisible();
 	});
 
+	test('pressing down at the top of the list does not shift the cards', async ({ page }) => {
+		/*
+		 * The pull to refresh indicator used to be a normal flex sibling of .viewport, so the
+		 * instant a pointer went down at the top of the scroll (pulling turning true, before any
+		 * actual drag distance) its own height pushed every card down and then back up on
+		 * release. A drag-distance-based check would miss this entirely, since scrollTop never
+		 * moves; only the cards' own rendered position does.
+		 */
+		await seed(page);
+		await page.goto('/feeds');
+		const firstCard = page
+			.locator('#pane-everything')
+			.getByRole('button', { name: /A plain post/ });
+		await expect(firstCard).toBeVisible({ timeout: 10_000 });
+
+		const before = await firstCard.boundingBox();
+		await firstCard.dispatchEvent('pointerdown', { pointerId: 1, clientY: before!.y + 10 });
+		const during = await firstCard.boundingBox();
+		await firstCard.dispatchEvent('pointerup', { pointerId: 1 });
+		const after = await firstCard.boundingBox();
+
+		expect(during?.y).toBe(before?.y);
+		expect(after?.y).toBe(before?.y);
+	});
+
 	test('the headline counts unread yips and people', async ({ page }) => {
 		await seed(page);
 		await page.goto('/feeds');

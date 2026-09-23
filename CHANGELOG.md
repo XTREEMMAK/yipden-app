@@ -94,6 +94,14 @@ Every notable change to YipDen, newest first. The format follows
 - A listen card's `content-visibility: auto` placeholder assumed 200px, its media card height,
   rather than its own real 172px, which could throw off a long Listen pane's measured
   `scrollHeight` while cards below the fold had not actually been rendered yet.
+- Feeds' pull to refresh indicator was a normal flex sibling of the card list, so pressing down
+  at the top of the scroll (before any actual drag) inserted its own height into the layout,
+  pushing every card down and then back up on release. It is now an absolutely positioned
+  overlay, which cannot move anything else. See DECISIONS.md.
+- The WebGL hero kept retrying a photo host that had already failed, once per navigation, so a
+  session where the first photo failed (the common case for a personal site with no CORS
+  headers) looked like the hero was doing nothing rather than falling back. It now gives up
+  for the rest of the session after the first failure. See DECISIONS.md.
 
 ### Changed
 

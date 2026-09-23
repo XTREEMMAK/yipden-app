@@ -157,12 +157,6 @@
 		</div>
 	</header>
 
-	{#if pulling || pullY > 0}
-		<div class="pull" style:opacity={Math.min(1, pullY / PULL_THRESHOLD)} aria-hidden="true">
-			<span class="spinner" class:ready={pullY >= PULL_THRESHOLD}></span>
-		</div>
-	{/if}
-
 	<div
 		class="viewport"
 		bind:this={viewport}
@@ -174,6 +168,12 @@
 			onEnd: ({ commit, direction }) => onFilterSwipeEnd(commit, direction)
 		}}
 	>
+		{#if pulling || pullY > 0}
+			<div class="pull" style:opacity={Math.min(1, pullY / PULL_THRESHOLD)} aria-hidden="true">
+				<span class="spinner" class:ready={pullY >= PULL_THRESHOLD}></span>
+			</div>
+		{/if}
+
 		<div
 			class="track"
 			style:transform={`translateX(calc(${-filterIndex * 100}% + ${dragX}px))`}
@@ -309,10 +309,22 @@
 		color: #fff;
 	}
 
+	/*
+	 * Absolutely positioned over the pane's own top edge, not a normal-flow sibling: it used to
+	 * sit between the header and .viewport, so the instant a pointer went down at the top of
+	 * the scroll (pulling turning true, before any actual drag distance) its own height pushed
+	 * every card down and then back up again on release. An overlay never moves anything else.
+	 */
 	.pull {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		z-index: 1;
 		display: flex;
 		justify-content: center;
 		padding: 6px 0;
+		pointer-events: none;
 		transition: opacity var(--dur-s) var(--ease);
 	}
 
@@ -330,6 +342,7 @@
 	}
 
 	.viewport {
+		position: relative;
 		flex: 1;
 		min-height: 0;
 		overflow: hidden;
