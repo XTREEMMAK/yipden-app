@@ -419,6 +419,18 @@
 		contain-intrinsic-size: auto 200px;
 	}
 
+	/*
+	 * A listen card is 172px, not 200px (see YipCard.svelte's own `.yip.media.listen`). The
+	 * Listen pane is nothing but listen cards, so that 28px overestimate compounds across every
+	 * one of them into a `scrollHeight` the browser gets meaningfully wrong for any card that
+	 * has not actually been rendered yet, which is exactly what content-visibility defers. That
+	 * wrong total is what made "From the ring," below the last card, feel unreachable or stuck:
+	 * the pane's real scrollable area was smaller than its content actually needed.
+	 */
+	:global(.pane.stack .yip.listen) {
+		contain-intrinsic-size: auto 172px;
+	}
+
 	:global(.pane.stack .yip.behind) {
 		pointer-events: none;
 	}

@@ -60,7 +60,13 @@
 	 * all quietly sat behind the real nav bar on exactly that kind of phone.
 	 */
 	--dock: calc(88px + env(safe-area-inset-bottom, 0px));
-	--tabbar-h: 84px;
+	/*
+	 * 72px, not the prototype's 84px: real device testing found the bar took up more of the
+	 * screen than it needed to. `--dock` is left as it was rather than shrunk to match, so the
+	 * smaller bar opens up a real gap above it instead of every scroll area and the mini player
+	 * creeping down to meet it.
+	 */
+	--tabbar-h: 72px;
 	--mini-h: 64px;
 	--gutter: 16px;
 

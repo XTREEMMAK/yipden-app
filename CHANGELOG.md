@@ -82,6 +82,21 @@ Every notable change to YipDen, newest first. The format follows
   with a tall gesture navigation inset (found on a Galaxy S23 Ultra), this hid Discover's
   filter chips, the mini player, and the bottom of any scrolled-down list behind the real
   system bar despite scrolling having reached its actual end.
+- The hardware back button fix above did not actually fire on the device: it overrode the
+  deprecated `Activity.onBackPressed()`, which Android's predictive back gesture, on by default
+  at this app's `targetSdkVersion`, does not reliably dispatch through. It now registers an
+  `OnBackPressedCallback` with `OnBackPressedDispatcher` instead, the currently supported path.
+- A listen card's `content-visibility: auto` placeholder assumed 200px, its media card height,
+  rather than its own real 172px, which could throw off a long Listen pane's measured
+  `scrollHeight` while cards below the fold had not actually been rendered yet.
+
+### Changed
+
+- The tab bar is 72px tall, down from the prototype's 84px, which real use found took up more
+  of the screen than four tabs need.
+- The mini player can now be stopped and dismissed outright, not only collapsed or paused:
+  a new close button pauses playback, hides the mini player, and clears the lock screen and
+  notification widget rather than leaving it paused.
 
 ## [0.0.1] - 2026-09-22
 

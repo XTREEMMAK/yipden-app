@@ -118,6 +118,24 @@ test.describe('The player', () => {
 		await expect(page.getByRole('button', { name: 'Open the player' })).toContainText('Low Tide');
 	});
 
+	test('the mini player stop button pauses and dismisses it entirely', async ({ page }) => {
+		await seed(page);
+		await page
+			.locator('#pane-everything')
+			.getByRole('button', { name: /Low Tide/ })
+			.click();
+		await expect(page.getByLabel('Pause', { exact: true })).toBeVisible();
+		await page.getByRole('button', { name: 'Collapse the player' }).click();
+		await expect(page.getByRole('button', { name: 'Open the player' })).toBeVisible();
+
+		await page.getByRole('button', { name: 'Stop and close the player' }).click();
+
+		// The full and mini player both stay mounted once something has played (see
+		// DECISIONS.md), so this checks visibility rather than absence from the DOM.
+		await expect(page.getByRole('button', { name: 'Open the player' })).toHaveCount(0);
+		await expect(page.getByLabel('Pause', { exact: true })).not.toBeVisible();
+	});
+
 	test('the mini player opens the full player again', async ({ page }) => {
 		await seed(page);
 		await page
@@ -269,6 +287,13 @@ test.describe('The player', () => {
 			'Pause',
 			'Forward 30 seconds'
 		]) {
+			const box = await page.getByRole('button', { name }).boundingBox();
+			expect(box?.width ?? 0, name).toBeGreaterThanOrEqual(44);
+			expect(box?.height ?? 0, name).toBeGreaterThanOrEqual(44);
+		}
+
+		await page.getByRole('button', { name: 'Collapse the player' }).click();
+		for (const name of ['Open the player', 'Pause', 'Stop and close the player']) {
 			const box = await page.getByRole('button', { name }).boundingBox();
 			expect(box?.width ?? 0, name).toBeGreaterThanOrEqual(44);
 			expect(box?.height ?? 0, name).toBeGreaterThanOrEqual(44);

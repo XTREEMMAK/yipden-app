@@ -445,12 +445,22 @@ The brief does not mention the Android back button at all. `BridgeActivity`'s pl
 is to exit the app on the first press, discovered by on-device testing: with four real routes
 behind Discover, Today, Follow and You, that read as broken rather than merely unspecified.
 
-**`MainActivity.java` now overrides `onBackPressed()`** to defer to the WebView's own
-`canGoBack()` / `goBack()` before falling through to the platform default. This needed no new
-dependency: SvelteKit's router uses the History API for its client-side navigation, which the
-WebView already tracks, so `goBack()` correctly replays it. This fixes exactly the reported
-bug, tab to tab and into any pushed route, with a plain native change confined to a file
-already part of the generated Android project.
+**`MainActivity.java` defers to the WebView's own `canGoBack()` / `goBack()`** before falling
+through to the platform default. This needed no new dependency: SvelteKit's router uses the
+History API for its client-side navigation, which the WebView already tracks, so `goBack()`
+correctly replays it.
+
+The first version of this fix overrode the classic `Activity.onBackPressed()`, which read as
+correct from the Capacitor source and compiled cleanly, but real device testing found it never
+fired at all: the app's `targetSdkVersion` is 36, and Android opts an app into the predictive
+back gesture by default from API 33 onward unless a manifest flag turns it off, which this
+app's does not. Under that model the system dispatches through
+`OnBackPressedDispatcher`/`OnBackInvokedCallback`, not the deprecated method, on both the
+gesture and (on the devices that still have one) the physical button. `MainActivity` now
+registers an `OnBackPressedCallback` with `getOnBackPressedDispatcher()` instead, which is the
+officially current mechanism this migration is documented under. Recorded here because reading
+the Capacitor source correctly was not enough on its own to predict which back API path a high
+`targetSdkVersion` actually dispatches through; only the device could.
 
 **What it does not do**: collapse the full screen player, or cancel an inline confirm (You's
 Unfollow row, for instance) before falling through to route history or exiting. Neither of
@@ -460,3 +470,45 @@ them means intercepting the back button in JavaScript, which needs `@capacitor/a
 Left as a known, disclosed gap rather than bundled into this fix without asking; worth doing
 if collapsing the player on back turns out to matter as much on a real device as it reads on
 paper.
+
+## 2026-09-23: The tab bar shrank from the prototype's 84px, and the mini player can now be dismissed
+
+Two product calls made from real device use, not bugs: the prototype's `--tabbar-h: 84px` is
+authoritative for the visual design, but on a real phone it read as more chrome than four tabs
+need, so it is 72px now. The mini player's own position was untouched (still the brief's
+92px from the bottom), which had the side effect of fixing a second, related complaint for
+free: with a taller tab bar the mini player sat flush against it with no visible gap; a
+shorter bar opens a real one.
+
+**The mini player also gained a stop button.** Nothing in the brief's mini player description
+(art, title, creator, play/pause, a progress hairline) includes a way to end playback outright
+rather than collapse or pause it, and real use found the gap: pausing leaves the bar (and, now,
+the lock screen widget) sitting there with nothing to dismiss it except playing something else.
+`PlayerState.stop()` pauses, sets `sheet` to `'hidden'`, and tells the media session plugin
+`playbackState: 'none'` directly rather than `'paused'`, since the intent is closing the
+session's own widget, not leaving it paused for a lock screen resume.
+
+## 2026-09-23: Two reported scroll bugs did not reproduce in the browser with realistic input
+
+Real device testing reported the hardware back button still exiting immediately (see above,
+genuinely broken, now fixed), a brief downward jump the instant a scroll starts at the very top
+of Today, and "From the ring" feeling stuck or jumping to the top when scrolled into. The first
+of the remaining two was chased with a real Chromium touch drag through the CDP input pipeline
+(not a synthetic DOM event, which does not exercise a browser's actual scroll gesture
+recognition) landing on a perfectly monotonic `scrollTop` sequence, no jump. The second was
+chased by scrolling to the pane's true end and reading `getBoundingClientRect()` on the heading
+and the row list beneath it (immune to the `offsetTop`/offsetParent mistake an earlier pass in
+this same session made and had to redo): every row sat fully inside the viewport with room to
+spare, not stuck or clipped.
+
+Both are recorded as **not reproduced in a desktop browser with realistic input**, not as
+fixed. A contributing but unconfirmed cause was still worth addressing along the way:
+`content-visibility: auto`'s `contain-intrinsic-size` for a card was a flat 200px even for a
+172px listen card (see `YipCard.svelte`'s own `.yip.media.listen`), and the Listen pane, where
+"From the ring" lives, is nothing but listen cards; that mismatch is fixed regardless of
+whether it was the reported bug's cause. `MainActivity` also now sets the WebView's
+`overScrollMode` to `OVER_SCROLL_NEVER`, addressing a native Android edge glow effect that CSS
+`overscroll-behavior` does not reach and that a browser test cannot exercise at all. If either
+bug survives the next device pass with these in place, it needs `chrome://inspect` against the
+real device rather than more guessing from here, the same tool `docs/android-testing.md`
+already documents for exactly this class of problem.

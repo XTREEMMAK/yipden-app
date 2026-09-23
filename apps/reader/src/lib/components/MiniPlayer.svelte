@@ -61,6 +61,11 @@
 				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
 			{/if}
 		</button>
+		<button class="mini-close" onclick={() => player.stop()} aria-label="Stop and close the player">
+			<svg viewBox="0 0 24 24" aria-hidden="true">
+				<path d="M6 6l12 12M18 6L6 18" />
+			</svg>
+		</button>
 	</div>
 {/if}
 
@@ -163,6 +168,28 @@
 		width: 20px;
 		height: 20px;
 		fill: currentColor;
+	}
+
+	.mini-close {
+		flex: 0 0 auto;
+		display: grid;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		border: 0;
+		border-radius: 50%;
+		background: none;
+		color: var(--muted);
+		padding: 0;
+	}
+
+	.mini-close svg {
+		width: 18px;
+		height: 18px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
 	}
 
 	/* The slow pulse while playing: two staggered rings, only when motion is not reduced. */

@@ -281,6 +281,13 @@ class PlayerState {
 		if (this.current) this.sheet = 'full';
 	}
 
+	/** Stops playback outright and dismisses the mini player, unlike `collapse`, which keeps it. */
+	stop(): void {
+		this.audio.pause();
+		this.sheet = 'hidden';
+		void MediaSession.setPlaybackState({ playbackState: 'none' }).catch(() => {});
+	}
+
 	/**
 	 * The cached peaks for a track, keyed by its media URL and, when the server sent one, its
 	 * ETag. Two different recordings landing at the same URL with no ETag to tell them apart is
@@ -356,6 +363,7 @@ class PlayerState {
 		bind('seekforward', () => this.skip(30));
 		bind('previoustrack', () => this.back());
 		bind('nexttrack', () => this.advance());
+		bind('stop', () => this.stop());
 	}
 }
 
