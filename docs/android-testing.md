@@ -145,10 +145,18 @@ the same URL. No further `cap sync`, no further install, for as long as the app 
 
 ```bash
 cd apps/reader
-pnpm dev                                              # leave this running
+pnpm dev --host 0.0.0.0                               # leave this running; --host matters, see below
 CAP_LIVE_RELOAD_URL=http://<this-machine-ip>:5173 \
   pnpm android:live                                   # builds once, installs, done
 ```
+
+**`--host` is not optional here.** Plain `pnpm dev` binds Vite's dev server to `localhost`
+only, which answers `curl` or a browser running on this same machine perfectly well, and
+answers nothing at all from anywhere else, phone included. `--host 0.0.0.0` binds every
+network interface this machine has instead, which is what makes `<this-machine-ip>:5173`
+reachable from outside it in the first place. Without it, the app opens to a blank "page not
+available" WebView with nothing obviously wrong in Capacitor's own logs, since as far as
+Capacitor is concerned it asked for a URL like any other; the connection just never lands.
 
 Open the app on the phone; it is now showing whatever `pnpm dev` is serving, live. Use the
 phone's own reachable address for this machine, the same one wireless debugging already

@@ -690,3 +690,26 @@ invalidate the cache. Fixed with `tools:replace="android:usesCleartextTraffic"` 
 `<application>` element, which tells the merger explicitly that this app's own value always
 wins; the real enforcement was already the network security config, never this attribute, so
 nothing about the app's actual hardening changed.
+
+## 2026-09-23: Live reload's first real attempt failed on `pnpm dev`'s default bind address
+
+The docs written alongside live reload itself said `pnpm dev`, no flags, exactly the command
+the browser loop has always used. On the device it produced a plain "page not available," with
+nothing informative in Capacitor's own logs, since as far as the native shell knew it asked for
+a URL like any other and the connection simply never landed.
+
+**`vite dev` binds to `localhost` only unless told otherwise.** That answers a `curl` or a
+browser running on this same machine perfectly well, which is exactly why the dev server
+"worked" through the entire browser-loop testing that led up to this, and answers nothing at
+all from another host on the network, phone included, no matter how correct the address and
+port in `CAP_LIVE_RELOAD_URL` are. `docs/android-testing.md` now says `pnpm dev --host 0.0.0.0`
+for this specific loop, and explains why the flag matters rather than just adding it silently,
+since the same mistake is easy to repeat without that context. The browser loop itself needed
+no change: it was never reaching the dev server from outside this machine in the first place.
+
+A second, unrelated mistake compounded this while debugging it: two separate `pnpm dev`
+processes ended up running at once (one from an earlier session, one started fresh to check
+the theory), on two different ports, neither reachable from outside regardless. Killing a
+backgrounded `vite dev` by its shell wrapper's PID did not stop the actual Node process holding
+the port; the wrapper and the process it spawned needed killing separately. Worth remembering
+generally, not just for this one incident.
