@@ -82,7 +82,7 @@ bother refetching.
   order is `thumb_url`, then the first `pages[]` image, then the first `artworks[]` image, then
   a deterministic color wash generated from the entry id. One live member, `art-slime-pond`,
   has no `thumb_url` today, so this path is exercised rather than theoretical.
-- **`tracks[].media_url`** feeds the "From the ring" rows in Today's Listen filter.
+- **`tracks[].media_url`** feeds the "From the ring" rows in Feeds's Listen filter.
 - **Rotation order is the entries sorted by `id`**, not the order the document happens to
   arrive in, so every client agrees about who today's member is. See DECISIONS.md.
 

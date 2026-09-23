@@ -11,10 +11,10 @@ test.describe('the app shell', () => {
 
 	test('moves between tabs and marks the current one', async ({ page }) => {
 		await page.goto('/');
-		await page.getByRole('link', { name: 'Today' }).click();
+		await page.getByRole('link', { name: 'Feeds' }).click();
 
-		await expect(page).toHaveURL(/\/today/);
-		await expect(page.getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
+		await expect(page).toHaveURL(/\/feeds/);
+		await expect(page.getByRole('link', { name: 'Feeds' })).toHaveAttribute('aria-current', 'page');
 	});
 
 	test('every tab target meets the 44px minimum', async ({ page }) => {

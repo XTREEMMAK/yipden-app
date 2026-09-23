@@ -512,3 +512,24 @@ whether it was the reported bug's cause. `MainActivity` also now sets the WebVie
 bug survives the next device pass with these in place, it needs `chrome://inspect` against the
 real device rather than more guessing from here, the same tool `docs/android-testing.md`
 already documents for exactly this class of problem.
+
+## 2026-09-23: The Today tab is now Feeds
+
+Real use found "Today" a worse fit than the brief's own name suggested: the tab is not about
+one day, it is the merged, reverse chronological feed of everything followed. Renamed
+throughout rather than just in the tab label, since a partial rename (one visible string, an
+internal module and a route still called `today`) is the kind of drift that makes the next
+person's search for "where is this" fail. `src/routes/today/` is `src/routes/feeds/`,
+`today.svelte.ts` is `feeds.svelte.ts` (`TodayState`/`TODAY_FILTERS`/`TodayFilterKey` all
+renamed to match), the route is `/feeds`, and every UI string, comment and doc mentioning
+"Today" as the screen, not the calendar day, was found and changed; `ring.svelte.ts`'s own
+`today` (the node of the day) and every other genuinely calendar-related "today" elsewhere were
+deliberately left alone.
+
+**A rename is also a free audit of what the test suite actually covers.** Grepping for every
+occurrence of `/today` after the fact turned up one real miss the rename would otherwise have
+shipped broken: Follow's "See their yips in Today" button called `goto('/today')` directly,
+and no end to end test had ever clicked it, so nothing would have caught a rename that missed
+it. Fixed, and now covered by a new test in `follow.spec.ts`, a small concrete example of a
+larger point: a screen with no test exercising a specific control is a screen where a
+refactor can silently break that control and every check will still pass.

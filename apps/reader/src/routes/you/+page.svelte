@@ -45,7 +45,7 @@
 	async function confirmUnfollow(personId: string, name: string) {
 		confirmingId = null;
 		await you.unfollow(personId);
-		toast.show(`Unfollowed ${name}. Their yips are gone from Today.`);
+		toast.show(`Unfollowed ${name}. Their yips are gone from Feeds.`);
 	}
 
 	function exportFollows() {

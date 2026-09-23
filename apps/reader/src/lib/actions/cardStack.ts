@@ -1,7 +1,7 @@
 import { prefersReducedMotion } from '../motion.js';
 
 /**
- * Today's 3D card stack: cards stand up as they rise from the bottom of a pane, pin at the
+ * Feeds' 3D card stack: cards stand up as they rise from the bottom of a pane, pin at the
  * top, then tip back behind the next card and fade.
  *
  * Scroll-driven CSS animations do the whole thing on the compositor, with no JavaScript per

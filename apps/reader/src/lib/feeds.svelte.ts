@@ -2,28 +2,28 @@ import { refreshAll } from './refresh.js';
 import { store, type Feed, type Person, type StoredYip, type YipCategory } from './store/index.js';
 
 /**
- * Today's state: the merged feed, the filter pill the reader is on, and refreshing it.
+ * Feeds' state: the merged feed, the filter pill the reader is on, and refreshing it.
  *
  * Everything a card needs to render is already on the stored yip (see `refresh.ts`), so this
  * file is about which yips are visible and in what order, not about deriving anything from
  * them.
  */
 
-export const TODAY_FILTERS = [
+export const FEEDS_FILTERS = [
 	{ key: 'everything', label: 'Everything' },
 	{ key: 'posts', label: 'Posts' },
 	{ key: 'watch', label: 'Watch' },
 	{ key: 'listen', label: 'Listen' }
 ] as const;
 
-export type TodayFilterKey = (typeof TODAY_FILTERS)[number]['key'];
+export type FeedsFilterKey = (typeof FEEDS_FILTERS)[number]['key'];
 
 const PAGE_SIZE = 50;
 
-class TodayState {
-	filter = $state<TodayFilterKey>('everything');
+class FeedsState {
+	filter = $state<FeedsFilterKey>('everything');
 	/** One list per filter, so switching panes keeps each one's scroll position and content. */
-	panes = $state<Record<TodayFilterKey, StoredYip[]>>({
+	panes = $state<Record<FeedsFilterKey, StoredYip[]>>({
 		everything: [],
 		posts: [],
 		watch: [],
@@ -43,17 +43,17 @@ class TodayState {
 		await store.init();
 		const [people, ...lists] = await Promise.all([
 			store.listPeople(),
-			...TODAY_FILTERS.map((filter) => store.listYips({ filter: filter.key, limit: PAGE_SIZE }))
+			...FEEDS_FILTERS.map((filter) => store.listYips({ filter: filter.key, limit: PAGE_SIZE }))
 		]);
 
 		this.people = new Map(people.map((person) => [person.id, person]));
-		const next: Record<TodayFilterKey, StoredYip[]> = {
+		const next: Record<FeedsFilterKey, StoredYip[]> = {
 			everything: [],
 			posts: [],
 			watch: [],
 			listen: []
 		};
-		TODAY_FILTERS.forEach((filter, index) => {
+		FEEDS_FILTERS.forEach((filter, index) => {
 			next[filter.key] = lists[index] ?? [];
 		});
 		this.panes = next;
@@ -78,7 +78,7 @@ class TodayState {
 	 *
 	 * Following someone only saves who they are; it never fetches what they have published,
 	 * because that fetch belongs to the refresh pipeline, not to the follow flow. Without this,
-	 * a reader who just followed someone and opened Today would see an empty screen until a
+	 * a reader who just followed someone and opened Feeds would see an empty screen until a
 	 * pull to refresh or the next background window, which is a worse first look at the app
 	 * than one extra fetch on the way in.
 	 */
@@ -89,7 +89,7 @@ class TodayState {
 		if (neverFetched) await this.refresh();
 	}
 
-	setFilter(key: TodayFilterKey): void {
+	setFilter(key: FeedsFilterKey): void {
 		this.filter = key;
 	}
 
@@ -106,7 +106,7 @@ class TodayState {
 	}
 }
 
-export const today = new TodayState();
+export const feeds = new FeedsState();
 
 /** "3h", "2d", "just now": the compact age the mono meta line shows. */
 export function relativeAge(iso: string | null, now: Date = new Date()): string {

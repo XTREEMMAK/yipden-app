@@ -68,7 +68,7 @@ export class IdbStore implements Store {
 				}
 				if (!db.objectStoreNames.contains(STORE.yips)) {
 					const yips = db.createObjectStore(STORE.yips, { keyPath: 'key' });
-					// Today reads newest first, so the sort is an index rather than a sort.
+					// Feeds reads newest first, so the sort is an index rather than a sort.
 					yips.createIndex('publishedAt', 'publishedAt', { unique: false });
 					yips.createIndex('category', 'category', { unique: false });
 					yips.createIndex('personId', 'personId', { unique: false });

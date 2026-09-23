@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Today's card stack: enough yips to actually scroll, so cards genuinely enter and pin rather
+ * Feeds' card stack: enough yips to actually scroll, so cards genuinely enter and pin rather
  * than all fitting on screen at once.
  */
 
@@ -49,7 +49,7 @@ async function seed(page: Page, count = 12) {
 	await page.getByRole('button', { name: /Follow Lena Ofori in/ }).click();
 	await page.getByText('Following Lena Ofori').waitFor();
 
-	await page.goto('/today');
+	await page.goto('/feeds');
 	await page
 		.locator('#pane-everything')
 		.getByRole('button', { name: /Post 0\b/ })

@@ -4,9 +4,9 @@ import { store as defaultStore } from './store/index.js';
 import type { Feed, Store, StoredYip, YipCategory } from './store/types.js';
 
 /**
- * Turning what people publish into what Today shows.
+ * Turning what people publish into what Feeds shows.
  *
- * One followed feed becomes zero or more yips, each stamped with the category Today's filter
+ * One followed feed becomes zero or more yips, each stamped with the category Feeds' filter
  * pills read directly rather than recomputing on every render: a filter that has to inspect
  * every yip's media on every scroll is a filter that stutters.
  */

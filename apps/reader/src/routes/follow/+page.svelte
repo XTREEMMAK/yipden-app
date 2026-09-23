@@ -247,8 +247,8 @@
 				</span>
 			</div>
 			<div class="row-btns" in:fly={flyIn({ delay: 40 })}>
-				<button class="btn-quiet" type="button" onclick={() => goto('/today')}>
-					See their yips in Today
+				<button class="btn-quiet" type="button" onclick={() => goto('/feeds')}>
+					See their yips in Feeds
 				</button>
 				<button class="btn-quiet" type="button" onclick={again}>Find someone else</button>
 			</div>

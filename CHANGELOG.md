@@ -97,6 +97,8 @@ Every notable change to YipDen, newest first. The format follows
 - The mini player can now be stopped and dismissed outright, not only collapsed or paused:
   a new close button pauses playback, hides the mini player, and clears the lock screen and
   notification widget rather than leaving it paused.
+- The Today tab is now Feeds, renamed throughout (route, state module, types, ids, UI copy),
+  not just in the tab label. See DECISIONS.md.
 
 ## [0.0.1] - 2026-09-22
 

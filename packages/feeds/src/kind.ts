@@ -6,7 +6,7 @@ import type { FeedKind, Item, MediaKind } from './types.js';
  *
  * Bluesky, Mastodon and most blogs all serve RSS. The reader still shows a different chip for
  * each, because "where did this come from" is the question a person actually has when a yip
- * appears in Today. The answer is guessed from the URL first and corrected after parsing.
+ * appears in Feeds. The answer is guessed from the URL first and corrected after parsing.
  */
 
 const YOUTUBE_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com']);
@@ -39,7 +39,7 @@ export function feedKindFromUrl(url: string): FeedKind {
  * Correct the guess once the items are in hand.
  *
  * A feed whose items carry audio enclosures is a podcast whatever its URL looked like, and
- * that is the distinction Today's Listen filter is built on. Only an unrefined `blog` guess is
+ * that is the distinction Feeds' Listen filter is built on. Only an unrefined `blog` guess is
  * overridden: a Bluesky feed that happens to link an mp3 is still Bluesky.
  */
 export function refineKind(kind: FeedKind, items: Item[]): FeedKind {

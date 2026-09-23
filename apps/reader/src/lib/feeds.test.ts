@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, relativeAge, sourceLabel } from './today.svelte.js';
+import { formatDuration, relativeAge, sourceLabel } from './feeds.svelte.js';
 import type { StoredYip } from './store/types.js';
 
 describe('relativeAge', () => {

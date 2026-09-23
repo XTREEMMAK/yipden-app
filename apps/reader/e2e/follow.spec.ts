@@ -169,6 +169,21 @@ test.describe('Follow', () => {
 		await expect(page.getByRole('button', { name: 'Find feeds' })).toBeVisible();
 	});
 
+	test('See their yips in Feeds goes to the Feeds tab', async ({ page }) => {
+		await mockUpstream(page, {
+			'https://lenaofori.com/': { body: LENA_PAGE },
+			'https://lenaofori.com/feed.xml': { body: FEED, type: 'application/rss+xml' }
+		});
+		await page.goto('/follow');
+		await page.getByLabel('Website or profile').fill('lenaofori.com');
+		await page.getByRole('button', { name: 'Find feeds' }).click();
+		await page.getByRole('button', { name: /Follow Lena Ofori in/ }).click();
+		await expect(page.getByText('Following Lena Ofori')).toBeVisible();
+
+		await page.getByRole('button', { name: 'See their yips in Feeds' }).click();
+		await expect(page).toHaveURL(/\/feeds/);
+	});
+
 	test('reports a site with no feed honestly rather than pretending', async ({ page }) => {
 		await mockUpstream(page, {
 			'https://quiet.example.com/': { body: '<!doctype html><title>Quiet</title>' }

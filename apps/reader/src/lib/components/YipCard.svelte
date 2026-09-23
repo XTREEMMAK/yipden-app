@@ -3,7 +3,7 @@
 	import { buildListenQueue } from '$lib/queue.js';
 	import { ring } from '$lib/ring.svelte.js';
 	import { washFor } from '$lib/ring.svelte.js';
-	import { formatDuration, relativeAge, sourceLabel, today } from '$lib/today.svelte.js';
+	import { feeds, formatDuration, relativeAge, sourceLabel } from '$lib/feeds.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
 	import type { StoredYip } from '$lib/store/index.js';
 
@@ -25,7 +25,7 @@
 	let image = $derived(yip.media.find((media) => media.kind === 'image')?.url ?? null);
 	let isPlayable = $derived(yip.category === 'listen' || yip.category === 'watch');
 	let isMedia = $derived(isPlayable || image !== null);
-	let creatorName = $derived(today.personFor(yip)?.name ?? yip.author ?? 'Unknown');
+	let creatorName = $derived(feeds.personFor(yip)?.name ?? yip.author ?? 'Unknown');
 	let duration = $derived(formatDuration(yip.media[0]?.durationSeconds));
 	let age = $derived(relativeAge(yip.publishedAt));
 
@@ -35,9 +35,9 @@
 	 * play video: it opens the creator's page the same as a post does.
 	 */
 	function open(event: MouseEvent) {
-		void today.markRead(yip.key);
+		void feeds.markRead(yip.key);
 		if (yip.category === 'listen') {
-			const queue = buildListenQueue(today.panes.listen, ring.all);
+			const queue = buildListenQueue(feeds.panes.listen, ring.all);
 			const index = queue.findIndex((item) => item.id === yip.key);
 			if (index !== -1) {
 				player.play(queue, index, event.currentTarget as HTMLElement);
@@ -92,8 +92,8 @@
 		<span class="who">
 			<span
 				class="av"
-				style:background-image={today.personFor(yip)?.iconUrl
-					? `url(${today.personFor(yip)?.iconUrl})`
+				style:background-image={feeds.personFor(yip)?.iconUrl
+					? `url(${feeds.personFor(yip)?.iconUrl})`
 					: ''}
 			></span>
 			<span class="wn">

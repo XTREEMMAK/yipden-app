@@ -3,7 +3,7 @@
  *
  * RSS specifies RFC 822, Atom specifies RFC 3339, JSON Feed specifies RFC 3339, and real feeds
  * publish whatever their generator felt like. The job here is to get an ISO string or an honest
- * null, never a wrong date, because Today is sorted by this and nothing else.
+ * null, never a wrong date, because Feeds is sorted by this and nothing else.
  */
 
 /** A date this far out is a generator bug, not a publication date. */

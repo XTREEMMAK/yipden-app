@@ -181,7 +181,7 @@ The browser cannot answer these, so they are the reason the device loop exists:
   DECISIONS.md.
 - **The hardware and gesture back button** behaves like the in-app back.
 - **Safe areas.** Status bar, navigation bar and any display cutout, on a real screen.
-- **Motion at 60fps.** Today's card stack and Discover's hero are the two places where a
+- **Motion at 60fps.** Feeds' card stack and Discover's hero are the two places where a
   mid-range phone will tell you the truth.
 - **Offline.** Turn on airplane mode and confirm Discover still renders from cache.
 

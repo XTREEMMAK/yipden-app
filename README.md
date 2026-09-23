@@ -19,7 +19,7 @@ from the [IndieNodes](https://ring.indienodes.us) webring.
 
 Everything a followed feed produces is a **yip**, whatever its format: a post, a video, an
 episode, a track. Following a person is still called following. What shows up afterward in
-Today is a yip.
+Feeds is a yip.
 
 ### Rules that do not bend
 

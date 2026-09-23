@@ -51,7 +51,7 @@ export interface Feed {
 /**
  * Which filter pane a yip belongs to.
  *
- * Decided once when the yip is stored rather than on every render, because Today filters by it
+ * Decided once when the yip is stored rather than on every render, because Feeds filters by it
  * and a filter that has to open every record to answer is a filter that stutters on scroll.
  */
 export type YipCategory = 'posts' | 'watch' | 'listen';
@@ -70,7 +70,7 @@ export interface StoredYip extends Item {
 }
 
 export interface YipQuery {
-	/** Today's filter pills. */
+	/** Feeds' filter pills. */
 	filter?: 'everything' | 'posts' | 'watch' | 'listen';
 	limit?: number;
 	/** Cursor: return yips older than this ISO timestamp. */

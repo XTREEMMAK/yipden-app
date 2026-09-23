@@ -6,7 +6,7 @@
  * from the right and reverses on the way back.
  */
 
-const TAB_ORDER = ['/', '/today', '/follow', '/you'] as const;
+const TAB_ORDER = ['/', '/feeds', '/follow', '/you'] as const;
 
 function tabIndex(pathname: string): number {
 	const normalized = pathname.replace(/\/+$/, '') || '/';

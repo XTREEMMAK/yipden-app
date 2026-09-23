@@ -91,7 +91,7 @@ async function seed(page: Page) {
 	await page.getByRole('button', { name: /Follow Lena Ofori in/ }).click();
 	await page.getByText('Following Lena Ofori').waitFor();
 
-	await page.goto('/today');
+	await page.goto('/feeds');
 	await page.locator('#pane-everything').getByText('Low Tide').waitFor({ timeout: 10_000 });
 }
 

@@ -11,7 +11,7 @@
 	 */
 	const tabs = [
 		{ href: '/', label: 'Discover' },
-		{ href: '/today', label: 'Today' },
+		{ href: '/feeds', label: 'Feeds' },
 		{ href: '/follow', label: 'Follow' },
 		{ href: '/you', label: 'You' }
 	] as const;
@@ -37,7 +37,7 @@
 					<svg viewBox="0 0 24 24"
 						><circle cx="12" cy="12" r="9" /><path d="M15.5 8.5l-2 5-5 2 2-5z" /></svg
 					>
-				{:else if tab.label === 'Today'}
+				{:else if tab.label === 'Feeds'}
 					<svg viewBox="0 0 24 24"
 						><rect x="4" y="4" width="16" height="7" rx="2.5" /><rect
 							x="4"

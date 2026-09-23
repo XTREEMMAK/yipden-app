@@ -43,7 +43,7 @@
 	/*
 	 * The visual track stays the prototype's 46x28 pill, but the tappable area around it grows
 	 * to the brief's 44px touch target floor rather than matching the track's own size, the
-	 * same reasoning as Today's pills.
+	 * same reasoning as Feeds' pills.
 	 */
 	.switch {
 		position: relative;

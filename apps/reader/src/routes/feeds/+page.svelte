@@ -6,17 +6,17 @@
 	import { flyIn, prefersReducedMotion, staggerDelay } from '$lib/motion.js';
 	import { buildListenQueue } from '$lib/queue.js';
 	import { ring } from '$lib/ring.svelte.js';
-	import { today, TODAY_FILTERS, type TodayFilterKey } from '$lib/today.svelte.js';
+	import { feeds, FEEDS_FILTERS, type FeedsFilterKey } from '$lib/feeds.svelte.js';
 	import YipCard from '$components/YipCard.svelte';
 	import RingRow from '$components/RingRow.svelte';
 
 	/**
-	 * Today: everything followed, merged and reverse chronological, in four panes a reader
+	 * Feeds: everything followed, merged and reverse chronological, in four panes a reader
 	 * pages between by pill or by swipe. Each pane keeps its own scroll position because all
 	 * four stay mounted; only the track that holds them moves.
 	 */
 
-	let filterIndex = $derived(TODAY_FILTERS.findIndex((filter) => filter.key === today.filter));
+	let filterIndex = $derived(FEEDS_FILTERS.findIndex((filter) => filter.key === feeds.filter));
 	let dragX = $state(0);
 	let dragging = $state(false);
 	let viewport: HTMLDivElement | undefined;
@@ -36,8 +36,8 @@
 	}
 
 	$effect(() => {
-		// today.filter is read so this effect reruns when the selection changes.
-		void today.filter;
+		// feeds.filter is read so this effect reruns when the selection changes.
+		void feeds.filter;
 		measureIndicator();
 	});
 
@@ -49,7 +49,7 @@
 	const PULL_THRESHOLD = 64;
 
 	onMount(() => {
-		void today.loadAndCatchUp();
+		void feeds.loadAndCatchUp();
 		if (!ring.all.length) void ring.load();
 
 		/*
@@ -65,7 +65,7 @@
 				hiddenAt = Date.now();
 				return;
 			}
-			if (hiddenAt && Date.now() - hiddenAt > 15 * 60 * 1000) void today.refresh();
+			if (hiddenAt && Date.now() - hiddenAt > 15 * 60 * 1000) void feeds.refresh();
 			hiddenAt = null;
 		};
 		document.addEventListener('visibilitychange', onVisibility);
@@ -85,12 +85,12 @@
 		dragX = 0;
 		if (!commit) return;
 		const next = filterIndex + direction;
-		const clamped = Math.max(0, Math.min(TODAY_FILTERS.length - 1, next));
-		today.setFilter(TODAY_FILTERS[clamped]!.key);
+		const clamped = Math.max(0, Math.min(FEEDS_FILTERS.length - 1, next));
+		feeds.setFilter(FEEDS_FILTERS[clamped]!.key);
 	}
 
 	function activePane(): HTMLElement | null {
-		return viewport?.querySelector(`[data-pane="${today.filter}"]`) ?? null;
+		return viewport?.querySelector(`[data-pane="${feeds.filter}"]`) ?? null;
 	}
 
 	function onPullStart(event: PointerEvent) {
@@ -118,20 +118,20 @@
 		pulling = false;
 		const shouldRefresh = pullY >= PULL_THRESHOLD;
 		pullY = 0;
-		if (shouldRefresh) await today.refresh();
+		if (shouldRefresh) await feeds.refresh();
 	}
 </script>
 
-<svelte:head><title>Today</title></svelte:head>
+<svelte:head><title>Feeds</title></svelte:head>
 
-<div class="today">
+<div class="feeds">
 	<header class="head">
 		<p class="eyebrow">
 			{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
 		</p>
 		<h2 class="screen-title">
-			{today.unreadCount} new <em>yips</em> from {today.peopleCount}
-			{today.peopleCount === 1 ? 'person' : 'people'}
+			{feeds.unreadCount} new <em>yips</em> from {feeds.peopleCount}
+			{feeds.peopleCount === 1 ? 'person' : 'people'}
 		</h2>
 
 		<div class="pills" role="tablist" aria-label="Filter yips">
@@ -141,15 +141,15 @@
 				style:transform={`translateX(${indicator.left}px)`}
 				style:width={`${indicator.width}px`}
 			></span>
-			{#each TODAY_FILTERS as filter, index (filter.key)}
+			{#each FEEDS_FILTERS as filter, index (filter.key)}
 				<button
 					bind:this={pillEls[index]}
 					class="pill"
 					role="tab"
 					id="pill-{filter.key}"
 					aria-controls="pane-{filter.key}"
-					aria-selected={today.filter === filter.key}
-					onclick={() => today.setFilter(filter.key)}
+					aria-selected={feeds.filter === filter.key}
+					onclick={() => feeds.setFilter(filter.key)}
 				>
 					{filter.label}
 				</button>
@@ -179,7 +179,7 @@
 			style:transform={`translateX(calc(${-filterIndex * 100}% + ${dragX}px))`}
 			style:transition={dragging ? 'none' : 'transform var(--dur-m) var(--ease)'}
 		>
-			{#each TODAY_FILTERS as filter (filter.key)}
+			{#each FEEDS_FILTERS as filter (filter.key)}
 				<div
 					class="pane"
 					data-pane={filter.key}
@@ -187,23 +187,23 @@
 					tabindex="0"
 					id="pane-{filter.key}"
 					aria-labelledby="pill-{filter.key}"
-					inert={today.filter !== filter.key}
+					inert={feeds.filter !== filter.key}
 					use:cardStack
 					onpointerdown={onPullStart}
 					onpointermove={onPullMove}
 					onpointerup={onPullEnd}
 					onpointercancel={onPullEnd}
 				>
-					{#if today.status === 'loading'}
+					{#if feeds.status === 'loading'}
 						<p class="empty">Loading{'…'}</p>
-					{:else if today.panes[filter.key].length === 0}
+					{:else if feeds.panes[filter.key].length === 0}
 						<p class="empty">
 							{filter.key === 'everything'
 								? 'Nothing here yet. Follow someone to see their yips.'
 								: 'Nothing here yet.'}
 						</p>
 					{:else}
-						{#each today.panes[filter.key] as yip, index (yip.key)}
+						{#each feeds.panes[filter.key] as yip, index (yip.key)}
 							<div in:fly={flyIn({ delay: staggerDelay(index) })}>
 								<YipCard {yip} />
 							</div>
@@ -211,7 +211,7 @@
 					{/if}
 
 					{#if filter.key === 'listen' && ring.all.length}
-						{@const listenQueue = buildListenQueue(today.panes.listen, ring.all)}
+						{@const listenQueue = buildListenQueue(feeds.panes.listen, ring.all)}
 						{@const tracks = ring.all.flatMap((entry) =>
 							(entry.tracks ?? []).map((track) => ({ entry, track }))
 						)}
@@ -235,7 +235,7 @@
 </div>
 
 <style>
-	.today {
+	.feeds {
 		display: flex;
 		flex-direction: column;
 		height: 100%;

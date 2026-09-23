@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Today, driven through the real pipeline: follow a person via /follow, let the first visit to
- * Today catch up and actually fetch their feed, then check what rendered. Nothing here pokes
+ * Feeds, driven through the real pipeline: follow a person via /follow, let the first visit to
+ * Feeds catch up and actually fetch their feed, then check what rendered. Nothing here pokes
  * storage directly, so this exercises the same path a person's phone would.
  */
 
@@ -53,12 +53,12 @@ async function seed(page: Page) {
 	await expect(page.getByText('Following Lena Ofori')).toBeVisible();
 }
 
-test.describe('Today', () => {
+test.describe('Feeds', () => {
 	test('catches up on first visit: follow now, see yips without a manual refresh', async ({
 		page
 	}) => {
 		await seed(page);
-		await page.goto('/today');
+		await page.goto('/feeds');
 
 		await expect(page.locator('#pane-everything').getByText('A plain post')).toBeVisible({
 			timeout: 10_000
@@ -70,7 +70,7 @@ test.describe('Today', () => {
 
 	test('the headline counts unread yips and people', async ({ page }) => {
 		await seed(page);
-		await page.goto('/today');
+		await page.goto('/feeds');
 		await expect(page.locator('#pane-everything').getByText('A plain post')).toBeVisible({
 			timeout: 10_000
 		});
@@ -88,7 +88,7 @@ test.describe('Today', () => {
 		 * assertions are scoped to each pane's own id instead of asking the whole page.
 		 */
 		await seed(page);
-		await page.goto('/today');
+		await page.goto('/feeds');
 		await expect(page.locator('#pane-everything').getByText('A plain post')).toBeVisible({
 			timeout: 10_000
 		});
@@ -110,7 +110,7 @@ test.describe('Today', () => {
 
 	test('the pill indicator marks the selected tab', async ({ page }) => {
 		await seed(page);
-		await page.goto('/today');
+		await page.goto('/feeds');
 		await expect(page.locator('#pane-everything').getByText('A plain post')).toBeVisible({
 			timeout: 10_000
 		});
@@ -125,7 +125,7 @@ test.describe('Today', () => {
 
 	test('opening a yip marks it read', async ({ page }) => {
 		await seed(page);
-		await page.goto('/today');
+		await page.goto('/feeds');
 		await expect(page.locator('#pane-everything').getByText('A plain post')).toBeVisible({
 			timeout: 10_000
 		});
@@ -154,7 +154,7 @@ test.describe('Today', () => {
 				body: '{"version":"1.0","entries":[]}'
 			})
 		);
-		await page.goto('/today');
+		await page.goto('/feeds');
 
 		await expect(
 			page.getByText('Nothing here yet. Follow someone to see their yips.')
@@ -164,7 +164,7 @@ test.describe('Today', () => {
 
 	test('every pill target meets the 44px minimum', async ({ page }) => {
 		await seed(page);
-		await page.goto('/today');
+		await page.goto('/feeds');
 		await expect(page.locator('#pane-everything').getByText('A plain post')).toBeVisible({
 			timeout: 10_000
 		});
