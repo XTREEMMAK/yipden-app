@@ -388,6 +388,7 @@ export function createHeroGL(
 
 	return {
 		set(url) {
+			if (taintedByCors || contextLost) return;
 			current = url;
 			next = url;
 			transition = null;
@@ -398,6 +399,14 @@ export function createHeroGL(
 			kick();
 		},
 		go(url, dir, fromDragFraction) {
+			/*
+			 * Once one photo host has failed, every ring member's photo is worth trying only
+			 * once each: a repeat request for a URL that already failed in CORS mode risks
+			 * poisoning the browser's cache for the same URL the CSS crossfade underneath
+			 * fetches plainly, which would take the one fallback this whole hero exists to
+			 * never break with it.
+			 */
+			if (taintedByCors || contextLost) return;
 			if (transition) current = next;
 			next = url;
 			direction = dir;

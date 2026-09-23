@@ -578,3 +578,34 @@ handoff moment, not a visible defect.
 Verified visually, not just by absence of errors: two solid-color images with distinct stripe
 patterns confirmed the wipe's boundary is genuinely noise-distorted rather than a hard line,
 and the ambient drift visibly moves a static image's stripes at rest.
+
+## 2026-09-23: The WebGL hero gives up for the rest of the session after one failed photo
+
+Real ring member photos, tested against the actual live ring rather than a fixture, confirmed
+the concern the first version of this feature only reasoned about: none of the three members
+checked (hosts `candyether.space`, `pages.kjnet.us`, `keyjay.neocities.org`) sent CORS headers,
+and a real browser's console showed the honest result, `Access to image at '…' … has been
+blocked by CORS policy`. Expected, and the whole reason the CSS crossfade exists underneath.
+
+**What was not expected, and was a real bug**: `onFatalError` correctly hid the canvas after
+that first failure, but `go()` and `set()` had no memory of it, so navigating to a second and
+third member sent two more doomed CORS-mode requests before each one's own failure hid the
+(already hidden) canvas again. Visually this read as the hero doing nothing at all, not
+falling back, because a request already known to fail was retried on every single navigation
+rather than once. Fixed: both methods now refuse to start a new load once `taintedByCors` or
+`contextLost` is set, so the very first real-world failure permanently and quietly hands the
+rest of the session to the CSS crossfade, which is what "falls back" was always supposed to
+mean here. A new test (`discover-webgl.spec.ts`) forces this with `route.abort()`, a reliable
+network-level failure Playwright's mocked CORS responses turned out not to be (see the entry
+above): confirms the canvas stays hidden and `.art` stays the visible layer across a second,
+never-attempted navigation, not just after the first one.
+
+**In practice, this means the WebGL hero will rarely be seen at all** unless a ring member's
+photo happens to be hosted somewhere that sends `Access-Control-Allow-Origin`, which is not
+the common case for a personal site. This is a real, disclosed limitation of hot-linking to
+arbitrary third-party image hosts from a canvas, not a bug to chase further: the fix here
+makes the (likely) failure cheap and silent rather than making the failure not happen, which
+is not something within this app's control. If the WebGL hero seeing regular real-world use
+matters enough later, the fix would live on the ring side (serving `thumb_url` through
+IndieNodes' own CORS-friendly infrastructure rather than a direct link to each member's site),
+not here.

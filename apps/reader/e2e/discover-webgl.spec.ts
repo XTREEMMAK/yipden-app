@@ -148,6 +148,39 @@ test.describe('Discover WebGL hero', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('a photo that fails to load at all falls back to the CSS crossfade and stays there', async ({
+		page
+	}) => {
+		/*
+		 * Real device testing found the case Playwright's mocked routes cannot reproduce (a
+		 * mocked cross-origin response loads even with no CORS headers in this engine, unlike a
+		 * real browser against a real host): a member photo host that refuses the request
+		 * outright. `route.abort()` fails the request at the network level regardless of CORS,
+		 * which reliably exercises `onerror`, the path a real unreachable or CORS-refusing host
+		 * actually takes.
+		 */
+		await page.route('https://ring.indienodes.us/ring.json', (route) =>
+			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RING) })
+		);
+		await page.route('https://example.com/**', (route) => route.abort());
+
+		await page.goto('/');
+		const heading = page.getByRole('heading', { level: 1 });
+		await expect(heading).toBeVisible();
+		const first = await heading.textContent();
+
+		// The failed photo disables the hero for the rest of the session: `.art` takes over.
+		await expect.poll(() => canvasIsActive(page)).toBe(false);
+		await expect(page.locator('.art')).not.toHaveClass(/gl-showing/);
+
+		// A second member, whose own photo was never even attempted over WebGL, stays that way.
+		await page.getByRole('button', { name: 'Next in the ring' }).click();
+		await expect(heading).not.toHaveText(first ?? '');
+		expect(await canvasIsActive(page)).toBe(false);
+		await expect(page.locator('.art')).not.toHaveClass(/gl-showing/);
+		await expect(page.locator('.art')).toBeVisible();
+	});
+
 	test('falls back to the CSS crossfade outright when the browser has no WebGL at all', async ({
 		page
 	}) => {
