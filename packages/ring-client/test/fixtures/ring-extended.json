@@ -1,0 +1,164 @@
+{
+  "version": "1.1",
+  "generated_at": "2026-09-22T17:32:39.000Z",
+  "entries": [
+    {
+      "id": "art-slime-pond",
+      "creator": "Slime Pond",
+      "type": "art",
+      "why": "Various art pieces and webcomic",
+      "tags": ["art", "comedy", "comic", "fantasy"],
+      "artworks": [
+        {
+          "image_url": "https://candyether.space/personal/gallery/bg_fishermint_green.png",
+          "alt": "dragonite and goomy",
+          "year": "2023",
+          "medium": "pixel art"
+        },
+        {
+          "image_url": "https://candyether.space/personal/gallery/sappylitwikpix.png",
+          "alt": "litwick",
+          "medium": "pixel art"
+        }
+      ],
+      "source_url": "https://candyether.space/",
+      "verification_token": "be34ef62e6a42aaa35e4b08b19dfeeed",
+      "joined_at": "2026-09-22T15:17:27.977Z"
+    },
+    {
+      "id": "audio-george-r-powell",
+      "creator": "George R. Powell",
+      "type": "audio",
+      "form": "music",
+      "why": "I'm a composer for film, animation, and video games!",
+      "tags": ["orchestral", "vgm", "fantasy", "film scores", "digital rock"],
+      "tracks": [
+        {
+          "label": "True Tail - Battle",
+          "media_url": "https://pages.kjnet.us/georgerpowell/assets/audio/TrueTail-Battle%20Animatic%20Concept%20Part%202.mp3"
+        },
+        {
+          "label": "Cosmic Nautilus (Theme for the Calypso)",
+          "media_url": "https://pages.kjnet.us/georgerpowell/assets/audio/06-Cosmic%20Nautilus%20(Theme%20for%20the%20Calypso).mp3"
+        },
+        {
+          "label": "Armed and Pissed Off (Foe Encounter)",
+          "media_url": "https://pages.kjnet.us/georgerpowell/assets/audio/04-Armed%20and%20Pissed%20Off%20(Foe%20Enounter).mp3"
+        }
+      ],
+      "thumb_url": "https://pages.kjnet.us/georgerpowell/assets/profile.avif",
+      "thumb_position": {
+        "x": 50,
+        "y": 50
+      },
+      "source_url": "https://pages.kjnet.us/georgerpowell/",
+      "verification_token": "0f122804c60f4a115840a5d482f3aed6",
+      "joined_at": "2026-09-14T02:55:12.915Z",
+      "feeds": [
+        {
+          "type": "podcast",
+          "url": "https://pages.kjnet.us/georgerpowell/feed.xml",
+          "verified": false
+        }
+      ],
+      "discoverable": false
+    },
+    {
+      "id": "audio-key-jay",
+      "creator": "Key Jay",
+      "type": "audio",
+      "form": "music",
+      "why": "I compose in a multitude of styles including VGM, Hip-Hop, Rock and more!",
+      "tags": ["vgm", "hip-hop", "orchestral", "vgmr", "r&b", "edm", "house", "dnb"],
+      "tracks": [
+        {
+          "label": "Should I Stay",
+          "media_url": "https://file.garden/ao5Ld2QtA0WCEI6R/Should%20I%20Stay%20(MFiT).mp3"
+        },
+        {
+          "label": "Weight of the Other Promise",
+          "media_url": "https://file.garden/ao5Ld2QtA0WCEI6R/WotOP.mp3"
+        },
+        {
+          "label": "Angel's Burning Blue Savior",
+          "media_url": "https://file.garden/ao5Ld2QtA0WCEI6R/ABBS_Full.mp3"
+        }
+      ],
+      "thumb_url": "https://keyjay.neocities.org/assets/indienodes-keyjay/IMG_0481.JPG",
+      "thumb_position": {
+        "x": 50,
+        "y": 50
+      },
+      "source_url": "https://keyjay.neocities.org",
+      "verification_token": "b44d66453a90b0b287a95edb2bece2cc",
+      "joined_at": "2026-09-01T21:33:43.026Z",
+      "feeds": [
+        {
+          "type": "rss",
+          "url": "https://keyjay.neocities.org/feed.xml",
+          "verified": true
+        },
+        {
+          "type": "bluesky",
+          "url": "https://bsky.app/profile/keyjay.bsky.social/rss",
+          "verified": true
+        },
+        {
+          "type": "youtube",
+          "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCkeyjayexample01",
+          "verified": false
+        }
+      ],
+      "updated_at": "2026-09-20T10:00:00.000Z",
+      "future_field": {
+        "note": "a field this client does not model yet"
+      }
+    },
+    {
+      "id": "comic-nori-jammy",
+      "creator": "Nori Jammy",
+      "type": "comic",
+      "why": "Horror cartoonist, musician, and writer from Appalachia.",
+      "tags": ["horror", "drama", "comedy", "comic", "art", "animation"],
+      "pages": [
+        {
+          "image_url": "https://frammyjammy.com/suzu-and-jack/img/comics/pg29.png",
+          "caption": "One Panels - Jack's Perspective"
+        },
+        {
+          "image_url": "https://frammyjammy.com/suzu-and-jack/img/comics/pg28.png",
+          "caption": "One Panels - Comfort"
+        },
+        {
+          "image_url": "https://frammyjammy.com/suzu-and-jack/img/comics/pg27.png",
+          "caption": "One Panels - Sunny Day"
+        }
+      ],
+      "thumb_url": "https://frammyjammy.com/graphics/bg-art/rainbow-baby-blue.png",
+      "thumb_position": {
+        "x": 50,
+        "y": 50
+      },
+      "source_url": "https://frammyjammy.com/suzu-and-jack/",
+      "verification_token": "79ca089920914acf2e0b242d93238419",
+      "joined_at": "2026-09-13T02:03:07.444Z",
+      "explicit": true
+    },
+    {
+      "id": "text-placeholder-seed",
+      "creator": "Seed Entry",
+      "type": "text",
+      "why": "Example row, never a real person.",
+      "tags": ["example"],
+      "excerpts": [
+        {
+          "text": "A sample paragraph."
+        }
+      ],
+      "source_url": "https://example.com/",
+      "verification_token": "placeholder",
+      "joined_at": "2026-01-01T00:00:00.000Z",
+      "_placeholder": true
+    }
+  ]
+}

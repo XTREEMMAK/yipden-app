@@ -1,0 +1,27 @@
+{
+  "name": "@yipden/ring-client",
+  "version": "0.0.1",
+  "description": "Framework-agnostic client for the IndieNodes ring.json document. Zero runtime dependencies.",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema/ring-document.schema.json": "./schema/ring-document.schema.json"
+  },
+  "files": [
+    "src",
+    "schema",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.1"
+  }
+}

@@ -1,0 +1,7 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# esbuild ships a prebuilt binary its postinstall puts in place; vitest needs it.
+allowBuilds:
+  esbuild: true

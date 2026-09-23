@@ -1,0 +1,84 @@
+{
+  "version": "1.0",
+  "entries": [
+    {
+      "id": "good-entry",
+      "creator": "Fine Person",
+      "type": "audio",
+      "form": "music",
+      "why": "The one entry here that should survive.",
+      "tags": ["  Music  ", "music", "", "vgm"],
+      "tracks": [
+        { "label": "Kept", "media_url": "https://example.com/track.mp3" },
+        { "label": "Dropped, plain http", "media_url": "http://example.com/insecure.mp3" },
+        { "label": "Dropped, local network", "media_url": "https://192.168.1.10/track.mp3" }
+      ],
+      "thumb_url": "https://example.com/cover.jpg",
+      "thumb_position": { "x": 900, "y": -12 },
+      "source_url": "https://example.com",
+      "verification_token": "token",
+      "joined_at": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "javascript-source",
+      "creator": "Script Injection",
+      "type": "text",
+      "why": "source_url is a javascript URL.",
+      "tags": ["bad"],
+      "source_url": "javascript:alert(document.cookie)"
+    },
+    {
+      "id": "loopback-source",
+      "creator": "Local Probe",
+      "type": "text",
+      "why": "source_url points at the device itself.",
+      "tags": ["bad"],
+      "source_url": "https://127.0.0.1:8080/admin"
+    },
+    {
+      "id": "credentials-source",
+      "creator": "Embedded Credentials",
+      "type": "text",
+      "why": "source_url carries a username and password.",
+      "tags": ["bad"],
+      "source_url": "https://user:secret@example.com/"
+    },
+    {
+      "id": "good-entry",
+      "creator": "Duplicate Id",
+      "type": "text",
+      "why": "Same id as the first entry.",
+      "tags": ["bad"],
+      "source_url": "https://example.org/"
+    },
+    {
+      "id": "Not A Slug",
+      "creator": "Bad Id",
+      "type": "text",
+      "why": "The id breaks the slug pattern.",
+      "tags": ["bad"],
+      "source_url": "https://example.org/"
+    },
+    {
+      "id": "no-creator",
+      "creator": "   ",
+      "type": "text",
+      "why": "Creator is whitespace only.",
+      "tags": ["bad"],
+      "source_url": "https://example.org/"
+    },
+    null,
+    "not an object",
+    {
+      "id": "unicode-host",
+      "creator": "Punycode Host",
+      "type": "art",
+      "why": "A valid entry on an internationalized domain.",
+      "tags": ["art"],
+      "artworks": [{ "image_url": "https://exämple.com/art.png" }],
+      "source_url": "https://exämple.com/",
+      "verification_token": "token",
+      "joined_at": "2026-02-02T00:00:00.000Z"
+    }
+  ]
+}

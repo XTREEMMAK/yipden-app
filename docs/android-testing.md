@@ -1,0 +1,174 @@
+# Android: toolchain and testing
+
+YipDen is an Android app built with Capacitor, developed on a headless Linux machine. This
+document covers what is installed, how the day to day loop works, and how to get a build onto
+a real phone from a machine with no screen.
+
+## The short version
+
+**Two loops, and you will spend most of your time in the first one.**
+
+1. **Browser loop.** `pnpm dev` in `apps/reader`, viewed at 390x844 in a browser's device
+   mode. Every screen, every animation, every gesture and every piece of styling is web
+   technology and behaves the same in the WebView. This is where almost all the work happens.
+2. **Device loop.** Build an APK, install it on a real phone, and check the things only the
+   device can tell you: native HTTP and CORS, the Media Session on the lock screen, the
+   Android back button, safe area insets, the status bar, and whether the motion actually
+   holds 60fps on real hardware.
+
+There is deliberately **no emulator**. This machine is a KVM guest without `/dev/kvm`, so an
+emulator would run in software rendering, which is the worst possible surface for judging a
+product whose motion is part of the specification. A real phone is both faster to use and more
+honest.
+
+## What is installed, and where
+
+Everything lives under your home directory. Nothing was installed system wide and no `sudo`
+was used.
+
+| Tool                     | Version   | Path                                 |
+| ------------------------ | --------- | ------------------------------------ |
+| Temurin JDK              | 21.0.12.1 | `~/.local/opt/jdk-21.0.12.1+1`       |
+| Android SDK command line | 19.0      | `~/Android/sdk/cmdline-tools/latest` |
+| Android SDK Platform     | 36        | `~/Android/sdk/platforms/android-36` |
+| Android SDK Build Tools  | 36.1.0    | `~/Android/sdk/build-tools/36.1.0`   |
+| Platform Tools (adb)     | 37.0.1    | `~/Android/sdk/platform-tools`       |
+
+Capacitor 8 wants Node 22 or newer and JDK 17 or newer; 21 is the long term support release the
+Android Gradle Plugin is happiest on. The SDK levels match what Capacitor 8 generates:
+`compileSdk` and `targetSdk` 36, `minSdk` 26 for the Android 8 floor this app targets.
+
+### Environment
+
+Add this to your shell profile, or source it before an Android build:
+
+```bash
+export JAVA_HOME="$HOME/.local/opt/jdk-21.0.12.1+1"
+export ANDROID_HOME="$HOME/Android/sdk"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+```
+
+Check it took:
+
+```bash
+java -version      # openjdk version "21.0.12.1"
+adb --version      # Android Debug Bridge version 1.0.41
+sdkmanager --list_installed
+```
+
+### Keeping the SDK current
+
+```bash
+sdkmanager --update
+sdkmanager --list | grep "platforms;android-"
+```
+
+Raising `compileSdk` is a deliberate change, not routine maintenance. It goes in
+`apps/reader/android/variables.gradle` and in this table.
+
+## The browser loop
+
+```bash
+cd apps/reader
+pnpm dev
+```
+
+Open the dev server, switch the browser to device mode, and set the viewport to **390x844**.
+That is the size the reference prototype at `docs/reference/yipden-prototype.html` is drawn
+for, and comparing your build against it at that exact size, in both themes, is part of
+finishing a screen.
+
+Live feeds will hit CORS in a plain browser, which is expected and is what the dev only proxy
+is for. See [architecture.md](architecture.md) for why the web build has two lanes.
+
+## The device loop
+
+### One time, on the phone
+
+1. Settings, About phone, tap **Build number** seven times to unlock Developer options.
+2. Settings, System, Developer options, turn on **Wireless debugging**.
+3. Keep the phone on the same network as this machine.
+
+### One time, on this machine
+
+Pair with the phone. Wireless debugging shows a **Pair device with pairing code** screen with
+its own port, which is not the same port the connection itself uses.
+
+```bash
+adb pair <phone-ip>:<pairing-port>     # enter the six digit code it shows
+adb connect <phone-ip>:<debug-port>    # the port on the main Wireless debugging screen
+adb devices                            # your phone should be listed as "device"
+```
+
+The pairing survives reboots; the connection does not, so `adb connect` is the command you
+will repeat.
+
+### Every build
+
+```bash
+cd apps/reader
+pnpm build                 # SvelteKit static build
+pnpm cap:sync              # copy the build into the Android project
+pnpm android:install       # assemble the debug APK and install it on the connected phone
+```
+
+The APK lands at `apps/reader/android/app/build/outputs/apk/debug/app-debug.apk`.
+
+Watch the app's own logs:
+
+```bash
+adb logcat --pid=$(adb shell pidof com.yipden.app)
+```
+
+### If the phone is not on this machine's network
+
+The pairing route needs a route between the two. When there is not one, build here and move
+the file:
+
+```bash
+cd apps/reader && pnpm android:apk
+# then copy apps/reader/android/app/build/outputs/apk/debug/app-debug.apk
+# to the phone by whatever path you already use, and open it there
+```
+
+Android will ask permission to install from that source the first time. This is a debug build
+signed with the local debug key, which is fine for testing and is not something to publish.
+
+### Debugging the WebView from a desktop
+
+The app's WebView is inspectable from Chrome DevTools on a machine with a screen, at
+`chrome://inspect/#devices`, with the phone connected to **that** machine over USB or wireless
+debugging. This is the only part of the loop that wants a desktop, and it is optional: the
+browser loop covers the same ground for everything that is not native.
+
+## What to check on the device, specifically
+
+The browser cannot answer these, so they are the reason the device loop exists:
+
+- **Feeds actually load.** In the browser they are blocked by CORS; on the device Capacitor's
+  native HTTP client makes the request, so this is the first real test of `packages/feeds`.
+- **Lock screen controls.** Media Session metadata, artwork, and the play, pause and seek
+  handlers, with the screen off.
+- **Background playback stops.** This is expected in v0.9 and is documented, not a bug. See
+  DECISIONS.md.
+- **The hardware and gesture back button** behaves like the in-app back.
+- **Safe areas.** Status bar, navigation bar and any display cutout, on a real screen.
+- **Motion at 60fps.** Today's card stack and Discover's hero are the two places where a
+  mid-range phone will tell you the truth.
+- **Offline.** Turn on airplane mode and confirm Discover still renders from cache.
+
+## Troubleshooting
+
+**`adb devices` shows nothing after `adb connect`.** Wireless debugging's port changes when the
+phone reconnects to the network. Reread it on the phone and connect again.
+
+**Gradle cannot find a JDK.** `JAVA_HOME` is not exported in that shell. The Gradle wrapper
+does not read your profile if you are running it from a script that clears the environment.
+
+**`SDK location not found`.** `apps/reader/android/local.properties` is generated and
+gitignored. Create it with `sdk.dir=/home/<you>/Android/sdk`, or export `ANDROID_HOME` before
+building and let Capacitor write it.
+
+**The build succeeds but the app shows a blank screen.** `pnpm build` was not rerun before
+`cap sync`, so the Android project is holding an older copy of the web build.

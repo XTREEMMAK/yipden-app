@@ -1,0 +1,11 @@
+node_modules
+build
+dist
+.svelte-kit
+coverage
+tmp
+pnpm-lock.yaml
+docs/reference
+apps/reader/android
+apps/reader/static/fonts
+LICENSE

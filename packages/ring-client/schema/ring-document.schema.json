@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yipden.com/schema/ring-document.schema.json",
+  "title": "Ring document, as a reader consumes it",
+  "description": "What YipDen requires of ring.json. Deliberately a looser contract than the ring's own publishing schema at https://ring.indienodes.us/schema/ring-document.json: the ring enforces its full rules before an entry is published, while a reader only needs the fields it renders, and additionalProperties stays true everywhere because the ring contract is additive and a reader must carry unknown fields through untouched.",
+  "type": "object",
+  "required": ["version", "entries"],
+  "additionalProperties": true,
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Envelope shape version. An unrecognized value is not a reason to refuse the document; read entries anyway."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Additive, not emitted yet: when the ring published this document."
+    },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "publicHttpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://",
+      "maxLength": 2000,
+      "description": "https only, no embedded credentials, and never a private or loopback host. The host rule cannot be expressed here; src/url.ts enforces it."
+    },
+    "feed": {
+      "type": "object",
+      "required": ["type", "url"],
+      "additionalProperties": true,
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "rss, atom, jsonfeed, bluesky, mastodon, youtube, podcast, or anything newer. Unknown kinds render as a generic feed rather than being dropped."
+        },
+        "url": { "$ref": "#/$defs/publicHttpsUrl" },
+        "verified": {
+          "type": "boolean",
+          "description": "The feed's profile links back to source_url, a two way rel=me."
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "required": ["id", "creator", "type", "source_url"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 60 },
+        "creator": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "creator_id": { "type": "string", "maxLength": 100 },
+        "type": { "type": "string", "maxLength": 40 },
+        "form": { "type": "string", "maxLength": 40 },
+        "why": { "type": "string", "maxLength": 200 },
+        "tags": { "type": "array", "items": { "type": "string", "maxLength": 40 } },
+        "source_url": { "$ref": "#/$defs/publicHttpsUrl" },
+        "thumb_url": { "$ref": "#/$defs/publicHttpsUrl" },
+        "preview_url": { "$ref": "#/$defs/publicHttpsUrl" },
+        "trailer_url": { "$ref": "#/$defs/publicHttpsUrl" },
+        "thumb_position": {
+          "type": "object",
+          "required": ["x", "y"],
+          "additionalProperties": true,
+          "properties": {
+            "x": { "type": "number", "minimum": 0, "maximum": 100 },
+            "y": { "type": "number", "minimum": 0, "maximum": 100 }
+          }
+        },
+        "tracks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "media_url"],
+            "additionalProperties": true,
+            "properties": {
+              "label": { "type": "string", "maxLength": 100 },
+              "media_url": { "$ref": "#/$defs/publicHttpsUrl" }
+            }
+          }
+        },
+        "pages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["image_url"],
+            "additionalProperties": true,
+            "properties": {
+              "image_url": { "$ref": "#/$defs/publicHttpsUrl" },
+              "caption": { "type": "string", "maxLength": 200 }
+            }
+          }
+        },
+        "artworks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["image_url"],
+            "additionalProperties": true,
+            "properties": {
+              "image_url": { "$ref": "#/$defs/publicHttpsUrl" },
+              "alt": { "type": "string", "maxLength": 200 },
+              "year": { "type": "string", "maxLength": 20 },
+              "medium": { "type": "string", "maxLength": 100 }
+            }
+          }
+        },
+        "excerpts": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string", "maxLength": 2000 },
+              {
+                "type": "object",
+                "required": ["text"],
+                "additionalProperties": true,
+                "properties": {
+                  "text": { "type": "string", "maxLength": 2000 },
+                  "title": { "type": "string", "maxLength": 100 },
+                  "media_url": { "$ref": "#/$defs/publicHttpsUrl" }
+                }
+              }
+            ]
+          }
+        },
+        "feeds": {
+          "type": "array",
+          "description": "Additive, not emitted yet. Absent means the reader runs feed discovery against source_url instead.",
+          "items": { "$ref": "#/$defs/feed" }
+        },
+        "explicit": { "type": "boolean" },
+        "discoverable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Additive, not emitted yet. false keeps a member out of Discover's rotation."
+        },
+        "verification_token": { "type": "string", "maxLength": 200 },
+        "joined_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "_placeholder": { "type": "boolean" }
+      }
+    }
+  }
+}
