@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { player } from '$lib/player.svelte.js';
+	import { buildListenQueue } from '$lib/queue.js';
+	import { ring } from '$lib/ring.svelte.js';
 	import { washFor } from '$lib/ring.svelte.js';
 	import { formatDuration, relativeAge, sourceLabel, today } from '$lib/today.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
@@ -27,12 +30,20 @@
 	let age = $derived(relativeAge(yip.publishedAt));
 
 	/**
-	 * Playback does not exist yet (see DECISIONS.md): until the player is built, a listen or
-	 * watch card opens the creator's page like every other yip. Once it exists, only opening
-	 * the creator's own page counts as leaving the app; playing stays inside it.
+	 * "Tapping an audio yip opens the player; everything else opens the creator's URL." A watch
+	 * yip still gets the play icon, matching a video's own affordance, but this app does not
+	 * play video: it opens the creator's page the same as a post does.
 	 */
 	function open() {
 		void today.markRead(yip.key);
+		if (yip.category === 'listen') {
+			const queue = buildListenQueue(today.panes.listen, ring.all);
+			const index = queue.findIndex((item) => item.id === yip.key);
+			if (index !== -1) {
+				player.play(queue, index);
+				return;
+			}
+		}
 		openExternal(yip.url);
 	}
 </script>

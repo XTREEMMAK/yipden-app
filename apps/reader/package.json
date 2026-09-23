@@ -20,7 +20,8 @@
     "@capacitor/core": "^8.5.2",
     "@rgrove/parse-xml": "^5.0.0",
     "@yipden/feeds": "workspace:*",
-    "@yipden/ring-client": "workspace:*"
+    "@yipden/ring-client": "workspace:*",
+    "wavesurfer.js": "^7.12.12"
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.2",

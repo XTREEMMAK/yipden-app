@@ -3,6 +3,7 @@
 	import { swipe } from '$lib/actions/swipe.js';
 	import { fly } from 'svelte/transition';
 	import { flyIn, prefersReducedMotion, staggerDelay } from '$lib/motion.js';
+	import { buildListenQueue } from '$lib/queue.js';
 	import { ring } from '$lib/ring.svelte.js';
 	import { today, TODAY_FILTERS, type TodayFilterKey } from '$lib/today.svelte.js';
 	import YipCard from '$components/YipCard.svelte';
@@ -208,17 +209,19 @@
 					{/if}
 
 					{#if filter.key === 'listen' && ring.all.length}
+						{@const listenQueue = buildListenQueue(today.panes.listen, ring.all)}
 						{@const tracks = ring.all.flatMap((entry) =>
 							(entry.tracks ?? []).map((track) => ({ entry, track }))
 						)}
+						{@const ringStart = listenQueue.length - tracks.length}
 						{#if tracks.length}
 							<div class="sec-h">
 								<h3>From the ring</h3>
 								<span>ring.json {'·'} tracks</span>
 							</div>
 							<div class="rows">
-								{#each tracks as { entry, track } (entry.id + track.media_url)}
-									<RingRow {entry} {track} />
+								{#each tracks as { entry, track }, i (entry.id + track.media_url)}
+									<RingRow {entry} {track} queue={listenQueue} index={ringStart + i} />
 								{/each}
 							</div>
 						{/if}

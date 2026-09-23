@@ -44,6 +44,14 @@ Every notable change to YipDen, newest first. The format follows
 - You: the theme picker with a measured sliding indicator, the follow list with an inline
   Unfollow / Keep confirm, OPML export and import (with the same URL safety checks as
   everywhere else), and clearing cached yips without touching follows.
+- The player: one shared `HTMLAudioElement` for the whole app, a mini player docked above the
+  tab bar with the slow pulse while playing, and a full screen player with a wavesurfer.js
+  waveform, backed by a hidden range input for keyboard and screen reader seeking, that falls
+  back to a plain progress bar with no error shown if decoding fails. Waveform peaks are cached
+  on device keyed by media URL and ETag, so a track decodes at most once. Speed (1x-2x), a
+  queue with Up next, Media Session metadata for lock screen controls, and swipe to collapse or
+  expand with a button equivalent for every gesture. Only a listen yip opens the player; a
+  watch yip still opens the creator's page, per the brief.
 
 ## [0.0.1] - 2026-09-22
 

@@ -278,3 +278,66 @@ WebView version and the device's own app set, not on anything this app controls.
 gap the Filesystem and Share plugins would close, and it is why this decision is recorded
 rather than left implicit: if the on-device experience turns out to be worse than a plain link
 click and a file picker, propose those two plugins with that evidence, not before.
+
+## 2026-09-23: Only a listen yip opens the player; a watch yip still opens externally
+
+The brief's own screen inventory says it plainly: "Tapping an audio yip opens the player;
+everything else opens the creator's URL." A watch yip keeps the same play icon a listen yip
+has, matching a video's own affordance in the reference prototype, but the tap behavior is not
+shared: this app does not play video, in app or otherwise. It opens the creator's page, the
+same as a text post.
+
+## 2026-09-23: The full player and mini player never unmount once something has played
+
+Both stay in the DOM for the rest of the session after the first track opens, shown or hidden
+with a CSS transform rather than an `{#if}` block that would destroy and recreate them. This
+matters more than it looks: the full player holds the Waveform component, and destroying it on
+every collapse would mean re-decoding a track's peaks every time a reader collapsed and
+reopened the player, directly working against "a track is decoded at most once." `sheet` drives
+visibility and `inert` for the collapsed state; nothing about mounting depends on it.
+
+This surfaced a real bug during the first pass: the mini player originally rendered whenever
+anything was loaded, with no check for whether the full player was also open, so both existed
+in the DOM simultaneously (confirmed by Playwright's strict mode catching two elements both
+labeled "Pause"). The mini player now also checks `sheet === 'mini'`.
+
+## 2026-09-23: The card-to-player shared element morph is deferred
+
+The brief describes opening a yip into the player as a shared `view-transition-name` morph from
+the card's own image and title. This app's version opens the player with a plain slide up
+instead, the documented fallback the brief itself allows "where the View Transitions API isn't
+available." Building the full morph correctly, coordinating names across every card type and
+the player, plus the scrim and header fade timing the brief specifies, is real additional work
+on top of an already large milestone, and the plain slide already carries the same information
+using the same shared duration and easing. Recorded here as an open, disclosed item, not a
+silent cut, the same treatment as the 3D card stack in Today.
+
+## 2026-09-23: Two seeking bugs, both found only because a real audio file was used in tests
+
+Testing the player against a real, if silent, generated WAV file (Chromium genuinely decodes
+it, unlike a fixture that only satisfies a mock) surfaced two real defects a mocked-duration
+approach would have missed entirely.
+
+**Seeking to exactly a track's duration is a known cross-browser edge case.** Some media
+engines silently reject a seek target equal to `duration` and reset position to 0 rather than
+landing at the end. `skip`/`seek` now clamp to `duration - 0.25` rather than `duration` itself;
+reaching the real end during ordinary playback still fires `ended` and advances the queue
+exactly as before, since that path never depends on the seek target being exact.
+
+**A seek requested before the browser knows the real duration is now held and reapplied once
+`loadedmetadata` fires**, rather than guessed at with an `Infinity` fallback that could send a
+`skip(30)` on a brand new track to an arbitrary position.
+
+**A third case was found, investigated at length, and deliberately left unresolved rather than
+patched over:** a paused, `preload="none"` element can abandon whatever it had buffered
+entirely, so a seek requested while paused, very early into a short track's playback, can land
+back at 0 instead of the target and never recover without an explicit `play()` call, because
+`preload="none"` overrides even an explicit `load()`. A forced-resume-then-repause fix was
+built and then removed after it proved to flap between playing and paused without reliably
+landing the seek either. This is a genuine tension between "no preloading, ever" (a rule that
+does not bend, for a member's bandwidth) and "seeking always works" (not itself one of the
+brief's explicit rules). The trade-off is resolved in preload's favor, matching the brief's
+stated priority, and the gap is disclosed here rather than hidden behind a test that was
+quietly rewritten to stop noticing it. The end to end suite exercises the realistic case,
+seeking during active playback, which works reliably; the pathological case is a candidate for
+a native `Store`-backed local caching layer later, not a v0.9 fix.

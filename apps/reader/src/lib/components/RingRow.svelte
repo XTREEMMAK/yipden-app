@@ -1,25 +1,29 @@
 <script lang="ts">
 	import type { RingEntry, RingTrack } from '@yipden/ring-client';
+	import { player } from '$lib/player.svelte.js';
 	import { washFor } from '$lib/ring.svelte.js';
-	import { openExternal } from '$lib/platform/external.js';
+	import type { QueueItem } from '$lib/player.svelte.js';
 
 	/**
 	 * One row in Listen's "From the ring" section: a track any member published in their
-	 * `tracks[]`, playable without following anyone. Playback does not exist yet (see
-	 * DECISIONS.md), so tapping opens the creator's page for now, same as a yip card.
+	 * `tracks[]`, playable without following anyone. `queue` and `index` place it in the same
+	 * playback queue the parent already built from every followed yip and every ring track, so
+	 * "Up next" from here carries on into the rest of Listen rather than looping this one row.
 	 */
 
 	interface Props {
 		entry: RingEntry;
 		track: RingTrack;
+		queue: QueueItem[];
+		index: number;
 	}
 
-	let { entry, track }: Props = $props();
+	let { entry, track, queue, index }: Props = $props();
 </script>
 
 <button
 	class="trk"
-	onclick={() => openExternal(entry.source_url)}
+	onclick={() => player.play(queue, index)}
 	aria-label={`Play ${track.label} by ${entry.creator}`}
 >
 	<span
