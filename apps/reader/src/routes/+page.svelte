@@ -24,9 +24,14 @@
 	/**
 	 * Which way the next member's name and "why" should fly in from: -1 after `next()` (they
 	 * come from the right, the same edge a left drag reveals), 1 after `prev()` (from the
-	 * left), 0 for shuffle and the filter chips, which have no direction of their own.
+	 * left), 0 for shuffle and the filter chips, which have no direction of their own. The
+	 * WebGL hero reads the same value, for the same reason: the wipe travels the way the drag
+	 * that triggered it went.
 	 */
 	let navDirection = $state<-1 | 0 | 1>(0);
+
+	let section: HTMLElement | undefined;
+	let heroArt: ReturnType<typeof HeroArt> | undefined;
 
 	onMount(() => {
 		void ring.load();
@@ -120,19 +125,31 @@
 <section
 	class="discover"
 	aria-label="Discover"
+	bind:this={section}
 	use:swipe={{
 		axis: 'x',
 		exclude: '[data-noswipe]',
 		enabled: () => ring.visible.length > 1,
-		onStart: () => (dragging = true),
-		onMove: (delta) => (dragX = prefersReducedMotion() ? 0 : delta),
-		onEnd: ({ commit, direction }) => onSwipeEnd(commit, direction)
+		onStart: () => {
+			dragging = true;
+			heroArt?.wake();
+		},
+		onMove: (delta) => {
+			dragX = prefersReducedMotion() ? 0 : delta;
+			heroArt?.dragPreview(delta / (section?.clientWidth || 1));
+		},
+		onEnd: ({ commit, direction }) => {
+			if (!commit) heroArt?.releasePreview();
+			onSwipeEnd(commit, direction);
+		}
 	}}
 >
 	<HeroArt
+		bind:this={heroArt}
 		src={ring.heroImage}
 		wash={washFor(ring.current?.id ?? 'yipden')}
 		focal={ring.current?.thumb_position}
+		direction={navDirection}
 	/>
 	<div class="scrim" aria-hidden="true"></div>
 

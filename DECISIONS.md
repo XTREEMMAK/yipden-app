@@ -533,3 +533,48 @@ and no end to end test had ever clicked it, so nothing would have caught a renam
 it. Fixed, and now covered by a new test in `follow.spec.ts`, a small concrete example of a
 larger point: a screen with no test exercising a specific control is a screen where a
 refactor can silently break that control and every check will still pass.
+
+## 2026-09-23: Discover's WebGL hero is built, ported from the reference prototype
+
+The brief marks this optional and names the CSS crossfade as its own sanctioned fallback,
+which is why it shipped after everything else in v0.9 rather than before it. Built now:
+`src/lib/webgl/heroGL.ts` is a from-scratch TypeScript port of the prototype's own GL code
+(`docs/reference/yipden-prototype.html`), not the code copied over, matching the brief's own
+instruction to port patterns into components rather than port the prototype's JS as written.
+The shader itself, the fbm-noise displacement wipe, the liquid bend while dragging, the ~30fps
+ambient drift that rests after 10 seconds and wakes on a touch, is close to line-for-line the
+same math; the state machine around it is restructured as a plain object `HeroArt.svelte` owns
+and tears down on its own, rather than a page level singleton closing over globals the way the
+prototype's `GL` IIFE does.
+
+**The CSS crossfade never stops running underneath**, the same relationship the prototype's own
+`.hero-gl`/`.hero-art` classes have: a canvas is drawn over the existing layers and a class
+toggle decides which one is actually visible, so any way `createHeroGL` can fail leaves the
+already-working fallback exactly where it was, not something to reconstruct after the fact.
+Two real fixes only surfaced this way, from writing a genuinely failing case rather than
+trusting the design on paper:
+
+- A photo host with no CORS headers is meant to disable the WebGL hero for the rest of the
+  session (`onFatalError`), but the first version only stopped the animation loop, leaving a
+  blank canvas sitting on top of a CSS layer that was still working perfectly underneath.
+  `HeroArt.svelte` now actually reacts to that callback and hides the canvas.
+- Whether a cross-origin image with no CORS headers fails at all turned out to be genuinely
+  engine dependent, discovered by testing it rather than assuming the spec's intent: the
+  taint restriction is about blocking pixel readback, which this hero never does, and in the
+  Chromium build these tests run against, `texImage2D` renders such an image successfully
+  with no error at all. Handled defensively on both ends anyway, `onerror` for an engine that
+  refuses to even load the image in CORS mode, a `try`/`catch` around the upload for one that
+  loads it and refuses the upload, since nothing here should depend on knowing which a given
+  browser or WebView chose.
+
+One deliberate simplification from the prototype: a committed swipe's wipe always starts from
+a drag fraction of 0 rather than continuing from exactly where the finger was mid-drag when it
+crossed the commit threshold. The prototype threads that value through directly because its
+swipe handler and its transition call are the same function; here the transition is triggered
+reactively off a `direction` prop change instead, and carrying the exact mid-drag value through
+that path was not worth the extra plumbing for what is a small continuity difference at the
+handoff moment, not a visible defect.
+
+Verified visually, not just by absence of errors: two solid-color images with distinct stripe
+patterns confirmed the wipe's boundary is genuinely noise-distorted rather than a hard line,
+and the ambient drift visibly moves a static image's stripes at rest.

@@ -66,6 +66,11 @@ Every notable change to YipDen, newest first. The format follows
 - The Android hardware and gesture back button now steps back through Discover, Today, Follow
   and You's own navigation history before it exits the app, matching every other Android app,
   instead of exiting on the first press.
+- Discover's WebGL hero: a hand-written displacement wipe between two member photos in the
+  swipe direction, a liquid bend while dragging, and a slow ambient drift at rest, ported from
+  the reference prototype's own shader. The plain CSS crossfade it was built on top of never
+  stops running underneath, so any failure, no WebGL, a photo host with no CORS headers, a lost
+  context, falls back to it rather than a blank canvas. See DECISIONS.md.
 
 ### Fixed
 
