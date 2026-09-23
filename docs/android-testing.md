@@ -88,7 +88,19 @@ is for. See [architecture.md](architecture.md) for why the web build has two lan
 
 1. Settings, About phone, tap **Build number** seven times to unlock Developer options.
 2. Settings, System, Developer options, turn on **Wireless debugging**.
-3. Keep the phone on the same network as this machine.
+3. Get the phone onto a network that can reach this machine. This machine sits on a private
+   LAN (`192.168.10.0/24`); when the phone is not physically on that LAN, a VPN back into it
+   works exactly the same as being on the Wi-Fi, as long as the VPN routes phone-to-host
+   traffic rather than only phone-to-gateway. Confirm it actually does before pairing:
+
+   ```bash
+   ping -c 2 <phone-vpn-ip>      # from this machine, once the phone's VPN is up
+   ```
+
+   If that does not answer, the VPN is client-isolated (routes to the gateway, not to other
+   hosts on the LAN) and wireless debugging will not reach the phone no matter how the pairing
+   step is run. Fall back to [manual APK transfer](#if-the-phone-is-not-on-this-machines-network)
+   instead of chasing pairing errors.
 
 ### One time, on this machine
 
@@ -101,8 +113,10 @@ adb connect <phone-ip>:<debug-port>    # the port on the main Wireless debugging
 adb devices                            # your phone should be listed as "device"
 ```
 
-The pairing survives reboots; the connection does not, so `adb connect` is the command you
-will repeat.
+Use the phone's VPN-assigned IP for `<phone-ip>` when it is reaching this machine that way,
+the same as any other IP it might have. The pairing survives reboots; the connection does
+not, so `adb connect` is the command you will repeat, and again whenever the phone's IP
+changes (which a VPN reconnect will do).
 
 ### Every build
 
@@ -141,6 +155,19 @@ The app's WebView is inspectable from Chrome DevTools on a machine with a screen
 `chrome://inspect/#devices`, with the phone connected to **that** machine over USB or wireless
 debugging. This is the only part of the loop that wants a desktop, and it is optional: the
 browser loop covers the same ground for everything that is not native.
+
+A second machine with a screen, e.g. one running Android Studio, only needs USB debugging
+turned on and Chrome installed; Android Studio itself is not required for this. It is useful
+for exactly two things this headless machine cannot do: `chrome://inspect` with a mouse, and
+Android Studio's own Logcat view if `adb logcat` in a terminal gets noisy. The APK still gets
+built here and copied over, or installed straight from this machine onto the same phone once
+it is also paired here; the two are independent, and neither machine needs to see the other,
+only the phone.
+
+If a physical phone stops being available at some point, that second machine's own hardware
+accelerated emulator (assuming it has the virtualization this KVM guest lacks) is a reasonable
+stand-in for anything that is not motion-sensitive; still confirm any 60fps judgment on real
+hardware before trusting it.
 
 ## What to check on the device, specifically
 
