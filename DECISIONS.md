@@ -138,3 +138,19 @@ would be a quiet exception to a promise made in plain words on screen.
 
 A reader who wants their follows somewhere else exports OPML from You, which is a decision they
 make rather than one made for them.
+
+## 2026-09-22: Discover's white pill uses a fixed ink, against the prototype
+
+The reference prototype styles the "Follow everything" button as `background:#fff` with
+`color:var(--ink)`. In dark mode `--ink` becomes `#F3EAE3`, so the label is near white text on
+a white pill. Screenshotting the build beside the prototype at 390x844 in both themes, which is
+the step the brief asks for after every screen, showed it immediately: readable in light,
+invisible in dark.
+
+**The app uses a fixed `#1F1410` there instead.** Discover is dark in both themes by design, so
+nothing on it should take a color from a token that flips. This is a deliberate departure from
+a prototype that is otherwise authoritative for tokens, and it is recorded because the rule it
+serves is one that does not bend: 4.5:1 contrast, including text on images and on orange.
+
+The same reasoning applies anywhere else a fixed dark surface uses a theme aware ink, including
+the player, which is `--player` in both themes.

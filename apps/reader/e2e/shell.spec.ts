@@ -31,15 +31,36 @@ test.describe('the app shell', () => {
 	});
 
 	test('serves its fonts from the bundle, never from a third party', async ({ page }) => {
-		const external: string[] = [];
+		/*
+		 * The app is allowed to fetch the ring and creators' images: that is the product. What it
+		 * must never do is call a font host or an analytics endpoint, because the app works
+		 * offline and because a font request tells someone else's server which app was opened
+		 * and when.
+		 */
+		const forbidden = [
+			'fonts.googleapis.com',
+			'fonts.gstatic.com',
+			'google-analytics.com',
+			'googletagmanager.com',
+			'doubleclick.net'
+		];
+		const offending: string[] = [];
+		const fontRequests: string[] = [];
+
 		page.on('request', (request) => {
 			const url = new URL(request.url());
-			if (url.hostname !== 'localhost') external.push(request.url());
+			if (forbidden.some((host) => url.hostname.endsWith(host))) offending.push(request.url());
+			if (url.pathname.endsWith('.woff2')) fontRequests.push(request.url());
 		});
 
 		await page.goto('/');
 		await page.waitForLoadState('networkidle');
-		expect(external).toEqual([]);
+
+		expect(offending).toEqual([]);
+		expect(fontRequests.length).toBeGreaterThan(0);
+		for (const font of fontRequests) {
+			expect(new URL(font).hostname).toBe('localhost');
+		}
 	});
 
 	test('carries a Content Security Policy that refuses inline script', async ({ page }) => {

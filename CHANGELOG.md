@@ -24,6 +24,10 @@ Every notable change to YipDen, newest first. The format follows
   the cached ring, waveform peaks and settings.
 - The Android host: Capacitor 8, package `com.yipden.app`, minSdk 26, targetSdk 36, cleartext
   traffic refused at the platform level, and no cloud backup of a reader's data.
+- Discover: the ring as a full bleed hero, opening on the node of the day, walked by swipe or
+  by button, filtered by chips, shuffled, and rendering from cache when the ring cannot be
+  reached. One tap follows a member everywhere they publish.
+- A script that screenshots the build beside the reference prototype at 390x844 in both themes.
 
 ## [0.0.1] - 2026-09-22
 

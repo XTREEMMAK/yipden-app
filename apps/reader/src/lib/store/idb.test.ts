@@ -157,7 +157,8 @@ describe('yips', () => {
 		const first = await store.listYips({ limit: 2 });
 		expect(first.map((item) => item.key)).toEqual(['a', 'b']);
 
-		const next = await store.listYips({ before: first[1]?.publishedAt ?? undefined, limit: 2 });
+		const cursor = first[1]?.publishedAt;
+		const next = await store.listYips({ ...(cursor ? { before: cursor } : {}), limit: 2 });
 		expect(next.map((item) => item.key)).toEqual(['c']);
 	});
 
