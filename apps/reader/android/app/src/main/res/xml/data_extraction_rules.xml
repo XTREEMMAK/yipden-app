@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Nothing leaves the device.
+
+    What a reader follows and what they have read is a record of what they read and when. The
+    product's promise is that the follow stays on the phone, and a silent backup of that record
+    to someone else's cloud would be a quiet exception to it. A reader who wants their follows
+    somewhere else exports OPML, which is a decision they make.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

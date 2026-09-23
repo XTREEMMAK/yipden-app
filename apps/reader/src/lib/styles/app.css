@@ -1,0 +1,212 @@
+@import './tokens.css';
+
+/*
+ * Base styles and the screen transition system.
+ *
+ * Component styles live in their components. What is here is what genuinely applies to every
+ * screen: the frame, the type ramp, focus, and the View Transitions rules that make tabs slide
+ * and detail views push.
+ */
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	height: 100%;
+	margin: 0;
+	overscroll-behavior: none;
+}
+
+body {
+	background: var(--ground);
+	color: var(--ink);
+	font-family: var(--body);
+	font-size: 15px;
+	line-height: 1.45;
+	-webkit-tap-highlight-color: transparent;
+	-webkit-font-smoothing: antialiased;
+}
+
+img {
+	max-width: 100%;
+}
+
+button {
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+}
+
+/*
+ * Focus is visible, always. A reader using a keyboard or a switch has to be able to see where
+ * they are, and "it looked cleaner without it" is not a reason that survives contact with
+ * someone who needs it.
+ */
+:focus-visible {
+	outline: 2px solid var(--brand-text);
+	outline-offset: 2px;
+	border-radius: 6px;
+}
+
+/** Visible to screen readers, not to the eye. */
+.visually-hidden {
+	position: absolute !important;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* ---------- the frame ---------- */
+
+.app {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	height: 100dvh;
+	overflow: hidden;
+	background: var(--ground);
+	isolation: isolate;
+}
+
+/**
+ * Every scroll area ends above the dock rather than behind it, which is why --dock is a token
+ * and grows on its own when the mini player appears.
+ */
+.scroll {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-width: none;
+	padding-bottom: calc(var(--dock) + 20px);
+}
+
+.scroll::-webkit-scrollbar {
+	display: none;
+}
+
+/* ---------- type ---------- */
+
+.eyebrow {
+	font-family: var(--mono);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	font-variant-numeric: tabular-nums;
+}
+
+.screen-title {
+	margin: 0;
+	font-family: var(--display);
+	font-size: 32px;
+	line-height: 1.02;
+	letter-spacing: -0.022em;
+	font-weight: 700;
+}
+
+/** The one word in a screen title that carries the color. */
+.screen-title em {
+	font-style: normal;
+	color: var(--brand-text);
+}
+
+.lede {
+	margin: 0;
+	font-size: 15px;
+	line-height: 1.5;
+	color: var(--muted);
+}
+
+.meta {
+	font-family: var(--mono);
+	font-size: 12.5px;
+	letter-spacing: 0.04em;
+	font-variant-numeric: tabular-nums;
+	color: var(--muted);
+}
+
+/* ---------- screen transitions ---------- */
+
+/*
+ * Tabs slide horizontally in tab order, detail views push in from the right, and anything the
+ * API cannot do falls back to a crossfade because that is what a browser without View
+ * Transitions does on its own.
+ */
+@media not (prefers-reduced-motion: reduce) {
+	::view-transition-group(*) {
+		animation-duration: var(--dur-l);
+		animation-timing-function: var(--ease);
+	}
+
+	::view-transition-old(root),
+	::view-transition-new(root) {
+		animation-duration: var(--dur-l);
+		animation-timing-function: var(--ease);
+	}
+
+	:root[data-nav='forward']::view-transition-old(root) {
+		animation-name: slide-out-left;
+	}
+
+	:root[data-nav='forward']::view-transition-new(root) {
+		animation-name: slide-in-right;
+	}
+
+	:root[data-nav='back']::view-transition-old(root) {
+		animation-name: slide-out-right;
+	}
+
+	:root[data-nav='back']::view-transition-new(root) {
+		animation-name: slide-in-left;
+	}
+}
+
+/*
+ * Reduced motion: a short crossfade instead of every slide, fly and morph. The transition is
+ * not removed, because losing the sense that one screen replaced another is its own problem.
+ */
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-group(*),
+	::view-transition-old(root),
+	::view-transition-new(root) {
+		animation-duration: var(--dur-s);
+		animation-timing-function: var(--ease);
+		animation-name: none;
+	}
+}
+
+@keyframes slide-out-left {
+	to {
+		transform: translateX(-28%);
+		opacity: 0;
+	}
+}
+
+@keyframes slide-in-right {
+	from {
+		transform: translateX(100%);
+	}
+}
+
+@keyframes slide-out-right {
+	to {
+		transform: translateX(28%);
+		opacity: 0;
+	}
+}
+
+@keyframes slide-in-left {
+	from {
+		transform: translateX(-100%);
+	}
+}

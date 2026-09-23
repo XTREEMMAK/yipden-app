@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    https only, enforced by the platform rather than by app code.
+
+    The app already refuses non https URLs in packages/ring-client, but that check lives in
+    JavaScript inside a WebView that renders hostile content. This one does not.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

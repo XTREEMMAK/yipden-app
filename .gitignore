@@ -40,3 +40,8 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Capacitor copies the web build into the native project on every sync
+apps/reader/android/app/src/main/assets/public/
+apps/reader/android/app/src/main/assets/capacitor.config.json
+apps/reader/android/app/src/main/assets/capacitor.plugins.json

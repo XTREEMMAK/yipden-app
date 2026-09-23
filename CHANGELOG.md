@@ -17,6 +17,13 @@ Every notable change to YipDen, newest first. The format follows
   size and time.
 - An allowlist HTML sanitizer and a plain text flattener, tested against script injection,
   event handlers, unsafe URL schemes and mutation XSS vectors.
+- `apps/reader`: the app shell. SvelteKit with `adapter-static`, Svelte 5 runes, design tokens
+  and self hosted fonts, the motion system, the tab bar, screen transitions through the View
+  Transitions API, and the shared swipe primitive.
+- A `Store` interface with one IndexedDB implementation, covering follows, yips, read state,
+  the cached ring, waveform peaks and settings.
+- The Android host: Capacitor 8, package `com.yipden.app`, minSdk 26, targetSdk 36, cleartext
+  traffic refused at the platform level, and no cloud backup of a reader's data.
 
 ## [0.0.1] - 2026-09-22
 

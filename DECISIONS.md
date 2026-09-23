@@ -108,3 +108,33 @@ top of a chronological reader and stays there, which is a false ranking in a pro
 first rule is that there is no ranking. Undated items sort to the end, and a date more than 48
 hours in the future is discarded for the same reason: otherwise any feed could pin itself to
 the top of everyone's Today by lying about tomorrow.
+
+## 2026-09-22: On device storage is IndexedDB, with no native plugin
+
+The brief says storage lives on device "SQLite via Capacitor, or IndexedDB on web," behind a
+`Store` interface with one implementation. SQLite through Capacitor means
+`@capacitor-community/sqlite`, which is a native dependency, and native dependencies are asked
+about before they are added.
+
+**IndexedDB was chosen for both, so there is one implementation rather than two.** It works
+identically in the Android WebView and in a browser, which means the code path exercised in
+development is the code path that ships. A second implementation would double the surface and
+halve the testing of each half.
+
+The `Store` interface is unchanged by this: it is the door v2.0's syncing implementation comes
+through, and it would be the door a SQLite implementation came through too, if IndexedDB ever
+proves too slow on a real device with a real number of yips. That is a measurement nobody has
+taken yet, and taking it is cheaper than guessing now.
+
+## 2026-09-22: The app does not back itself up to anyone's cloud
+
+`allowBackup` is false and the Android 12 data extraction rules exclude everything, so neither
+Google's cloud backup nor device to device transfer carries a reader's data off the phone.
+
+What a person follows and what they have read is a record of what they read and when. The
+product's promise, written on the Follow screen, is that the follow stays on the phone and
+nothing is posted anywhere. A silent backup of exactly that record to someone else's cloud
+would be a quiet exception to a promise made in plain words on screen.
+
+A reader who wants their follows somewhere else exports OPML from You, which is a decision they
+make rather than one made for them.

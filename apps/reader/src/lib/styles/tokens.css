@@ -1,0 +1,139 @@
+/*
+ * Every value the app's look is built from.
+ *
+ * Lifted from docs/reference/yipden-prototype.html, which is authoritative for tokens, type,
+ * motion values and sizes. A number that appears in a component and not here is a number that
+ * will drift; put it here instead.
+ */
+
+@import '/fonts/fonts.css';
+
+:root {
+	/* Light theme. Dark overrides these below. */
+	--ink: #1f1410;
+	--muted: #6b5d55;
+	--ground: #f7f3ee;
+	--surface: #ffffff;
+	--line: #e8dfd6;
+	--brand: #c2410c;
+	--brand-text: #c2410c;
+	--brand-soft: #fbe4d6;
+	--brand-ink: #8a2e0a;
+	--ok: #1e7249;
+	--error: #a8261b;
+	--switch-off: #cdbfb3;
+
+	/* The same in both themes. Discover and the player are always dark. */
+	--deep: #2a0f06;
+	--player: #9a3412;
+	--toast: #2a1d17;
+	--on-dark: #ffffff;
+
+	/*
+	 * One easing, everywhere. A different curve written inline is a bug, not a variation:
+	 * the whole point is that every movement in the app feels like the same hand.
+	 */
+	--ease: cubic-bezier(0.65, 0, 0.35, 1);
+	--dur-s: 200ms; /* chips, toggles, pressed states */
+	--dur-m: 320ms; /* cards, fly ins, sheets */
+	--dur-l: 420ms; /* screen transitions */
+	--dur-xl: 640ms; /* the WebGL image transition on Discover */
+
+	--display: 'Bricolage Grotesque', 'Instrument Sans', system-ui, sans-serif;
+	--body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+	/* Radii. Fully round is 999px, written out where it is used. */
+	--r-card: 26px;
+	--r-group: 22px;
+	--r-mini: 20px;
+	--r-input: 16px;
+
+	/*
+	 * The bottom of every scroll area, and where toasts sit. Grows when the mini player is
+	 * showing, which is why it is one token rather than a number in each screen.
+	 */
+	--dock: 88px;
+	--tabbar-h: 84px;
+	--mini-h: 64px;
+	--gutter: 16px;
+
+	/* Scrims, so white text clears 4.5:1 over any creator's image. */
+	--scrim-card: linear-gradient(
+		180deg,
+		rgba(20, 7, 3, 0.28) 0%,
+		rgba(20, 7, 3, 0.12) 30%,
+		rgba(20, 7, 3, 0.55) 58%,
+		rgba(20, 7, 3, 0.9) 100%
+	);
+	--scrim-hero: linear-gradient(
+		180deg,
+		rgba(22, 7, 2, 0.6) 0%,
+		rgba(22, 7, 2, 0) 20%,
+		rgba(22, 7, 2, 0.08) 36%,
+		rgba(22, 7, 2, 0.74) 60%,
+		rgba(22, 7, 2, 0.95) 100%
+	);
+	--scrim-player: linear-gradient(
+		180deg,
+		rgba(40, 12, 3, 0.55) 0%,
+		transparent 20%,
+		transparent 34%,
+		rgba(154, 52, 18, 0.7) 52%,
+		#9a3412 66%
+	);
+
+	color-scheme: light;
+}
+
+/* System theme: follow the device unless the reader chose Light explicitly. */
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) {
+		--ink: #f3eae3;
+		--muted: #b8a99f;
+		--ground: #120b08;
+		--surface: #1d1410;
+		--line: #34261f;
+		--brand-text: #f29062;
+		--brand-soft: #3b1b0f;
+		--brand-ink: #f6b08a;
+		--ok: #6fcb9a;
+		--error: #f2877a;
+		--switch-off: #4a3a31;
+		color-scheme: dark;
+	}
+}
+
+/* An explicit choice from You, which beats the device setting in both directions. */
+:root[data-theme='dark'] {
+	--ink: #f3eae3;
+	--muted: #b8a99f;
+	--ground: #120b08;
+	--surface: #1d1410;
+	--line: #34261f;
+	--brand-text: #f29062;
+	--brand-soft: #3b1b0f;
+	--brand-ink: #f6b08a;
+	--ok: #6fcb9a;
+	--error: #f2877a;
+	--switch-off: #4a3a31;
+	color-scheme: dark;
+}
+
+/* The mini player pushes every scroll area and the toast up by its own height. */
+:root[data-mini='true'] {
+	--dock: 162px;
+}
+
+/*
+ * Reduced motion is honored by replacing movement with a short crossfade, never by removing
+ * feedback: a control that does not respond has a different bug than one that animates.
+ */
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--dur-s: 120ms;
+		--dur-m: 120ms;
+		--dur-l: 120ms;
+		--dur-xl: 120ms;
+	}
+}

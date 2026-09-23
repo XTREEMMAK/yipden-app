@@ -1,0 +1,39 @@
+{
+  "name": "@yipden/reader",
+  "version": "0.0.1",
+  "description": "YipDen reader app: SvelteKit and Capacitor, static output, no server routes.",
+  "license": "GPL-3.0-or-later",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "cap:sync": "pnpm build && cap sync android",
+    "android:apk": "pnpm cap:sync && cd android && ./gradlew assembleDebug",
+    "android:install": "pnpm android:apk && adb install -r android/app/build/outputs/apk/debug/app-debug.apk"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.5.2",
+    "@yipden/feeds": "workspace:*",
+    "@yipden/ring-client": "workspace:*"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@playwright/test": "^1.63.0",
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.70.3",
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^30.1.1",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  }
+}
