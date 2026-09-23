@@ -41,6 +41,9 @@ importers:
       '@capacitor/core':
         specifier: ^8.5.2
         version: 8.5.2
+      '@rgrove/parse-xml':
+        specifier: ^5.0.0
+        version: 5.0.0
       '@yipden/feeds':
         specifier: workspace:*
         version: link:../../packages/feeds

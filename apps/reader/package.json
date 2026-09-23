@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@capacitor/core": "^8.5.2",
+    "@rgrove/parse-xml": "^5.0.0",
     "@yipden/feeds": "workspace:*",
     "@yipden/ring-client": "workspace:*"
   },

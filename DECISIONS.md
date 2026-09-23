@@ -258,3 +258,23 @@ temporary only in the sense that once the player exists, a listen yip should ope
 leaving the app. Today's data model is already built for that day: `StoredYip.category` already
 distinguishes listen and watch, `formatDuration` and the waveform-shaped affordance are already
 in the card, and `PeaksRecord` already exists in the `Store` interface waiting for a caller.
+
+## 2026-09-23: OPML export and import use the browser's own file mechanisms, not a native plugin
+
+Saving and picking a file both have a reliable native answer: `@capacitor/filesystem` paired
+with `@capacitor/share` for export, and Filesystem alone covers import. Both are native
+dependencies, and native dependencies are asked about before they are added.
+
+**v0.9 uses the web platform's own mechanisms instead.** Export is a Blob, an object URL and a
+click on a hidden anchor with `download` set. Import is a plain `<input type="file">` that
+opens the system picker. Both are exercised end to end in `e2e/you.spec.ts`, including
+Playwright's real download and file chooser interception, and both work in the browser this
+project develops and tests against.
+
+What is unverified is Android's own behavior on top of that mechanism inside a Capacitor
+WebView: which app handles a WebView-triggered download, and whether the file picker reaches
+every source a reader would expect (a cloud drive, not just local storage) depend on the
+WebView version and the device's own app set, not on anything this app controls. That is the
+gap the Filesystem and Share plugins would close, and it is why this decision is recorded
+rather than left implicit: if the on-device experience turns out to be worse than a plain link
+click and a file picker, propose those two plugins with that evidence, not before.

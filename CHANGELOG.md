@@ -41,6 +41,9 @@ Every notable change to YipDen, newest first. The format follows
   Media and text cards match the reference prototype. The 3D card stack and the full playback
   experience (the shared audio element, the mini and full screen players, Media Session) are
   deferred; see DECISIONS.md.
+- You: the theme picker with a measured sliding indicator, the follow list with an inline
+  Unfollow / Keep confirm, OPML export and import (with the same URL safety checks as
+  everywhere else), and clearing cached yips without touching follows.
 
 ## [0.0.1] - 2026-09-22
 
