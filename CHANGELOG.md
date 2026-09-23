@@ -52,6 +52,10 @@ Every notable change to YipDen, newest first. The format follows
   queue with Up next, Media Session metadata for lock screen controls, and swipe to collapse or
   expand with a button equivalent for every gesture. Only a listen yip opens the player; a
   watch yip still opens the creator's page, per the brief.
+- Today's 3D card stack: cards stand up as they rise, pin, tip back and dim as the next card
+  slides over them, driven by `animation-timeline: view()` where it exists and a
+  `requestAnimationFrame` fallback with the same geometry where it does not. Only the front
+  card takes taps. Disabled under reduced motion, which keeps the flat, staggered list.
 
 ## [0.0.1] - 2026-09-22
 

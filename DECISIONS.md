@@ -227,21 +227,41 @@ off-screen pane's buttons, or a screen reader announcing all four panes' content
 regardless of which pill was selected. Every pane but the active one now carries `inert`, the
 standard fix for exactly this shape of always-mounted, visually-paged content.
 
-## 2026-09-23: Today ships as a flat, staggered list; the 3D card stack is deferred
+## 2026-09-23: Today shipped as a flat list first, deliberately, then the 3D card stack followed
 
 The brief's card stack (cards standing up as they rise, tipping back and dimming as they pass
 the top, driven by `animation-timeline: view()` with a passive-scroll fallback) is explicitly
 optional in its own wording, and reduced motion's documented answer for it is "a flat list, no
-stack," exactly what ships now. Building the scroll-driven version correctly, including a
-faithful rAF fallback for browsers without it, is a substantial, fiddly piece of work on its
-own, and Today's data correctness, filters, categorization and the refresh pipeline underneath
-it were worth finishing and testing properly first rather than splitting attention across both
-at once.
+stack." Today's first pass shipped exactly that, on purpose: data correctness, filters,
+categorization and the refresh pipeline underneath it were worth finishing and testing properly
+before adding a second, fiddlier animation system on top.
 
-The flat list is not a stand-in with missing pieces bolted on later: every yip already flies in
-staggered by the shared motion system, which is the same entrance the stack's own resting state
-would use. Adding the stand-up and tip-back animation on top is additive, not a rebuild, and is
-recorded here as an open item rather than left silently undone.
+**The stack itself now exists**, in `src/lib/actions/cardStack.ts`, as a Svelte action applied
+to each pane rather than anything baked into `YipCard.svelte` or the card markup: the action
+finds `.yip` elements by class and reads or writes their inline styles, the same relationship
+`jsStack()` has to `.yip` in the reference prototype, so the card component itself carries no
+knowledge that a stack exists. Where `animation-timeline: view()` exists, a global stylesheet
+(scoped to `.pane.stack-sda .yip` via `:global()`, since `.yip` belongs to a different
+component) drives the whole thing on the compositor with the exact keyframes the prototype
+defines. Where it does not, a passive scroll listener schedules one `requestAnimationFrame`
+callback per frame and computes the same transform by hand, touching only cards within one card
+height of the visible area, per the brief's own cost bound. The geometry itself,
+`cardPlacement()`, is a pure function of three numbers (a card's offset, its height, the
+viewport height) with no DOM in it, which is what makes it unit testable at all; the DOM
+reading and writing around it is `layoutFallback()`, a thin, deliberately untested shell.
+
+An `IntersectionObserver` marks whichever card is pinned at the top as `.behind`, which the
+stylesheet turns into `pointer-events: none`, so only the front card ever receives a tap. A
+`MutationObserver` on the pane re-observes new cards as they arrive, since yips load
+asynchronously from storage and then again from a refresh; the action has no other way to know
+a new card exists.
+
+Real inspection in Chromium (which supports scroll-driven animations natively) confirmed the
+whole thing working as designed: a card scrolled past the top carries the exact `matrix3d` the
+`yip-out` keyframe describes, at zero opacity; a card standing up from the bottom carries
+`yip-in`'s `scale(0.94)` and partial rotation at 0.5 opacity; a resting card in the middle
+carries no transform at all. Reduced motion still disables the entire action, leaving the flat,
+staggered list exactly as it shipped in the first pass.
 
 ## 2026-09-23: Listen and the full-screen player do not exist yet; a listen or watch yip opens externally for now
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { cardStack } from '$lib/actions/cardStack.js';
 	import { swipe } from '$lib/actions/swipe.js';
 	import { fly } from 'svelte/transition';
 	import { flyIn, prefersReducedMotion, staggerDelay } from '$lib/motion.js';
@@ -187,6 +188,7 @@
 					id="pane-{filter.key}"
 					aria-labelledby="pill-{filter.key}"
 					inert={today.filter !== filter.key}
+					use:cardStack
 					onpointerdown={onPullStart}
 					onpointermove={onPullMove}
 					onpointerup={onPullEnd}
@@ -394,5 +396,93 @@
 		border-radius: var(--r-group);
 		background: var(--surface);
 		overflow: hidden;
+	}
+
+	/*
+	 * The 3D card stack. Targets `.yip`, the class every card in YipCard.svelte carries,
+	 * through `:global()` since that class belongs to a different component; nothing about
+	 * stacking needed to live inside the card itself, only in the pane that lays cards out.
+	 *
+	 * `.stack-sda` is the scroll-driven path: a named view-timeline per card animates on the
+	 * compositor with no JavaScript per frame. Plain `.stack` without it is what the rAF
+	 * fallback in cardStack.ts drives by hand, so the same visual target is reached either way.
+	 */
+	:global(.pane.stack .yip) {
+		content-visibility: auto;
+		contain-intrinsic-size: auto 200px;
+	}
+
+	:global(.pane.stack .yip.behind) {
+		pointer-events: none;
+	}
+
+	:global(.pane.stack .yip::after) {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		background: #120704;
+		opacity: var(--dim, 0);
+		pointer-events: none;
+	}
+
+	/* No backdrop-filter on anything inside a moving card: a solid tinted chip instead. */
+	:global(.pane.stack .yip .src) {
+		background: rgba(18, 6, 2, 0.5) !important;
+		-webkit-backdrop-filter: none !important;
+		backdrop-filter: none !important;
+	}
+
+	:global(.pane.stack-sda .yip) {
+		view-timeline: --yip block;
+		view-timeline-inset: 0px var(--dock);
+		animation:
+			yip-in linear both,
+			yip-out linear forwards;
+		animation-timeline: --yip, --yip;
+		animation-range:
+			entry 0% entry 100%,
+			exit 0% exit 100%;
+	}
+
+	:global(.pane.stack-sda .yip::after) {
+		animation: yip-dim linear forwards;
+		animation-timeline: --yip;
+		animation-range: exit 0% exit 100%;
+	}
+
+	@keyframes yip-in {
+		from {
+			transform-origin: 50% 100%;
+			transform: perspective(1000px) translateY(24px) rotateX(14deg) scale(0.94);
+			opacity: 0.5;
+		}
+		to {
+			transform-origin: 50% 100%;
+			transform: none;
+			opacity: 1;
+		}
+	}
+
+	@keyframes yip-out {
+		from {
+			transform-origin: 50% 0%;
+			transform: none;
+			opacity: 1;
+		}
+		to {
+			transform-origin: 50% 0%;
+			transform: perspective(1000px) translateY(100%) translateZ(-180px) rotateX(-10deg);
+			opacity: 0;
+		}
+	}
+
+	@keyframes yip-dim {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 0.6;
+		}
 	}
 </style>
