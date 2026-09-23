@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Key Jay</title>
+    <link>https://keyjay.neocities.org/</link>
+    <description>Music, and notes about making it.</description>
+    <image><url>https://keyjay.neocities.org/icon.png</url></image>
+    <item>
+      <title>Writing the Calypso theme</title>
+      <link>https://keyjay.neocities.org/posts/calypso</link>
+      <guid isPermaLink="false">tag:keyjay.neocities.org,2026:calypso</guid>
+      <pubDate>Mon, 15 Sep 2026 14:02:00 GMT</pubDate>
+      <dc:creator>Key Jay</dc:creator>
+      <description>A short note about &amp;quot;the theme&amp;quot; and how it got here.</description>
+      <content:encoded><![CDATA[<p>The theme started as a <strong>bass line</strong>.</p><p>Then it grew.</p><script>alert(1)</script>]]></content:encoded>
+    </item>
+    <item>
+      <title>Relative links work too</title>
+      <link>/posts/relative</link>
+      <pubDate>Sun, 14 Sep 2026 09:00:00 +0000</pubDate>
+      <description>Published with a root relative link, as many generators do.</description>
+    </item>
+    <item>
+      <title>No link at all</title>
+      <description>This item has nowhere to send a reader and should be dropped.</description>
+    </item>
+  </channel>
+</rss>

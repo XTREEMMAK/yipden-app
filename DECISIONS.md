@@ -65,3 +65,46 @@ field.
 effect is that explicit members do not appear. This is the conservative direction to be wrong
 in, and it is flagged here because it is a product behavior that was inferred rather than
 specified.
+
+## 2026-09-22: The XML parser is a dependency, not hand written
+
+The brief calls `packages/feeds` "plain TS" and specifies "XML parser with external entities
+disabled." Two ways to get there: write a tokenizer, or take a dependency.
+
+**`@rgrove/parse-xml` was chosen**, at 212KB unpacked with zero dependencies of its own and an
+ISC license. The deciding property is not speed: it does not implement external entities or DTD
+entity definitions **at all**, so XXE and billion laughs are not attacks it can be configured
+against and then misconfigured back into. `fast-xml-parser`, the obvious alternative, pulls six
+transitive dependencies and 1.3MB, and disables entity processing through an option that
+someone can later turn back on.
+
+Hand writing the parser was rejected for the ordinary reason: XML from strangers is exactly the
+input where a homemade parser's edge cases become someone else's exploit. Both attacks have
+fixtures in `test/fixtures/` and are asserted against, so the claim is tested rather than
+assumed.
+
+## 2026-09-22: v0.9 renders plain text, and the HTML sanitizer is defense in depth
+
+The clean reader view is explicitly out of scope for v0.9, and the prototype's cards show plain
+text. So the app calls `htmlToText`, and no feed markup reaches the DOM at all.
+
+`sanitizeHtml` is still written and still tested hard, because `Item.contentHtml` is part of
+the shape the brief specifies and the reader view will want it. It is an allowlist
+re-serializer rather than a filter: markup is tokenized and the output is rebuilt from known
+safe elements with all text escaped, so nothing passes through as a raw substring. That is the
+property that matters against mutation XSS, where a browser re-parses markup a filter approved
+and reaches a different tree than the filter saw.
+
+The consequence worth stating: **rendering `contentHtml` anywhere is a decision, not a default.**
+When the reader view is built, that is the moment to revisit the allowlist, not before.
+
+## 2026-09-22: A feed's date can be null, and null is a real answer
+
+Feeds publish malformed dates constantly. The tempting repair is to stamp the item with the
+current time so it sorts somewhere.
+
+**That repair is refused.** A yip stamped "now" because its feed had a broken date jumps to the
+top of a chronological reader and stays there, which is a false ranking in a product whose
+first rule is that there is no ranking. Undated items sort to the end, and a date more than 48
+hours in the future is discarded for the same reason: otherwise any feed could pin itself to
+the top of everyone's Today by lying about tomorrow.

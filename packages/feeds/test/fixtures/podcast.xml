@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>The Den Hour</title>
+    <link>https://podcast.example.com/</link>
+    <description>Conversations with people who make things.</description>
+    <itunes:image href="https://podcast.example.com/art.jpg"/>
+    <item>
+      <title>Episode 12: Building in the open</title>
+      <link>https://podcast.example.com/12</link>
+      <guid>https://podcast.example.com/12</guid>
+      <pubDate>Fri, 12 Sep 2026 06:00:00 GMT</pubDate>
+      <description>A conversation about shipping small.</description>
+      <enclosure url="https://podcast.example.com/audio/12.mp3" type="audio/mpeg" length="42000000"/>
+      <itunes:duration>01:02:03</itunes:duration>
+    </item>
+    <item>
+      <title>Episode 11: The long way</title>
+      <link>https://podcast.example.com/11</link>
+      <pubDate>Fri, 05 Sep 2026 06:00:00 GMT</pubDate>
+      <description>On taking time.</description>
+      <enclosure url="https://podcast.example.com/audio/11.mp3" type="audio/mpeg"/>
+      <itunes:duration>3723</itunes:duration>
+    </item>
+  </channel>
+</rss>

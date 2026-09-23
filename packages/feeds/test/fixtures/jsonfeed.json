@@ -1,0 +1,42 @@
+{
+  "version": "https://jsonfeed.org/version/1.1",
+  "title": "A JSON Feed",
+  "home_page_url": "https://jsonfeed.example.com/",
+  "feed_url": "https://jsonfeed.example.com/feed.json",
+  "description": "Posts, in JSON.",
+  "icon": "https://jsonfeed.example.com/icon.png",
+  "authors": [{ "name": "Feed Author" }],
+  "items": [
+    {
+      "id": "https://jsonfeed.example.com/1",
+      "url": "https://jsonfeed.example.com/1",
+      "title": "First post",
+      "content_html": "<p>Hello <b>world</b>.</p><iframe src=\"https://evil.test/\"></iframe>",
+      "summary": "A short summary.",
+      "date_published": "2026-09-21T10:00:00-04:00",
+      "authors": [{ "name": "Feed Author" }],
+      "attachments": [
+        {
+          "url": "https://jsonfeed.example.com/audio/1.mp3",
+          "mime_type": "audio/mpeg",
+          "size_in_bytes": 1234567,
+          "duration_in_seconds": 1800,
+          "title": "Read aloud"
+        }
+      ]
+    },
+    {
+      "id": "no-url",
+      "title": "Dropped for having no url",
+      "content_text": "Nowhere to go."
+    },
+    {
+      "url": "https://jsonfeed.example.com/2",
+      "title": "Unsafe attachment is dropped",
+      "date_published": "2026-09-19T10:00:00Z",
+      "attachments": [
+        { "url": "http://jsonfeed.example.com/insecure.mp3", "mime_type": "audio/mpeg" }
+      ]
+    }
+  ]
+}

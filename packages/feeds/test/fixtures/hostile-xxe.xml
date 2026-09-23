@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE rss [
+  <!ENTITY xxe SYSTEM "file:///etc/passwd">
+  <!ENTITY sneaky SYSTEM "https://169.254.169.254/latest/meta-data/">
+]>
+<rss version="2.0">
+  <channel>
+    <title>A feed trying to read your files</title>
+    <link>https://hostile.example.com/</link>
+    <description>&xxe;</description>
+    <item>
+      <title>&sneaky;</title>
+      <link>https://hostile.example.com/1</link>
+      <description>&xxe;</description>
+    </item>
+  </channel>
+</rss>

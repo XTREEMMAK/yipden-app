@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Frammy Jammy</title>
+  <subtitle>Horror comics from Appalachia.</subtitle>
+  <link rel="self" href="https://frammyjammy.com/atom.xml"/>
+  <link href="https://frammyjammy.com/"/>
+  <icon>https://frammyjammy.com/icon.png</icon>
+  <entry>
+    <title>Suzu and Jack, page 30</title>
+    <link rel="alternate" href="https://frammyjammy.com/suzu-and-jack/30"/>
+    <link rel="enclosure" type="image/png" href="https://frammyjammy.com/pages/30.png"/>
+    <id>urn:uuid:9e1b2c3d-0000-4000-8000-000000000030</id>
+    <published>2026-09-18T11:30:00Z</published>
+    <updated>2026-09-19T08:00:00Z</updated>
+    <author><name>Nori Jammy</name></author>
+    <summary>The one where the lights go out.</summary>
+    <content type="html">&lt;p&gt;The lights go &lt;em&gt;out&lt;/em&gt;.&lt;/p&gt;</content>
+  </entry>
+  <entry>
+    <title>Self closing link only</title>
+    <link href="https://frammyjammy.com/notes/1"/>
+    <id>https://frammyjammy.com/notes/1</id>
+    <updated>2026-09-01T00:00:00Z</updated>
+  </entry>
+</feed>

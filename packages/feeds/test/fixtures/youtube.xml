@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015"
+      xmlns:media="http://search.yahoo.com/mrss/"
+      xmlns="http://www.w3.org/2005/Atom">
+  <title>Example Channel</title>
+  <link rel="alternate" href="https://www.youtube.com/channel/UCexample0123456789abcd"/>
+  <entry>
+    <id>yt:video:abc12345678</id>
+    <yt:videoId>abc12345678</yt:videoId>
+    <title>How the track came together</title>
+    <link rel="alternate" href="https://www.youtube.com/watch?v=abc12345678"/>
+    <published>2026-09-20T17:00:00+00:00</published>
+    <updated>2026-09-20T18:00:00+00:00</updated>
+    <author><name>Example Channel</name></author>
+    <media:group>
+      <media:title>How the track came together</media:title>
+      <media:content url="https://www.youtube.com/v/abc12345678?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+      <media:thumbnail url="https://i2.ytimg.com/vi/abc12345678/hqdefault.jpg" width="480" height="360"/>
+      <media:description>A walk through the arrangement.</media:description>
+    </media:group>
+  </entry>
+</feed>

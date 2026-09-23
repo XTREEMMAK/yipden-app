@@ -1,0 +1,27 @@
+{
+  "name": "@yipden/feeds",
+  "version": "0.0.1",
+  "description": "Feed discovery, fetching, parsing and normalization. One Item type out of RSS, Atom and JSON Feed.",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@rgrove/parse-xml": "^5.0.0",
+    "@yipden/ring-client": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.1"
+  }
+}
