@@ -8,6 +8,13 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- Discover previews by type: audio members get Play, comics, art and text open a paged viewer
+  of their pages, artworks or excerpts, games open their trailer or preview link, and a member
+  with nothing to preview has no button. See DECISIONS.md.
+- Music shuffle, on by default: a music member's tracks are queued in a shuffled order, and You
+  has a Playback switch for it. Spoken word keeps its order.
+- Drag to reorder the queue by its grip (arrow keys work on the grip too).
+
 - Android Back, and the browser's, now collapses the full player instead of leaving the screen
   underneath it, through a history entry the player pushes while open. Adds `@capacitor/app`.
   See DECISIONS.md.
@@ -163,6 +170,14 @@ Every notable change to YipDen, newest first. The format follows
   `tools:replace`. See DECISIONS.md.
 
 ### Changed
+
+- The full player's main controls are Previous, play and Next; Previous restarts a track that has
+  played more than three seconds. Speed is a small chip beside the times, and the 15 and 30 second
+  skip buttons are gone from the screen (the waveform, its keyboard slider and the lock screen
+  still seek).
+- Discover shows the position once (the chip now says Node of the day or IndieNodes webring, and
+  the counter carries the filter), and Feeds' section is titled From the IndieNodes webring
+  without the ring.json note.
 
 - The mini player's progress runs along the bottom edge of the card with a moving highlight while
   playing, and the card fades out when dismissed.

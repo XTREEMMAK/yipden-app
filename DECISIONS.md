@@ -933,3 +933,67 @@ The mini player's progress bar was a thin inset line that read as a border. It n
 the bottom edge of the whole card, inside its rounded corners, with a subtle moving highlight
 while playing (off under reduced motion, like the pulse beside it), and the card fades out
 rather than vanishing when dismissed.
+
+## 2026-09-24: The player leads with Previous and Next; speed and time skips stepped back
+
+The full player's main row was skip back 15 seconds, play, skip forward 30, with Speed as a
+second tile beside Up next. Track changes were the thing a reader of a ring session actually
+wants, so the row is now Previous, play, Next. Speed is a small chip between the elapsed and
+remaining times, and the two time skips are gone from the screen (seeking is still the
+waveform, its keyboard slider, and the lock screen's own seek buttons, which were not touched).
+Previous behaves the way every player's does: past the first three seconds it restarts the
+track, and only near the start does it go to the one before; a ring session, which does not
+loop, never wraps backwards from its first track. The lock screen's previous track button uses
+the same rule. The Up next tile stays as the preview of what Next will do.
+
+**Queue rows are reordered by dragging a grip**, replacing the up and down buttons. A pointer
+drag on the grip moves the row with the finger while its neighbours slide aside, and the move is
+applied once, on release. The grip alone carries `touch-action: none`, so the list still scrolls.
+Arrow up and down on the focused grip do the same move, so reordering is not gesture only; rows
+are keyed by track id so focus stays on the moved row.
+
+## 2026-09-24: Discover offers what each type of member actually publishes
+
+Only audio had anything to do from Discover (tracks, via "From the ring"); everything else had
+just Visit site, though the ring publishes more per type. A member's own data now decides the
+button, in `preview.ts`: audio with tracks gets **Play** (starts a ring session, the same as the
+card in Feeds); comics, art and text open a **viewer** (comic pages, artworks with their medium
+and year, text excerpts); a game gets **Watch trailer** or **Preview**, which open the link out,
+since the ring gives a URL and not a format the app can be sure to play; a member with nothing
+previewable simply has no button rather than a disabled one. The viewer is a native scroll-snap
+strip, so a swipe in it is the browser's own and never competes with Discover's swipe. Images
+are plain `img` elements, which need no CORS, unlike the canvas. Not built: a "load into the
+app" for visual work beyond viewing (the IndieNodes app's node viewer does more); this covers the
+ring's published previews only, and `ring-contract.md` still lists `preview_url` and
+`trailer_url` as game only, which is what the code assumes.
+
+The position was shown twice (a chip reading "Ring 3 / 6" and a counter reading "3 / 6 in the
+ring"). The chip now says **Node of the day** or **IndieNodes webring**, naming where members
+come from, and the counter shows the position once, with the active filter or "shuffled"
+appended. Feeds' "From the ring" heading is now "From the IndieNodes webring" and the
+`ring.json` note beside it, which meant nothing to a reader, is gone.
+
+## 2026-09-24: Music shuffles by default, and the choice lives in You
+
+A ring member's tracks are dealt into the queue in a shuffled order when they are played or
+added, on by default and switchable under You, Playback. Only members whose `form` is music: a
+spoken word member's episodes keep their order, since a second episode is not a fresh track to
+be dealt in at random. It shuffles a member's own tracks as they are queued, so a member's
+tracks stay together and members join in the order they were chosen or suggested; it does not
+interleave members. Ordinary Listen queues are untouched. The preference is stored through the
+`Store` (`shuffleMusic`), not localStorage, since nothing needs it before first paint. To make
+shuffle testable, the tests pin `Math.random`.
+
+## 2026-09-24: Discover does not auto rotate
+
+Evaluated on request: should Discover advance to the next member on its own? Recommendation,
+and what is built (nothing), is **no**. A moving screen is a wrong default here for four
+reasons. It takes control from the reader in the one screen that is about choosing, and with a
+photo wipe running each time, a change mid read is the thing people describe as a page
+jumping. Content that moves on its own for more than five seconds needs a pause control to meet
+WCAG 2.2.2, which is a control this screen would then have to carry. The WebGL wipe is the
+costliest thing in the app, and unattended rotation would spend battery on frames nobody chose to
+see. And "node of the day" already gives the screen a stable anchor that every client agrees on;
+rotation would undercut that. What fits the product better if it is wanted later is opt in:
+a Slideshow control in You or on the Discover screen, off by default, pausing on any touch and
+under reduced motion.

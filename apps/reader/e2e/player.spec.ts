@@ -179,7 +179,7 @@ test.describe('The player', () => {
 
 	test('seeking back moves the clock, while playing', async ({ page }) => {
 		/*
-		 * This clicks Forward then Back while the track keeps playing, its ordinary state:
+		 * This seeks to the end then back to the start while the track keeps playing, its ordinary state:
 		 * seeking while paused, immediately after opening a preload="none" track that has
 		 * barely started, is its own harder case. `preload="none"` means the browser will not
 		 * buffer anything until playback is requested, and once paused early it can abandon
@@ -195,11 +195,12 @@ test.describe('The player', () => {
 			.click();
 		await expect(page.locator('.times')).toContainText('0:00', { timeout: 10_000 });
 
-		await page.getByRole('button', { name: 'Forward 30 seconds' }).click();
-		// The track is 6 seconds of silence; a 30 second forward skip clamps near the end.
+		const seek = page.getByRole('slider', { name: 'Seek' });
+		await seek.press('End');
+		// The track is 6 seconds of silence; seeking to the end lands just short of it.
 		await expect(page.locator('.times')).not.toContainText('0:00');
 
-		await page.getByRole('button', { name: 'Back 15 seconds' }).click();
+		await seek.press('Home');
 		await expect(page.locator('.times')).toContainText('0:00');
 	});
 
@@ -211,8 +212,8 @@ test.describe('The player', () => {
 			.click();
 		await expect(page.locator('.times')).toContainText('0:00', { timeout: 10_000 });
 
-		await page.getByRole('button', { name: 'Forward 30 seconds' }).click();
 		const seek = page.getByRole('slider', { name: 'Seek' });
+		await seek.press('End');
 		await expect(seek).not.toHaveValue('0');
 	});
 
@@ -233,6 +234,31 @@ test.describe('The player', () => {
 		await expect(speed).toContainText('2×');
 		await speed.click();
 		await expect(speed).toContainText('1×');
+	});
+
+	test('Next and Previous move between tracks, and Previous restarts one already underway', async ({
+		page
+	}) => {
+		await seed(page);
+		await page
+			.locator('#pane-everything')
+			.getByRole('button', { name: /Low Tide/ })
+			.click();
+		await expect(page.getByRole('heading', { name: 'Low Tide' })).toBeVisible();
+
+		await page.getByRole('button', { name: 'Next track' }).click();
+		await expect(page.getByRole('heading', { name: 'High Tide' })).toBeVisible();
+
+		// Past the first few seconds Previous restarts this track rather than leaving it.
+		await page.getByRole('slider', { name: 'Seek' }).press('End');
+		await expect(page.locator('.times')).not.toContainText('0:00');
+		await page.getByRole('button', { name: 'Previous track' }).click();
+		await expect(page.getByRole('heading', { name: 'High Tide' })).toBeVisible();
+		await expect(page.locator('.times')).toContainText('0:00');
+
+		// Near the start it goes to the one before.
+		await page.getByRole('button', { name: 'Previous track' }).click();
+		await expect(page.getByRole('heading', { name: 'Low Tide' })).toBeVisible();
 	});
 
 	test('up next advances to the next track in the queue', async ({ page }) => {
@@ -300,9 +326,10 @@ test.describe('The player', () => {
 		for (const name of [
 			'Collapse the player',
 			"Open on the creator's site",
-			'Back 15 seconds',
+			'Previous track',
 			'Pause',
-			'Forward 30 seconds'
+			'Next track',
+			/^Speed/
 		]) {
 			const box = await page.getByRole('button', { name }).boundingBox();
 			expect(box?.width ?? 0, name).toBeGreaterThanOrEqual(44);

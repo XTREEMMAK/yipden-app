@@ -31,6 +31,57 @@
 	let queueSheetOpen = $state(false);
 	let playerHistoryOpen = false;
 
+	/**
+	 * Drag to reorder the queue. Pointer Events on a grip handle (touch-action: none on the handle
+	 * only, so the list itself still scrolls), with the dragged row following the finger and its
+	 * neighbours sliding out of the way, one row height at a time. The move is applied once, on
+	 * release, so the queue (and its saved copy) never sees a half-finished drag. The handle also
+	 * takes ArrowUp and ArrowDown for anyone not dragging.
+	 */
+	let rowEls: HTMLElement[] = [];
+	let reorder = $state<{ from: number; to: number; dy: number; rowHeight: number } | null>(null);
+	let reorderStartY = 0;
+
+	function onGripDown(event: PointerEvent, index: number) {
+		const row = rowEls[index];
+		if (!row) return;
+		event.preventDefault();
+		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+		reorderStartY = event.clientY;
+		reorder = { from: index, to: index, dy: 0, rowHeight: row.offsetHeight };
+	}
+
+	function onGripMove(event: PointerEvent) {
+		if (!reorder) return;
+		const dy = event.clientY - reorderStartY;
+		const to = Math.max(
+			0,
+			Math.min(player.queue.length - 1, reorder.from + Math.round(dy / reorder.rowHeight))
+		);
+		reorder = { ...reorder, dy, to };
+	}
+
+	function onGripEnd(commit: boolean) {
+		if (reorder && commit && reorder.to !== reorder.from) player.move(reorder.from, reorder.to);
+		reorder = null;
+	}
+
+	function onGripKey(event: KeyboardEvent, index: number) {
+		if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+		event.preventDefault();
+		player.move(index, index + (event.key === 'ArrowUp' ? -1 : 1));
+	}
+
+	/** Where a row sits while a drag is in progress. */
+	function rowShift(index: number): number {
+		if (!reorder) return 0;
+		const { from, to, dy, rowHeight } = reorder;
+		if (index === from) return dy;
+		if (from < to && index > from && index <= to) return -rowHeight;
+		if (from > to && index >= to && index < from) return rowHeight;
+		return 0;
+	}
+
 	let remaining = $derived(Math.max(0, player.duration - player.currentTime));
 
 	/** A real history entry lets Android Back close this non-route overlay instead of the app. */
@@ -165,6 +216,13 @@
 
 			<div class="times">
 				<span>{formatTime(player.currentTime)}</span>
+				<button
+					class="speed"
+					onclick={() => player.cycleRate()}
+					aria-label={`Speed ${player.rate}×`}
+				>
+					{player.rate}{'×'}
+				</button>
 				<span>-{formatTime(remaining)}</span>
 			</div>
 
@@ -192,19 +250,11 @@
 					<span class="tile-k">Up next</span>
 					<span class="tile-v">{player.next?.title ?? '–'}</span>
 				</button>
-				<button class="tile" onclick={() => player.cycleRate()}>
-					<span class="tile-k">Speed</span>
-					<span class="tile-v">{player.rate}{'×'}</span>
-				</button>
 			</div>
 
 			<div class="pl-ctrls">
-				<button class="round lg" onclick={() => player.skip(-15)} aria-label="Back 15 seconds">
-					<svg viewBox="0 0 24 24" aria-hidden="true">
-						<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" />
-						<path d="M4.5 4v3.5H8" />
-					</svg>
-					<span class="skip-n">15</span>
+				<button class="round lg" onclick={() => player.previous()} aria-label="Previous track">
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M18 5l-9 7 9 7z" /></svg>
 				</button>
 				<button
 					class="bigplay"
@@ -218,12 +268,13 @@
 						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
 					{/if}
 				</button>
-				<button class="round lg" onclick={() => player.skip(30)} aria-label="Forward 30 seconds">
-					<svg viewBox="0 0 24 24" aria-hidden="true">
-						<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" />
-						<path d="M19.5 4v3.5H16" />
-					</svg>
-					<span class="skip-n">30</span>
+				<button
+					class="round lg"
+					onclick={() => player.advance()}
+					disabled={!player.next}
+					aria-label="Next track"
+				>
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14M6 5l9 7-9 7z" /></svg>
 				</button>
 			</div>
 		</div>
@@ -255,8 +306,30 @@
 				</button>
 			</div>
 			<ul class="queue-list">
-				{#each player.queue as queued, index (queued.id + index)}
-					<li class="queue-row" class:is-current={index === player.currentIndex}>
+				{#each player.queue as queued, index (queued.id)}
+					<li
+						bind:this={rowEls[index]}
+						class="queue-row"
+						class:is-current={index === player.currentIndex}
+						class:is-dragging={reorder?.from === index}
+						style:transform={rowShift(index) ? `translateY(${rowShift(index)}px)` : ''}
+						style:transition={reorder && reorder.from !== index
+							? 'transform var(--dur-s) var(--ease)'
+							: 'none'}
+					>
+						<button
+							class="queue-grip"
+							aria-label={`Reorder ${queued.title}. Drag, or use the up and down arrow keys.`}
+							onpointerdown={(event) => onGripDown(event, index)}
+							onpointermove={onGripMove}
+							onpointerup={() => onGripEnd(true)}
+							onpointercancel={() => onGripEnd(false)}
+							onkeydown={(event) => onGripKey(event, index)}
+						>
+							<svg viewBox="0 0 24 24" aria-hidden="true">
+								<path d="M8 7h8M8 12h8M8 17h8" />
+							</svg>
+						</button>
 						<button
 							class="queue-jump"
 							onclick={() => player.jumpTo(index)}
@@ -266,22 +339,6 @@
 							<span class="queue-title">{queued.title}</span>
 							<small>{queued.creator}</small>
 						</button>
-						<span class="queue-move">
-							<button
-								onclick={() => player.move(index, index - 1)}
-								disabled={index === 0}
-								aria-label={`Move ${queued.title} earlier`}
-							>
-								<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 15l-6-6-6 6" /></svg>
-							</button>
-							<button
-								onclick={() => player.move(index, index + 1)}
-								disabled={index === player.queue.length - 1}
-								aria-label={`Move ${queued.title} later`}
-							>
-								<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
-							</button>
-						</span>
 						<button
 							class="queue-remove"
 							onclick={() => player.removeAt(index)}
@@ -430,10 +487,26 @@
 		font-variant-numeric: tabular-nums;
 	}
 
+	.times {
+		align-items: center;
+	}
+
+	.speed {
+		min-width: 56px;
+		height: 44px;
+		border: 0;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.14);
+		color: #fff;
+		font-family: var(--mono);
+		font-size: 12px;
+		font-weight: 600;
+	}
+
 	.tiles {
 		align-self: stretch;
 		display: grid;
-		grid-template-columns: 1.4fr 1fr;
+		grid-template-columns: 1fr;
 		gap: 10px;
 		margin-top: 6px;
 	}
@@ -495,18 +568,6 @@
 		width: 26px;
 		height: 26px;
 		stroke-width: 1.7;
-	}
-
-	.skip-n {
-		position: absolute;
-		inset: 0;
-		display: grid;
-		place-items: center;
-		font-family: var(--mono);
-		font-size: 9px;
-		font-weight: 600;
-		line-height: 1;
-		pointer-events: none;
 	}
 
 	.bigplay {
@@ -650,6 +711,18 @@
 		border-radius: 14px;
 	}
 
+	.queue-grip {
+		touch-action: none;
+		cursor: grab;
+	}
+
+	.queue-row.is-dragging {
+		position: relative;
+		z-index: 1;
+		background: rgba(255, 255, 255, 0.18);
+		box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.5);
+	}
+
 	.queue-row.is-current {
 		background: rgba(255, 255, 255, 0.1);
 	}
@@ -688,12 +761,8 @@
 		white-space: nowrap;
 	}
 
-	.queue-move {
-		display: flex;
-	}
-
 	/* 44px, the brief's touch target minimum, even packed this closely together. */
-	.queue-move button,
+	.queue-grip,
 	.queue-remove {
 		display: grid;
 		place-items: center;
@@ -704,11 +773,7 @@
 		color: rgba(255, 255, 255, 0.85);
 	}
 
-	.queue-move button:disabled {
-		opacity: 0.3;
-	}
-
-	.queue-move svg,
+	.queue-grip svg,
 	.queue-remove svg {
 		width: 16px;
 		height: 16px;

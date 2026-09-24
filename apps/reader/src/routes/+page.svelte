@@ -9,6 +9,9 @@
 	import { toast } from '$lib/toast.svelte.js';
 	import Toast from '$components/Toast.svelte';
 	import HeroArt from '$components/HeroArt.svelte';
+	import PreviewSheet from '$components/PreviewSheet.svelte';
+	import { previewFor } from '$lib/preview.js';
+	import { ringPlayer } from '$lib/ringPlayer.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
 
 	/**
@@ -58,6 +61,17 @@
 	 * grows. A single button opens a sheet listing every option instead, same as the reference
 	 * prototype's own sheets for anything with more than a couple of choices.
 	 */
+	let previewOpen = $state(false);
+	let preview = $derived(ring.current ? previewFor(ring.current) : null);
+
+	function runPreview() {
+		const entry = ring.current;
+		if (!entry || !preview) return;
+		if (preview.kind === 'play') ringPlayer.play(entry);
+		else if (preview.kind === 'view') previewOpen = true;
+		else void openExternal(preview.url);
+	}
+
 	let filterSheetOpen = $state(false);
 	let filterLabel = $derived(ring.chips.find((chip) => chip.key === ring.filter)?.label ?? 'All');
 	let filterButton: HTMLButtonElement | undefined;
@@ -263,9 +277,7 @@
 					in:fly={flyIn({ x: navDirection * -Math.round((section?.clientWidth || 390) * 0.3) })}
 				>
 					<span class="glass-chip">
-						{ring.isNodeOfTheDay
-							? 'Node of the day'
-							: `Ring · ${ring.position.index} / ${ring.position.total}`}
+						{ring.isNodeOfTheDay ? 'Node of the day' : 'IndieNodes webring'}
 					</span>
 					<h1 class="hero-name">{ring.current.creator}</h1>
 					{#if ring.current.why}
@@ -298,6 +310,20 @@
 								Follow everything
 							{/if}
 						</button>
+						{#if preview}
+							<button class="btn-glass" onclick={runPreview}>
+								<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+									{#if preview.kind === 'play'}
+										<path d="M8 5v14l11-7z" />
+									{:else if preview.kind === 'link'}
+										<path d="M7 17L17 7M9 7h8v8" />
+									{:else}
+										<path d="M4 6h16v12H4zM8 10h8M8 14h5" />
+									{/if}
+								</svg>
+								{preview.label}
+							</button>
+						{/if}
 						<button class="btn-glass" onclick={() => openExternal(ring.current!.source_url)}>
 							Visit site
 							<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"
@@ -327,9 +353,11 @@
 	<div class="bottom">
 		<div class="ringnav">
 			<span class="count">
-				{ring.position.index} / {ring.position.total}{ring.filter === 'all' && !ring.shuffled
-					? ' in the ring'
-					: ''}
+				{ring.position.index} / {ring.position.total}{ring.filter !== 'all'
+					? ` ${'·'} ${filterLabel}`
+					: ring.shuffled
+						? ` ${'·'} shuffled`
+						: ''}
 			</span>
 			<span class="pn">
 				<button class="round" onclick={goPrev} aria-label="Previous in the ring">
@@ -406,6 +434,14 @@
 			{/each}
 		</div>
 	</div>
+{/if}
+
+{#if previewOpen && ring.current && preview?.kind === 'view'}
+	<PreviewSheet
+		title={ring.current.creator}
+		slides={preview.slides}
+		onclose={() => (previewOpen = false)}
+	/>
 {/if}
 
 <style>
@@ -540,6 +576,7 @@
 
 	.actions {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 10px;
 		margin-top: 4px;
 	}

@@ -67,8 +67,13 @@ const RING = {
  * `trackSeconds` defaults long enough that a track is still playing when a test finishes
  * poking at it, and is shortened only by the one test that needs `ended` to fire for real.
  */
-async function seed(page: Page, trackSeconds = 4) {
+async function seed(page: Page, trackSeconds = 4, shuffleRandom = 0.999) {
 	const track = silentWav(trackSeconds);
+	// Music shuffle is on by default. A constant random source makes it deterministic: 0.999
+	// swaps nothing (so the order is the published one), 0 reverses a pair.
+	await page.addInitScript((value) => {
+		Math.random = () => value;
+	}, shuffleRandom);
 	await page.route('https://**', (route) => route.fulfill({ status: 404, body: 'not mocked' }));
 	await page.route('https://ring.indienodes.us/ring.json', (route) =>
 		route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RING) })
@@ -80,7 +85,7 @@ async function seed(page: Page, trackSeconds = 4) {
 
 	await page.goto('/feeds');
 	await page.getByRole('tab', { name: 'Listen' }).click();
-	await page.getByText('From the ring').waitFor({ timeout: 10_000 });
+	await page.getByText('From the IndieNodes webring').waitFor({ timeout: 10_000 });
 }
 
 /**
@@ -91,6 +96,10 @@ async function seed(page: Page, trackSeconds = 4) {
  */
 async function queueBoWhilePlaying(page: Page) {
 	await page.getByRole('button', { name: 'Add Bo Quill to the queue' }).dispatchEvent('click');
+}
+
+async function queueTitles(page: Page): Promise<string[]> {
+	return page.locator('.queue-title').allTextContents();
 }
 
 test.describe('From the ring', () => {
@@ -190,10 +199,76 @@ test.describe('From the ring', () => {
 		await queueBoWhilePlaying(page);
 		await page.getByRole('button', { name: 'Open the queue' }).click();
 		const sheet = page.getByRole('dialog', { name: 'Queue' });
-		for (const name of ['Move Ada Track One later', 'Remove Ada Track One from the queue']) {
+		for (const name of [/^Reorder Ada Track One/, 'Remove Ada Track One from the queue']) {
 			const box = await sheet.getByRole('button', { name }).boundingBox();
 			expect(box?.width ?? 0, name).toBeGreaterThanOrEqual(44);
 			expect(box?.height ?? 0, name).toBeGreaterThanOrEqual(44);
 		}
+	});
+
+	test('dragging a queue row by its grip reorders the queue', async ({ page }) => {
+		await seed(page);
+		await page.getByRole('button', { name: 'Play Ada Reed' }).click();
+		await queueBoWhilePlaying(page);
+		await page.getByRole('button', { name: 'Open the queue' }).click();
+		await expect
+			.poll(() => queueTitles(page))
+			.toEqual(['Ada Track One', 'Bo Track One', 'Bo Track Two']);
+
+		const grip = page.getByRole('button', { name: /^Reorder Bo Track Two/ });
+		const box = (await grip.boundingBox())!;
+		const rowHeight = (await page.locator('.queue-row').first().boundingBox())!.height;
+		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 - rowHeight * 1.1, {
+			steps: 6
+		});
+		await page.mouse.up();
+
+		await expect
+			.poll(() => queueTitles(page))
+			.toEqual(['Ada Track One', 'Bo Track Two', 'Bo Track One']);
+		// The playhead stays on the track that was playing.
+		await expect(page.locator('.queue-row.is-current .queue-title')).toHaveText('Ada Track One');
+	});
+
+	test('the grip also reorders with the arrow keys', async ({ page }) => {
+		await seed(page);
+		await page.getByRole('button', { name: 'Play Ada Reed' }).click();
+		await queueBoWhilePlaying(page);
+		await page.getByRole('button', { name: 'Open the queue' }).click();
+
+		const grip = page.getByRole('button', { name: /^Reorder Bo Track One/ });
+		await grip.focus();
+		await grip.press('ArrowDown');
+		await expect
+			.poll(() => queueTitles(page))
+			.toEqual(['Ada Track One', 'Bo Track Two', 'Bo Track One']);
+		// Focus stays with the moved row, so a second press keeps moving it.
+		await page.keyboard.press('ArrowDown');
+		await page.keyboard.press('ArrowUp');
+		await expect
+			.poll(() => queueTitles(page))
+			.toEqual(['Ada Track One', 'Bo Track Two', 'Bo Track One']);
+	});
+
+	test('music is shuffled by default, and the You switch turns it off', async ({ page }) => {
+		// random = 0 reverses a two track member, so a shuffle is visible as Track Two first.
+		await seed(page, 4, 0);
+		await page.getByRole('button', { name: 'Play Bo Quill' }).click();
+		await expect(page.getByRole('heading', { name: 'Bo Track Two' })).toBeVisible();
+
+		await page.goto('/you');
+		const shuffle = page.getByRole('switch', { name: 'Shuffle music' });
+		await expect(shuffle).toBeChecked();
+		await shuffle.uncheck();
+		await page.waitForTimeout(300);
+
+		await page.reload();
+		await expect(page.getByRole('switch', { name: 'Shuffle music' })).not.toBeChecked();
+		await page.goto('/feeds');
+		await page.getByRole('tab', { name: 'Listen' }).click();
+		await page.getByRole('button', { name: 'Play Bo Quill' }).click();
+		await expect(page.getByRole('heading', { name: 'Bo Track One' })).toBeVisible();
 	});
 });

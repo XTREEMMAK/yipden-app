@@ -213,8 +213,7 @@
 						{@const members = ring.all.filter((entry) => (entry.tracks?.length ?? 0) > 0)}
 						{#if members.length}
 							<div class="sec-h">
-								<h3>From the ring</h3>
-								<span>ring.json {'·'} members</span>
+								<h3>From the IndieNodes webring</h3>
 							</div>
 							<div class="rows">
 								{#each members as entry (entry.id)}
@@ -419,12 +418,6 @@
 		font-size: 19px;
 		font-weight: 650;
 		letter-spacing: -0.01em;
-	}
-
-	.sec-h span {
-		font-family: var(--mono);
-		font-size: 11px;
-		color: var(--muted);
 	}
 
 	.rows {

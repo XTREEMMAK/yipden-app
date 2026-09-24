@@ -2,7 +2,9 @@
 	import { onMount } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import { flyIn, staggerDelay } from '$lib/motion.js';
+	import { prefs } from '$lib/prefs.svelte.js';
 	import { theme, type Theme } from '$lib/theme.svelte.js';
+	import Switch from '$components/Switch.svelte';
 	import { you } from '$lib/you.svelte.js';
 	import { downloadTextFile, pickTextFile } from '$lib/platform/download.js';
 	import { toast } from '$lib/toast.svelte.js';
@@ -111,6 +113,24 @@
 		</section>
 
 		<section class="grp" in:fly={flyIn({ delay: staggerDelay(1) })}>
+			<h3 class="grp-h">Playback</h3>
+			<div class="rows">
+				<div class="srow">
+					<span class="tt">
+						<b>Shuffle music</b>
+						<small>Mix up a member{"'"}s tracks when you add them to the queue</small>
+					</span>
+					<Switch
+						id="shuffle-music"
+						label="Shuffle music"
+						checked={prefs.shuffleMusic}
+						onchange={(on) => prefs.setShuffleMusic(on)}
+					/>
+				</div>
+			</div>
+		</section>
+
+		<section class="grp" in:fly={flyIn({ delay: staggerDelay(2) })}>
 			<h3 class="grp-h">
 				Following
 				<span>
@@ -166,7 +186,7 @@
 			</div>
 		</section>
 
-		<section class="grp" in:fly={flyIn({ delay: staggerDelay(2) })}>
+		<section class="grp" in:fly={flyIn({ delay: staggerDelay(3) })}>
 			<h3 class="grp-h">Your follows file</h3>
 			<div class="rows">
 				<button class="srow link" onclick={exportFollows} disabled={!you.rows.length}>
@@ -192,7 +212,7 @@
 			</div>
 		</section>
 
-		<p class="fine" in:fly={flyIn({ delay: staggerDelay(3) })}>
+		<p class="fine" in:fly={flyIn({ delay: staggerDelay(4) })}>
 			YipDen v0.0.1 {'·'} chronological, no AI, and every yip links out to its creator.
 		</p>
 	</div>

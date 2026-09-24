@@ -8,6 +8,7 @@
 	import { player } from '$lib/player.svelte.js';
 	import { ringPlayer, type RingQueueRecord } from '$lib/ringPlayer.svelte.js';
 	import { store } from '$lib/store/index.js';
+	import { prefs } from '$lib/prefs.svelte.js';
 	import { theme } from '$lib/theme.svelte.js';
 	import '$styles/app.css';
 
@@ -15,6 +16,7 @@
 
 	onMount(() => {
 		theme.hydrate();
+		void prefs.hydrate();
 		void restoreRingQueue();
 	});
 

@@ -50,3 +50,13 @@ export function buildListenQueue(yips: StoredYip[], ringEntries: RingEntry[]): Q
 	const fromYips = yips.map(queueItemFromYip).filter((item): item is QueueItem => item !== null);
 	return [...fromYips, ...queueItemsFromRing(ringEntries)];
 }
+
+/** Fisher-Yates, returning a new array. `random` is injectable so tests are deterministic. */
+export function shuffled<T>(items: readonly T[], random: () => number = Math.random): T[] {
+	const out = [...items];
+	for (let i = out.length - 1; i > 0; i -= 1) {
+		const j = Math.floor(random() * (i + 1));
+		[out[i], out[j]] = [out[j]!, out[i]!];
+	}
+	return out;
+}

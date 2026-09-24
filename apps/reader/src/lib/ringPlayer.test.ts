@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import type { RingEntry } from '@yipden/ring-client';
 import { player, type QueueItem } from './player.svelte.js';
+import { prefs } from './prefs.svelte.js';
 import { ringPlayer } from './ringPlayer.svelte.js';
 import { store } from './store/index.js';
 
@@ -49,6 +50,7 @@ beforeEach(async () => {
 	player.loop = true;
 	player.ended = false;
 	ringPlayer.playedEntryIds = [];
+	prefs.shuffleMusic = true;
 });
 
 describe('play', () => {
@@ -143,5 +145,44 @@ describe('snapshot and restore', () => {
 		expect(player.sheet).toBe('mini');
 		expect(player.playing).toBe(false);
 		expect(ringPlayer.playedEntryIds).toEqual(['ada', 'bo']);
+	});
+});
+
+describe('music shuffle', () => {
+	it('deals a music member tracks in a shuffled order by default', () => {
+		const many = member({
+			id: 'many',
+			tracks: Array.from({ length: 12 }, (_, i) => ({
+				label: `T${i}`,
+				media_url: `https://e.com/${i}.mp3`
+			}))
+		});
+		const published = many.tracks!.map((track) => track.media_url);
+		ringPlayer.play(many);
+		const queued = player.queue.map((item) => item.mediaUrl);
+		expect([...queued].sort()).toEqual([...published].sort());
+		// 12 tracks staying in published order by chance is about one in 479 million.
+		expect(queued).not.toEqual(published);
+	});
+
+	it('keeps the published order when the reader turns shuffle off', () => {
+		prefs.shuffleMusic = false;
+		ringPlayer.play(bo);
+		expect(player.queue.map((item) => item.title)).toEqual(['One', 'Two']);
+	});
+
+	it('never shuffles spoken word', () => {
+		const talk = member({
+			id: 'talk',
+			form: 'spoken',
+			tracks: Array.from({ length: 12 }, (_, i) => ({
+				label: `E${i}`,
+				media_url: `https://e.com/t${i}.mp3`
+			}))
+		});
+		ringPlayer.play(talk);
+		expect(player.queue.map((item) => item.title)).toEqual(
+			talk.tracks!.map((track) => track.label)
+		);
 	});
 });

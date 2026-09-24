@@ -1,6 +1,7 @@
 import { suggestNextEntry, type RingEntry } from '@yipden/ring-client';
 import { player, type QueueItem } from './player.svelte.js';
-import { queueItemsFromRing } from './queue.js';
+import { prefs } from './prefs.svelte.js';
+import { queueItemsFromRing, shuffled } from './queue.js';
 
 /**
  * Continuous play of the ring, on top of the one shared player everything else already uses.
@@ -27,8 +28,14 @@ export interface RingQueueRecord {
 class RingPlayerState {
 	playedEntryIds = $state<string[]>([]);
 
+	/**
+	 * A member's tracks as queue items, shuffled when the reader has music shuffle on (the
+	 * default) and the member is music. Spoken word keeps its order: an episode two is not a
+	 * fresh track to be dealt in at random.
+	 */
 	private itemsFor(entry: RingEntry): QueueItem[] {
-		return queueItemsFromRing([entry]);
+		const items = queueItemsFromRing([entry]);
+		return prefs.shuffleMusic && entry.form === 'music' ? shuffled(items) : items;
 	}
 
 	/** A member's Play button: replaces the queue with their tracks alone and starts playing. */

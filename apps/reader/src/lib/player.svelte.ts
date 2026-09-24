@@ -397,6 +397,21 @@ class PlayerState {
 		this.load((this.currentIndex + 1) % this.queue.length);
 	}
 
+	/**
+	 * The usual Previous: past the first few seconds it restarts the track, and only near the
+	 * start does it go to the one before. A queue that does not loop never wraps backwards from its
+	 * first track; it just restarts it.
+	 */
+	previous(): void {
+		if (!this.current) return;
+		const atStart = this.currentIndex <= 0;
+		if (this.currentTime > 3 || this.queue.length < 2 || (atStart && !this.loop)) {
+			this.seek(0);
+			return;
+		}
+		this.back();
+	}
+
 	back(): void {
 		if (this.queue.length < 2) return;
 		this.load((this.currentIndex - 1 + this.queue.length) % this.queue.length);
@@ -497,7 +512,7 @@ class PlayerState {
 		bind('pause', () => this.toggle());
 		bind('seekbackward', () => this.skip(-15));
 		bind('seekforward', () => this.skip(30));
-		bind('previoustrack', () => this.back());
+		bind('previoustrack', () => this.previous());
 		bind('nexttrack', () => this.advance());
 		bind('stop', () => this.stop());
 	}

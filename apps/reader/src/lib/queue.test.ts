@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RingEntry } from '@yipden/ring-client';
-import { buildListenQueue, queueItemFromYip, queueItemsFromRing } from './queue.js';
+import { buildListenQueue, queueItemFromYip, queueItemsFromRing, shuffled } from './queue.js';
 import type { StoredYip } from './store/index.js';
 
 function yip(overrides: Partial<StoredYip> = {}): StoredYip {
@@ -113,5 +113,26 @@ describe('buildListenQueue', () => {
 		);
 		expect(queue).toHaveLength(1);
 		expect(queue[0]?.id).toBe('has-audio');
+	});
+});
+
+describe('shuffled', () => {
+	it('returns a new array holding the same items, leaving the input alone', () => {
+		const input = [1, 2, 3, 4, 5];
+		const out = shuffled(input, () => 0.3);
+		expect(out).not.toBe(input);
+		expect([...out].sort()).toEqual(input);
+		expect(input).toEqual([1, 2, 3, 4, 5]);
+	});
+
+	it('is deterministic for a given random source, and can leave the order alone', () => {
+		expect(shuffled([1, 2, 3], () => 0.999)).toEqual([1, 2, 3]);
+		expect(shuffled([1, 2, 3], () => 0)).toEqual(shuffled([1, 2, 3], () => 0));
+		expect(shuffled([1, 2], () => 0)).toEqual([2, 1]);
+	});
+
+	it('handles empty and single item lists', () => {
+		expect(shuffled([])).toEqual([]);
+		expect(shuffled(['a'])).toEqual(['a']);
 	});
 });
