@@ -212,7 +212,9 @@
 		node.setAttribute('inert', '');
 		let leaving = false;
 		const reduced = prefersReducedMotion();
+		// Consumed: a later button press has no drag to carry on from.
 		const from = reduced ? 0 : exitFrom;
+		exitFrom = 0;
 		const to = reduced ? 0 : navDirection * Math.round((section?.clientWidth || 390) * 0.7);
 		return {
 			duration: exitMs(),

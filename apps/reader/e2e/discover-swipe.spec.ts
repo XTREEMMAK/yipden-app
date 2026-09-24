@@ -76,3 +76,45 @@ test('the outgoing text leaves toward the direction of travel and is hidden from
 	// And once it has gone, it is gone from the DOM.
 	await expect(leaving).toHaveCount(0);
 });
+
+test('a button press after a swipe the other way still exits in its own direction', async ({
+	page
+}) => {
+	const ring = {
+		version: '1.0',
+		entries: [
+			{ id: 'a', creator: 'Ada', type: 'audio', source_url: 'https://a.example.com/', why: 'x' },
+			{ id: 'b', creator: 'Bo', type: 'comic', source_url: 'https://b.example.com/', why: 'y' },
+			{ id: 'c', creator: 'Cy', type: 'art', source_url: 'https://c.example.com/', why: 'z' }
+		]
+	};
+	await page.route('https://ring.indienodes.us/ring.json', (r) =>
+		r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ring) })
+	);
+	await page.goto('/');
+	await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+	await page.waitForTimeout(1200);
+
+	// Swipe right (previous), leaving a rightward drag offset behind.
+	const box = (await page.locator('.discover').boundingBox())!;
+	await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.5);
+	await page.mouse.down();
+	await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5, { steps: 4 });
+	await page.mouse.move(box.x + box.width * 0.8, box.y + box.height * 0.5, { steps: 4 });
+	await page.mouse.up();
+	await page.waitForTimeout(1500);
+
+	const rest = (await page.getByRole('heading', { level: 1 }).boundingBox())!.x;
+	const leaving = page.locator('.body-inner[aria-hidden="true"] h1');
+	await page.getByRole('button', { name: 'Next in the ring' }).click();
+	const xs: number[] = [];
+	for (let i = 0; i < 12; i += 1) {
+		const b = await leaving.boundingBox({ timeout: 300 }).catch(() => null);
+		if (b) xs.push(b.x);
+		await page.waitForTimeout(25);
+	}
+	expect(xs.length).toBeGreaterThan(2);
+	// Next goes left from where it rests; it never starts by moving right.
+	expect(Math.max(...xs)).toBeLessThanOrEqual(rest + 2);
+	expect(Math.min(...xs)).toBeLessThan(rest - 80);
+});
