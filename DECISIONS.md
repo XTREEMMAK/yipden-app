@@ -898,3 +898,10 @@ returns a `data:` URL (same origin by definition, so a canvas can never refuse i
 `createImageBitmap` option to be unsupported) and logs its failure with `console.warn`, visible
 through `chrome://inspect` on the phone. Still unverified on the device; if the wave is absent,
 that console line, or its absence, is the next thing to look at.
+
+Resolved on the device: the wave was missing because the wipe shader declared `mediump` floats,
+which phone GPUs run at half precision; it now asks for `highp` where available (desktop GPUs
+treat both the same, which is why the browser never showed it). The photo loading, preloading
+and CSS-layer changes above were all real problems too, but not the last one. The temporary
+on-screen diagnostics were removed once it was confirmed; a failed native photo load still logs
+a `console.warn`.

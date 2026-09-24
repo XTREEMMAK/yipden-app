@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { RingFocalPoint } from '@yipden/ring-client';
 	import { onDestroy, onMount } from 'svelte';
-	import { toast } from '$lib/toast.svelte.js';
 	import { player } from '$lib/player.svelte.js';
 	import { prefersReducedMotion } from '$lib/motion.js';
 	import { loadDataUrlNative } from '$lib/platform/image.js';
@@ -68,32 +67,15 @@
 	let drawable = $state<Set<string>>(new Set());
 	let glShowing = $derived(glActive && src !== null && drawable.has(src));
 
-	const debugLines: string[] = [];
-	function debug(message: string): void {
-		debugLines.push(message);
-		toast.show(`hero: ${debugLines.slice(-3).join(' | ')}`);
-	}
-
 	onMount(() => {
-		console.info(
-			`hero: ${loadDataUrlNative ? 'native photo loader' : 'plain Image loader (browser)'} on ${location.origin}`
-		);
 		if (canvas) {
 			gl = createHeroGL(
 				canvas,
 				() => (prefersReducedMotion() ? 0 : 1),
 				() => (glActive = false),
 				{
-					onTexture: (url, loaded, detail) => {
+					onTexture: (url, loaded) => {
 						if (loaded) drawable = new Set(drawable).add(url);
-						// Against the dev server (live reload on a phone) there is no console to
-						// read without USB debugging, so say what happened on screen instead.
-						if (import.meta.env.DEV) {
-							debug(`${new URL(url).hostname}: ${loaded ? 'ok' : 'FAIL'} (${detail})`);
-						}
-					},
-					onDebug: (message) => {
-						if (import.meta.env.DEV) debug(message);
 					},
 					...(loadDataUrlNative ? { loadDataUrl: loadDataUrlNative } : {})
 				}

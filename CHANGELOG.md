@@ -85,6 +85,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- Discover's WebGL wave never appeared on a phone even with photos loading: the wipe shader used
+  half precision floats, which phone GPUs default to and its noise function cannot survive. It now
+  uses full precision where the GPU supports it.
+
 - Discover's wave still did not appear on a phone even once photos could be drawn: the photo
   was still downloading when the wipe ran, so the wipe finished unseen and the canvas only popped
   in afterwards. The neighbouring members' photos are now preloaded, so they are ready before a
