@@ -80,4 +80,12 @@ consumed by other clients, so it must never import from SvelteKit, Svelte or the
 
 ## License
 
-GPL-3.0-or-later. See [LICENSE](LICENSE).
+Copyright (C) 2026 Jamaal Ephriam. GPL-3.0-or-later. See [LICENSE](LICENSE).
+
+## Contributing
+
+Contributions are welcome. By submitting a pull request you agree that your contribution is
+licensed under GPL-3.0-or-later, and that you grant the maintainer the right to also distribute it
+under other terms, including in official app store builds of YipDen, where the GPL's terms and the
+stores' terms cannot both be met by a third party. If you cannot agree to that, please open an
+issue to discuss instead of a pull request. Sign off your commits (`git commit -s`) to confirm it.
