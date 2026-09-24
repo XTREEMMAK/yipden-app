@@ -1138,3 +1138,22 @@ point at the right edge must show only its blue half on screen (it fails on the 
 crop), and a per-frame check that the canvas has not painted while the transition marker is up.
 Side effect worth knowing: because the canvas no longer redraws at rest, its drawing buffer is
 empty by the time anything reads it back, so tests read the composited screenshot instead.
+
+## 2026-09-24: Discover draws the saved ring first, and checks the network afterwards
+
+Reports of Discover showing "Loading the ring" after the app resumed were not a cache expiry.
+`fetchRing` awaited the network (10 second timeout) and used the saved copy only if that failed,
+and Discover asked on every mount, so a resume waited on a slow or paused request with nothing
+on screen. `ring.load()` now applies the saved ring immediately (new `cachedRing` in
+`@yipden/ring-client`), then checks the network in the background. A ring checked within 15
+minutes is not asked about again, the layout asks again on resume, and a failed check is not
+recorded so the next visit retries. A changed ring updates in place: the reader's order and
+place are kept, new members go at the end. `loading` now means only "no saved copy and no answer
+yet", which is where the new `RingLoader` shows.
+
+The waveform got dev-only console logging of why it fell back to the bar, and that logging found
+the cause. It was not CORS: wavesurfer loads a passed-in element's existing source on its own,
+aborts that load when ours starts, and emits the abort as an `error`. `Waveform.svelte` treated
+any error as failure. It now ignores `AbortError`. Verified in a browser against real ring
+tracks, and by an e2e that fails without the change. The earlier entry about CORS on Android
+still stands as unconfirmed on a device; see ROADMAP.md, which also notes one slow host.

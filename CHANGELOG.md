@@ -6,8 +6,18 @@ Every notable change to YipDen, newest first. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- The player's waveform draws. wavesurfer's aborted first load was being read as a failure, so
+  every track showed the plain bar. See DECISIONS.md.
+- Discover no longer sits on "Loading the ring" after the app resumes: the saved ring draws at
+  once and the network is checked in the background, no more than once in 15 minutes, and again
+  on resume. An update never moves the member on screen. See DECISIONS.md.
+
 ### Added
 
+- Discover's first ever load shows a centered ring animation instead of a text chip, with a slot
+  for artwork to replace it later.
 - Discover previews by type: audio members get Play, comics, art and text open a paged viewer
   of their pages, artworks or excerpts, games open their trailer or preview link, and a member
   with nothing to preview has no button. See DECISIONS.md.
