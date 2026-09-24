@@ -4,11 +4,10 @@
 	import { swipe } from '$lib/actions/swipe.js';
 	import { fly } from 'svelte/transition';
 	import { flyIn, prefersReducedMotion, staggerDelay } from '$lib/motion.js';
-	import { buildListenQueue } from '$lib/queue.js';
 	import { ring } from '$lib/ring.svelte.js';
 	import { feeds, FEEDS_FILTERS, type FeedsFilterKey } from '$lib/feeds.svelte.js';
 	import YipCard from '$components/YipCard.svelte';
-	import RingRow from '$components/RingRow.svelte';
+	import RingMemberCard from '$components/RingMemberCard.svelte';
 
 	/**
 	 * Feeds: everything followed, merged and reverse chronological, in four panes a reader
@@ -211,19 +210,15 @@
 					{/if}
 
 					{#if filter.key === 'listen' && ring.all.length}
-						{@const listenQueue = buildListenQueue(feeds.panes.listen, ring.all)}
-						{@const tracks = ring.all.flatMap((entry) =>
-							(entry.tracks ?? []).map((track) => ({ entry, track }))
-						)}
-						{@const ringStart = listenQueue.length - tracks.length}
-						{#if tracks.length}
+						{@const members = ring.all.filter((entry) => (entry.tracks?.length ?? 0) > 0)}
+						{#if members.length}
 							<div class="sec-h">
 								<h3>From the ring</h3>
-								<span>ring.json {'·'} tracks</span>
+								<span>ring.json {'·'} members</span>
 							</div>
 							<div class="rows">
-								{#each tracks as { entry, track }, i (entry.id + track.media_url)}
-									<RingRow {entry} {track} queue={listenQueue} index={ringStart + i} />
+								{#each members as entry (entry.id)}
+									<RingMemberCard {entry} />
 								{/each}
 							</div>
 						{/if}

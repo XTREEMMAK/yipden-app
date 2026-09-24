@@ -77,7 +77,7 @@ export interface YipQuery {
 	before?: string;
 }
 
-export type SettingKey = 'lastRefreshAt' | 'includeExplicit' | 'ringFilter';
+export type SettingKey = 'lastRefreshAt' | 'includeExplicit' | 'ringFilter' | 'ringQueue';
 
 /**
  * Cached waveform peaks, keyed by media URL and ETag so a track is decoded at most once.

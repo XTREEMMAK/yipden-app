@@ -808,3 +808,50 @@ a transient filter sheet has no equivalent need for), so this one is built direc
 
 `discover.spec.ts`'s filter tests now open the sheet before picking an option; a new test
 covers the sheet's own open/close/focus-return behavior specifically.
+
+## 2026-09-23: "From the ring" became per-member cards with continuous play
+
+**Confirmed, then built on: this app is a second client of the ring.** It already read
+`ring.json` for Discover, and `entry.tracks[]` was already being played from Listen, so the only
+thing missing was treating a member, not a track, as the unit a reader chooses. The flat list of
+every track from every audio member is gone; each member is one card (cover, track count, a
+play button, and a "+" to queue them) in `RingMemberCard.svelte`. `RingRow.svelte` had no other
+user and was deleted. The reference for the behavior was the IndieNodes app's own player, read
+directly rather than remembered: a queue kept separate from the audio element, a per-member
+card, reorder and remove with the playhead tracked through both, and a prompt at the end of a
+member's tracks instead of silently carrying on.
+
+**One player, not a ring player.** `player.svelte.ts` stays the single queue and single
+`<audio>` element; it gained only generic primitives (`addToQueue`, `move`, `removeAt`,
+`removeBatch`, `jumpTo`, `hydrate`, an optional `batchKey` on a queue item). What is ring
+specific lives in `ringPlayer.svelte.ts`, a thin layer that tags a member's tracks with their id,
+remembers the order members joined the session, and asks `suggestNextEntry` who is next. That
+function is in `@yipden/ring-client`, not the app: a tag overlap score against everything played
+so far, random among ties, never leaving the session's `form` (music stays music), never
+repeating a member. It is what any other audio client of the ring would also need.
+
+**Ordinary queues still wrap, on purpose.** The obvious change, making the end of every queue
+stop, was checked against the tests first and would have broken one that deliberately asserts
+the wrap (`the up next tile is disabled alone in the queue`, misleadingly named: it exercises
+wrapping). So `loop` is opt out: it defaults to `true`, and only a ring session passes
+`{ loop: false }`, which is what lets it stop and set `ended` rather than restarting the same
+member. `next` follows the same rule, so the Up next tile never promises a wrap `advance()` will
+not perform.
+
+**The queue survives closing the app, which the IndieNodes app deliberately does not.**
+Chosen explicitly: a ring session is one a reader built member by member, not a snapshot of
+whatever a feed happened to show. Restoring never starts audio; the mini player comes back
+paused with the right track loaded. It reuses `getSetting`/`setSetting` (a new `'ringQueue'`
+key), so no schema migration was needed. Two things about doing it are worth remembering. The
+save had to use `$state.snapshot`: a live `$state` proxy fails IndexedDB's structured clone, and
+the save is fire and forget, so it failed silently and the round trip test in `ringPlayer.test.ts`
+is what caught it. And accepting "Keep going" originally appended the next member without
+starting them, since `addToQueue` only auto-started from an idle player, not one sitting at the
+end of a finished queue; an end to end test with real (very short) audio found that.
+
+**Scope cuts, so they are not mistaken for oversights.** Reordering is up and down buttons per
+row, not drag: no drag primitive exists in the app, and buttons are keyboard and screen reader
+accessible with no custom gesture work. The IndieNodes app also has an "auto keep going" mode
+that stops asking after the first yes; this always asks, since the request was for a prompt.
+There is no separate "preview" versus "play" button state on a card. Each is a small addition on
+top of this if wanted.

@@ -36,7 +36,10 @@ export function queueItemsFromRing(entries: RingEntry[]): QueueItem[] {
 				url: entry.source_url,
 				siteUrl: entry.source_url,
 				artUrl: heroImage(entry),
-				mediaUrl: track.media_url
+				mediaUrl: track.media_url,
+				// Which member these tracks are from, so a continuous-play session can tell
+				// whose tracks just finished and remove or reorder a whole member at once.
+				batchKey: entry.id
 			});
 		}
 	}

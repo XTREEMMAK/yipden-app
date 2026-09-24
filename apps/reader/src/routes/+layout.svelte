@@ -6,6 +6,8 @@
 	import TabBar from '$components/TabBar.svelte';
 	import { directionBetween } from '$lib/navigation.js';
 	import { player } from '$lib/player.svelte.js';
+	import { ringPlayer, type RingQueueRecord } from '$lib/ringPlayer.svelte.js';
+	import { store } from '$lib/store/index.js';
 	import { theme } from '$lib/theme.svelte.js';
 	import '$styles/app.css';
 
@@ -13,6 +15,26 @@
 
 	onMount(() => {
 		theme.hydrate();
+		void restoreRingQueue();
+	});
+
+	/**
+	 * A continuous-play ring session survives closing the app, unlike an ordinary Listen queue:
+	 * it is the one queue a reader deliberately built up member by member, not a snapshot of
+	 * whatever Feeds happened to be showing. Restoring never starts audio on its own; the mini
+	 * player simply appears with the right track loaded, paused, same as a cold launch would
+	 * refuse autoplay anyway.
+	 */
+	async function restoreRingQueue() {
+		await store.init();
+		const record = await store.getSetting<RingQueueRecord>('ringQueue');
+		if (record) ringPlayer.restore(record);
+	}
+
+	/** Saved after every change to a ring session's queue; not fired for any other kind of queue. */
+	$effect(() => {
+		const snapshot = ringPlayer.snapshot();
+		if (snapshot) void store.setSetting('ringQueue', snapshot);
 	});
 
 	/**

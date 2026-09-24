@@ -23,6 +23,12 @@ export interface QueueItem {
 	siteUrl: string;
 	artUrl: string | null;
 	mediaUrl: string;
+	/**
+	 * Groups items from the same source, such as one ring member's tracks. Optional: most
+	 * queues (a followed feed's yips) have no natural grouping and leave it unset. Used for
+	 * `removeBatch` and for a continuous-play session to tell whose tracks just finished.
+	 */
+	batchKey?: string;
 }
 
 export const RATES = [1, 1.25, 1.5, 2] as const;
@@ -74,13 +80,26 @@ class PlayerState {
 	currentTime = $state(0);
 	duration = $state(0);
 	rate = $state<(typeof RATES)[number]>(1);
+	/**
+	 * Whether reaching the end of the queue wraps back to the start (every queue built from
+	 * `play()`'s default) or stops (a continuous-play session, so it can prompt instead of
+	 * silently restarting). See `ended`.
+	 */
+	loop = $state(true);
+	/** True once playback has run off the end of a non-looping queue. Reset by anything that
+	 *  starts, extends or replaces the queue. */
+	ended = $state(false);
 
 	/** 'full' is the screen over every tab; 'mini' is the dock; 'hidden' is neither. */
 	sheet = $state<'hidden' | 'mini' | 'full'>('hidden');
 
 	current = $derived(this.currentIndex >= 0 ? (this.queue[this.currentIndex] ?? null) : null);
+	/** `null` past the last track of a non-looping queue, matching what `advance()` will actually
+	 *  do: nothing here promises a wrap the queue itself has stopped offering. */
 	next = $derived(
-		this.queue.length > 1 ? (this.queue[(this.currentIndex + 1) % this.queue.length] ?? null) : null
+		this.queue.length > 1 && (this.loop || this.currentIndex < this.queue.length - 1)
+			? (this.queue[(this.currentIndex + 1) % this.queue.length] ?? null)
+			: null
 	);
 
 	get audio(): HTMLAudioElement {
@@ -125,8 +144,19 @@ class PlayerState {
 	 * the browser supports view transitions and the reader has not asked for reduced motion,
 	 * its `.art` and `.ttl` morph into the full screen player rather than the sheet simply
 	 * sliding up over them.
+	 *
+	 * `loop` defaults to `true`, unchanged from every existing caller's own expectations
+	 * (reaching the end of the queue wraps back to the start, exercised by `advance()`'s own
+	 * tests). A continuous-play session passes `false`, so it can stop and prompt instead.
 	 */
-	play(queue: QueueItem[], startIndex: number, fromEl?: HTMLElement): void {
+	play(
+		queue: QueueItem[],
+		startIndex: number,
+		fromEl?: HTMLElement,
+		opts?: { loop?: boolean }
+	): void {
+		this.loop = opts?.loop ?? true;
+		this.ended = false;
 		const opening = this.sheet !== 'full';
 		if (opening && fromEl && !prefersReducedMotion() && typeof document !== 'undefined') {
 			this.morphOpen(queue, startIndex, fromEl);
@@ -134,6 +164,106 @@ class PlayerState {
 		}
 		this.queue = queue;
 		this.load(startIndex);
+	}
+
+	/**
+	 * Appends items to the end of the queue without disturbing playback, unlike `play()`, which
+	 * always replaces it. Used to grow a continuous-play session one member at a time, whether
+	 * from an explicit "+Queue" tap or from accepting the "keep going?" suggestion. Starts
+	 * playback when nothing was playing, or when the queue had already run off its end (that
+	 * is what accepting the suggestion means); otherwise the reader keeps hearing what they
+	 * were hearing, and the new items simply wait their turn.
+	 */
+	addToQueue(items: QueueItem[]): void {
+		if (!items.length) return;
+		const shouldStart = this.currentIndex < 0 || this.ended;
+		const firstNew = this.queue.length;
+		this.queue = [...this.queue, ...items];
+		this.ended = false;
+		if (shouldStart) this.load(firstNew);
+	}
+
+	/**
+	 * Moves one queue item, keeping the playhead pointed at the same logical track rather than
+	 * whatever now sits at its old numeric position.
+	 */
+	move(from: number, to: number): void {
+		if (from === to || from < 0 || from >= this.queue.length) return;
+		const target = Math.max(0, Math.min(this.queue.length - 1, to));
+		const playingId = this.current?.id;
+		const next = [...this.queue];
+		const [item] = next.splice(from, 1);
+		if (!item) return;
+		next.splice(target, 0, item);
+		this.queue = next;
+		if (playingId !== undefined) {
+			const at = next.findIndex((entry) => entry.id === playingId);
+			if (at >= 0) this.currentIndex = at;
+		}
+	}
+
+	/**
+	 * Removes one item. Removing anything before the playhead shifts it to match; removing the
+	 * playing item itself jumps to whatever now sits in its place, or stops if that was the end.
+	 */
+	removeAt(at: number): void {
+		if (at < 0 || at >= this.queue.length) return;
+		const wasCurrent = at === this.currentIndex;
+		this.queue = this.queue.filter((_, index) => index !== at);
+
+		if (!this.queue.length) {
+			this.currentIndex = -1;
+			this.audio.pause();
+			return;
+		}
+		if (at < this.currentIndex) {
+			this.currentIndex -= 1;
+		} else if (wasCurrent) {
+			if (this.currentIndex >= this.queue.length) {
+				this.currentIndex = this.queue.length - 1;
+				this.audio.pause();
+				this.ended = true;
+			} else {
+				this.load(this.currentIndex);
+			}
+		}
+	}
+
+	/** Removes every item sharing a `batchKey` in one step, such as a whole member's tracks. */
+	removeBatch(batchKey: string): void {
+		for (let at = this.queue.length - 1; at >= 0; at -= 1) {
+			if (this.queue[at]?.batchKey === batchKey) this.removeAt(at);
+		}
+	}
+
+	/** Jumps straight to a position in the queue: the queue panel's own "playlist select." */
+	jumpTo(index: number): void {
+		if (index < 0 || index >= this.queue.length || index === this.currentIndex) return;
+		this.load(index);
+	}
+
+	/**
+	 * Restores a queue saved from a previous session without starting playback: the mini player
+	 * appears with the right track loaded and ready, paused until the reader presses play
+	 * themselves, the same as autoplay would be refused on a cold launch anyway.
+	 */
+	hydrate(queue: QueueItem[], currentIndex: number, opts?: { loop?: boolean }): void {
+		if (typeof window === 'undefined') return;
+		if (!queue.length || currentIndex < 0 || currentIndex >= queue.length) return;
+		const item = queue[currentIndex]!;
+
+		this.queue = queue;
+		this.currentIndex = currentIndex;
+		this.loop = opts?.loop ?? true;
+		this.ended = false;
+		this.currentTime = 0;
+		this.duration = 0;
+
+		const audio = this.audio;
+		if (audio.src !== item.mediaUrl) audio.src = item.mediaUrl;
+		audio.playbackRate = this.rate;
+		this.sheet = 'mini';
+		this.setMediaSessionMetadata(item);
 	}
 
 	/**
@@ -200,6 +330,7 @@ class PlayerState {
 		this.currentTime = 0;
 		this.duration = 0;
 		this.pendingSeek = null;
+		this.ended = false;
 
 		const audio = this.audio;
 		if (audio.src !== item.mediaUrl) audio.src = item.mediaUrl;
@@ -254,6 +385,11 @@ class PlayerState {
 	}
 
 	advance(): void {
+		if (!this.loop && this.currentIndex >= this.queue.length - 1) {
+			this.audio.pause();
+			this.ended = true;
+			return;
+		}
 		if (this.queue.length < 2) {
 			this.audio.pause();
 			return;

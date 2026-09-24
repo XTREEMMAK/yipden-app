@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { fade, fly } from 'svelte/transition';
 	import { swipe } from '$lib/actions/swipe.js';
-	import { prefersReducedMotion } from '$lib/motion.js';
+	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
 	import { formatTime, player } from '$lib/player.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
-	import { washFor } from '$lib/ring.svelte.js';
+	import { ring, washFor } from '$lib/ring.svelte.js';
+	import { ringPlayer } from '$lib/ringPlayer.svelte.js';
 	import Waveform from './Waveform.svelte';
 
 	/**
@@ -11,10 +13,19 @@
 	 * a reader has played anything at all, shown or hidden with a transform rather than being
 	 * created and destroyed, so the waveform beneath it never has to redecode a track just
 	 * because the sheet was collapsed and reopened.
+	 *
+	 * The end of queue prompt and the queue panel are both owned here rather than by whatever
+	 * started the queue, the same reasoning `player.svelte.ts` itself follows: there is one
+	 * player, not a ring player and a separate everything else player, so there is one place
+	 * that shows what is queued and one place that asks what comes after it. `player.ended` only
+	 * ever becomes true for a continuous-play ring session today (the only caller that opts out
+	 * of the default looping queue), which is why the prompt reads for one without checking that
+	 * directly.
 	 */
 
 	let dragY = $state(0);
 	let dragging = $state(false);
+	let queueSheetOpen = $state(false);
 
 	let remaining = $derived(Math.max(0, player.duration - player.currentTime));
 </script>
@@ -55,13 +66,28 @@
 				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
 			</button>
 			<span class="pl-label">Now playing</span>
-			<button
-				class="round"
-				onclick={() => openExternal(item.siteUrl)}
-				aria-label="Open on the creator's site"
-			>
-				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
-			</button>
+			<span class="pl-top-right">
+				<button
+					class="round"
+					data-noswipe
+					disabled={player.queue.length < 2}
+					onclick={() => (queueSheetOpen = true)}
+					aria-haspopup="dialog"
+					aria-expanded={queueSheetOpen}
+					aria-label="Open the queue"
+				>
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M4 6h16M4 12h10M4 18h7" />
+					</svg>
+				</button>
+				<button
+					class="round"
+					onclick={() => openExternal(item.siteUrl)}
+					aria-label="Open on the creator's site"
+				>
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
+				</button>
+			</span>
 		</header>
 
 		<div class="pl-body">
@@ -75,6 +101,25 @@
 				<span>{formatTime(player.currentTime)}</span>
 				<span>-{formatTime(remaining)}</span>
 			</div>
+
+			{#if player.ended}
+				{@const suggestion = ringPlayer.suggest(ring.all)}
+				<div class="end-prompt" data-noswipe transition:fly={flyIn({ y: 12 })}>
+					{#if suggestion}
+						<p>Queue finished. Play more from <b>{suggestion.creator}</b> next?</p>
+						<div class="end-actions">
+							<button class="end-quiet" onclick={() => player.stop()}>Stop</button>
+							<button class="end-main" onclick={() => ringPlayer.add(suggestion)}>Keep going</button
+							>
+						</div>
+					{:else}
+						<p>Nothing else in the ring to play.</p>
+						<div class="end-actions">
+							<button class="end-main" onclick={() => player.stop()}>Stop</button>
+						</div>
+					{/if}
+				</div>
+			{/if}
 
 			<div class="tiles">
 				<button class="tile" onclick={() => player.advance()} disabled={!player.next}>
@@ -117,7 +162,81 @@
 			</div>
 		</div>
 	</section>
+
+	{#if queueSheetOpen}
+		<button
+			type="button"
+			class="sheet-backdrop"
+			data-noswipe
+			tabindex="-1"
+			aria-label="Close"
+			onclick={() => (queueSheetOpen = false)}
+			transition:fade={{ duration: prefersReducedMotion() ? 0 : duration.s }}
+		></button>
+		<div
+			class="queue-sheet"
+			data-noswipe
+			role="dialog"
+			aria-modal="true"
+			aria-label="Queue"
+			in:fly={flyIn({ y: 40 })}
+			out:fly={flyIn({ y: 40 })}
+		>
+			<div class="sheet-head">
+				<h2>Queue</h2>
+				<button class="sheet-close" onclick={() => (queueSheetOpen = false)} aria-label="Close">
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+				</button>
+			</div>
+			<ul class="queue-list">
+				{#each player.queue as queued, index (queued.id + index)}
+					<li class="queue-row" class:is-current={index === player.currentIndex}>
+						<button
+							class="queue-jump"
+							onclick={() => player.jumpTo(index)}
+							disabled={index === player.currentIndex}
+							aria-label={`Play ${queued.title} by ${queued.creator}`}
+						>
+							<span class="queue-title">{queued.title}</span>
+							<small>{queued.creator}</small>
+						</button>
+						<span class="queue-move">
+							<button
+								onclick={() => player.move(index, index - 1)}
+								disabled={index === 0}
+								aria-label={`Move ${queued.title} earlier`}
+							>
+								<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 15l-6-6-6 6" /></svg>
+							</button>
+							<button
+								onclick={() => player.move(index, index + 1)}
+								disabled={index === player.queue.length - 1}
+								aria-label={`Move ${queued.title} later`}
+							>
+								<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+							</button>
+						</span>
+						<button
+							class="queue-remove"
+							onclick={() => player.removeAt(index)}
+							aria-label={`Remove ${queued.title} from the queue`}
+						>
+							<svg viewBox="0 0 24 24" aria-hidden="true">
+								<path d="M6 6l12 12M18 6L6 18" />
+							</svg>
+						</button>
+					</li>
+				{/each}
+			</ul>
+		</div>
+	{/if}
 {/if}
+
+<svelte:window
+	onkeydown={(event) => {
+		if (queueSheetOpen && event.key === 'Escape') queueSheetOpen = false;
+	}}
+/>
 
 <style>
 	.player {
@@ -160,6 +279,15 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: calc(22px + env(safe-area-inset-top, 0px)) 20px 0;
+	}
+
+	.pl-top-right {
+		display: flex;
+		gap: 8px;
+	}
+
+	.round:disabled {
+		opacity: 0.4;
 	}
 
 	.pl-label {
@@ -333,5 +461,196 @@
 		width: 30px;
 		height: 30px;
 		fill: currentColor;
+	}
+
+	.end-prompt {
+		align-self: stretch;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		margin-top: 6px;
+		padding: 14px;
+		border-radius: 18px;
+		background: rgba(255, 255, 255, 0.14);
+		-webkit-backdrop-filter: blur(12px);
+		backdrop-filter: blur(12px);
+	}
+
+	.end-prompt p {
+		margin: 0;
+		font-size: 14px;
+		line-height: 1.4;
+	}
+
+	.end-actions {
+		display: flex;
+		gap: 8px;
+	}
+
+	.end-quiet,
+	.end-main {
+		flex: 1;
+		height: 44px;
+		border: 0;
+		border-radius: 999px;
+		font-family: var(--body);
+		font-size: 14px;
+		font-weight: 600;
+	}
+
+	.end-quiet {
+		background: rgba(255, 255, 255, 0.14);
+		color: #fff;
+	}
+
+	.end-main {
+		background: #fff;
+		color: var(--brand);
+	}
+
+	.sheet-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 34;
+		border: 0;
+		padding: 0;
+		background: rgba(0, 0, 0, 0.4);
+		cursor: default;
+	}
+
+	.queue-sheet {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 35;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		max-height: 70vh;
+		padding: 18px 8px calc(20px + env(safe-area-inset-bottom, 0px));
+		border-radius: 24px 24px 0 0;
+		background: var(--player);
+		color: #fff;
+		box-shadow: 0 -12px 30px -10px rgba(0, 0, 0, 0.4);
+		overflow-y: auto;
+	}
+
+	.sheet-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0 12px 10px;
+	}
+
+	.sheet-head h2 {
+		margin: 0;
+		font-size: 17px;
+		font-weight: 650;
+	}
+
+	.sheet-close {
+		display: grid;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		border: 0;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.14);
+		color: #fff;
+	}
+
+	.sheet-close svg {
+		width: 18px;
+		height: 18px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+	}
+
+	.queue-list {
+		display: flex;
+		flex-direction: column;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.queue-row {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 8px;
+		border-radius: 14px;
+	}
+
+	.queue-row.is-current {
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	.queue-jump {
+		flex: 1;
+		min-width: 0;
+		min-height: 44px;
+		padding: 8px 6px;
+		border: 0;
+		background: none;
+		color: inherit;
+		text-align: left;
+	}
+
+	.queue-jump:disabled {
+		cursor: default;
+	}
+
+	.queue-title {
+		display: block;
+		overflow: hidden;
+		font-size: 14px;
+		font-weight: 600;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.queue-jump small {
+		display: block;
+		margin-top: 2px;
+		overflow: hidden;
+		color: rgba(255, 255, 255, 0.7);
+		font-size: 12px;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.queue-move {
+		display: flex;
+	}
+
+	/* 44px, the brief's touch target minimum, even packed this closely together. */
+	.queue-move button,
+	.queue-remove {
+		display: grid;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		border: 0;
+		background: none;
+		color: rgba(255, 255, 255, 0.85);
+	}
+
+	.queue-move button:disabled {
+		opacity: 0.3;
+	}
+
+	.queue-move svg,
+	.queue-remove svg {
+		width: 16px;
+		height: 16px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
 	}
 </style>

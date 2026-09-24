@@ -41,6 +41,8 @@ export {
 
 export { filterRing, tagFacets, typeFacets, type RingFilter } from './filter.js';
 
+export { suggestNextEntry, type SuggestOptions } from './suggest.js';
+
 export {
 	DEFAULT_RING_URL,
 	fetchRing,

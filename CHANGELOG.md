@@ -75,6 +75,13 @@ Every notable change to YipDen, newest first. The format follows
   instead of its own bundled files, so a web layer change reaches the device the moment Vite
   rebuilds it, with no further rebuild or reinstall. Never set for a real build. See
   `docs/android-testing.md` and DECISIONS.md.
+- Continuous play of the ring. "From the ring" in Listen is one card per member (cover, track
+  count, play, and a "+" to queue) instead of a flat list of every track. Playing a member starts
+  a session that stops at the end of their tracks and asks whether to keep going with someone
+  new, chosen by `suggestNextEntry` (new in `@yipden/ring-client`: tag overlap, same form,
+  never a repeat). A queue panel in the full player lists everything queued, with jump to a
+  track, move earlier or later, and remove. The session survives closing the app, restored
+  paused in the mini player. See DECISIONS.md.
 
 ### Fixed
 

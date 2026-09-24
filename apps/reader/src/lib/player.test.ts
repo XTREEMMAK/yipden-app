@@ -28,6 +28,8 @@ beforeEach(async () => {
 	player.duration = 0;
 	player.rate = 1;
 	player.sheet = 'hidden';
+	player.loop = true;
+	player.ended = false;
 });
 
 describe('formatTime', () => {
@@ -90,6 +92,133 @@ describe('play and the queue', () => {
 		player.play([item({ id: 'a' }), item({ id: 'b' })], 1);
 		expect(player.currentTime).toBe(0);
 		expect(player.duration).toBe(0);
+	});
+});
+
+describe('a non-looping queue', () => {
+	it('stops rather than wrapping once the last item finishes', () => {
+		player.play([item({ id: 'a' }), item({ id: 'b' })], 1, undefined, { loop: false });
+		expect(player.next).toBeNull();
+		player.advance();
+		expect(player.current?.id).toBe('b');
+		expect(player.ended).toBe(true);
+	});
+
+	it('still wraps by default, unaffected by another queue having opted out', () => {
+		player.play([item({ id: 'a' }), item({ id: 'b' })], 1, undefined, { loop: false });
+		player.play([item({ id: 'c' }), item({ id: 'd' })], 1);
+		player.advance();
+		expect(player.current?.id).toBe('c');
+	});
+
+	it('clears `ended` the moment it moves again', () => {
+		player.play([item({ id: 'a' }), item({ id: 'b' })], 1, undefined, { loop: false });
+		player.advance();
+		expect(player.ended).toBe(true);
+		player.back();
+		expect(player.ended).toBe(false);
+	});
+});
+
+describe('addToQueue', () => {
+	it('starts playing immediately when nothing was queued', () => {
+		player.addToQueue([item({ id: 'a' })]);
+		expect(player.current?.id).toBe('a');
+	});
+
+	it('appends without disturbing what is already playing', () => {
+		player.play([item({ id: 'a' })], 0, undefined, { loop: false });
+		player.addToQueue([item({ id: 'b' })]);
+		expect(player.current?.id).toBe('a');
+		expect(player.next?.id).toBe('b');
+	});
+
+	it('resumes into the new items when the queue had already run off its end', () => {
+		player.play([item({ id: 'a' })], 0, undefined, { loop: false });
+		player.advance();
+		expect(player.ended).toBe(true);
+		player.addToQueue([item({ id: 'b' }), item({ id: 'c' })]);
+		expect(player.ended).toBe(false);
+		expect(player.current?.id).toBe('b');
+		expect(player.next?.id).toBe('c');
+	});
+});
+
+describe('move', () => {
+	it('keeps the playhead on the same track after moving it earlier', () => {
+		player.play([item({ id: 'a' }), item({ id: 'b' }), item({ id: 'c' })], 2);
+		player.move(2, 0);
+		expect(player.queue.map((entry) => entry.id)).toEqual(['c', 'a', 'b']);
+		expect(player.current?.id).toBe('c');
+	});
+
+	it('keeps the playhead on the same track when something else moves around it', () => {
+		player.play([item({ id: 'a' }), item({ id: 'b' }), item({ id: 'c' })], 0);
+		player.move(2, 0);
+		expect(player.queue.map((entry) => entry.id)).toEqual(['c', 'a', 'b']);
+		expect(player.current?.id).toBe('a');
+	});
+});
+
+describe('removeAt', () => {
+	it('shifts the playhead down when removing something before it', () => {
+		player.play([item({ id: 'a' }), item({ id: 'b' }), item({ id: 'c' })], 2);
+		player.removeAt(0);
+		expect(player.queue.map((entry) => entry.id)).toEqual(['b', 'c']);
+		expect(player.current?.id).toBe('c');
+	});
+
+	it('jumps to the next surviving track when the playing one is removed', () => {
+		player.play([item({ id: 'a' }), item({ id: 'b' }), item({ id: 'c' })], 1);
+		player.removeAt(1);
+		expect(player.current?.id).toBe('c');
+	});
+
+	it('stops and marks the queue ended when the last item, and the one playing, is removed', () => {
+		player.play([item({ id: 'a' }), item({ id: 'b' })], 1);
+		player.removeAt(1);
+		expect(player.current?.id).toBe('a');
+		expect(player.ended).toBe(true);
+	});
+
+	it('empties out and stops entirely once the only item is removed', () => {
+		player.play([item({ id: 'a' })], 0);
+		player.removeAt(0);
+		expect(player.current).toBeNull();
+		expect(player.queue).toHaveLength(0);
+	});
+});
+
+describe('removeBatch', () => {
+	it('removes every item sharing a batchKey in one call', () => {
+		player.play(
+			[
+				item({ id: 'a', batchKey: 'ada' }),
+				item({ id: 'b', batchKey: 'ada' }),
+				item({ id: 'c', batchKey: 'bo' })
+			],
+			0
+		);
+		player.removeBatch('ada');
+		expect(player.queue.map((entry) => entry.id)).toEqual(['c']);
+		expect(player.current?.id).toBe('c');
+	});
+});
+
+describe('hydrate', () => {
+	it('restores the queue and position without starting playback', () => {
+		player.hydrate([item({ id: 'a' }), item({ id: 'b' })], 1, { loop: false });
+		expect(player.current?.id).toBe('b');
+		expect(player.sheet).toBe('mini');
+		expect(player.playing).toBe(false);
+		expect(player.loop).toBe(false);
+	});
+
+	it('does nothing with an empty queue or an out of range index', () => {
+		player.hydrate([], 0);
+		expect(player.current).toBeNull();
+		player.hydrate([item()], 5);
+		expect(player.current).toBeNull();
 	});
 });
 
