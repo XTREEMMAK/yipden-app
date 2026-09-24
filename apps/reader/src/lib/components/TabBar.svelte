@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
 
 	/**
@@ -27,6 +28,8 @@
 	 * answer back if the finger slides off the tab instead of lifting on it.
 	 */
 	let pressed = $state<string | null>(null);
+	/** When a pointer tap last navigated, so the click that may follow it can be ignored. */
+	let navigatedByPointerAt = 0;
 	let pathname = $derived(navigating?.to?.url.pathname ?? pressed ?? page.url.pathname);
 
 	// Once a navigation lands, the page itself is the source of truth again.
@@ -100,11 +103,27 @@
 				if (event.isPrimary && event.button === 0) pressed = tab.href;
 			}}
 			onpointerup={(event) => {
-				// A finger that slid off before lifting produces no click, so nothing else would ever
-				// take the answer back. (Not `pointerleave`: for touch it fires on every lift, just
-				// before the click, and would flash the indicator back for a frame.)
+				const link = event.currentTarget;
 				const under = document.elementFromPoint(event.clientX, event.clientY);
-				if (!event.currentTarget.contains(under)) pressed = null;
+				// A finger that slid off before lifting is not a tap: no click, and the answer the
+				// indicator gave on finger down is taken back.
+				if (!link.contains(under)) {
+					pressed = null;
+					return;
+				}
+				// Navigate here, on the lift, rather than waiting for the browser to make a click of
+				// it. After a swipe on Discover the browser sometimes never produced that click for a
+				// tap made soon afterwards, and the tab did nothing until it was tried a second time.
+				const plain = !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;
+				const here = page.url.pathname.replace(/\/$/, '') || '/';
+				if (event.isPrimary && event.button === 0 && plain && tab.href !== here) {
+					navigatedByPointerAt = performance.now();
+					void goto(tab.href, { noScroll: true });
+				}
+			}}
+			onclick={(event) => {
+				// The click that follows a pointer tap that already navigated would navigate again.
+				if (performance.now() - navigatedByPointerAt < 600) event.preventDefault();
 			}}
 			onpointerleave={(event) => {
 				if (event.pointerType === 'mouse') pressed = null;

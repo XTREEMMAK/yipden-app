@@ -186,4 +186,61 @@ test.describe('the app shell', () => {
 		expect(xs[xs.length - 1]).toBeCloseTo(target, 0);
 		await context.close();
 	});
+
+	test('a tab tapped soon after a swipe on Discover still navigates', async ({ browser }) => {
+		// Chromium does not always make a click of a tap that follows a swipe closely; the tab bar
+		// navigates on the lift itself so it never depends on that click. Real touch, at several gaps.
+		const ring = {
+			version: '1.0',
+			entries: ['a', 'b', 'c'].map((id) => ({
+				id,
+				creator: `Creator ${id}`,
+				type: 'audio',
+				source_url: `https://${id}.example.com/`,
+				why: 'x'
+			}))
+		};
+		for (const gap of [0, 150, 300]) {
+			const context = await browser.newContext({
+				hasTouch: true,
+				viewport: { width: 390, height: 844 }
+			});
+			const page = await context.newPage();
+			await page.route('https://ring.indienodes.us/ring.json', (route) =>
+				route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ring) })
+			);
+			await page.goto('/');
+			await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+			await page.waitForTimeout(800);
+
+			const box = (await page.locator('.discover').boundingBox())!;
+			const cdp = await context.newCDPSession(page);
+			const at = (x: number) => [{ x, y: box.y + box.height * 0.4 }];
+			await cdp.send('Input.dispatchTouchEvent', {
+				type: 'touchStart',
+				touchPoints: at(box.width * 0.8)
+			});
+			for (let i = 1; i <= 10; i += 1) {
+				await cdp.send('Input.dispatchTouchEvent', {
+					type: 'touchMove',
+					touchPoints: at(box.width * (0.8 - 0.065 * i))
+				});
+			}
+			await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+			await page.waitForTimeout(gap);
+
+			await page.getByRole('link', { name: 'Feeds', exact: true }).tap();
+			await expect(page, `gap ${gap}ms`).toHaveURL(/\/feeds/);
+			await context.close();
+		}
+	});
+
+	test('one tap on a tab makes exactly one history entry', async ({ page }) => {
+		await page.goto('/');
+		const before = await page.evaluate(() => history.length);
+		await page.getByRole('link', { name: 'Feeds', exact: true }).click();
+		await expect(page).toHaveURL(/\/feeds/);
+		await page.waitForTimeout(800);
+		expect(await page.evaluate(() => history.length)).toBe(before + 1);
+	});
 });

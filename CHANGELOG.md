@@ -96,6 +96,11 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- After swiping to a new member on Discover, tapping another tab soon afterwards could do nothing
+  until Discover and the tab were tried again. The browser did not always make a click out of a
+  tap that closely followed a swipe. The tab bar now navigates on the lift itself for a pointer
+  tap (the click still handles the keyboard), which also makes taps a touch quicker.
+
 - Returning to Discover from another screen made the cover blink. Two causes: the cover faded in
   from transparent every time the screen mounted (now only a change of member crossfades), and the
   WebGL canvas took over from the CSS cover before it had painted a frame (it is now laid out from

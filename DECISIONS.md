@@ -1090,3 +1090,21 @@ directly (a running cover fade, a canvas shown before painting) on a return visi
 photo host. Its comparison with the old code is weaker than it looks, since the old code has no
 `data-painted` marker at all; the cover fade condition is the part that stands on its own. Not seen
 on a device.
+
+## 2026-09-24: Tabs navigate on pointer up, because the browser sometimes never sends the click
+
+Reported as "swipe to a new member, tap another tab, nothing happens until you go back to Discover
+and try again", intermittent. Reproduced with real touch input: a tab tap within roughly 300 to
+500ms of a committed swipe produced `pointerdown`, `touchstart`, `pointerup` and `touchend` on the
+tab, and then no `click` at all, so nothing navigated. A tap after a short drag that did not
+commit, or after a drag on a screen with no swipe handler, was fine; the swipe's explicit pointer
+capture and cancelling its pointermoves each shortened the window without closing it, and turning
+off animations, WebGL, the text exit or `inert` changed nothing, so those were ruled out rather
+than kept as speculative fixes. I did not find the browser's own reason for withholding the click.
+
+So the fix does not depend on it. The tab bar navigates from `pointerup` for a primary, unmodified
+pointer tap that ends on the tab (a finger that slid off is not a tap), and cancels the click that
+may follow within 600ms so one tap is one history entry (tested). Keyboard activation still comes
+through `click`, and modified clicks (open in a new tab) are left to the browser. Worth knowing:
+other controls that a reader might tap right after a swipe are still on `click`; only the tab bar
+has this treatment so far. Verified on real emulated touch in Chromium, not on a device.
