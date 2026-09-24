@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { swipe } from '$lib/actions/swipe.js';
-	import { duration, flyIn, prefersReducedMotion, STAGGER_MS } from '$lib/motion.js';
+	import { duration, ease, flyIn, prefersReducedMotion, STAGGER_MS } from '$lib/motion.js';
 	import { fade, fly } from 'svelte/transition';
 	import { ring, washColorFor, washFor, type RingFilterKey } from '$lib/ring.svelte.js';
 	import { heroImage } from '@yipden/ring-client';
@@ -28,6 +28,8 @@
 	/** Set for the frame a committed swipe lands, so the text block snaps back to centre instead
 	 *  of easing there while the new text is also flying in (which read as the wrong side). */
 	let snapBody = $state(false);
+	/** Where the outgoing text was when a swipe let go, so its exit carries on from there. */
+	let exitFrom = 0;
 	/**
 	 * Which way the next member's name and "why" should fly in from: -1 after `next()` (they
 	 * come from the right, the same edge a left drag reveals), 1 after `prev()` (from the
@@ -111,6 +113,7 @@
 	/** The member card follows the finger, then settles whichever way the release went. */
 	function onSwipeEnd(commit: boolean, direction: -1 | 0 | 1, delta: number) {
 		dragging = false;
+		exitFrom = commit ? dragX : 0;
 		dragX = 0;
 		if (!commit) return;
 		snapBody = true;
@@ -178,12 +181,55 @@
 		].filter((line): line is string => line !== null)
 	);
 
+	/** False until the first member is on screen, so opening Discover does not wait on an exit. */
+	let hasShown = false;
+	$effect(() => {
+		if (ring.current) hasShown = true;
+	});
+
+	const exitMs = () => (prefersReducedMotion() ? duration.s : duration.m);
+
+	/**
+	 * The prototype's order: the outgoing text leaves first, toward the side the swipe went and
+	 * fading as it goes, and only then does the next member arrive, line by line. Each line's delay
+	 * therefore starts after the exit, and none of it waits on the very first member.
+	 */
 	function enter(line: string) {
 		const reach = Math.round((section?.clientWidth || 390) * 0.3);
 		return flyIn({
 			x: navDirection * -reach,
-			delay: Math.max(0, entryLines.indexOf(line)) * STAGGER_MS
+			delay: (hasShown ? exitMs() : 0) + Math.max(0, entryLines.indexOf(line)) * STAGGER_MS
 		});
+	}
+
+	/**
+	 * The outgoing block's exit: from wherever the finger left it (zero for a button) out to 70% of
+	 * the width in the direction of travel, fading. It is hidden from assistive technology at once
+	 * so a screen reader never meets two members' names at the same time.
+	 */
+	function exit(node: HTMLElement) {
+		node.setAttribute('aria-hidden', 'true');
+		node.setAttribute('inert', '');
+		let leaving = false;
+		const reduced = prefersReducedMotion();
+		const from = reduced ? 0 : exitFrom;
+		const to = reduced ? 0 : navDirection * Math.round((section?.clientWidth || 390) * 0.7);
+		return {
+			duration: exitMs(),
+			easing: ease,
+			// Hidden from the first instant, and unhidden only if the exit is reversed: switching
+			// back to a member whose text is still leaving reuses that block, which must stop
+			// being hidden when it does. Reversal is the progress returning to 1 after it left it.
+			tick: (t: number) => {
+				if (t < 1) leaving = true;
+				else if (leaving) {
+					node.removeAttribute('aria-hidden');
+					node.removeAttribute('inert');
+				}
+			},
+			css: (t: number, u: number) =>
+				`transform: translateX(${from + (to - from) * u}px); opacity: ${t};`
+		};
 	}
 
 	function labelForFeed(type: string): string {
@@ -295,7 +341,7 @@
 	>
 		{#if ring.current}
 			{#key ring.current.id}
-				<div class="body-inner">
+				<div class="body-inner" out:exit|global>
 					{#if ring.isNodeOfTheDay}
 						<span class="glass-chip" in:fly|global={enter('chip')}>Node of the day</span>
 					{/if}
@@ -541,11 +587,21 @@
 		stroke-linejoin: round;
 	}
 
+	/*
+	 * A one cell grid so the outgoing member's text and the incoming one's occupy the same place
+	 * while one leaves and the other arrives, instead of stacking and pushing the layout.
+	 */
 	.body {
 		position: relative;
 		z-index: 1;
+		display: grid;
 		margin-top: auto;
 		will-change: transform;
+	}
+
+	.body > :global(*) {
+		grid-area: 1 / 1;
+		align-self: end;
 	}
 
 	.body-inner {

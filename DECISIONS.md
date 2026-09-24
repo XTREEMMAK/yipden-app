@@ -1011,3 +1011,20 @@ that nothing is ranked. The "Node of the day" chip stays because it says somethi
 member on screen. Feeds' "From the IndieNodes webring" heading was kept: there it separates
 ring members from the people a reader follows. Worth carrying the same sentence into any
 marketing copy and the README.
+
+## 2026-09-24: Discover's text exits, then enters, as the prototype does
+
+The prototype animates the outgoing hero text away (to 70% of the width, opposite the incoming
+side, fading) and only afterwards brings the new lines in one by one. The app had only the
+entrance. Both are built now, in that order, so the first line of a new member starts a full exit
+duration after the change; the very first member on screen does not wait. A swipe's exit carries
+on from where the finger let go rather than snapping back first (`exitFrom`).
+
+Two implementation points worth keeping. The outgoing and incoming text share a one cell grid so
+they overlap instead of stacking. And the outgoing block is marked `aria-hidden` and `inert` from
+its first instant, so a screen reader never meets two names at once, but Svelte **reuses** a
+block that is still leaving when the reader steps straight back to that member. A first version
+that set the attributes once left the reused block hidden, and the member's name vanished from
+the accessibility tree entirely; a Discover test that steps Next then Previous immediately after
+load caught it. The fix is to clear them only when the exit is reversed, meaning its progress
+returns to 1 after having left it.

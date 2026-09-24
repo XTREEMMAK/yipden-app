@@ -177,6 +177,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- Discover's outgoing text now leaves before the next member arrives, as in the prototype: it flies
+  out toward the direction of travel (carrying on from where a swipe let go) and fades, then the
+  new lines come in one after another. It is hidden from screen readers while it leaves.
+
 - Discover's Preview and Visit site buttons are icons, sharing a row with Follow everything, and
   the IndieNodes webring chip is gone from the hero; You has an About entry, How Discover works,
   that names the webring as where Discover's members come from.

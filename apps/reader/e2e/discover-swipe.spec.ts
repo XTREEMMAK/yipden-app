@@ -16,6 +16,7 @@ test('meta enters from the side opposite the swipe', async ({ page }) => {
 	await expect(h).toBeVisible();
 	const box = (await page.locator('.discover').boundingBox())!;
 	const swipe = async (from: number, to: number) => {
+		await page.waitForTimeout(1200); // the previous entrance has settled
 		const first = await h.textContent();
 		await page.mouse.move(box.x + box.width * from, box.y + box.height * 0.5);
 		await page.mouse.down();
@@ -25,7 +26,7 @@ test('meta enters from the side opposite the swipe', async ({ page }) => {
 		await page.mouse.move(box.x + box.width * to, box.y + box.height * 0.5, { steps: 4 });
 		await page.mouse.up();
 		const xs: number[] = [];
-		for (let i = 0; i < 12; i++) {
+		for (let i = 0; i < 30; i++) {
 			const b = await h.boundingBox();
 			if (b) xs.push(b.x);
 			await page.waitForTimeout(25);
@@ -37,4 +38,41 @@ test('meta enters from the side opposite the swipe', async ({ page }) => {
 	expect(Math.max(...left.slice(0, 3))).toBeGreaterThan(left[left.length - 1]); // starts right of rest
 	const right = await swipe(0.2, 0.8); // swipe right
 	expect(Math.min(...right.slice(0, 3))).toBeLessThan(right[right.length - 1]); // starts left of rest
+});
+
+/** The prototype's order: the old text leaves toward the swipe first, then the new text arrives. */
+test('the outgoing text leaves toward the direction of travel and is hidden from assistive tech', async ({
+	page
+}) => {
+	const ring = {
+		version: '1.0',
+		entries: [
+			{ id: 'a', creator: 'Ada', type: 'audio', source_url: 'https://a.example.com/', why: 'x' },
+			{ id: 'b', creator: 'Bo', type: 'comic', source_url: 'https://b.example.com/', why: 'y' }
+		]
+	};
+	await page.route('https://ring.indienodes.us/ring.json', (r) =>
+		r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ring) })
+	);
+	await page.goto('/');
+	await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+	await page.waitForTimeout(1200);
+
+	const leaving = page.locator('.body-inner[aria-hidden="true"] h1');
+	const rest = (await page.getByRole('heading', { level: 1 }).boundingBox())!.x;
+
+	await page.getByRole('button', { name: 'Next in the ring' }).click();
+	const xs: number[] = [];
+	for (let i = 0; i < 12; i += 1) {
+		const b = await leaving.boundingBox({ timeout: 300 }).catch(() => null);
+		if (b) xs.push(b.x);
+		await page.waitForTimeout(25);
+	}
+	expect(xs.length).toBeGreaterThan(2);
+	// Next travels left, so the old text ends far to the left of where it rested.
+	expect(Math.min(...xs)).toBeLessThan(rest - 80);
+	// Only one member's name is ever exposed to a screen reader.
+	await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+	// And once it has gone, it is gone from the DOM.
+	await expect(leaving).toHaveCount(0);
 });

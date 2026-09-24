@@ -150,14 +150,14 @@ test.describe('Discover previews', () => {
 	test('a new member arrives line by line, each a beat after the one above', async ({ page }) => {
 		await seed(page);
 		const name = page.getByRole('heading', { level: 1 });
-		const actions = page.locator('.actions');
+		const actions = page.locator('.body-inner:not([aria-hidden]) .actions');
 		await page.getByRole('button', { name: 'Next in the ring' }).click();
 
 		// While the lines fly in, the name is nearer its place than the actions row is.
 		let lead = 0;
-		for (let i = 0; i < 14; i += 1) {
-			const n = await name.boundingBox();
-			const a = await actions.boundingBox();
+		for (let i = 0; i < 40; i += 1) {
+			const n = await name.boundingBox({ timeout: 500 }).catch(() => null);
+			const a = await actions.boundingBox({ timeout: 500 }).catch(() => null);
 			if (n && a) lead = Math.max(lead, a.x - n.x);
 			await page.waitForTimeout(25);
 		}
