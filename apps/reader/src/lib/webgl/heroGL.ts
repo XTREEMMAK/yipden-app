@@ -143,11 +143,11 @@ export interface HeroGLOptions {
 	 *  show the CSS layer (which needs no CORS) for any photo the canvas cannot draw. */
 	onTexture?: (url: string, loaded: boolean) => void;
 	/**
-	 * A loader that can read cross-origin pixels where the browser's own `Image` cannot: on
-	 * Android, the native HTTP client. Tried first; `Image` is the fallback. Must return a
-	 * bitmap already flipped for WebGL (`imageOrientation: 'flipY'`).
+	 * A loader that can read cross-origin bytes where the browser's own `Image` cannot: on
+	 * Android, the native HTTP client. Resolves to a `data:` URL, which a canvas can always read.
+	 * Tried first; a plain cross-origin `Image` is the fallback.
 	 */
-	loadBitmap?: (url: string) => Promise<ImageBitmap>;
+	loadDataUrl?: (url: string) => Promise<string>;
 }
 
 export interface HeroGLHandle {
@@ -321,7 +321,7 @@ export function createHeroGL(
 			kick();
 		};
 
-		const viaImage = () => {
+		const viaImage = (source?: string) => {
 			const image = new Image();
 			image.crossOrigin = 'anonymous';
 			image.onload = () => {
@@ -333,14 +333,17 @@ export function createHeroGL(
 				}
 			};
 			image.onerror = () => options.onTexture?.(url, false);
-			image.src = url;
+			image.src = source ?? url;
 		};
 
-		if (options.loadBitmap) {
+		if (options.loadDataUrl) {
 			options
-				.loadBitmap(url)
-				.then((bitmap) => upload(bitmap, bitmap.width, bitmap.height, false))
-				.catch(viaImage);
+				.loadDataUrl(url)
+				.then((dataUrl) => viaImage(dataUrl))
+				.catch((error) => {
+					console.warn('hero photo: native load failed, trying a plain image', url, error);
+					viaImage();
+				});
 		} else {
 			viaImage();
 		}

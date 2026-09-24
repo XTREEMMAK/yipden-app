@@ -889,3 +889,12 @@ neighbours (next and previous in the visible list) are now preloaded through a `
 A test with a 700ms photo host reproduces it and fails without the change. Still unverified on
 the device: whether the native loader itself succeeds there. It falls back to `Image` silently,
 so if the wave is still absent, the next step is logging that path, not more timing work.
+
+Second follow up: the effect that was missing on the device is the WebGL bend and wipe on
+drag, which only shows while the canvas is showing, and the canvas only shows for a photo it
+holds as pixels. Covers came back (CSS layer) but the canvas stayed hidden, so the native photo
+path is not producing textures on the device. Unable to see why from here, the native loader now
+returns a `data:` URL (same origin by definition, so a canvas can never refuse it, and no
+`createImageBitmap` option to be unsupported) and logs its failure with `console.warn`, visible
+through `chrome://inspect` on the phone. Still unverified on the device; if the wave is absent,
+that console line, or its absence, is the next thing to look at.

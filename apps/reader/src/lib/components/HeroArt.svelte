@@ -3,7 +3,7 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { player } from '$lib/player.svelte.js';
 	import { prefersReducedMotion } from '$lib/motion.js';
-	import { loadBitmapNative } from '$lib/platform/image.js';
+	import { loadDataUrlNative } from '$lib/platform/image.js';
 	import { createHeroGL, type HeroGLHandle } from '$lib/webgl/heroGL.js';
 
 	/**
@@ -77,7 +77,7 @@
 					onTexture: (url, loaded) => {
 						if (loaded) drawable = new Set(drawable).add(url);
 					},
-					...(loadBitmapNative ? { loadBitmap: loadBitmapNative } : {})
+					...(loadDataUrlNative ? { loadDataUrl: loadDataUrlNative } : {})
 				}
 			);
 		}
