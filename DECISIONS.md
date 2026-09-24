@@ -997,3 +997,17 @@ see. And "node of the day" already gives the screen a stable anchor that every c
 rotation would undercut that. What fits the product better if it is wanted later is opt in:
 a Slideshow control in You or on the Discover screen, off by default, pausing on any touch and
 under reduced motion.
+
+## 2026-09-24: Icon only Preview and Visit on Discover; the webring is named in About, not on the hero
+
+The Preview and Visit site buttons are icons now (a play, page or arrow glyph, with the label as
+`aria-label` and `title`, and a 52px target), which puts them on the same row as Follow
+everything and gives the hero its height back. Follow everything keeps its words, since it is
+the one action that needs saying. The "IndieNodes webring" chip on the hero is gone: on every
+screen it was a label a reader had no use for, and naming the source belongs where a reader goes to
+learn how the app works. That is now You, About, "How Discover works", which says Discover's
+members come from the IndieNodes webring, that the day's member is the same for everyone, and
+that nothing is ranked. The "Node of the day" chip stays because it says something about the
+member on screen. Feeds' "From the IndieNodes webring" heading was kept: there it separates
+ring members from the people a reader follows. Worth carrying the same sentence into any
+marketing copy and the README.

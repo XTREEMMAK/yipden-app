@@ -171,6 +171,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- Discover's Preview and Visit site buttons are icons, sharing a row with Follow everything, and
+  the IndieNodes webring chip is gone from the hero; You has an About entry, How Discover works,
+  that names the webring as where Discover's members come from.
+
 - The full player's main controls are Previous, play and Next; Previous restarts a track that has
   played more than three seconds. Speed is a small chip beside the times, and the 15 and 30 second
   skip buttons are gone from the screen (the waveform, its keyboard slider and the lock screen

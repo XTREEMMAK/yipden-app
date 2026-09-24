@@ -181,4 +181,10 @@ test.describe('You', () => {
 			expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
 		}
 	});
+
+	test('About says where Discover content comes from', async ({ page }) => {
+		await page.goto('/you');
+		await expect(page.getByText('How Discover works')).toBeVisible();
+		await expect(page.getByText(/IndieNodes webring/)).toBeVisible();
+	});
 });

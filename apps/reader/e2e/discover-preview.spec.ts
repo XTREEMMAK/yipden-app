@@ -119,21 +119,28 @@ test.describe('Discover previews', () => {
 		).toHaveCount(0);
 	});
 
-	test('the position is shown once, and the origin is named', async ({ page }) => {
+	test('the position is shown once, with no origin chip', async ({ page }) => {
 		await seed(page);
 		await page.getByRole('button', { name: 'Next in the ring' }).click();
-		await expect(page.getByText('IndieNodes webring', { exact: true })).toBeVisible();
+		await expect(page.getByText('IndieNodes webring')).toHaveCount(0);
 		await expect(page.getByText(/^\d+ \/ 6$/)).toBeVisible();
 		await expect(page.getByText(/Ring ·/)).toHaveCount(0);
 		await expect(page.getByText(/in the ring/)).toHaveCount(0);
 	});
 
-	test('the preview button and its sheet controls clear 44px', async ({ page }) => {
+	test('the preview and visit buttons are icons, and every control clears 44px', async ({
+		page
+	}) => {
 		await seed(page);
 		await showMember(page, 'Creator cmc');
 		const button = page.getByRole('button', { name: 'Read a preview' });
-		const box = (await button.boundingBox())!;
-		expect(box.height).toBeGreaterThanOrEqual(44);
+		await expect(button).toHaveText('');
+		await expect(page.getByRole('button', { name: 'Visit site' })).toHaveText('');
+		for (const name of ['Read a preview', 'Visit site']) {
+			const box = (await page.getByRole('button', { name }).boundingBox())!;
+			expect(box.width, name).toBeGreaterThanOrEqual(44);
+			expect(box.height, name).toBeGreaterThanOrEqual(44);
+		}
 		await button.click();
 		const close = (await page.getByRole('button', { name: 'Close preview' }).boundingBox())!;
 		expect(close.width).toBeGreaterThanOrEqual(44);

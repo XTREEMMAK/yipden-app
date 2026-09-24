@@ -118,7 +118,7 @@
 				<div class="srow">
 					<span class="tt">
 						<b>Shuffle music</b>
-						<small>Mix up a member{"'"}s tracks when you add them to the queue</small>
+						<small>Mix up a member{"'"}s tracks</small>
 					</span>
 					<Switch
 						id="shuffle-music"
@@ -212,7 +212,24 @@
 			</div>
 		</section>
 
-		<p class="fine" in:fly={flyIn({ delay: staggerDelay(4) })}>
+		<section class="grp" in:fly={flyIn({ delay: staggerDelay(4) })}>
+			<h3 class="grp-h">About</h3>
+			<div class="rows">
+				<div class="srow about">
+					<span class="tt">
+						<b>How Discover works</b>
+						<small>
+							Everyone in Discover comes from the IndieNodes webring, a directory of independent
+							creators who chose to be listed. Each day opens on a different member, the same one
+							for everyone, and you walk the rest by swiping. Nothing is ranked or recommended.
+							Following someone stays on this phone.
+						</small>
+					</span>
+				</div>
+			</div>
+		</section>
+
+		<p class="fine" in:fly={flyIn({ delay: staggerDelay(5) })}>
 			YipDen v0.0.1 {'·'} chronological, no AI, and every yip links out to its creator.
 		</p>
 	</div>
@@ -380,6 +397,13 @@
 		font-size: 12.5px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.srow.about small {
+		overflow: visible;
+		line-height: 1.5;
+		text-overflow: clip;
+		white-space: normal;
 	}
 
 	.srow.link svg {

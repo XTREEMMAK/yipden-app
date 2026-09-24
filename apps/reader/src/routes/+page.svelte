@@ -276,9 +276,9 @@
 					class="body-inner"
 					in:fly={flyIn({ x: navDirection * -Math.round((section?.clientWidth || 390) * 0.3) })}
 				>
-					<span class="glass-chip">
-						{ring.isNodeOfTheDay ? 'Node of the day' : 'IndieNodes webring'}
-					</span>
+					{#if ring.isNodeOfTheDay}
+						<span class="glass-chip">Node of the day</span>
+					{/if}
 					<h1 class="hero-name">{ring.current.creator}</h1>
 					{#if ring.current.why}
 						<p class="hero-why">{ring.current.why}</p>
@@ -311,7 +311,12 @@
 							{/if}
 						</button>
 						{#if preview}
-							<button class="btn-glass" onclick={runPreview}>
+							<button
+								class="btn-icon"
+								onclick={runPreview}
+								aria-label={preview.label}
+								title={preview.label}
+							>
 								<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
 									{#if preview.kind === 'play'}
 										<path d="M8 5v14l11-7z" />
@@ -321,13 +326,18 @@
 										<path d="M4 6h16v12H4zM8 10h8M8 14h5" />
 									{/if}
 								</svg>
-								{preview.label}
 							</button>
 						{/if}
-						<button class="btn-glass" onclick={() => openExternal(ring.current!.source_url)}>
-							Visit site
+						<button
+							class="btn-icon"
+							onclick={() => openExternal(ring.current!.source_url)}
+							aria-label="Visit site"
+							title="Visit site"
+						>
 							<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"
-								><path d="M7 17L17 7M9 7h8v8" /></svg
+								><path
+									d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"
+								/></svg
 							>
 						</button>
 					</div>
@@ -581,8 +591,7 @@
 		margin-top: 4px;
 	}
 
-	.btn-white,
-	.btn-glass {
+	.btn-white {
 		display: inline-flex;
 		flex: 0 0 auto;
 		align-items: center;
@@ -624,7 +633,15 @@
 		cursor: default;
 	}
 
-	.btn-glass {
+	.btn-icon {
+		display: grid;
+		flex: 0 0 auto;
+		place-items: center;
+		width: 52px;
+		height: 52px;
+		padding: 0;
+		border: 0;
+		border-radius: 999px;
 		background: rgba(255, 255, 255, 0.16);
 		color: #fff;
 		-webkit-backdrop-filter: blur(10px);
