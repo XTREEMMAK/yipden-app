@@ -58,7 +58,7 @@ apps/reader/            SvelteKit and Capacitor app, adapter-static, no server r
 packages/ring-client/   Framework agnostic ring.json client, plain TS, zero runtime deps
 packages/feeds/         Feed fetching, parsing and normalization, plain TS
 docs/                   Architecture, security, testing and decisions
-docs/reference/         The clickable design prototype every screen is built against
+docs/reference/         The design prototype (kept locally, not in the repository)
 ```
 
 `apps/api/` and `packages/db/` are reserved for v2.0 and are deliberately absent.

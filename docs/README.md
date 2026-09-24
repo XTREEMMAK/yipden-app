@@ -11,7 +11,8 @@
 
 ## reference/
 
-`reference/yipden-prototype.html` is the clickable prototype of every v0.9 screen, plus the
+`reference/yipden-prototype.html` (kept locally and gitignored, so it is not in the published
+repository; the code comments and DECISIONS.md that cite it refer to that file) is the clickable prototype of every v0.9 screen, plus the
 v2.0 sign in screens. Open it at 390x844 before building a screen, and compare against it
 after.
 

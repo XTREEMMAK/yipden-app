@@ -45,3 +45,6 @@ Thumbs.db
 apps/reader/android/app/src/main/assets/public/
 apps/reader/android/app/src/main/assets/capacitor.config.json
 apps/reader/android/app/src/main/assets/capacitor.plugins.json
+
+# The design prototype every screen was built against. Kept locally, not published.
+docs/reference/

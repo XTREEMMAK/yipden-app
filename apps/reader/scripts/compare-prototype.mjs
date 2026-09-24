@@ -2,7 +2,7 @@
  * Screenshot the app beside the reference prototype, at the size both are designed for.
  *
  * The brief asks for this after every screen: build it, shoot it at 390x844 in both themes,
- * compare against docs/reference/yipden-prototype.html, and fix the differences before moving
+ * compare against docs/reference/yipden-prototype.html (a local, gitignored file), and fix the differences before moving
  * on. This is that step, made repeatable.
  *
  *   node scripts/compare-prototype.mjs [route] [--out DIR] [--url BASE]
