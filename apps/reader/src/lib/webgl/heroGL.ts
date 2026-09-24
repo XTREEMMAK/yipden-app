@@ -134,6 +134,20 @@ interface Texture {
 	texture: WebGLTexture;
 	width: number;
 	height: number;
+	/** True once a real photo (not the placeholder color) is in the texture. */
+	loaded: boolean;
+}
+
+export interface HeroGLOptions {
+	/** Called once per photo when it finishes loading, or definitively fails, so the caller can
+	 *  show the CSS layer (which needs no CORS) for any photo the canvas cannot draw. */
+	onTexture?: (url: string, loaded: boolean) => void;
+	/**
+	 * A loader that can read cross-origin pixels where the browser's own `Image` cannot: on
+	 * Android, the native HTTP client. Tried first; `Image` is the fallback. Must return a
+	 * bitmap already flipped for WebGL (`imageOrientation: 'flipY'`).
+	 */
+	loadBitmap?: (url: string) => Promise<ImageBitmap>;
 }
 
 export interface HeroGLHandle {
@@ -153,6 +167,8 @@ export interface HeroGLHandle {
 	): void;
 	/** A drag in progress, as a fraction of the viewport width. */
 	drag(fraction: number): void;
+	/** Whether this photo is a real texture, not the placeholder color. */
+	hasPhoto(url: string): boolean;
 	/** The drag ended without committing: spring the live preview back to rest. */
 	release(): void;
 	/** Whether the ambient loop may run at all right now (Discover visible, tab foregrounded). */
@@ -175,7 +191,8 @@ export interface HeroGLHandle {
 export function createHeroGL(
 	canvas: HTMLCanvasElement,
 	effectStrength: () => number,
-	onFatalError: () => void
+	onFatalError: () => void,
+	options: HeroGLOptions = {}
 ): HeroGLHandle | null {
 	let gl: WebGLRenderingContext | null;
 	try {
@@ -274,37 +291,57 @@ export function createHeroGL(
 		const existing = textures.get(url);
 		if (existing) return existing;
 
-		const entry: Texture = { texture: placeholderTexture(fallbackColor), width: 1, height: 1 };
+		const entry: Texture = {
+			texture: placeholderTexture(fallbackColor),
+			width: 1,
+			height: 1,
+			loaded: false
+		};
 		textures.set(url, entry);
 
-		const image = new Image();
-		image.crossOrigin = 'anonymous';
-		image.onload = () => {
-			try {
-				context.bindTexture(context.TEXTURE_2D, entry.texture);
-				context.texImage2D(
-					context.TEXTURE_2D,
-					0,
-					context.RGBA,
-					context.RGBA,
-					context.UNSIGNED_BYTE,
-					image
-				);
-				entry.width = image.naturalWidth || 1;
-				entry.height = image.naturalHeight || 1;
-				dirty = true;
-				kick();
-			} catch {
-				// This engine refuses to texture from a cross-origin image with no CORS
-				// headers; the placeholder color already set stands in for it permanently.
-			}
+		const upload = (source: TexImageSource, width: number, height: number, flip: boolean) => {
+			context.bindTexture(context.TEXTURE_2D, entry.texture);
+			context.pixelStorei(context.UNPACK_FLIP_Y_WEBGL, flip);
+			context.texImage2D(
+				context.TEXTURE_2D,
+				0,
+				context.RGBA,
+				context.RGBA,
+				context.UNSIGNED_BYTE,
+				source
+			);
+			context.pixelStorei(context.UNPACK_FLIP_Y_WEBGL, true);
+			entry.width = width || 1;
+			entry.height = height || 1;
+			entry.loaded = true;
+			dirty = true;
+			options.onTexture?.(url, true);
+			kick();
 		};
-		image.onerror = () => {
-			// `crossOrigin = 'anonymous'` requests the image in CORS mode, and on some engines
-			// a host with no Access-Control-Allow-Origin header fails that request outright
-			// rather than serving an image `onload` above would then have to refuse.
+
+		const viaImage = () => {
+			const image = new Image();
+			image.crossOrigin = 'anonymous';
+			image.onload = () => {
+				try {
+					upload(image, image.naturalWidth, image.naturalHeight, true);
+				} catch {
+					// An engine that refuses a cross-origin upload: the CSS layer shows the photo.
+					options.onTexture?.(url, false);
+				}
+			};
+			image.onerror = () => options.onTexture?.(url, false);
+			image.src = url;
 		};
-		image.src = url;
+
+		if (options.loadBitmap) {
+			options
+				.loadBitmap(url)
+				.then((bitmap) => upload(bitmap, bitmap.width, bitmap.height, false))
+				.catch(viaImage);
+		} else {
+			viaImage();
+		}
 		return entry;
 	}
 
@@ -438,6 +475,9 @@ export function createHeroGL(
 				dragFrom: fromDragFraction
 			};
 			kick();
+		},
+		hasPhoto(url) {
+			return textures.get(url)?.loaded ?? false;
 		},
 		drag(fraction) {
 			if (transition) return;

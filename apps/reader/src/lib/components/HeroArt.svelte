@@ -3,6 +3,7 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { player } from '$lib/player.svelte.js';
 	import { prefersReducedMotion } from '$lib/motion.js';
+	import { loadBitmapNative } from '$lib/platform/image.js';
 	import { createHeroGL, type HeroGLHandle } from '$lib/webgl/heroGL.js';
 
 	/**
@@ -18,9 +19,10 @@
 	 * over visually whenever `createHeroGL` manages to stand one up. No WebGL context, a shader
 	 * that will not compile, a lost context mid-session, all leave the crossfade as what the
 	 * reader actually sees, which is why it keeps running underneath rather than being skipped
-	 * while the canvas is active. A photo that will not load (most of them, in practice: most
-	 * personal sites send no CORS headers) is not one of those failures; the wipe still runs,
-	 * painted with the member's own wash color instead of their photo.
+	 * while the canvas is active. A photo the canvas cannot read (in a browser, most of them: most
+	 * personal sites send no CORS headers) is not a failure of the hero either, but it is shown
+	 * by that CSS layer, never by a flat stand-in on the canvas. On Android the photo's bytes come
+	 * through the native HTTP client (see platform/image.ts), which is why the wipe works there.
 	 */
 
 	interface Props {
@@ -49,14 +51,23 @@
 	let canvas: HTMLCanvasElement | undefined;
 	let gl: HeroGLHandle | null = null;
 	let glActive = $state(false);
-	let glShowing = $derived(glActive && src !== null);
+	/** Photos the canvas holds as real pixels. Any other photo is shown by the CSS layer, which
+	 *  needs no CORS, rather than the canvas painting a flat stand-in over it. */
+	let drawable = $state<Set<string>>(new Set());
+	let glShowing = $derived(glActive && src !== null && drawable.has(src));
 
 	onMount(() => {
 		if (canvas) {
 			gl = createHeroGL(
 				canvas,
 				() => (prefersReducedMotion() ? 0 : 1),
-				() => (glActive = false)
+				() => (glActive = false),
+				{
+					onTexture: (url, loaded) => {
+						if (loaded) drawable = new Set(drawable).add(url);
+					},
+					...(loadBitmapNative ? { loadBitmap: loadBitmapNative } : {})
+				}
 			);
 		}
 		glActive = gl !== null;

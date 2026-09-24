@@ -855,3 +855,28 @@ accessible with no custom gesture work. The IndieNodes app also has an "auto kee
 that stops asking after the first yes; this always asks, since the request was for a prompt.
 There is no separate "preview" versus "play" button state on a card. Each is a small addition on
 top of this if wanted.
+
+## 2026-09-23: A photo the canvas cannot draw is shown by the CSS layer; Android loads hero photos natively
+
+Device testing showed two symptoms with one cause, and the cause was the per-photo fallback
+above. That change made a photo the canvas could not read paint a flat wash-colored stand-in,
+but the canvas also hides the CSS layer while it is showing, and that CSS layer is the only
+thing that could display such a photo (a CSS background needs no CORS). So every member whose
+photo fails CORS lost their cover, replaced by a flat color, and the wave "did not work" on the
+device because it was wiping between flat colors. The browser looked fine only because more of
+the dev photos happen to be readable there.
+
+Two changes. **The canvas is now shown only for a photo it actually holds as pixels**
+(`HeroArt.svelte` tracks that through a new `onTexture` callback); any other photo is shown by
+the CSS crossfade, exactly as before the WebGL hero existed. The flat wash color is gone as a
+visible state. **On Android the photo's bytes come through the native HTTP client**
+(`platform/image.ts`), which is not subject to CORS, the same reason feeds work there, decoded
+with `createImageBitmap(..., { imageOrientation: 'flipY' })` and uploaded as a texture; `Image`
+is the fallback. That is what should make the wipe run on real photos on the device, since
+`Image()` is not intercepted by Capacitor's fetch override (found earlier with the waveform).
+
+Not verified on a device: the Android path is typechecked and the browser path is tested with
+real, CORS-readable photos (the wipe direction test now uses two solid PNGs rather than flat
+placeholder colors), but `CapacitorHttp`'s `responseType: 'blob'` returning base64 in `data` is
+taken from its documented behavior, not observed. If covers still fail on the device, that
+loader is the first place to look.

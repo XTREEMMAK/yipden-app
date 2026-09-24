@@ -85,6 +85,12 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- Discover: members whose photo host sends no CORS headers lost their cover (a flat color was
+  drawn over it), and the wipe looked absent on the device. The canvas is now shown only for
+  photos it can actually draw, everything else shows through the CSS layer as before, and on
+  Android hero photos are loaded through the native HTTP client so they can be drawn at all.
+  See DECISIONS.md.
+
 - After a swiped (not tapped) Discover change, the name and "why" still appeared to enter from
   the wrong side: the text block was left offset by the drag and eased back to centre while the
   new text flew in from only 32px, so the two motions cancelled into the wrong direction. The

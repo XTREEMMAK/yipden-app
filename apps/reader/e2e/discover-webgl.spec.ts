@@ -1,3 +1,4 @@
+import { deflateSync } from 'node:zlib';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
@@ -43,6 +44,41 @@ const PIXEL_JPEG = Buffer.from(
 	'/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=',
 	'base64'
 );
+
+/** A 4x4 solid-color PNG built by hand, so the wipe test has real, readable photo pixels. */
+function solidPng(r: number, g: number, b: number): Buffer {
+	const crcTable = Array.from({ length: 256 }, (_, n) => {
+		let c = n;
+		for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+		return c >>> 0;
+	});
+	const crc = (buf: Buffer) => {
+		let c = 0xffffffff;
+		for (const byte of buf) c = crcTable[(c ^ byte) & 0xff]! ^ (c >>> 8);
+		return (c ^ 0xffffffff) >>> 0;
+	};
+	const chunk = (type: string, data: Buffer) => {
+		const body = Buffer.concat([Buffer.from(type), data]);
+		const out = Buffer.alloc(12 + data.length);
+		out.writeUInt32BE(data.length, 0);
+		body.copy(out, 4);
+		out.writeUInt32BE(crc(body), 8 + data.length);
+		return out;
+	};
+	const ihdr = Buffer.alloc(13);
+	ihdr.writeUInt32BE(4, 0);
+	ihdr.writeUInt32BE(4, 4);
+	ihdr[8] = 8;
+	ihdr[9] = 2;
+	const row = Buffer.concat([Buffer.from([0]), Buffer.from(Array(4).fill([r, g, b]).flat())]);
+	const raw = Buffer.concat(Array(4).fill(row));
+	return Buffer.concat([
+		Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+		chunk('IHDR', ihdr),
+		chunk('IDAT', deflateSync(raw)),
+		chunk('IEND', Buffer.alloc(0))
+	]);
+}
 
 async function withRing(page: Page, imageHeaders: Record<string, string> = {}) {
 	await page.route('https://ring.indienodes.us/ring.json', (route) =>
@@ -193,21 +229,13 @@ test.describe('Discover WebGL hero', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('a photo that fails to load at all still wipes to a solid fallback, every time', async ({
+	test('a photo the canvas cannot draw is shown by the CSS layer, never a flat stand-in', async ({
 		page
 	}) => {
 		/*
-		 * Real device testing found the case Playwright's mocked routes cannot reproduce (a
-		 * mocked cross-origin response loads even with no CORS headers in this engine, unlike a
-		 * real browser against a real host): a member photo host that refuses the request
-		 * outright. `route.abort()` fails the request at the network level regardless of CORS,
-		 * which reliably exercises `onerror`, the path a real unreachable or CORS-refusing host
-		 * actually takes.
-		 *
-		 * Every real ring member photo failing this way used to disable the hero for the rest of
-		 * the session after the first failure. It no longer does: a photo that will not load
-		 * paints its member's own wash color instead and the wipe keeps running on every member
-		 * change, which is what this test now exercises across two consecutive failures.
+		 * `route.abort()` fails the request at the network level, which reliably exercises the
+		 * unreadable-photo path a real host with no CORS headers takes. The cover must stay
+		 * visible (the CSS background needs no CORS), so the canvas stays hidden for it.
 		 */
 		const errors: string[] = [];
 		page.on('pageerror', (error) => errors.push(error.message));
@@ -220,19 +248,15 @@ test.describe('Discover WebGL hero', () => {
 		const heading = page.getByRole('heading', { level: 1 });
 		await expect(heading).toBeVisible();
 		const first = await heading.textContent();
+		await page.waitForTimeout(300);
 
-		// A failed photo does not disable the hero: the canvas stays up, painted with a fallback.
-		await expect.poll(() => canvasIsActive(page)).toBe(true);
+		expect(await canvasIsActive(page)).toBe(false);
+		await expect(page.locator('.art')).not.toHaveClass(/gl-showing/);
 
-		// A second member, whose photo also never loads, still gets its own wipe.
 		await page.getByRole('button', { name: 'Next in the ring' }).click();
 		await expect(heading).not.toHaveText(first ?? '');
-		expect(await canvasIsActive(page)).toBe(true);
-
-		await page.getByRole('button', { name: 'Previous in the ring' }).click();
-		await expect(heading).toHaveText(first ?? '');
-		expect(await canvasIsActive(page)).toBe(true);
-
+		expect(await canvasIsActive(page)).toBe(false);
+		await expect(page.locator('.art')).toBeVisible();
 		expect(errors).toEqual([]);
 	});
 
@@ -301,7 +325,24 @@ test.describe('Discover WebGL hero', () => {
 				body: JSON.stringify(wipeRing)
 			})
 		);
-		await page.route('https://example.com/**', (route) => route.abort());
+		// Two flat, clearly different, CORS-readable photos, so the canvas draws real pixels.
+		const cors = { 'access-control-allow-origin': '*' };
+		await page.route('https://example.com/ada.jpg', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'image/png',
+				headers: cors,
+				body: solidPng(200, 40, 40)
+			})
+		);
+		await page.route('https://example.com/bo.jpg', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'image/png',
+				headers: cors,
+				body: solidPng(40, 40, 200)
+			})
+		);
 
 		await page.goto('/');
 		await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
