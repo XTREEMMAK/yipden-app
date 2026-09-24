@@ -118,6 +118,23 @@ test.describe('The player', () => {
 		await expect(page.getByRole('button', { name: 'Open the player' })).toContainText('Low Tide');
 	});
 
+	test('browser Back collapses the full player without leaving the current screen', async ({
+		page
+	}) => {
+		await seed(page);
+		const screenUrl = page.url();
+		await page
+			.locator('#pane-everything')
+			.getByRole('button', { name: /Low Tide/ })
+			.click();
+		await expect(page.getByRole('heading', { name: 'Low Tide' })).toBeVisible();
+
+		await page.goBack();
+
+		await expect(page.getByRole('button', { name: 'Open the player' })).toBeVisible();
+		expect(page.url()).toBe(screenUrl);
+	});
+
 	test('the mini player stop button pauses and dismisses it entirely', async ({ page }) => {
 		await seed(page);
 		await page

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { fly } from 'svelte/transition';
+	import { fade, fly } from 'svelte/transition';
 	import { swipe } from '$lib/actions/swipe.js';
-	import { flyIn, prefersReducedMotion } from '$lib/motion.js';
+	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
 	import { player } from '$lib/player.svelte.js';
 	import { washFor } from '$lib/ring.svelte.js';
 
@@ -23,6 +23,7 @@
 		class="mini"
 		class:is-playing={player.playing}
 		in:fly={flyIn({ y: 28 })}
+		out:fade={{ duration: prefersReducedMotion() ? 0 : duration.m }}
 		style:transform={dragY ? `translateY(${dragY}px)` : ''}
 		style:transition={dragging ? 'none' : 'transform var(--dur-m) var(--ease)'}
 		use:swipe={{
@@ -91,20 +92,39 @@
 
 	.mini-prog {
 		position: absolute;
-		left: 20px;
-		right: 20px;
-		bottom: 5px;
-		height: 3px;
-		border-radius: 3px;
+		inset: 0;
+		border-radius: inherit;
 		overflow: hidden;
-		background: var(--brand-soft);
+		pointer-events: none;
+	}
+
+	.mini-prog::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 4px;
+		background: color-mix(in srgb, var(--brand) 16%, transparent);
 	}
 
 	.mini-prog i {
-		display: block;
-		height: 100%;
+		position: absolute;
+		left: 0;
+		bottom: 0;
+		height: 4px;
 		width: 0;
-		background: var(--brand);
+		background: linear-gradient(
+			90deg,
+			var(--brand) 0%,
+			var(--brand) 35%,
+			color-mix(in srgb, var(--brand) 36%, white) 50%,
+			var(--brand) 65%,
+			var(--brand) 100%
+		);
+		background-size: 220% 100%;
+		box-shadow: 0 0 8px color-mix(in srgb, var(--brand) 60%, transparent);
+		transition: width var(--dur-s) linear;
 	}
 
 	.mini-open {
@@ -205,6 +225,10 @@
 	}
 
 	@media not (prefers-reduced-motion: reduce) {
+		.mini.is-playing .mini-prog i {
+			animation: progress-shine calc(var(--dur-l) * 4.5) linear infinite;
+		}
+
 		.mini.is-playing .mini-pp::before,
 		.mini.is-playing .mini-pp::after {
 			animation: pulse calc(var(--dur-l) * 4.5) var(--ease) infinite;
@@ -212,6 +236,15 @@
 
 		.mini.is-playing .mini-pp::after {
 			animation-delay: calc(var(--dur-l) * 2.25);
+		}
+	}
+
+	@keyframes progress-shine {
+		from {
+			background-position: 100% 0;
+		}
+		to {
+			background-position: -120% 0;
 		}
 	}
 

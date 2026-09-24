@@ -905,3 +905,31 @@ treat both the same, which is why the browser never showed it). The photo loadin
 and CSS-layer changes above were all real problems too, but not the last one. The temporary
 on-screen diagnostics were removed once it was confirmed; a failed native photo load still logs
 a `console.warn`.
+
+## 2026-09-24: Back now collapses the full player, through a history entry
+
+This closes the gap the back button entry above left open on purpose. Opening the full player
+pushes a real history entry (`Player.svelte`), so Back, from the browser or the Android button,
+is an ordinary history step that a `popstate` handler turns into a collapse, and collapsing by
+any other route (the chevron, a swipe down) takes that entry back off so history never gathers
+stale ones. That is the mechanism that does the work, and it is why no native change was
+needed: `MainActivity`'s existing callback already calls `goBack()`, which now lands on the
+player's entry first. `browser Back collapses the full player without leaving the current
+screen` in `player.spec.ts` covers it.
+
+`@capacitor/app` was added, the native dependency the entry above said to ask about first, for a
+`backButton` listener that also closes the queue sheet and exits explicitly when there is
+nothing left to go back to. **Its priority is not established.** `MainActivity` registers its
+callback after the bridge does, and Android runs the most recently added callback first, so on
+the device the native callback may consume Back before the JavaScript listener ever sees it.
+That is harmless for the player (the history entry handles it either way) but means the queue
+sheet's Back handling, which only exists in the listener, is unproven on a device and may need
+to move onto a history entry too. Tested on a phone as working "for the most part"; not yet
+tested against the queue sheet specifically.
+
+## 2026-09-24: The mini player's progress moved to its bottom edge, and it fades out
+
+The mini player's progress bar was a thin inset line that read as a border. It now runs along
+the bottom edge of the whole card, inside its rounded corners, with a subtle moving highlight
+while playing (off under reduced motion, like the pulse beside it), and the card fades out
+rather than vanishing when dismissed.

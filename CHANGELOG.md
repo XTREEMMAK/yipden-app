@@ -8,6 +8,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- Android Back, and the browser's, now collapses the full player instead of leaving the screen
+  underneath it, through a history entry the player pushes while open. Adds `@capacitor/app`.
+  See DECISIONS.md.
+
 - `packages/feeds`: discovery, polite fetching, and one `Item` type out of RSS 2.0, RSS 1.0,
   Atom and JSON Feed. Discovery works in order of decreasing confidence, from a page that
   announces its own feed down to a guessed path, and returns a list the reader toggles rather
@@ -159,6 +163,9 @@ Every notable change to YipDen, newest first. The format follows
   `tools:replace`. See DECISIONS.md.
 
 ### Changed
+
+- The mini player's progress runs along the bottom edge of the card with a moving highlight while
+  playing, and the card fades out when dismissed.
 
 - The tab bar is 72px tall, down from the prototype's 84px, which real use found took up more
   of the screen than four tabs need.

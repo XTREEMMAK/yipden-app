@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { App } from '@capacitor/app';
+	import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
+	import { onMount } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { swipe } from '$lib/actions/swipe.js';
 	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
@@ -26,8 +29,71 @@
 	let dragY = $state(0);
 	let dragging = $state(false);
 	let queueSheetOpen = $state(false);
+	let playerHistoryOpen = false;
 
 	let remaining = $derived(Math.max(0, player.duration - player.currentTime));
+
+	/** A real history entry lets Android Back close this non-route overlay instead of the app. */
+	$effect(() => {
+		const full = player.sheet === 'full';
+		if (full && !playerHistoryOpen) {
+			window.history.pushState(
+				{ ...window.history.state, yipdenPlayer: true },
+				'',
+				window.location.href
+			);
+			playerHistoryOpen = true;
+		} else if (!full && playerHistoryOpen) {
+			playerHistoryOpen = false;
+			window.history.back();
+		}
+	});
+
+	/**
+	 * Keep the native listener for queue-layer priority and explicit app exit, while popstate is
+	 * the shared browser/native path that turns a Back navigation into a player collapse.
+	 */
+	onMount(() => {
+		let removed = false;
+		let listener: PluginListenerHandle | undefined;
+
+		const handlePopState = (event: PopStateEvent) => {
+			if (event.state?.yipdenPlayer) {
+				playerHistoryOpen = true;
+				player.expand();
+				return;
+			}
+			if (!playerHistoryOpen) return;
+			playerHistoryOpen = false;
+			if (player.sheet === 'full') player.collapse();
+		};
+		window.addEventListener('popstate', handlePopState);
+
+		if (Capacitor.isNativePlatform()) {
+			void App.addListener('backButton', ({ canGoBack }) => {
+				if (queueSheetOpen) {
+					queueSheetOpen = false;
+					return;
+				}
+				if (player.sheet === 'full') {
+					if (playerHistoryOpen) window.history.back();
+					else player.collapse();
+					return;
+				}
+				if (canGoBack) window.history.back();
+				else void App.exitApp();
+			}).then((handle) => {
+				if (removed) void handle.remove();
+				else listener = handle;
+			});
+		}
+
+		return () => {
+			removed = true;
+			window.removeEventListener('popstate', handlePopState);
+			void listener?.remove();
+		};
+	});
 </script>
 
 {#if player.current}
@@ -436,11 +502,10 @@
 		inset: 0;
 		display: grid;
 		place-items: center;
-		/* Nudged down slightly to sit inside the arrow's curve, matching the reference SVG. */
-		padding-top: 6px;
 		font-family: var(--mono);
 		font-size: 9px;
 		font-weight: 600;
+		line-height: 1;
 		pointer-events: none;
 	}
 
