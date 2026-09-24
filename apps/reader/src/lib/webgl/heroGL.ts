@@ -4,19 +4,24 @@
  * Ported from the reference prototype's own GL code (docs/reference/yipden-prototype.html) as
  * a self-contained control object HeroArt.svelte owns, rather than a page-global singleton.
  *
- * Optional by the brief's own words, and treated that way throughout: any failure here, no
- * WebGL context, a shader that will not compile, an image a WebGL engine refuses to texture
- * from without CORS headers its host never sent, a lost context mid-session, disables this
- * quietly and leaves HeroArt.svelte's plain CSS crossfade, which never stopped running
- * underneath, as what the reader actually sees. Nothing about Discover depends on this
- * succeeding.
+ * Optional by the brief's own words, and treated that way throughout: no WebGL context, a
+ * shader that will not compile, a lost context mid-session, all disable this quietly and leave
+ * HeroArt.svelte's plain CSS crossfade, which never stopped running underneath, as what the
+ * reader actually sees. Nothing about Discover depends on this succeeding.
  *
- * Whether a cross-origin image with no CORS headers actually fails at all turns out to be
- * engine dependent: the WebGL spec's cross-origin taint restriction is about blocking pixel
- * readback (`readPixels`, `toDataURL`), and some engines only enforce it there, letting a
- * `texImage2D` upload of an untainted-for-reading-purposes image succeed for rendering alone,
- * which is all this ever does. Handled defensively either way, since nothing here depends on
- * knowing which behavior a given browser chose.
+ * A single photo that will not load is not treated as one of those failures: it is expected,
+ * common (most personal sites send no CORS headers at all, so most real photos never actually
+ * texture), and handled per photo, not once for the whole hero. A member whose photo never
+ * loads still takes part in every wipe, painted with a solid placeholder in their own wash
+ * color (see `washColorFor`) rather than a real photo, since the wipe itself is what a reader
+ * asked to see repeated, not any one specific photo succeeding.
+ *
+ * Whether a cross-origin image with no CORS headers actually fails to texture at all also
+ * turns out to be engine dependent: the WebGL spec's cross-origin taint restriction is about
+ * blocking pixel readback (`readPixels`, `toDataURL`), and some engines only enforce it there,
+ * letting a `texImage2D` upload of an untainted-for-reading-purposes image succeed for
+ * rendering alone, which is all this ever does. Handled defensively either way, since nothing
+ * here depends on knowing which behavior a given browser chose.
  */
 
 import { duration } from '../motion.js';
@@ -105,6 +110,8 @@ void main() {
 const AMBIENT_FRAME_MS = 32;
 /** Ambient drift rests after this long without a touch; any interaction wakes it again. */
 const IDLE_MS = 10_000;
+/** Used only where a real per-member color cannot matter (see the `draw()` cache-hit note). */
+const FALLBACK_COLOR: [number, number, number] = [42, 15, 6];
 
 function easeInOutCubic(k: number): number {
 	return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
@@ -130,10 +137,20 @@ interface Texture {
 }
 
 export interface HeroGLHandle {
-	/** Jump straight to an image with no transition: the first paint, or a filter change. */
-	set(url: string): void;
+	/**
+	 * Jump straight to an image with no transition: the first paint, or a filter change.
+	 * `fallbackColor` is what a solid placeholder uses if this photo never loads, ideally the
+	 * member's own wash color so a reader who never sees a real photo still sees something
+	 * that belongs to them specifically.
+	 */
+	set(url: string, fallbackColor: [number, number, number]): void;
 	/** Animate to an image in a direction: a committed swipe, the next/prev buttons, shuffle. */
-	go(url: string, direction: -1 | 1, fromDragFraction: number): void;
+	go(
+		url: string,
+		direction: -1 | 1,
+		fromDragFraction: number,
+		fallbackColor: [number, number, number]
+	): void;
 	/** A drag in progress, as a fraction of the viewport width. */
 	drag(fraction: number): void;
 	/** The drag ended without committing: spring the live preview back to rest. */
@@ -150,10 +167,10 @@ export interface HeroGLHandle {
  * browser, this GPU, or this specific driver cannot give it a working context. The canvas is
  * left exactly as the caller found it either way; only a returned handle means anything drew.
  *
- * `onFatalError` fires once if the canvas later becomes unusable after having worked, a lost
- * context or a photo host with no CORS headers tainting a texture upload. The caller owns
- * hiding the canvas and letting the CSS crossfade underneath show through; this stops drawing
- * on its own but was never going to un-render itself.
+ * `onFatalError` fires once if the canvas later becomes unusable after having worked: a lost
+ * WebGL context, the one failure here with no per-photo recovery. The caller owns hiding the
+ * canvas and letting the CSS crossfade underneath show through; this stops drawing on its own
+ * but was never going to un-render itself.
  */
 export function createHeroGL(
 	canvas: HTMLCanvasElement,
@@ -220,8 +237,13 @@ export function createHeroGL(
 	context.pixelStorei(context.UNPACK_FLIP_Y_WEBGL, true);
 
 	const textures = new Map<string, Texture>();
-	/** A 1x1 placeholder, the same deep brand tone as `--deep`, until the real image lands. */
-	function placeholderTexture(): WebGLTexture {
+	/**
+	 * A 1x1 placeholder in the given color, until the real image lands, or forever if it never
+	 * does. Per photo, not once for the whole hero: a member whose photo will not load still
+	 * gets their own tint (see `washColorFor`) and still takes part in every wipe, rather than
+	 * the whole hero quietly giving up the moment any one host refuses.
+	 */
+	function placeholderTexture(color: [number, number, number]): WebGLTexture {
 		const texture = context.createTexture()!;
 		context.bindTexture(context.TEXTURE_2D, texture);
 		context.texImage2D(
@@ -233,7 +255,7 @@ export function createHeroGL(
 			0,
 			context.RGBA,
 			context.UNSIGNED_BYTE,
-			new Uint8Array([42, 15, 6, 255])
+			new Uint8Array([...color, 255])
 		);
 		context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
 		context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
@@ -242,13 +264,17 @@ export function createHeroGL(
 		return texture;
 	}
 
-	let taintedByCors = false;
-
-	function loadTexture(url: string): Texture {
+	/**
+	 * Loads once per URL, ever: the `textures` cache means a photo that failed is never
+	 * retried, and a photo that succeeded is never re-fetched. A failure leaves the entry on
+	 * its placeholder color permanently; nothing here treats that as fatal to the hero itself,
+	 * since a wipe between two solid colors is still the wipe, just without a real photo in it.
+	 */
+	function loadTexture(url: string, fallbackColor: [number, number, number]): Texture {
 		const existing = textures.get(url);
 		if (existing) return existing;
 
-		const entry: Texture = { texture: placeholderTexture(), width: 1, height: 1 };
+		const entry: Texture = { texture: placeholderTexture(fallbackColor), width: 1, height: 1 };
 		textures.set(url, entry);
 
 		const image = new Image();
@@ -270,18 +296,13 @@ export function createHeroGL(
 				kick();
 			} catch {
 				// This engine refuses to texture from a cross-origin image with no CORS
-				// headers. The same whole-hero shutdown as a lost context covers it: the CSS
-				// crossfade underneath was never not running.
-				taintedByCors = true;
-				onFatalError();
+				// headers; the placeholder color already set stands in for it permanently.
 			}
 		};
 		image.onerror = () => {
 			// `crossOrigin = 'anonymous'` requests the image in CORS mode, and on some engines
 			// a host with no Access-Control-Allow-Origin header fails that request outright
 			// rather than serving an image `onload` above would then have to refuse.
-			taintedByCors = true;
-			onFatalError();
 		};
 		image.src = url;
 		return entry;
@@ -302,7 +323,7 @@ export function createHeroGL(
 	const startedAt = performance.now();
 
 	function isLive(): boolean {
-		return live && !contextLost && !taintedByCors;
+		return live && !contextLost;
 	}
 
 	function draw(progress: number, dragForDraw: number, now: number): void {
@@ -315,8 +336,10 @@ export function createHeroGL(
 			canvas.height = height;
 		}
 
-		const currentTex = loadTexture(current);
-		const nextTex = transition ? loadTexture(next) : currentTex;
+		// Both are already cached by the time a frame draws: `set`/`go` always load first.
+		// The fallback color passed here is inert on a cache hit, which this always is.
+		const currentTex = loadTexture(current, FALLBACK_COLOR);
+		const nextTex = transition ? loadTexture(next, FALLBACK_COLOR) : currentTex;
 
 		context.viewport(0, 0, width, height);
 		context.activeTexture(context.TEXTURE0);
@@ -387,32 +410,25 @@ export function createHeroGL(
 	canvas.addEventListener('webglcontextlost', onContextLost);
 
 	return {
-		set(url) {
-			if (taintedByCors || contextLost) return;
+		set(url, fallbackColor) {
+			if (contextLost) return;
 			current = url;
 			next = url;
 			transition = null;
 			release = null;
 			dragAmount = 0;
-			loadTexture(url);
+			loadTexture(url, fallbackColor);
 			dirty = true;
 			kick();
 		},
-		go(url, dir, fromDragFraction) {
-			/*
-			 * Once one photo host has failed, every ring member's photo is worth trying only
-			 * once each: a repeat request for a URL that already failed in CORS mode risks
-			 * poisoning the browser's cache for the same URL the CSS crossfade underneath
-			 * fetches plainly, which would take the one fallback this whole hero exists to
-			 * never break with it.
-			 */
-			if (taintedByCors || contextLost) return;
+		go(url, dir, fromDragFraction, fallbackColor) {
+			if (contextLost) return;
 			if (transition) current = next;
 			next = url;
 			direction = dir;
 			release = null;
 			dragAmount = 0;
-			loadTexture(url);
+			loadTexture(url, fallbackColor);
 			transition = {
 				start: performance.now(),
 				// The brief's own token for this: "Discover's image transition" gets --dur-xl

@@ -610,6 +610,56 @@ matters enough later, the fix would live on the ring side (serving `thumb_url` t
 IndieNodes' own CORS-friendly infrastructure rather than a direct link to each member's site),
 not here.
 
+## 2026-09-23: The kill-switch above was itself a bug; replaced with a per-photo fallback
+
+Device testing on the real ring (not a fixture) found the entry above had overcorrected: since
+essentially every real member photo fails CORS, the very first navigation tripped
+`taintedByCors` and disabled the wipe for the rest of the session, which read as "the wave
+effect only happens once, then stops." The right fix was never "give up once," it was "never
+retry a failure that already happened," and those are different things: the first version
+conflated a single photo's CORS failure with the whole hero being broken, when only that one
+photo actually failed.
+
+**Replaced the global kill-switch with a per-photo fallback.** `taintedByCors` is gone entirely.
+`heroGL.ts`'s `textures` cache already meant a failed photo was never re-fetched; the only
+change needed was to stop treating that cached failure as fatal to anything beyond itself. A
+photo that will not load now paints a solid placeholder forever, in the member's own wash
+color (`washColorFor` in `ring.svelte.ts`, the same hue `washFor`'s CSS gradient already used,
+converted to RGB) rather than the same flat brown for every member regardless of who they are.
+The wipe transition itself, the noise-driven displacement the reader actually asked to see
+again, runs on every navigation unconditionally now; only the texture underneath it varies.
+`onFatalError` keeps its narrower, correct meaning: a lost WebGL context, the one failure with
+no per-photo recovery, since the canvas itself is unusable at that point, not just one image on
+it. `ring.test.ts` covers the new color functions; `discover-webgl.spec.ts`'s fallback test was
+rewritten to assert the opposite of what it asserted before (the canvas now stays active across
+repeated failures, rather than falling back to CSS after the first one), since the old
+assertion was testing the behavior being removed here.
+
+**A second, separate bug surfaced once the wipe could actually be observed on every
+transition**: its direction was backwards. `HeroArt.svelte` was hazarding the app's own
+`direction` prop (`-1` for next, `1` for prev, chosen so `flyIn`'s `x: direction * -32` makes
+next enter from the right) straight into the shader's `dir` uniform, which is ported byte for
+byte from the prototype and expects the opposite sign: the prototype's own swipe handler passes
+`dir = 1` for "next" so its wipe reveals from the right, matching that same text motion. Passing
+the app's `direction` unnegated meant next revealed from the left, backwards from both the
+prototype and this app's own text. Fixed by negating once, at the boundary where `HeroArt.svelte`
+calls `gl.go()`, rather than touching the shader or the app's own `direction` convention
+elsewhere. Confirmed with a new test that samples real pixels (`gl.readPixels`) at the canvas's
+left and right edges during a transition between two flat placeholder colors, rather than
+trusting the code: real Chromium timing turned out to be unreliable for a fixed "wait until
+mid-transition" wait (headless compositing is not paced to a real display, so the nominal 640ms
+duration can finish in well under that of wall time), so the test polls in short bursts right
+after the navigation and checks which edge's color changes first, which does not depend on how
+fast the transition actually ran.
+
+**A third, smaller fidelity gap, found while looking at the same call site**: `HeroArt.svelte`
+always called `gl.go()` with a drag fraction of `0`, rather than the fraction a swipe had
+already dragged before it committed, so a committed swipe's transition always restarted from
+zero bend instead of continuing smoothly from the live preview the way the prototype's own
+`dx / W` argument does. Threaded through properly now: `+page.svelte` tracks a `navFraction`
+state, set only by `onSwipeEnd` from the swipe's own `delta` (the prev/next buttons and shuffle
+correctly stay at `0`, since nothing was dragged), and passed to `<HeroArt>` as `dragFraction`.
+
 ## 2026-09-23: The top-of-scroll jump, found: a normal-flow sibling, not scroll physics at all
 
 The earlier "not reproduced" entry above chased the wrong signal. Both attempts to catch this

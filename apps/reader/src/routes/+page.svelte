@@ -3,7 +3,7 @@
 	import { swipe } from '$lib/actions/swipe.js';
 	import { flyIn, prefersReducedMotion } from '$lib/motion.js';
 	import { fly } from 'svelte/transition';
-	import { ring, washFor, type RingFilterKey } from '$lib/ring.svelte.js';
+	import { ring, washColorFor, washFor, type RingFilterKey } from '$lib/ring.svelte.js';
 	import { followRingEntry } from '$lib/follow.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import Toast from '$components/Toast.svelte';
@@ -29,6 +29,12 @@
 	 * that triggered it went.
 	 */
 	let navDirection = $state<-1 | 0 | 1>(0);
+	/**
+	 * How far a committed swipe had already dragged, as a fraction of the viewport width, so the
+	 * wipe's transition continues from exactly where the live preview left off instead of
+	 * restarting from zero bend. Zero for the prev/next buttons and shuffle, which never dragged.
+	 */
+	let navFraction = $state(0);
 
 	let section: HTMLElement | undefined;
 	let heroArt: ReturnType<typeof HeroArt> | undefined;
@@ -39,21 +45,31 @@
 
 	function goNext() {
 		navDirection = -1;
+		navFraction = 0;
 		ring.next();
 	}
 
 	function goPrev() {
 		navDirection = 1;
+		navFraction = 0;
 		ring.prev();
 	}
 
 	/** The member card follows the finger, then settles whichever way the release went. */
-	function onSwipeEnd(commit: boolean, direction: -1 | 0 | 1) {
+	function onSwipeEnd(commit: boolean, direction: -1 | 0 | 1, delta: number) {
 		dragging = false;
 		dragX = 0;
 		if (!commit) return;
-		if (direction < 0) goNext();
-		else if (direction > 0) goPrev();
+		const fraction = delta / (section?.clientWidth || 1);
+		if (direction < 0) {
+			navDirection = -1;
+			navFraction = fraction;
+			ring.next();
+		} else if (direction > 0) {
+			navDirection = 1;
+			navFraction = fraction;
+			ring.prev();
+		}
 	}
 
 	async function follow() {
@@ -138,9 +154,9 @@
 			dragX = prefersReducedMotion() ? 0 : delta;
 			heroArt?.dragPreview(delta / (section?.clientWidth || 1));
 		},
-		onEnd: ({ commit, direction }) => {
+		onEnd: ({ commit, direction, delta }) => {
 			if (!commit) heroArt?.releasePreview();
-			onSwipeEnd(commit, direction);
+			onSwipeEnd(commit, direction, delta);
 		}
 	}}
 >
@@ -148,8 +164,10 @@
 		bind:this={heroArt}
 		src={ring.heroImage}
 		wash={washFor(ring.current?.id ?? 'yipden')}
+		washColor={washColorFor(ring.current?.id ?? 'yipden')}
 		focal={ring.current?.thumb_position}
 		direction={navDirection}
+		dragFraction={navFraction}
 	/>
 	<div class="scrim" aria-hidden="true"></div>
 

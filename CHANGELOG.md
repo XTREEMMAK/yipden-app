@@ -104,8 +104,22 @@ Every notable change to YipDen, newest first. The format follows
   overlay, which cannot move anything else. See DECISIONS.md.
 - The WebGL hero kept retrying a photo host that had already failed, once per navigation, so a
   session where the first photo failed (the common case for a personal site with no CORS
-  headers) looked like the hero was doing nothing rather than falling back. It now gives up
-  for the rest of the session after the first failure. See DECISIONS.md.
+  headers) looked like the hero was doing nothing rather than falling back. The first fix for
+  this disabled the wipe for the rest of the session after that one failure, which turned out
+  to be its own bug once tested against the real ring: since nearly every real photo fails
+  CORS, the wipe effectively only ever ran once. It now paints a solid fallback in the member's
+  own wash color per photo that fails, rather than giving up on the hero itself, so the wipe
+  runs on every navigation regardless of whether any given photo loads. See DECISIONS.md.
+- The WebGL wipe travelled the wrong way: next revealed the incoming photo from the left,
+  previous from the right, backwards from both the reference prototype and this app's own
+  text motion (which already entered from the correct edge). `HeroArt.svelte` was handing the
+  shader's `dir` uniform this app's own swipe-direction convention unnegated; the two are
+  opposite sign conventions by design, and only the shader's own call site needed the fix.
+  See DECISIONS.md.
+- A committed swipe's wipe transition always restarted from zero bend rather than continuing
+  from wherever the live drag preview had already stretched it to, unlike the reference
+  prototype. The drag fraction at release is now threaded through to the transition. See
+  DECISIONS.md.
 - A latent Android manifest merge conflict (`capacitor-cordova-android-plugins` declares
   `usesCleartextTraffic="true"`, this app declares `"false"`) would fail any genuinely clean
   build or one on CI without a warm Gradle cache; only masked locally because nothing had

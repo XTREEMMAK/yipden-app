@@ -69,6 +69,51 @@ async function canvasIsActive(page: Page): Promise<boolean> {
 	});
 }
 
+/**
+ * Reads the average color of a small block near the canvas's left and right edges. With both
+ * members' photos forced to fail (see `withAbortedImages`), the hero paints a single flat
+ * placeholder color per member, so the whole canvas is one uniform color outside of a
+ * transition, and a transition's wipe front is the only thing that can make the two edges
+ * differ. `readPixels` is safe here: a flat color uploaded via `texImage2D` from a plain byte
+ * array never taints the canvas the way a real cross-origin image would.
+ *
+ * Reading from a plain `page.evaluate()` call reliably comes back black: this context has no
+ * `preserveDrawingBuffer`, so the browser is free to clear the drawing buffer once a frame has
+ * been presented, and by the time a separate macrotask runs, it usually has been. A read from
+ * inside `requestAnimationFrame` lands in the same frame the hero's own ambient loop just drew,
+ * before any of that clearing happens.
+ */
+async function edgeColors(page: Page): Promise<{ left: number[]; right: number[] }> {
+	return page.evaluate(() => {
+		return new Promise<{ left: number[]; right: number[] }>((resolve) => {
+			requestAnimationFrame(() => {
+				const canvas = document.querySelector('canvas.gl') as HTMLCanvasElement;
+				const gl = canvas.getContext('webgl') as WebGLRenderingContext;
+				const read = (x: number) => {
+					const size = 4;
+					const y = Math.max(0, Math.floor(canvas.height / 2) - size / 2);
+					const out = new Uint8Array(size * size * 4);
+					gl.readPixels(x, y, size, size, gl.RGBA, gl.UNSIGNED_BYTE, out);
+					let r = 0;
+					let g = 0;
+					let b = 0;
+					for (let i = 0; i < size * size; i += 1) {
+						r += out[i * 4];
+						g += out[i * 4 + 1];
+						b += out[i * 4 + 2];
+					}
+					return [r / (size * size), g / (size * size), b / (size * size)];
+				};
+				resolve({ left: read(1), right: read(Math.max(1, canvas.width - 5)) });
+			});
+		});
+	});
+}
+
+function distance(a: number[], b: number[]): number {
+	return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+}
+
 test.describe('Discover WebGL hero', () => {
 	test('the canvas activates where WebGL is available, with no page errors', async ({ page }) => {
 		const errors: string[] = [];
@@ -148,7 +193,7 @@ test.describe('Discover WebGL hero', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('a photo that fails to load at all falls back to the CSS crossfade and stays there', async ({
+	test('a photo that fails to load at all still wipes to a solid fallback, every time', async ({
 		page
 	}) => {
 		/*
@@ -158,7 +203,14 @@ test.describe('Discover WebGL hero', () => {
 		 * outright. `route.abort()` fails the request at the network level regardless of CORS,
 		 * which reliably exercises `onerror`, the path a real unreachable or CORS-refusing host
 		 * actually takes.
+		 *
+		 * Every real ring member photo failing this way used to disable the hero for the rest of
+		 * the session after the first failure. It no longer does: a photo that will not load
+		 * paints its member's own wash color instead and the wipe keeps running on every member
+		 * change, which is what this test now exercises across two consecutive failures.
 		 */
+		const errors: string[] = [];
+		page.on('pageerror', (error) => errors.push(error.message));
 		await page.route('https://ring.indienodes.us/ring.json', (route) =>
 			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RING) })
 		);
@@ -169,16 +221,19 @@ test.describe('Discover WebGL hero', () => {
 		await expect(heading).toBeVisible();
 		const first = await heading.textContent();
 
-		// The failed photo disables the hero for the rest of the session: `.art` takes over.
-		await expect.poll(() => canvasIsActive(page)).toBe(false);
-		await expect(page.locator('.art')).not.toHaveClass(/gl-showing/);
+		// A failed photo does not disable the hero: the canvas stays up, painted with a fallback.
+		await expect.poll(() => canvasIsActive(page)).toBe(true);
 
-		// A second member, whose own photo was never even attempted over WebGL, stays that way.
+		// A second member, whose photo also never loads, still gets its own wipe.
 		await page.getByRole('button', { name: 'Next in the ring' }).click();
 		await expect(heading).not.toHaveText(first ?? '');
-		expect(await canvasIsActive(page)).toBe(false);
-		await expect(page.locator('.art')).not.toHaveClass(/gl-showing/);
-		await expect(page.locator('.art')).toBeVisible();
+		expect(await canvasIsActive(page)).toBe(true);
+
+		await page.getByRole('button', { name: 'Previous in the ring' }).click();
+		await expect(heading).toHaveText(first ?? '');
+		expect(await canvasIsActive(page)).toBe(true);
+
+		expect(errors).toEqual([]);
 	});
 
 	test('falls back to the CSS crossfade outright when the browser has no WebGL at all', async ({
@@ -214,5 +269,99 @@ test.describe('Discover WebGL hero', () => {
 		await expect(heading).not.toHaveText(first ?? '');
 
 		expect(errors).toEqual([]);
+	});
+
+	test('the wipe travels from the right for next and the left for previous, matching the text', async ({
+		page
+	}) => {
+		/*
+		 * The text ("From the right for next, from the left for previous") was already known to
+		 * be correct; the shader's own `dir` uniform was not, since HeroArt.svelte used to hand
+		 * it this app's `direction` prop directly, the opposite sign from what the prototype's
+		 * wipe math expects. Sampling real pixels mid-transition is the only way to see the
+		 * wipe's own direction rather than assuming it from the code, the same reasoning that
+		 * drove the boundingBox sampling used elsewhere for the text.
+		 *
+		 * These two ids are not the shared `RING` fixture's: their wash colors (derived from a
+		 * hash of the id) need to be clearly distinct for the color-distance assertions below to
+		 * mean anything, and the shared fixture's two ids happen to hash close enough in hue to
+		 * be a poor fit for that, coincidentally rather than by any defect.
+		 */
+		const wipeRing = {
+			version: '1.0',
+			entries: [
+				{ ...RING.entries[0], id: 'member-a-1002' },
+				{ ...RING.entries[1], id: 'member-b-1002' }
+			]
+		};
+		await page.route('https://ring.indienodes.us/ring.json', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify(wipeRing)
+			})
+		);
+		await page.route('https://example.com/**', (route) => route.abort());
+
+		await page.goto('/');
+		await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+		await expect.poll(() => canvasIsActive(page)).toBe(true);
+
+		const before = await edgeColors(page);
+		// At rest the canvas is one flat color; confirms the sampling itself is working.
+		expect(distance(before.left, before.right)).toBeLessThan(5);
+
+		/*
+		 * Headless Chromium's compositor is not paced to a real display, so the notional 640ms
+		 * transition duration (measured against `performance.now()`, the same clock its own rAF
+		 * timestamps use) can finish in well under 640ms of real wall time here. A fixed wait
+		 * picked to land "mid-transition" is a guess this environment does not honor, so this
+		 * polls in short bursts right after the click instead and asks which edge moved away
+		 * from its starting color first, which is a real-time-independent question.
+		 */
+		async function firstDivergence(startColor: number[]): Promise<{ left: number; right: number }> {
+			let left = -1;
+			let right = -1;
+			for (let i = 0; i < 40 && (left < 0 || right < 0); i += 1) {
+				const sample = await edgeColors(page);
+				// A near-black reading is the known readPixels-from-a-cleared-buffer artifact,
+				// not a real frame; every wash color here is far enough from black to tell apart.
+				if (
+					left < 0 &&
+					distance(sample.left, [0, 0, 0]) > 15 &&
+					distance(sample.left, startColor) > 20
+				) {
+					left = i;
+				}
+				if (
+					right < 0 &&
+					distance(sample.right, [0, 0, 0]) > 15 &&
+					distance(sample.right, startColor) > 20
+				) {
+					right = i;
+				}
+				await page.waitForTimeout(10);
+			}
+			return { left, right };
+		}
+
+		await page.getByRole('button', { name: 'Next in the ring' }).click();
+		const next = await firstDivergence(before.left);
+		expect(next.right).toBeGreaterThanOrEqual(0);
+		expect(next.left).toBeGreaterThanOrEqual(0);
+		// Next: the right edge is where the incoming color shows up first.
+		expect(next.right).toBeLessThanOrEqual(next.left);
+
+		await expect
+			.poll(async () => distance((await edgeColors(page)).left, before.left))
+			.toBeGreaterThan(20);
+		const afterNext = await edgeColors(page);
+
+		await page.getByRole('button', { name: 'Previous in the ring' }).click();
+		const prev = await firstDivergence(afterNext.left);
+		expect(prev.left).toBeGreaterThanOrEqual(0);
+		expect(prev.right).toBeGreaterThanOrEqual(0);
+		// Previous is the reverse: the left edge leads, back toward the original color.
+		expect(prev.left).toBeLessThanOrEqual(prev.right);
 	});
 });

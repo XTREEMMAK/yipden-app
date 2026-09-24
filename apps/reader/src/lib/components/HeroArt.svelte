@@ -15,23 +15,31 @@
 	 *
 	 * The brief allows a WebGL displacement wipe here as an optional upgrade over this crossfade,
 	 * and this is both: the crossfade above never stops running, and a canvas drawn over it takes
-	 * over visually whenever `createHeroGL` manages to stand one up. Every way that can fail, no
-	 * WebGL, a shader that will not compile, a photo host with no CORS headers, a lost context
-	 * mid-session, leaves the crossfade as what the reader actually sees, which is why it keeps
-	 * running underneath rather than being skipped while the canvas is active.
+	 * over visually whenever `createHeroGL` manages to stand one up. No WebGL context, a shader
+	 * that will not compile, a lost context mid-session, all leave the crossfade as what the
+	 * reader actually sees, which is why it keeps running underneath rather than being skipped
+	 * while the canvas is active. A photo that will not load (most of them, in practice: most
+	 * personal sites send no CORS headers) is not one of those failures; the wipe still runs,
+	 * painted with the member's own wash color instead of their photo.
 	 */
 
 	interface Props {
 		src: string | null;
 		/** Drawn when a member has no image at all, derived from their id so it is stable. */
 		wash: string;
+		/** The same wash, as RGB bytes: what the WebGL hero paints if `src` never loads. */
+		washColor: [number, number, number];
 		focal?: RingFocalPoint | undefined;
 		/** Which way the wipe should travel for the next `src` change: -1/1 for a swipe or the
-		 * prev/next buttons, 0 for a plain crossfade (shuffle, a filter change). */
+		 * prev/next buttons, 0 for a plain crossfade (shuffle, a filter change). Follows this
+		 * app's own convention (the same edge a left drag reveals), not the shader's. */
 		direction?: -1 | 0 | 1;
+		/** How far a committed swipe had already dragged, as a fraction of viewport width, so the
+		 * wipe continues from the live preview instead of restarting from zero bend. */
+		dragFraction?: number;
 	}
 
-	let { src, wash, focal, direction = 0 }: Props = $props();
+	let { src, wash, washColor, focal, direction = 0, dragFraction = 0 }: Props = $props();
 
 	/** The layer currently on top, and the one underneath it fading out. */
 	let layers = $state<Array<{ id: number; src: string | null; focal: RingFocalPoint }>>([]);
@@ -52,7 +60,7 @@
 			);
 		}
 		glActive = gl !== null;
-		if (gl && src) gl.set(src);
+		if (gl && src) gl.set(src, washColor);
 
 		const onVisibility = () => gl?.setLive(!document.hidden);
 		document.addEventListener('visibilitychange', onVisibility);
@@ -79,8 +87,11 @@
 		layers = [...layers.slice(-1), { id: nextId++, src, focal: position }];
 
 		if (gl && src) {
-			if (direction === 0) gl.set(src);
-			else gl.go(src, direction, 0);
+			if (direction === 0) gl.set(src, washColor);
+			// The shader's `dir` uniform is ported byte for byte from the prototype, whose wipe
+			// travels from the edge dir itself names; this component's own `direction` prop is
+			// the opposite convention (see above), so it is negated here, once, at the boundary.
+			else gl.go(src, direction === 1 ? -1 : 1, dragFraction, washColor);
 		}
 	});
 
