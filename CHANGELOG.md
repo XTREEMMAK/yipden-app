@@ -96,6 +96,12 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- Dismissing the mini player made Discover's text (and Feeds' and the other lists' bottom
+  padding) jump to its new position, because the dock changes height at once. The padding now
+  eases to it.
+- Discover's name, "why", tags and buttons arrived all at the same instant; as in the prototype,
+  each line now comes in a beat after the one above it.
+
 - Discover's WebGL wave never appeared on a phone even with photos loading: the wipe shader used
   half precision floats, which phone GPUs default to and its noise function cannot survive. It now
   uses full precision where the GPU supports it.

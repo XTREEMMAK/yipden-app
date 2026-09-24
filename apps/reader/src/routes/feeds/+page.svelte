@@ -381,6 +381,7 @@
 		flex-direction: column;
 		gap: 12px;
 		padding: 6px 16px calc(var(--dock) + 20px);
+		transition: padding-bottom var(--dur-m) var(--ease);
 		overflow-y: auto;
 		/*
 		 * `none`, not `contain`: the stack action reads `scrollTop` every frame, and rubber

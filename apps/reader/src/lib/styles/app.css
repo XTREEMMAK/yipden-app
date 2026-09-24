@@ -88,6 +88,7 @@ button {
 	overscroll-behavior: contain;
 	scrollbar-width: none;
 	padding-bottom: calc(var(--dock) + 20px);
+	transition: padding-bottom var(--dur-m) var(--ease);
 }
 
 .scroll::-webkit-scrollbar {

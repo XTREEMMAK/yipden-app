@@ -146,4 +146,43 @@ test.describe('Discover previews', () => {
 		expect(close.width).toBeGreaterThanOrEqual(44);
 		expect(close.height).toBeGreaterThanOrEqual(44);
 	});
+
+	test('a new member arrives line by line, each a beat after the one above', async ({ page }) => {
+		await seed(page);
+		const name = page.getByRole('heading', { level: 1 });
+		const actions = page.locator('.actions');
+		await page.getByRole('button', { name: 'Next in the ring' }).click();
+
+		// While the lines fly in, the name is nearer its place than the actions row is.
+		let lead = 0;
+		for (let i = 0; i < 14; i += 1) {
+			const n = await name.boundingBox();
+			const a = await actions.boundingBox();
+			if (n && a) lead = Math.max(lead, a.x - n.x);
+			await page.waitForTimeout(25);
+		}
+		expect(lead).toBeGreaterThan(8);
+	});
+
+	test('dismissing the mini player eases the text down instead of popping it', async ({ page }) => {
+		await seed(page);
+		await showMember(page, 'Creator aud');
+		await page.getByRole('button', { name: 'Play', exact: true }).click();
+		await page.getByRole('button', { name: 'Collapse the player' }).click();
+		await expect(page.getByRole('button', { name: 'Open the player' })).toBeVisible();
+		await page.waitForTimeout(500);
+
+		const count = page.locator('.count');
+		const before = (await count.boundingBox())!.y;
+		await page.getByRole('button', { name: 'Stop and close the player' }).click();
+		const seen: number[] = [];
+		for (let i = 0; i < 16; i += 1) {
+			seen.push((await count.boundingBox())!.y);
+			await page.waitForTimeout(25);
+		}
+		const after = seen[seen.length - 1]!;
+		expect(after).toBeGreaterThan(before + 20); // the dock really did shrink
+		// At least one sample sits strictly between start and end: it travelled, it did not jump.
+		expect(seen.some((y) => y > before + 4 && y < after - 4)).toBe(true);
+	});
 });

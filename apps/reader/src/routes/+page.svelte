@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { swipe } from '$lib/actions/swipe.js';
-	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
+	import { duration, flyIn, prefersReducedMotion, STAGGER_MS } from '$lib/motion.js';
 	import { fade, fly } from 'svelte/transition';
 	import { ring, washColorFor, washFor, type RingFilterKey } from '$lib/ring.svelte.js';
 	import { heroImage } from '@yipden/ring-client';
@@ -163,6 +163,29 @@
 		return [entry.form ?? entry.type].map(labelForType);
 	});
 
+	/**
+	 * The member's text arrives line by line, each a beat after the one above it, the way the
+	 * prototype's own hero does, rather than as one block. The order is only the lines actually
+	 * present, so a member with no "why" does not leave a gap in the sequence.
+	 */
+	let entryLines = $derived(
+		[
+			ring.isNodeOfTheDay ? 'chip' : null,
+			'name',
+			ring.current?.why ? 'why' : null,
+			where.length ? 'where' : null,
+			'actions'
+		].filter((line): line is string => line !== null)
+	);
+
+	function enter(line: string) {
+		const reach = Math.round((section?.clientWidth || 390) * 0.3);
+		return flyIn({
+			x: navDirection * -reach,
+			delay: Math.max(0, entryLines.indexOf(line)) * STAGGER_MS
+		});
+	}
+
 	function labelForFeed(type: string): string {
 		const labels: Record<string, string> = {
 			rss: 'Blog',
@@ -272,23 +295,20 @@
 	>
 		{#if ring.current}
 			{#key ring.current.id}
-				<div
-					class="body-inner"
-					in:fly={flyIn({ x: navDirection * -Math.round((section?.clientWidth || 390) * 0.3) })}
-				>
+				<div class="body-inner">
 					{#if ring.isNodeOfTheDay}
-						<span class="glass-chip">Node of the day</span>
+						<span class="glass-chip" in:fly|global={enter('chip')}>Node of the day</span>
 					{/if}
-					<h1 class="hero-name">{ring.current.creator}</h1>
+					<h1 class="hero-name" in:fly|global={enter('name')}>{ring.current.creator}</h1>
 					{#if ring.current.why}
-						<p class="hero-why">{ring.current.why}</p>
+						<p class="hero-why" in:fly|global={enter('why')}>{ring.current.why}</p>
 					{/if}
 					{#if where.length}
-						<div class="where">
+						<div class="where" in:fly|global={enter('where')}>
 							{#each where as place (place)}<span>{place}</span>{/each}
 						</div>
 					{/if}
-					<div class="actions">
+					<div class="actions" in:fly|global={enter('actions')}>
 						<button
 							class="btn-white"
 							class:is-on={ring.isFollowing(ring.current)}
@@ -655,6 +675,8 @@
 		flex-direction: column;
 		gap: 12px;
 		padding-bottom: calc(var(--dock) + 2px);
+		/* The dock changes height when the mini player is dismissed; ease to it, do not pop. */
+		transition: padding-bottom var(--dur-m) var(--ease);
 	}
 
 	.ringnav {
