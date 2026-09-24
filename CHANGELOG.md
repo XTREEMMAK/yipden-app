@@ -85,6 +85,12 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- After a swiped (not tapped) Discover change, the name and "why" still appeared to enter from
+  the wrong side: the text block was left offset by the drag and eased back to centre while the
+  new text flew in from only 32px, so the two motions cancelled into the wrong direction. The
+  block now snaps to centre on commit and the text enters from roughly a third of the screen
+  width, from the side opposite the swipe.
+
 - Discover's incoming name and "why" text flew in from straight below regardless of swipe
   direction; it now flies in from the edge the swipe (or the prev/next buttons) actually came
   from, matching the hero image's own motion.

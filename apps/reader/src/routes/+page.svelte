@@ -21,6 +21,9 @@
 	let following = $state(false);
 	let dragX = $state(0);
 	let dragging = $state(false);
+	/** Set for the frame a committed swipe lands, so the text block snaps back to centre instead
+	 *  of easing there while the new text is also flying in (which read as the wrong side). */
+	let snapBody = $state(false);
 	/**
 	 * Which way the next member's name and "why" should fly in from: -1 after `next()` (they
 	 * come from the right, the same edge a left drag reveals), 1 after `prev()` (from the
@@ -86,6 +89,8 @@
 		dragging = false;
 		dragX = 0;
 		if (!commit) return;
+		snapBody = true;
+		setTimeout(() => (snapBody = false), 0);
 		const fraction = delta / (section?.clientWidth || 1);
 		if (direction < 0) {
 			navDirection = -1;
@@ -238,11 +243,14 @@
 	<div
 		class="body"
 		style:transform="translateX({dragX}px)"
-		style:transition={dragging ? 'none' : `transform var(--dur-m) var(--ease)`}
+		style:transition={dragging || snapBody ? 'none' : `transform var(--dur-m) var(--ease)`}
 	>
 		{#if ring.current}
 			{#key ring.current.id}
-				<div class="body-inner" in:fly={flyIn({ x: navDirection * -32 })}>
+				<div
+					class="body-inner"
+					in:fly={flyIn({ x: navDirection * -Math.round((section?.clientWidth || 390) * 0.3) })}
+				>
 					<span class="glass-chip">
 						{ring.isNodeOfTheDay
 							? 'Node of the day'
