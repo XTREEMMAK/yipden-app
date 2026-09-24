@@ -260,6 +260,35 @@ test.describe('Discover WebGL hero', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('the next member photo is preloaded, so a slow photo host still gets the wipe', async ({
+		page
+	}) => {
+		// Photos take ~700ms, like a phone on a real connection. Without preloading, the wipe
+		// would run and finish before the photo arrived, and the canvas would only pop in after.
+		const cors = { 'access-control-allow-origin': '*' };
+		await page.route('https://ring.indienodes.us/ring.json', (route) =>
+			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RING) })
+		);
+		await page.route('https://example.com/*.jpg', async (route) => {
+			await new Promise((resolve) => setTimeout(resolve, 700));
+			await route.fulfill({
+				status: 200,
+				contentType: 'image/png',
+				headers: cors,
+				body: solidPng(200, 40, 40)
+			});
+		});
+
+		await page.goto('/');
+		await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+		await expect.poll(() => canvasIsActive(page), { timeout: 5000 }).toBe(true);
+		await page.waitForTimeout(1200); // the neighbour has had time to arrive
+
+		await page.getByRole('button', { name: 'Next in the ring' }).click();
+		// Immediately after the press, not after a wait: the canvas already holds the new photo.
+		expect(await canvasIsActive(page)).toBe(true);
+	});
+
 	test('falls back to the CSS crossfade outright when the browser has no WebGL at all', async ({
 		page
 	}) => {

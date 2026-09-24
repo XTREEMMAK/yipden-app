@@ -4,6 +4,7 @@
 	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
 	import { fade, fly } from 'svelte/transition';
 	import { ring, washColorFor, washFor, type RingFilterKey } from '$lib/ring.svelte.js';
+	import { heroImage } from '@yipden/ring-client';
 	import { followRingEntry } from '$lib/follow.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import Toast from '$components/Toast.svelte';
@@ -39,6 +40,15 @@
 	 */
 	let navFraction = $state(0);
 
+	/** The photos a next or previous is about to wipe to, so they are decoded before it happens. */
+	let neighbourPhotos = $derived.by(() => {
+		const list = ring.visible;
+		if (list.length < 2) return [];
+		const at = Math.min(ring.index, list.length - 1);
+		return [list[(at + 1) % list.length], list[(at - 1 + list.length) % list.length]]
+			.map((entry) => (entry ? heroImage(entry) : null))
+			.filter((url): url is string => url !== null);
+	});
 	let section = $state<HTMLElement | undefined>(undefined);
 	let heroArt: ReturnType<typeof HeroArt> | undefined;
 
@@ -205,6 +215,7 @@
 		focal={ring.current?.thumb_position}
 		direction={navDirection}
 		dragFraction={navFraction}
+		preload={neighbourPhotos}
 	/>
 	<div class="scrim" aria-hidden="true"></div>
 

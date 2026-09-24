@@ -880,3 +880,12 @@ real, CORS-readable photos (the wipe direction test now uses two solid PNGs rath
 placeholder colors), but `CapacitorHttp`'s `responseType: 'blob'` returning base64 in `data` is
 taken from its documented behavior, not observed. If covers still fail on the device, that
 loader is the first place to look.
+
+Follow up, same day: covers came back but the wave still did not appear on the device. The
+remaining cause is timing rather than access. A wipe is only visible if the destination photo is
+already a texture when it starts; on a phone the download was still in flight, so the transition
+ran and finished under a hidden canvas and the canvas appeared afterwards already at rest. The
+neighbours (next and previous in the visible list) are now preloaded through a `preload` prop.
+A test with a 700ms photo host reproduces it and fails without the change. Still unverified on
+the device: whether the native loader itself succeeds there. It falls back to `Image` silently,
+so if the wave is still absent, the next step is logging that path, not more timing work.

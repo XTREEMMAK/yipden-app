@@ -39,9 +39,20 @@
 		/** How far a committed swipe had already dragged, as a fraction of viewport width, so the
 		 * wipe continues from the live preview instead of restarting from zero bend. */
 		dragFraction?: number;
+		/** Photos likely to be wiped to next (the neighbours), fetched ahead so the wipe has real
+		 *  pixels to draw instead of finishing before the photo arrives. */
+		preload?: string[];
 	}
 
-	let { src, wash, washColor, focal, direction = 0, dragFraction = 0 }: Props = $props();
+	let {
+		src,
+		wash,
+		washColor,
+		focal,
+		direction = 0,
+		dragFraction = 0,
+		preload = []
+	}: Props = $props();
 
 	/** The layer currently on top, and the one underneath it fading out. */
 	let layers = $state<Array<{ id: number; src: string | null; focal: RingFocalPoint }>>([]);
@@ -88,6 +99,11 @@
 	 */
 	$effect(() => {
 		gl?.setLive(player.sheet !== 'full');
+	});
+
+	$effect(() => {
+		if (!gl) return;
+		for (const url of preload) gl.preload(url, washColor);
 	});
 
 	$effect(() => {

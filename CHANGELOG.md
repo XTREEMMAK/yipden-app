@@ -85,6 +85,11 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- Discover's wave still did not appear on a phone even once photos could be drawn: the photo
+  was still downloading when the wipe ran, so the wipe finished unseen and the canvas only popped
+  in afterwards. The neighbouring members' photos are now preloaded, so they are ready before a
+  swipe or a tap on next or previous.
+
 - Discover: members whose photo host sends no CORS headers lost their cover (a flat color was
   drawn over it), and the wipe looked absent on the device. The canvas is now shown only for
   photos it can actually draw, everything else shows through the CSS layer as before, and on

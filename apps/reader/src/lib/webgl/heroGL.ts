@@ -167,6 +167,8 @@ export interface HeroGLHandle {
 	): void;
 	/** A drag in progress, as a fraction of the viewport width. */
 	drag(fraction: number): void;
+	/** Starts loading a photo ahead of time, so the wipe to it has real pixels to draw. */
+	preload(url: string, fallbackColor: [number, number, number]): void;
 	/** Whether this photo is a real texture, not the placeholder color. */
 	hasPhoto(url: string): boolean;
 	/** The drag ended without committing: spring the live preview back to rest. */
@@ -475,6 +477,9 @@ export function createHeroGL(
 				dragFrom: fromDragFraction
 			};
 			kick();
+		},
+		preload(url, fallbackColor) {
+			if (!contextLost) loadTexture(url, fallbackColor);
 		},
 		hasPhoto(url) {
 			return textures.get(url)?.loaded ?? false;
