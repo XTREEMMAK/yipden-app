@@ -1119,3 +1119,22 @@ swap. **Not matched: the focal point.** The CSS cover honours a member's `thumb_
 shader always centers, so a member with an off-center focal point will still shift slightly during
 that fade. Fixing it means passing each texture's focal into the shader's `cover()`; it was left
 because the fade turns it from a pop into a drift, and it can be done if it is noticed.
+
+## 2026-09-24: The canvas is for swiping, not for arriving or resting
+
+Prompted by the suggestion that the canvas and shader should only be in play while swiping between
+members, not during page transitions. Rather than switching the canvas off around navigation (it
+is already destroyed on leaving Discover, since the page unmounts), the fault was on arrival, so
+three things changed there. It **does not start until the slide is over** (the layout's `data-nav`
+marker gates it, bounded at 1.5s), so a shader compile and texture upload are no longer in the
+middle of the transition. It **draws nothing at rest**: the slow ambient drift (a throttled redraw
+for up to ten seconds after any touch, and a small noise offset on the image) is removed, so at
+rest the canvas is an exact copy of the cover and costs nothing, and it draws only while a drag or
+a wipe is moving. That removes a deliberate part of the prototype's look, on the reasoning that
+the canvas is for swiping. And it **crops about the member's focal point**, as the CSS cover does,
+which was the remaining difference after the box was matched: the shader's `cover()` now takes a
+focal, passed per photo including the preloaded neighbours. Tests: a two-tone photo with the focal
+point at the right edge must show only its blue half on screen (it fails on the old centered
+crop), and a per-frame check that the canvas has not painted while the transition marker is up.
+Side effect worth knowing: because the canvas no longer redraws at rest, its drawing buffer is
+empty by the time anything reads it back, so tests read the composited screenshot instead.

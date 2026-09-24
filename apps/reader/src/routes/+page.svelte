@@ -50,9 +50,12 @@
 		const list = ring.visible;
 		if (list.length < 2) return [];
 		const at = Math.min(ring.index, list.length - 1);
-		return [list[(at + 1) % list.length], list[(at - 1 + list.length) % list.length]]
-			.map((entry) => (entry ? heroImage(entry) : null))
-			.filter((url): url is string => url !== null);
+		return [list[(at + 1) % list.length], list[(at - 1 + list.length) % list.length]].flatMap(
+			(entry) => {
+				const url = entry ? heroImage(entry) : null;
+				return entry && url ? [{ url, focal: entry.thumb_position }] : [];
+			}
+		);
 	});
 	let section = $state<HTMLElement | undefined>(undefined);
 	let heroArt: ReturnType<typeof HeroArt> | undefined;

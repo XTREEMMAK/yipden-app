@@ -41,7 +41,7 @@
 		dragFraction?: number;
 		/** Photos likely to be wiped to next (the neighbours), fetched ahead so the wipe has real
 		 *  pixels to draw instead of finishing before the photo arrives. */
-		preload?: string[];
+		preload?: Array<{ url: string; focal?: RingFocalPoint | undefined }>;
 	}
 
 	let {
@@ -93,14 +93,35 @@
 		if (!gl) return;
 		gl.setLive(player.sheet !== 'full' && !document.hidden);
 		if (src) gl.set(src, washColor);
-		for (const url of preload) gl.preload(url, washColor);
+		if (src && focal) gl.setFocal(src, focal.x, focal.y);
+		for (const item of preload) preloadOne(item);
+	}
+
+	function preloadOne(item: { url: string; focal?: RingFocalPoint | undefined }) {
+		if (!gl) return;
+		if (item.focal) gl.setFocal(item.url, item.focal.x, item.focal.y);
+		gl.preload(item.url, washColor);
 	}
 
 	onMount(() => {
 		let timer: ReturnType<typeof setTimeout> | undefined;
-		const frame = requestAnimationFrame(() => {
+		let waited = 0;
+		/*
+		 * Not while a screen change is running. The layout marks the document (`data-nav`) for
+		 * the length of a tab transition; standing the canvas up during it puts a shader compile and
+		 * a texture upload in the middle of the slide, and its arrival is the thing that was
+		 * visible as the cover changing when returning to Discover. Wait for the slide to finish
+		 * (bounded, in case the marker is ever left behind), then start on the next frame.
+		 */
+		const whenSettled = () => {
+			if (document.documentElement.dataset.nav && waited < 1500) {
+				waited += 50;
+				timer = setTimeout(whenSettled, 50);
+				return;
+			}
 			timer = setTimeout(startGL, 0);
-		});
+		};
+		const frame = requestAnimationFrame(whenSettled);
 
 		const onVisibility = () => gl?.setLive(!document.hidden);
 		document.addEventListener('visibilitychange', onVisibility);
@@ -129,10 +150,10 @@
 	$effect(() => {
 		// Read before the early return: an effect that returns first subscribes to nothing, and
 		// this one must re-run when the neighbours change even though it starts before the canvas.
-		const urls = preload;
-		const color = washColor;
+		const items = preload;
+		void washColor;
 		if (!gl) return;
-		for (const url of urls) gl.preload(url, color);
+		for (const item of items) preloadOne(item);
 	});
 
 	$effect(() => {
@@ -145,6 +166,7 @@
 		layers = [...layers.slice(-1), { id: nextId++, src, focal: position, fade: layers.length > 0 }];
 
 		if (gl && src) {
+			gl.setFocal(src, position.x, position.y);
 			if (direction === 0) gl.set(src, washColor);
 			// The shader's `dir` uniform is ported byte for byte from the prototype, whose wipe
 			// travels from the edge dir itself names; this component's own `direction` prop is

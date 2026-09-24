@@ -1,6 +1,6 @@
 /**
  * Discover's WebGL hero: a displacement wipe between two member photos in the direction the
- * reader is moving, a slight liquid bend while dragging, and a slow ambient drift at rest.
+ * reader is moving, a slight liquid bend while dragging, and a and nothing at all at rest.
  * Ported from the reference prototype's own GL code (docs/reference/yipden-prototype.html) as
  * a self-contained control object HeroArt.svelte owns, rather than a page-global singleton.
  *
@@ -57,12 +57,14 @@ uniform float fx;
 uniform vec2 res;
 uniform vec2 img0;
 uniform vec2 img1;
+uniform vec2 foc0;
+uniform vec2 foc1;
 
-vec2 cover(vec2 uv, vec2 img) {
+vec2 cover(vec2 uv, vec2 img, vec2 foc) {
 	float rs = res.x / res.y;
 	float ri = img.x / img.y;
 	vec2 s = rs > ri ? vec2(1.0, ri / rs) : vec2(rs / ri, 1.0);
-	return (uv - 0.5) * s + 0.5;
+	return uv * s + (1.0 - s) * foc;
 }
 
 float hash(vec2 q) { return fract(sin(dot(q, vec2(127.1, 311.7))) * 43758.5453); }
@@ -92,7 +94,6 @@ float fbm(vec2 q) {
 void main() {
 	vec2 uv = vUv;
 	float n = fbm(uv * vec2(3.0, 5.0) + vec2(time * 0.04, -time * 0.03));
-	vec2 amb = vec2(n - 0.5, fbm(uv * 2.5 + vec2(4.2, 1.7) + time * 0.035) - 0.5) * 0.016 * fx;
 	vec2 dg = vec2(-drag * 0.14, (n - 0.5) * abs(drag) * 0.12) * fx;
 	float w = 0.38;
 	float s = (dir > 0.0 ? 1.0 - uv.x : uv.x) + (n - 0.5) * w * 0.9 + w * 0.45;
@@ -102,18 +103,14 @@ void main() {
 	float band = 1.0 - abs(wipe * 2.0 - 1.0);
 	vec2 push = vec2(dir, 0.0);
 	vec2 warp = vec2((n - 0.5) * 0.06, (n - 0.5) * 0.14) * band * fx;
-	vec3 a = texture2D(t0, cover(uv + push * p * 0.22 * fx + warp + amb + dg, img0)).rgb;
-	vec3 b = texture2D(t1, cover(uv - push * (1.0 - p) * 0.22 * fx - warp + amb, img1)).rgb;
+	vec3 a = texture2D(t0, cover(uv + push * p * 0.22 * fx + warp + dg, img0, foc0)).rgb;
+	vec3 b = texture2D(t1, cover(uv - push * (1.0 - p) * 0.22 * fx - warp, img1, foc1)).rgb;
 	vec3 col = mix(a, b, m);
 	col += vec3(1.0, 0.62, 0.38) * pow(band, 4.0) * 0.22 * fx * step(0.001, p);
 	gl_FragColor = vec4(col, 1.0);
 }
 `;
 
-/** Ambient drift is throttled to this; an active transition or drag draws every frame instead. */
-const AMBIENT_FRAME_MS = 32;
-/** Ambient drift rests after this long without a touch; any interaction wakes it again. */
-const IDLE_MS = 10_000;
 /** Used only where a real per-member color cannot matter (see the `draw()` cache-hit note). */
 const FALLBACK_COLOR: [number, number, number] = [42, 15, 6];
 
@@ -171,6 +168,8 @@ export interface HeroGLHandle {
 	): void;
 	/** A drag in progress, as a fraction of the viewport width. */
 	drag(fraction: number): void;
+	/** Where in a photo the cover crop is anchored: percent, as the CSS cover layer's own focal point. */
+	setFocal(url: string, xPercent: number, yPercent: number): void;
 	/** Starts loading a photo ahead of time, so the wipe to it has real pixels to draw. */
 	preload(url: string, fallbackColor: [number, number, number]): void;
 	/** Whether this photo is a real texture, not the placeholder color. */
@@ -250,7 +249,9 @@ export function createHeroGL(
 		'fx',
 		'res',
 		'img0',
-		'img1'
+		'img1',
+		'foc0',
+		'foc1'
 	] as const;
 	const u = Object.fromEntries(
 		uniformNames.map((name) => [name, context.getUniformLocation(program, name)])
@@ -281,6 +282,10 @@ export function createHeroGL(
 
 	let painted = false;
 	const awaitingFirstFrame: Array<{ url: string; via: string }> = [];
+
+	/** Each photo's focal point (0..1, y from the top, as CSS `background-position`), default centre. */
+	const focals = new Map<string, [number, number]>();
+	const focalOf = (url: string): [number, number] => focals.get(url) ?? [0.5, 0.5];
 
 	const textures = new Map<string, Texture>();
 	/**
@@ -397,10 +402,8 @@ export function createHeroGL(
 	let transition: { start: number; duration: number; dragFrom: number } | null = null;
 	let release: { start: number; duration: number; from: number } | null = null;
 	let dirty = true;
-	let lastDrawAt = 0;
 	let live = true;
 	let contextLost = false;
-	let touchedAt = performance.now();
 	let raf = 0;
 	const startedAt = performance.now();
 
@@ -436,6 +439,11 @@ export function createHeroGL(
 		context.uniform2f(u.res, width, height);
 		context.uniform2f(u.img0, currentTex.width, currentTex.height);
 		context.uniform2f(u.img1, nextTex.width, nextTex.height);
+		// The shader's y runs up, CSS's runs down.
+		const [f0x, f0y] = focalOf(current);
+		const [f1x, f1y] = focalOf(transition ? next : current);
+		context.uniform2f(u.foc0, f0x, 1 - f0y);
+		context.uniform2f(u.foc1, f1x, 1 - f1y);
 		context.drawArrays(context.TRIANGLE_STRIP, 0, 4);
 		if (!painted) {
 			painted = true;
@@ -443,7 +451,6 @@ export function createHeroGL(
 			for (const { url, via } of awaitingFirstFrame.splice(0)) options.onTexture?.(url, true, via);
 		}
 		dirty = false;
-		lastDrawAt = now;
 	}
 
 	function frame(now: number): void {
@@ -475,17 +482,13 @@ export function createHeroGL(
 		}
 
 		const busy = transition !== null || release !== null;
-		const reduced = effectStrength() === 0;
-		if (busy || dirty || (!reduced && now - lastDrawAt >= AMBIENT_FRAME_MS)) {
-			draw(progress, dragForDraw, now);
-		}
-		if (busy || (!reduced && now - touchedAt < IDLE_MS)) {
-			raf = requestAnimationFrame(frame);
-		}
+		// Only while something is actually moving, or a frame is owed. At rest the canvas draws
+		// nothing and costs nothing: it is for swiping between members, not for idling.
+		if (busy || dirty) draw(progress, dragForDraw, now);
+		if (busy) raf = requestAnimationFrame(frame);
 	}
 
 	function kick(): void {
-		touchedAt = performance.now();
 		if (!raf && isLive()) raf = requestAnimationFrame(frame);
 	}
 
@@ -525,6 +528,10 @@ export function createHeroGL(
 				dragFrom: fromDragFraction
 			};
 			kick();
+		},
+		setFocal(url, xPercent, yPercent) {
+			focals.set(url, [xPercent / 100, yPercent / 100]);
+			dirty = true;
 		},
 		preload(url, fallbackColor) {
 			if (!contextLost) loadTexture(url, fallbackColor);

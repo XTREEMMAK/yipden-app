@@ -205,6 +205,11 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- Discover's WebGL canvas no longer starts during a screen change (it waits for the slide to
+  finish), no longer draws at all while at rest (the slow ambient drift is gone; it draws only
+  while dragging or wiping), and crops a photo about the same focal point as the plain cover, so
+  when it takes over from the cover nothing moves.
+
 - Discover's outgoing text now leaves before the next member arrives, as in the prototype: it flies
   out toward the direction of travel (carrying on from where a swipe let go) and fades, then the
   new lines come in one after another. It is hidden from screen readers while it leaves.

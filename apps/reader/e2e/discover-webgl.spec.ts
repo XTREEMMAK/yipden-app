@@ -47,6 +47,15 @@ const PIXEL_JPEG = Buffer.from(
 
 /** A 4x4 solid-color PNG built by hand, so the wipe test has real, readable photo pixels. */
 function solidPng(r: number, g: number, b: number): Buffer {
+	return pixelPng(4, 4, () => [r, g, b]);
+}
+
+/** A PNG built by hand from a per-pixel color function. */
+function pixelPng(
+	width: number,
+	height: number,
+	color: (x: number, y: number) => [number, number, number]
+): Buffer {
 	const crcTable = Array.from({ length: 256 }, (_, n) => {
 		let c = n;
 		for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
@@ -66,12 +75,17 @@ function solidPng(r: number, g: number, b: number): Buffer {
 		return out;
 	};
 	const ihdr = Buffer.alloc(13);
-	ihdr.writeUInt32BE(4, 0);
-	ihdr.writeUInt32BE(4, 4);
+	ihdr.writeUInt32BE(width, 0);
+	ihdr.writeUInt32BE(height, 4);
 	ihdr[8] = 8;
 	ihdr[9] = 2;
-	const row = Buffer.concat([Buffer.from([0]), Buffer.from(Array(4).fill([r, g, b]).flat())]);
-	const raw = Buffer.concat(Array(4).fill(row));
+	const rows: Buffer[] = [];
+	for (let y = 0; y < height; y += 1) {
+		const pixels: number[] = [0];
+		for (let x = 0; x < width; x += 1) pixels.push(...color(x, y));
+		rows.push(Buffer.from(pixels));
+	}
+	const raw = Buffer.concat(rows);
 	return Buffer.concat([
 		Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
 		chunk('IHDR', ihdr),
@@ -470,6 +484,10 @@ test.describe('Returning to Discover', () => {
 				if (canvas?.classList.contains('active') && canvas.dataset.painted !== 'true') {
 					w.bad.push('canvas shown before it painted');
 				}
+				// The canvas belongs to swiping between members, not to the screen change itself.
+				if (document.documentElement.dataset.nav && canvas?.dataset.painted === 'true') {
+					w.bad.push('canvas painted during the screen change');
+				}
 				for (const layer of document.querySelectorAll('.art .layer')) {
 					if (getComputedStyle(layer).animationName !== 'none') w.fades += 1;
 				}
@@ -537,5 +555,48 @@ test.describe('Returning to Discover', () => {
 		);
 		expect(seen.some((o) => o > 0.05 && o < 0.95)).toBe(true);
 		expect(seen[seen.length - 1]).toBe(1);
+	});
+
+	test('the canvas crops a photo about the same focal point as the CSS cover', async ({ page }) => {
+		// A wide two-tone photo, left half red and right half blue, on a tall screen, so the cover
+		// crop shows only a narrow slice of it. With the focal point at the right edge that slice
+		// is entirely blue; cropped about the centre (what the shader used to do) it straddles the
+		// red and blue halves.
+		const cors = { 'access-control-allow-origin': '*' };
+		const ring = {
+			version: '1.0',
+			entries: [{ ...RING.entries[0], id: 'focal-one', thumb_position: { x: 100, y: 50 } }]
+		};
+		await page.route('https://ring.indienodes.us/ring.json', (route) =>
+			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ring) })
+		);
+		await page.route('https://example.com/*.jpg', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'image/png',
+				headers: cors,
+				body: pixelPng(8, 4, (x) => (x < 4 ? [220, 30, 30] : [30, 30, 220]))
+			})
+		);
+		await page.goto('/');
+		await expect.poll(() => canvasIsActive(page), { timeout: 5000 }).toBe(true);
+		await page.waitForTimeout(500);
+		// What is actually on screen, not the canvas's own buffer: at rest the canvas no longer
+		// draws, so its buffer is empty by the time anything reads it back.
+		const shot = await page.screenshot({ clip: { x: 0, y: 380, width: 390, height: 40 } });
+		const edges = await page.evaluate(async (base64) => {
+			const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+			const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+			const canvas = document.createElement('canvas');
+			canvas.width = bitmap.width;
+			canvas.height = bitmap.height;
+			const ctx = canvas.getContext('2d')!;
+			ctx.drawImage(bitmap, 0, 0);
+			const px = (x: number) => Array.from(ctx.getImageData(x, 10, 1, 1).data);
+			const scale = bitmap.width / 390;
+			return { left: px(Math.round(4 * scale)), right: px(Math.round(385 * scale)) };
+		}, shot.toString('base64'));
+		expect(edges.left[2]!).toBeGreaterThan(edges.left[0]! + 25);
+		expect(edges.right[2]!).toBeGreaterThan(edges.right[0]! + 25);
 	});
 });
