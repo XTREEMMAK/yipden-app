@@ -436,6 +436,9 @@ export function createHeroGL(
 			progress = eased;
 			dragForDraw = transition.dragFrom * (1 - eased);
 			if (k >= 1) {
+				options.onDebug?.(
+					`wipe done: ${framesDrawn} frames, fx=${effectStrength()}, dir=${direction}, canvas ${canvas.width}x${canvas.height}`
+				);
 				current = next;
 				transition = null;
 				progress = 0;
