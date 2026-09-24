@@ -366,4 +366,39 @@ test.describe('The player', () => {
 		// No error text anywhere: a failed decode is silent, per the brief.
 		await expect(page.getByText(/error/i)).toHaveCount(0);
 	});
+	test('draws the waveform, and does not mistake wavesurfer aborting its own first load for a failure', async ({
+		page
+	}) => {
+		await seed(page);
+		// A host that allows the page to read its bytes, which decoding needs; the seeded route
+		// above does not, so on its own it would (correctly) fall back to the bar.
+		await page.route('https://lenaofori.com/low-tide.mp3', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'audio/wav',
+				headers: { 'access-control-allow-origin': '*' },
+				body: TRACK
+			})
+		);
+		await page
+			.locator('#pane-everything')
+			.getByRole('button', { name: /Low Tide/ })
+			.click();
+		await expect(page.getByRole('heading', { name: 'Low Tide' })).toBeVisible();
+
+		// wavesurfer renders into a shadow root, so its canvases are not reachable by a plain
+		// selector. It also starts loading the shared element's own source the moment it is
+		// created, then aborts that load when the real one begins; that abort used to hide the
+		// wave and show the plain bar for every track.
+		await expect
+			.poll(() =>
+				page.evaluate(
+					() =>
+						document.querySelector('.wave > div')?.shadowRoot?.querySelectorAll('canvas').length ??
+						0
+				)
+			)
+			.toBeGreaterThan(0);
+		await expect(page.locator('.wave-wrap .bar')).toHaveCount(0);
+	});
 });

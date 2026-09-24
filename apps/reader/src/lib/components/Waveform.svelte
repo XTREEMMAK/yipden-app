@@ -22,6 +22,8 @@
 
 	const WAVE_COLOR = 'rgba(255, 255, 255, 0.36)';
 	const PROGRESS_COLOR = '#ffffff';
+	/** Not white and not the player's orange, so the playhead reads against both the played and unplayed bars. */
+	const CURSOR_COLOR = '#5fe3ff';
 
 	async function loadTrack(mediaUrl: string): Promise<void> {
 		if (!container || currentUrl === mediaUrl) return;
@@ -38,12 +40,18 @@
 			barWidth: 3,
 			barGap: 2,
 			barRadius: 2,
-			cursorWidth: 0,
+			cursorColor: CURSOR_COLOR,
+			cursorWidth: 3,
 			interact: true,
 			normalize: true
 		});
 
-		ws.on('error', () => {
+		ws.on('error', (error) => {
+			// wavesurfer starts loading on its own when handed an element that already has a
+			// source, which is always the case here, and then aborts that load the moment ours
+			// begins. The abort is reported as an error, but it is only the superseded load.
+			if (error instanceof DOMException && error.name === 'AbortError') return;
+			if (import.meta.env.DEV) console.warn('waveform: wavesurfer error', mediaUrl, error);
 			failed = true;
 		});
 
@@ -57,9 +65,11 @@
 				const peaks = ws.exportPeaks({ maxLength: 200 })[0];
 				if (peaks) await player.writePeaks(mediaUrl, peaks, ws.getDuration());
 			}
-		} catch {
+		} catch (error) {
 			// Decoding failed, commonly a CORS refusal from a host that never expected this.
-			// The brief is explicit: no error shown, just the plain bar below.
+			// The brief is explicit: no error shown, just the plain bar below. Development builds
+			// say why in the console, since the reader-facing silence otherwise hides it.
+			if (import.meta.env.DEV) console.warn('waveform: load failed', mediaUrl, error);
 			failed = true;
 		}
 	}
