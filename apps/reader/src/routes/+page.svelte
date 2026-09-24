@@ -39,7 +39,7 @@
 	 */
 	let navFraction = $state(0);
 
-	let section: HTMLElement | undefined;
+	let section = $state<HTMLElement | undefined>(undefined);
 	let heroArt: ReturnType<typeof HeroArt> | undefined;
 
 	/**
