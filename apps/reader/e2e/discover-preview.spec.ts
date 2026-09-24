@@ -63,9 +63,12 @@ async function seed(page: Page) {
 async function showMember(page: Page, creator: string) {
 	const heading = page.getByRole('heading', { level: 1 });
 	for (let i = 0; i < RING.entries.length; i += 1) {
+		// Wait for the name on screen to be a settled one: the outgoing text leaves first, then the
+		// next arrives, so a read mid change can see nothing or the old name.
+		await expect(heading).toHaveCount(1);
+		await page.waitForTimeout(700);
 		if ((await heading.textContent()) === creator) return;
 		await page.getByRole('button', { name: 'Next in the ring' }).click();
-		await page.waitForTimeout(150);
 	}
 	await expect(heading).toHaveText(creator);
 }
@@ -142,6 +145,7 @@ test.describe('Discover previews', () => {
 			expect(box.height, name).toBeGreaterThanOrEqual(44);
 		}
 		await button.click();
+		await page.waitForTimeout(600); // the sheet has finished flying in; measure it at rest
 		const close = (await page.getByRole('button', { name: 'Close preview' }).boundingBox())!;
 		expect(close.width).toBeGreaterThanOrEqual(44);
 		expect(close.height).toBeGreaterThanOrEqual(44);
