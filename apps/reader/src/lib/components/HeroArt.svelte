@@ -68,6 +68,9 @@
 	let glShowing = $derived(glActive && src !== null && drawable.has(src));
 
 	onMount(() => {
+		console.info(
+			`hero: ${loadDataUrlNative ? 'native photo loader' : 'plain Image loader (browser)'} on ${location.origin}`
+		);
 		if (canvas) {
 			gl = createHeroGL(
 				canvas,
