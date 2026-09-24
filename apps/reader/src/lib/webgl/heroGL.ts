@@ -141,7 +141,7 @@ interface Texture {
 export interface HeroGLOptions {
 	/** Called once per photo when it finishes loading, or definitively fails, so the caller can
 	 *  show the CSS layer (which needs no CORS) for any photo the canvas cannot draw. */
-	onTexture?: (url: string, loaded: boolean) => void;
+	onTexture?: (url: string, loaded: boolean, detail?: string) => void;
 	/**
 	 * A loader that can read cross-origin bytes where the browser's own `Image` cannot: on
 	 * Android, the native HTTP client. Resolves to a `data:` URL, which a canvas can always read.
@@ -301,7 +301,13 @@ export function createHeroGL(
 		};
 		textures.set(url, entry);
 
-		const upload = (source: TexImageSource, width: number, height: number, flip: boolean) => {
+		const upload = (
+			source: TexImageSource,
+			width: number,
+			height: number,
+			flip: boolean,
+			via: string
+		) => {
 			context.bindTexture(context.TEXTURE_2D, entry.texture);
 			context.pixelStorei(context.UNPACK_FLIP_Y_WEBGL, flip);
 			context.texImage2D(
@@ -317,22 +323,23 @@ export function createHeroGL(
 			entry.height = height || 1;
 			entry.loaded = true;
 			dirty = true;
-			options.onTexture?.(url, true);
+			options.onTexture?.(url, true, via);
 			kick();
 		};
 
 		const viaImage = (source?: string) => {
+			const via = source ? 'native data url' : 'plain image';
 			const image = new Image();
 			image.crossOrigin = 'anonymous';
 			image.onload = () => {
 				try {
-					upload(image, image.naturalWidth, image.naturalHeight, true);
-				} catch {
+					upload(image, image.naturalWidth, image.naturalHeight, true, via);
+				} catch (error) {
 					// An engine that refuses a cross-origin upload: the CSS layer shows the photo.
-					options.onTexture?.(url, false);
+					options.onTexture?.(url, false, `${via} upload: ${error}`);
 				}
 			};
-			image.onerror = () => options.onTexture?.(url, false);
+			image.onerror = () => options.onTexture?.(url, false, `${via} would not decode or load`);
 			image.src = source ?? url;
 		};
 
@@ -342,6 +349,7 @@ export function createHeroGL(
 				.then((dataUrl) => viaImage(dataUrl))
 				.catch((error) => {
 					console.warn('hero photo: native load failed, trying a plain image', url, error);
+					options.onTexture?.(url, false, `native fetch failed: ${error}`);
 					viaImage();
 				});
 		} else {

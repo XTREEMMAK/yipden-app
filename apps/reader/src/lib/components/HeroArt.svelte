@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { RingFocalPoint } from '@yipden/ring-client';
 	import { onDestroy, onMount } from 'svelte';
+	import { toast } from '$lib/toast.svelte.js';
 	import { player } from '$lib/player.svelte.js';
 	import { prefersReducedMotion } from '$lib/motion.js';
 	import { loadDataUrlNative } from '$lib/platform/image.js';
@@ -77,8 +78,13 @@
 				() => (prefersReducedMotion() ? 0 : 1),
 				() => (glActive = false),
 				{
-					onTexture: (url, loaded) => {
+					onTexture: (url, loaded, detail) => {
 						if (loaded) drawable = new Set(drawable).add(url);
+						// Against the dev server (live reload on a phone) there is no console to
+						// read without USB debugging, so say what happened on screen instead.
+						if (import.meta.env.DEV) {
+							toast.show(`hero ${new URL(url).hostname}: ${loaded ? 'ok' : 'FAIL'} (${detail})`);
+						}
 					},
 					...(loadDataUrlNative ? { loadDataUrl: loadDataUrlNative } : {})
 				}
