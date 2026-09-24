@@ -9,6 +9,7 @@
 	import { toast } from '$lib/toast.svelte.js';
 	import Toast from '$components/Toast.svelte';
 	import HeroArt from '$components/HeroArt.svelte';
+	import RingLoader from '$components/RingLoader.svelte';
 	import PreviewSheet from '$components/PreviewSheet.svelte';
 	import { previewFor } from '$lib/preview.js';
 	import { ringPlayer } from '$lib/ringPlayer.svelte.js';
@@ -307,6 +308,12 @@
 	/>
 	<div class="scrim" aria-hidden="true"></div>
 
+	{#if ring.status === 'loading'}
+		<div class="loading" out:fade={{ duration: prefersReducedMotion() ? 0 : duration.l }}>
+			<RingLoader />
+		</div>
+	{/if}
+
 	<header class="top">
 		<span class="logo">
 			<svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
@@ -414,11 +421,7 @@
 					</div>
 				</div>
 			{/key}
-		{:else if ring.status === 'loading'}
-			<div class="body-inner">
-				<span class="glass-chip">Loading the ring</span>
-			</div>
-		{:else}
+		{:else if ring.status !== 'loading'}
 			<div class="body-inner">
 				<span class="glass-chip">Nothing to show</span>
 				<h1 class="hero-name">The ring is quiet.</h1>
@@ -607,6 +610,13 @@
 	.body > :global(*) {
 		grid-area: 1 / 1;
 		align-self: end;
+	}
+
+	.loading {
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		pointer-events: none;
 	}
 
 	.body-inner {
