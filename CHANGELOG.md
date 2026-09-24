@@ -139,6 +139,9 @@ Every notable change to YipDen, newest first. The format follows
   notification widget rather than leaving it paused.
 - The Today tab is now Feeds, renamed throughout (route, state module, types, ids, UI copy),
   not just in the tab label. See DECISIONS.md.
+- Discover's filter chips are now a single Filter button next to prev/next, opening a bottom
+  sheet that lists every option, rather than a horizontal-scroll chip row competing with the
+  prev/next controls for space right above the tab bar. See DECISIONS.md.
 
 ## [0.0.1] - 2026-09-22
 

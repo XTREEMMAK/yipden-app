@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { swipe } from '$lib/actions/swipe.js';
-	import { flyIn, prefersReducedMotion } from '$lib/motion.js';
-	import { fly } from 'svelte/transition';
+	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
+	import { fade, fly } from 'svelte/transition';
 	import { ring, washColorFor, washFor, type RingFilterKey } from '$lib/ring.svelte.js';
 	import { followRingEntry } from '$lib/follow.js';
 	import { toast } from '$lib/toast.svelte.js';
@@ -38,6 +38,32 @@
 
 	let section: HTMLElement | undefined;
 	let heroArt: ReturnType<typeof HeroArt> | undefined;
+
+	/**
+	 * The filter chips used to sit as their own scrollable row above the tab bar, which read as
+	 * cluttered next to the prev/next controls and only gets tighter as the ring's own taxonomy
+	 * grows. A single button opens a sheet listing every option instead, same as the reference
+	 * prototype's own sheets for anything with more than a couple of choices.
+	 */
+	let filterSheetOpen = $state(false);
+	let filterLabel = $derived(ring.chips.find((chip) => chip.key === ring.filter)?.label ?? 'All');
+	let filterButton: HTMLButtonElement | undefined;
+	let filterSheetClose = $state<HTMLButtonElement | undefined>(undefined);
+
+	$effect(() => {
+		if (filterSheetOpen) filterSheetClose?.focus();
+	});
+
+	function closeFilterSheet() {
+		filterSheetOpen = false;
+		filterButton?.focus();
+	}
+
+	function chooseFilter(key: RingFilterKey) {
+		navDirection = 0;
+		ring.setFilter(key);
+		closeFilterSheet();
+	}
 
 	onMount(() => {
 		void ring.load();
@@ -137,6 +163,12 @@
 </script>
 
 <svelte:head><title>Discover</title></svelte:head>
+
+<svelte:window
+	onkeydown={(event) => {
+		if (filterSheetOpen && event.key === 'Escape') closeFilterSheet();
+	}}
+/>
 
 <section
 	class="discover"
@@ -287,27 +319,75 @@
 				<button class="round" onclick={goNext} aria-label="Next in the ring">
 					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
 				</button>
-			</span>
-		</div>
-
-		<div class="chips" data-noswipe role="group" aria-label="Filter the ring">
-			{#each ring.chips as chip (chip.key)}
 				<button
-					class="chip"
-					aria-pressed={ring.filter === chip.key}
-					onclick={() => {
-						navDirection = 0;
-						ring.setFilter(chip.key as RingFilterKey);
-					}}
+					bind:this={filterButton}
+					class="round"
+					class:is-active={ring.filter !== 'all'}
+					data-noswipe
+					onclick={() => (filterSheetOpen = true)}
+					aria-haspopup="dialog"
+					aria-expanded={filterSheetOpen}
+					aria-label={ring.filter === 'all' ? 'Filter the ring' : `Filter the ring: ${filterLabel}`}
 				>
-					{chip.label}
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M4 5h16M7 12h10M10 19h4" />
+					</svg>
+					{#if ring.filter !== 'all'}
+						<span class="filter-dot" aria-hidden="true"></span>
+					{/if}
 				</button>
-			{/each}
+			</span>
 		</div>
 	</div>
 
 	<Toast />
 </section>
+
+{#if filterSheetOpen}
+	<button
+		type="button"
+		class="sheet-backdrop"
+		data-noswipe
+		tabindex="-1"
+		aria-label="Close"
+		onclick={closeFilterSheet}
+		transition:fade={{ duration: prefersReducedMotion() ? 0 : duration.s }}
+	></button>
+	<div
+		class="filter-sheet"
+		data-noswipe
+		role="dialog"
+		aria-modal="true"
+		aria-label="Filter the ring"
+		in:fly={flyIn({ y: 40 })}
+		out:fly={flyIn({ y: 40 })}
+	>
+		<div class="sheet-head">
+			<h2>Filter the ring</h2>
+			<button
+				bind:this={filterSheetClose}
+				class="sheet-close"
+				onclick={closeFilterSheet}
+				aria-label="Close"
+			>
+				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+			</button>
+		</div>
+		<div class="sheet-list" role="radiogroup" aria-label="Filter the ring">
+			{#each ring.chips as chip (chip.key)}
+				<button
+					class="sheet-row"
+					role="radio"
+					aria-checked={ring.filter === chip.key}
+					onclick={() => chooseFilter(chip.key as RingFilterKey)}
+				>
+					<span class="sheet-dot" aria-hidden="true"></span>
+					{chip.label}
+				</button>
+			{/each}
+		</div>
+	</div>
+{/if}
 
 <style>
 	.discover {
@@ -349,6 +429,7 @@
 	}
 
 	.round {
+		position: relative;
 		display: grid;
 		place-items: center;
 		width: 44px;
@@ -523,35 +604,120 @@
 		gap: 8px;
 	}
 
-	.chips {
+	.round.is-active {
+		background: var(--brand);
+	}
+
+	.filter-dot {
+		position: absolute;
+		top: 6px;
+		right: 6px;
+		width: 8px;
+		height: 8px;
+		border-radius: 999px;
+		background: #fff;
+		box-shadow: 0 0 0 2px var(--brand);
+	}
+
+	.sheet-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 34;
+		border: 0;
+		padding: 0;
+		background: rgba(15, 6, 2, 0.5);
+		/* A mouse/touch convenience only: the dialog's own Close button and Escape are the
+		   real keyboard path, so this stays out of tab order. */
+		cursor: default;
+	}
+
+	.filter-sheet {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 35;
 		display: flex;
-		gap: 8px;
-		padding: 0 20px 12px;
-		overflow-x: auto;
-		scrollbar-width: none;
-		/* The chip row scrolls sideways, so it keeps its own gesture. */
-		touch-action: pan-x;
+		flex-direction: column;
+		gap: 4px;
+		max-height: 70vh;
+		padding: 18px 8px calc(20px + env(safe-area-inset-bottom, 0px));
+		border-radius: 24px 24px 0 0;
+		background: var(--ground);
+		color: var(--ink);
+		box-shadow: 0 -12px 30px -10px rgba(0, 0, 0, 0.3);
+		overflow-y: auto;
 	}
 
-	.chips::-webkit-scrollbar {
-		display: none;
+	.sheet-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0 12px 10px;
 	}
 
-	.chip {
-		flex: 0 0 auto;
-		height: 40px;
-		padding: 0 16px;
+	.sheet-head h2 {
+		margin: 0;
+		font-size: 17px;
+		font-weight: 650;
+	}
+
+	.sheet-close {
+		display: grid;
+		place-items: center;
+		/* 44px, not a smaller icon-button size: the brief's touch target minimum applies here too. */
+		width: 44px;
+		height: 44px;
 		border: 0;
 		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.14);
-		color: #fff;
-		font-family: var(--body);
-		font-size: 14px;
-		font-weight: 500;
-		transition: background var(--dur-s) var(--ease);
+		background: var(--surface);
+		color: var(--ink);
 	}
 
-	.chip[aria-pressed='true'] {
+	.sheet-close svg {
+		width: 18px;
+		height: 18px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+	}
+
+	.sheet-list {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.sheet-row {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		height: 48px;
+		padding: 0 16px;
+		border: 0;
+		border-radius: 12px;
+		background: none;
+		color: var(--ink);
+		font-family: var(--body);
+		font-size: 15px;
+		font-weight: 500;
+		text-align: left;
+	}
+
+	.sheet-row[aria-checked='true'] {
+		color: var(--brand);
+		font-weight: 650;
+	}
+
+	.sheet-dot {
+		width: 10px;
+		height: 10px;
+		border-radius: 999px;
+		border: 2px solid var(--muted);
+	}
+
+	.sheet-row[aria-checked='true'] .sheet-dot {
+		border-color: var(--brand);
 		background: var(--brand);
 	}
 </style>

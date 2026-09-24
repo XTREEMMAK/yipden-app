@@ -110,20 +110,26 @@ test.describe('Discover', () => {
 		await expect(heading).toHaveText(first ?? '');
 	});
 
+	/** Opens the filter sheet and picks one option, same as a reader tapping the Filter button. */
+	async function chooseFilter(page: Page, label: string) {
+		await page.getByRole('button', { name: /^Filter the ring/ }).click();
+		await page.getByRole('radio', { name: label, exact: true }).click();
+	}
+
 	test('filters the ring with the chips', async ({ page }) => {
 		await page.goto('/');
 
-		await page.getByRole('button', { name: 'Comics', exact: true }).click();
+		await chooseFilter(page, 'Comics');
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Bo Quill');
-		await expect(page.getByRole('button', { name: 'Comics', exact: true })).toHaveAttribute(
-			'aria-pressed',
-			'true'
+		await expect(page.getByRole('button', { name: /^Filter the ring/ })).toHaveAttribute(
+			'aria-label',
+			'Filter the ring: Comics'
 		);
 	});
 
 	test('shows where a member publishes, from the feeds the ring gave', async ({ page }) => {
 		await page.goto('/');
-		await page.getByRole('button', { name: 'Music', exact: true }).click();
+		await chooseFilter(page, 'Music');
 
 		await expect(page.getByText('Blog', { exact: true })).toBeVisible();
 		await expect(page.getByText('Bluesky', { exact: true })).toBeVisible();
@@ -131,7 +137,7 @@ test.describe('Discover', () => {
 
 	test('follows a member and says so, then stays followed', async ({ page }) => {
 		await page.goto('/');
-		await page.getByRole('button', { name: 'Music', exact: true }).click();
+		await chooseFilter(page, 'Music');
 		await page.getByRole('button', { name: /Follow everything/ }).click();
 
 		await expect(page.getByRole('status')).toContainText('Following Ada Reed in 2 places');
@@ -141,17 +147,42 @@ test.describe('Discover', () => {
 		);
 
 		await page.reload();
-		await page.getByRole('button', { name: 'Music', exact: true }).click();
+		await chooseFilter(page, 'Music');
 		await expect(page.getByRole('button', { name: /Following/ })).toHaveAttribute(
 			'aria-pressed',
 			'true'
 		);
 	});
 
+	test('the filter sheet closes on Escape, on a backdrop tap, and returns focus to the trigger', async ({
+		page
+	}) => {
+		await page.goto('/');
+		const trigger = page.getByRole('button', { name: /^Filter the ring/ });
+		const sheet = page.getByRole('dialog', { name: 'Filter the ring' });
+
+		await trigger.click();
+		await expect(sheet).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(sheet).not.toBeVisible();
+		await expect(trigger).toBeFocused();
+
+		await trigger.click();
+		await expect(sheet).toBeVisible();
+		// The backdrop, not the sheet or one of its rows: a tap outside the sheet dismisses it.
+		await page.mouse.click(10, 10);
+		await expect(sheet).not.toBeVisible();
+	});
+
 	test('every control clears the 44px minimum', async ({ page }) => {
 		await page.goto('/');
 
-		for (const name of ['Shuffle the ring', 'Next in the ring', 'Previous in the ring']) {
+		for (const name of [
+			'Shuffle the ring',
+			'Next in the ring',
+			'Previous in the ring',
+			'Filter the ring'
+		]) {
 			const box = await page.getByRole('button', { name }).boundingBox();
 			expect(box?.width ?? 0, name).toBeGreaterThanOrEqual(44);
 			expect(box?.height ?? 0, name).toBeGreaterThanOrEqual(44);

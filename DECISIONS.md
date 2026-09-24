@@ -781,3 +781,30 @@ which is what "full width" needed to mean once the row is wider than the sum of 
 At and above it, both revert to their original content-sized behavior, just centered
 (`align-self: center`) rather than left-hugging, so a tablet gets a normal, comfortably sized
 filter rather than four stretched, oversized tab buttons.
+
+## 2026-09-23: Discover's filter chips became a Filter button and sheet
+
+The reference prototype's `.chips` row (a horizontal-scroll strip of pills above the tab bar,
+shared visually with Feeds' pill row before that one changed too) was a bounded taxonomy: the
+ring maps onto at most seven fixed categories, and `ring.chips` already drops any that would
+show nothing. Growth was never going to make the row literally overflow. The real complaint was
+placement: squeezed into `.bottom` alongside the position counter and prev/next, it competed
+for the same cramped strip of space right above the tab bar, and would only feel tighter if the
+app's own taxonomy grows later.
+
+**Replaced with a single icon button next to prev/next that opens a bottom sheet**, discussed
+with three concrete options before writing any code (the other two: move the same scrolling row
+higher up the screen; leave the placement and only polish it visually). The button carries a
+small dot badge whenever a filter other than "All" is active, and its own accessible name
+includes the active filter's label, so the state is legible without opening the sheet. The
+sheet lists every option as a full-width row (`role="radio"` inside `role="radiogroup"`,
+matching a single-select semantic more precisely than the old chip row's individual
+`aria-pressed` buttons did) and closes on selecting one, on Escape, or on a backdrop tap;
+closing returns focus to the trigger button rather than dropping it. No existing sheet or
+dialog primitive was in this codebase to build on (the full player is a persistent,
+always-mounted overlay for a different reason: it must never lose waveform decode state, which
+a transient filter sheet has no equivalent need for), so this one is built directly in
+`+page.svelte` rather than forcing a shared abstraction into existence for its first two users.
+
+`discover.spec.ts`'s filter tests now open the sheet before picking an option; a new test
+covers the sheet's own open/close/focus-return behavior specifically.
