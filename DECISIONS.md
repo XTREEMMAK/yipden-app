@@ -1108,3 +1108,14 @@ may follow within 600ms so one tap is one history entry (tested). Keyboard activ
 through `click`, and modified clicks (open in a new tab) are left to the browser. Worth knowing:
 other controls that a reader might tap right after a swipe are still on `click`; only the tab bar
 has this treatment so far. Verified on real emulated touch in Chromium, not on a device.
+
+Follow up on the blink: the reported "cover size adjust" was a real size difference. `.art` is
+`inset: -2%` (oversized so a focal point near an edge still fills the frame) while `canvas.gl` was
+`inset: 0`, so when the canvas took over from the CSS cover the photo changed scale by about 4%
+(7.8px per side at 390 wide, which the new test measures against the old CSS). The canvas now has
+the cover's exact box (explicit size, since inset does not stretch a canvas) and its hand off is a
+short opacity fade over a cover that stays put underneath, replacing the old `visibility: hidden`
+swap. **Not matched: the focal point.** The CSS cover honours a member's `thumb_position` and the
+shader always centers, so a member with an off-center focal point will still shift slightly during
+that fade. Fixing it means passing each texture's focal into the shader's `cover()`; it was left
+because the fade turns it from a pop into a drift, and it can be done if it is noticed.

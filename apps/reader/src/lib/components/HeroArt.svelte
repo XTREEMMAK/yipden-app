@@ -169,7 +169,7 @@
 	}
 </script>
 
-<div class="art" class:gl-showing={glShowing} style:background-image={wash} aria-hidden="true">
+<div class="art" style:background-image={wash} aria-hidden="true">
 	{#each layers as layer (layer.id)}
 		<div
 			class="layer"
@@ -190,10 +190,6 @@
 		background-position: center;
 	}
 
-	.art.gl-showing {
-		visibility: hidden;
-	}
-
 	.layer {
 		position: absolute;
 		inset: 0;
@@ -205,15 +201,24 @@
 		animation: hero-in var(--dur-xl) var(--ease) both;
 	}
 
+	/*
+	 * Exactly the box of `.art`, oversize included. They were different sizes (the cover 2% past
+	 * every edge, the canvas flush with the screen), so the hand off from one to the other jumped in
+	 * scale. A canvas is a replaced element, so `inset` alone would not stretch it: explicit size.
+	 */
 	.gl {
 		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
+		left: -2%;
+		top: -2%;
+		width: 104%;
+		height: 104%;
 		/* Laid out from the start (so it has a size to draw at) but invisible until it holds the
 		   photo: swapping display:none for block showed an unpainted canvas for a frame. */
 		opacity: 0;
 		pointer-events: none;
+		/* The hand off from the CSS cover fades in rather than swapping, so any last difference
+		   between the two (a focal point, a pixel of rounding) is eased, not popped. */
+		transition: opacity var(--dur-m) var(--ease);
 	}
 
 	.gl.active {

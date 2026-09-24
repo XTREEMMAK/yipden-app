@@ -251,7 +251,6 @@ test.describe('Discover WebGL hero', () => {
 		await page.waitForTimeout(300);
 
 		expect(await canvasIsActive(page)).toBe(false);
-		await expect(page.locator('.art')).not.toHaveClass(/gl-showing/);
 
 		await page.getByRole('button', { name: 'Next in the ring' }).click();
 		await expect(heading).not.toHaveText(first ?? '');
@@ -305,7 +304,6 @@ test.describe('Discover WebGL hero', () => {
 
 		expect(await canvasIsActive(page)).toBe(false);
 		await expect(page.locator('.art')).toBeVisible();
-		await expect(page.locator('.art')).not.toHaveClass(/gl-showing/);
 		expect(errors).toEqual([]);
 	});
 
@@ -490,5 +488,54 @@ test.describe('Returning to Discover', () => {
 		});
 		expect(seen.bad).toEqual([]);
 		expect(seen.fades).toBe(0);
+	});
+
+	test('the canvas is exactly the size of the cover, and takes over by fading in', async ({
+		page
+	}) => {
+		const cors = { 'access-control-allow-origin': '*' };
+		await page.route('https://ring.indienodes.us/ring.json', (route) =>
+			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RING) })
+		);
+		await page.route('https://example.com/*.jpg', async (route) => {
+			await new Promise((resolve) => setTimeout(resolve, 300));
+			await route.fulfill({
+				status: 200,
+				contentType: 'image/png',
+				headers: cors,
+				body: solidPng(200, 40, 40)
+			});
+		});
+		await page.goto('/');
+		await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+		await page.evaluate(() => {
+			const w = window as unknown as { opacities: number[] };
+			w.opacities = [];
+			const look = () => {
+				const canvas = document.querySelector('canvas.gl');
+				if (canvas) w.opacities.push(Number(getComputedStyle(canvas).opacity));
+				requestAnimationFrame(look);
+			};
+			look();
+		});
+		await expect.poll(() => canvasIsActive(page), { timeout: 5000 }).toBe(true);
+		await page.waitForTimeout(600);
+
+		// Same box: a difference of size is what made the cover jump when the canvas took over.
+		const boxes = await page.evaluate(() => {
+			const r = (selector: string) => {
+				const b = document.querySelector(selector)!.getBoundingClientRect();
+				return [b.x, b.y, b.width, b.height];
+			};
+			return { art: r('.art'), canvas: r('canvas.gl') };
+		});
+		for (let i = 0; i < 4; i += 1) expect(boxes.canvas[i]!).toBeCloseTo(boxes.art[i]!, 0);
+
+		// And it arrived through intermediate opacities, not from 0 to 1 in one frame.
+		const seen = await page.evaluate(
+			() => (window as unknown as { opacities: number[] }).opacities
+		);
+		expect(seen.some((o) => o > 0.05 && o < 0.95)).toBe(true);
+		expect(seen[seen.length - 1]).toBe(1);
 	});
 });

@@ -96,6 +96,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- Returning to Discover still showed the cover jumping in size. The CSS cover is drawn 2% past
+  every screen edge and the WebGL canvas was flush with the screen, so the hand off between them
+  changed the picture's scale. The canvas is now the same box as the cover and fades in over it.
+
 - After swiping to a new member on Discover, tapping another tab soon afterwards could do nothing
   until Discover and the tab were tried again. The browser did not always make a click out of a
   tap that closely followed a swipe. The tab bar now navigates on the lift itself for a pointer
