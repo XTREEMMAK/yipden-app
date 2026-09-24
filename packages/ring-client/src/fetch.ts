@@ -67,6 +67,26 @@ async function readCache(cache: RingCache | undefined): Promise<RingCacheRecord 
 }
 
 /**
+ * The last good copy alone, with no network: what a screen can draw the instant it opens, while
+ * `fetchRing` checks whether anything changed. Null when nothing has ever been saved.
+ */
+export async function cachedRing(
+	cache: RingCache,
+	options: ValidateOptions = {}
+): Promise<FetchRingResult | null> {
+	const cached = await readCache(cache);
+	if (!cached) return null;
+	const checked = validate(cached.document, options);
+	return {
+		document: checked.document,
+		source: 'cache',
+		dropped: checked.dropped,
+		repaired: checked.repaired,
+		fetchedAt: cached.fetchedAt
+	};
+}
+
+/**
  * Fetch ring.json, conditionally, and never leave the reader with nothing.
  *
  * The three outcomes that matter on a phone: the ring changed and we parse it, the ring did

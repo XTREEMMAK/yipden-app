@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { onNavigate } from '$app/navigation';
+	import { App } from '@capacitor/app';
 	import { onMount } from 'svelte';
 	import MiniPlayer from '$components/MiniPlayer.svelte';
 	import Player from '$components/Player.svelte';
 	import TabBar from '$components/TabBar.svelte';
 	import { directionBetween } from '$lib/navigation.js';
 	import { player } from '$lib/player.svelte.js';
+	import { ring } from '$lib/ring.svelte.js';
 	import { ringPlayer, type RingQueueRecord } from '$lib/ringPlayer.svelte.js';
 	import { store } from '$lib/store/index.js';
 	import { prefs } from '$lib/prefs.svelte.js';
@@ -18,7 +20,25 @@
 		theme.hydrate();
 		void prefs.hydrate();
 		void restoreRingQueue();
+		return watchResume();
 	});
+
+	/**
+	 * Coming back to the app asks the ring whether anything changed, once it has been a while.
+	 * The ring on screen stays put meanwhile; `ring.load` does nothing inside its freshness
+	 * window, so a quick switch away and back costs no request.
+	 */
+	function watchResume() {
+		const onVisible = () => {
+			if (document.visibilityState === 'visible' && ring.all.length) void ring.load();
+		};
+		document.addEventListener('visibilitychange', onVisible);
+		const native = App.addListener('resume', onVisible).catch(() => null);
+		return () => {
+			document.removeEventListener('visibilitychange', onVisible);
+			void native.then((handle) => handle?.remove());
+		};
+	}
 
 	/**
 	 * A continuous-play ring session survives closing the app, unlike an ordinary Listen queue:

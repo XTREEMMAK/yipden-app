@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import live from './fixtures/ring-live.json' with { type: 'json' };
-import { fetchRing, memoryCache, type FetchLike, type RingCacheRecord } from '../src/fetch.js';
+import {
+	cachedRing,
+	fetchRing,
+	memoryCache,
+	type FetchLike,
+	type RingCacheRecord
+} from '../src/fetch.js';
 import { validate } from '../src/validate.js';
 
 function response(
@@ -141,5 +147,18 @@ describe('fetchRing', () => {
 			fetch: async () => response(200, liveBody)
 		});
 		expect(result.source).toBe('network');
+	});
+});
+
+describe('cachedRing', () => {
+	it('returns the saved copy without any network', async () => {
+		const result = await cachedRing(memoryCache(cachedRecord()));
+		expect(result?.source).toBe('cache');
+		expect(result?.fetchedAt).toBe('2026-09-22T17:40:00.000Z');
+		expect(result?.document.entries).toHaveLength(live.entries.length);
+	});
+
+	it('is null when nothing was ever saved', async () => {
+		expect(await cachedRing(memoryCache())).toBeNull();
 	});
 });

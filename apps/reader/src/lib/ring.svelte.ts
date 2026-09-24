@@ -1,4 +1,5 @@
 import {
+	cachedRing,
 	fetchRing,
 	filterRing,
 	heroImage,
@@ -8,6 +9,7 @@ import {
 	prev as prevInRing,
 	shuffle,
 	typeFacets,
+	type FetchRingResult,
 	type RingEntry,
 	type RingSource
 } from '@yipden/ring-client';
@@ -34,6 +36,9 @@ export const RING_FILTERS = [
 ] as const;
 
 export type RingFilterKey = (typeof RING_FILTERS)[number]['key'];
+
+/** How long a checked ring is trusted before Discover asks again. */
+export const RING_FRESH_MS = 15 * 60 * 1000;
 
 class RingState {
 	/** Every discoverable member, in the order every client agrees on. */
@@ -85,14 +90,35 @@ class RingState {
 		return RING_FILTERS.filter((chip) => chip.key === 'all' || (counts.get(chip.type) ?? 0) > 0);
 	});
 
+	/** When the network last answered, or the ring was last confirmed current. Not persisted. */
+	private checkedAt = 0;
+	private inFlight: Promise<void> | null = null;
+
 	/**
-	 * Load the ring, from the network when it can and from the last good copy when it cannot.
+	 * Load the ring: the saved copy first, then a check of the network in the background.
 	 *
-	 * Discover must render offline, so nothing here throws: a failed fetch leaves the cached
-	 * ring on screen and records why, and an empty ring is a state the screen can draw.
+	 * Discover must render at once and offline, so nothing here throws and nothing waits on the
+	 * network before drawing what it already has. A ring checked within `RING_FRESH_MS` is not
+	 * asked about again (opening Discover, or coming back to the app, is not a reason to spend
+	 * a request), and a check that finds nothing changed leaves the screen exactly as it was.
 	 */
-	async load(): Promise<void> {
+	load(force = false): Promise<void> {
+		this.inFlight ??= this.run(force).finally(() => (this.inFlight = null));
+		return this.inFlight;
+	}
+
+	private async run(force: boolean): Promise<void> {
 		await store.init();
+
+		if (!this.all.length) {
+			const saved = await cachedRing({ read: () => store.readRing(), write: () => {} });
+			if (saved) this.apply(saved);
+		}
+
+		if (!force && this.all.length && Date.now() - this.checkedAt < RING_FRESH_MS) {
+			await this.refreshFollowing();
+			return;
+		}
 
 		const result = await fetchRing({
 			fetch: httpFetch,
@@ -102,21 +128,49 @@ class RingState {
 			}
 		});
 
-		this.all = result.document.entries.filter(
+		if (result.source === 'network') {
+			this.apply(result);
+		} else if (result.source === 'empty') {
+			this.status = this.all.length ? this.status : 'empty';
+		} else if (result.source === 'not-modified') {
+			this.status = 'not-modified';
+		}
+		this.error = result.error?.message ?? null;
+		// A failed check is not recorded, so the next visit or resume tries again.
+		if (!result.error) this.checkedAt = Date.now();
+
+		await this.refreshFollowing();
+	}
+
+	/**
+	 * Take a ring document onto the screen. The first one opens on the member every client sees
+	 * today; a later one keeps the reader's order and place, adding new members at the end and
+	 * dropping any that left, so a background update never moves what they are looking at.
+	 */
+	private apply(result: FetchRingResult): void {
+		const entries = result.document.entries.filter(
 			(entry) => entry.discoverable !== false && entry._placeholder !== true
 		);
 		this.status = result.source;
-		this.error = result.error?.message ?? null;
 		this.fetchedAt = result.fetchedAt;
 
-		// Open on the member every client sees today, then let the reader walk from there.
-		const today = nodeOfTheDay(this.all);
-		if (today) {
-			const at = this.all.findIndex((entry) => entry.id === today.id);
-			this.all = at > 0 ? [...this.all.slice(at), ...this.all.slice(0, at)] : this.all;
+		if (!this.all.length) {
+			const today = nodeOfTheDay(entries);
+			const at = today ? entries.findIndex((entry) => entry.id === today.id) : 0;
+			this.all = at > 0 ? [...entries.slice(at), ...entries.slice(0, at)] : entries;
+			return;
 		}
 
-		await this.refreshFollowing();
+		const currentId = this.current?.id;
+		const fresh = new Map(entries.map((entry) => [entry.id, entry]));
+		const kept = this.all.flatMap((entry) => fresh.get(entry.id) ?? []);
+		const known = new Set(this.all.map((entry) => entry.id));
+		this.all = [...kept, ...entries.filter((entry) => !known.has(entry.id))];
+		if (this.shuffled) {
+			this.shuffledOrder = this.shuffledOrder.flatMap((entry) => fresh.get(entry.id) ?? []);
+		}
+		const at = this.visible.findIndex((entry) => entry.id === currentId);
+		this.index = at >= 0 ? at : 0;
 	}
 
 	async refreshFollowing(): Promise<void> {
