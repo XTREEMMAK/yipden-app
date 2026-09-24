@@ -261,12 +261,32 @@
 		position: relative;
 		display: flex;
 		gap: 2px;
-		align-self: flex-start;
+		/*
+		 * Stretched to the header's full width on a phone, same as the reference prototype's own
+		 * fixed mobile frame reads: each pill splits that width evenly (see `.pill`'s `flex: 1`)
+		 * rather than the row hugging its own content and leaving the rest of the header empty.
+		 * A wide viewport gets the opposite problem instead, one the prototype's own fixed frame
+		 * never had to solve: stretched that wide, four pills of equal width look like an
+		 * oversized nav bar rather than a filter. Past 600px (roughly where a phone's portrait
+		 * width ends and a small tablet's begins) the row goes back to its natural, content-sized
+		 * width, just centered rather than left-hugging.
+		 */
+		align-self: stretch;
 		max-width: 100%;
 		padding: 4px;
 		border: 1px solid var(--line);
 		border-radius: 999px;
 		background: var(--surface);
+	}
+
+	@media (min-width: 600px) {
+		.pills {
+			align-self: center;
+		}
+
+		.pill {
+			flex: none;
+		}
 	}
 
 	.ind {
@@ -286,6 +306,9 @@
 	.pill {
 		position: relative;
 		z-index: 1;
+		/* Splits `.pills`'s stretched width evenly below 600px; reverts to its own label's width
+		   in the tablet media query above, where `.pills` no longer stretches at all. */
+		flex: 1;
 		/*
 		 * 44px, not the reference prototype's 38px: touch target size is one of the brief's
 		 * rules that does not bend, even where the prototype is otherwise authoritative for

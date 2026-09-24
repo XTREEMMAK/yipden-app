@@ -120,6 +120,10 @@ Every notable change to YipDen, newest first. The format follows
   from wherever the live drag preview had already stretched it to, unlike the reference
   prototype. The drag fraction at release is now threaded through to the transition. See
   DECISIONS.md.
+- Feeds' filter pills hugged the left edge of the header on a wide screen, ported unchanged
+  from a prototype CSS rule that never had to answer this question inside its own fixed mobile
+  frame. They now stretch to fill the header's full width on a phone, and center themselves at
+  their natural width past 600px instead. See DECISIONS.md.
 - A latent Android manifest merge conflict (`capacitor-cordova-android-plugins` declares
   `usesCleartextTraffic="true"`, this app declares `"false"`) would fail any genuinely clean
   build or one on CI without a warm Gradle cache; only masked locally because nothing had

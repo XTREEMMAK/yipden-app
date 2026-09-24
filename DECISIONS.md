@@ -763,3 +763,21 @@ the theory), on two different ports, neither reachable from outside regardless. 
 backgrounded `vite dev` by its shell wrapper's PID did not stop the actual Node process holding
 the port; the wrapper and the process it spawned needed killing separately. Worth remembering
 generally, not just for this one incident.
+
+## 2026-09-23: Feeds' filter pills stretch on a phone, then center once there is room to spare
+
+`.pills`' CSS (`align-self: flex-start`) was ported directly from the reference prototype,
+which never had to answer this question: it renders inside a fixed 390px mobile frame, where a
+content-sized row hugging the left edge is indistinguishable from one spanning the width, since
+there is barely any width to spare either way. Run as a real responsive app rather than inside
+that frame, the same CSS on an actual wide screen left the segmented control pinned to the
+left with a large, obviously unbalanced gap of empty header to its right.
+
+Fixed with the first width-based media query in the app (600px, roughly where a phone's
+portrait width ends and a small tablet's begins; nothing existing to reuse here, since every
+other layout in the app so far has been able to stay one width). Below it, `.pills` stretches
+to the header's full width and each `.pill` takes `flex: 1`, splitting that width evenly,
+which is what "full width" needed to mean once the row is wider than the sum of its labels.
+At and above it, both revert to their original content-sized behavior, just centered
+(`align-self: center`) rather than left-hugging, so a tablet gets a normal, comfortably sized
+filter rather than four stretched, oversized tab buttons.
