@@ -279,6 +279,9 @@ export function createHeroGL(
 				});
 	resizeObserver?.observe(canvas);
 
+	let painted = false;
+	const awaitingFirstFrame: Array<{ url: string; via: string }> = [];
+
 	const textures = new Map<string, Texture>();
 	/**
 	 * A 1x1 placeholder in the given color, until the real image lands, or forever if it never
@@ -347,7 +350,12 @@ export function createHeroGL(
 			entry.height = height || 1;
 			entry.loaded = true;
 			dirty = true;
-			options.onTexture?.(url, true, via);
+			// Until the canvas has painted a frame, a photo is not announced as drawable: showing a
+			// canvas that has never been drawn to is a blank frame between the CSS cover leaving and
+			// the canvas arriving. Once it has painted, later photos (the preloaded neighbours) are
+			// announced the moment they load, so a wipe to one can begin at once.
+			if (painted) options.onTexture?.(url, true, via);
+			else awaitingFirstFrame.push({ url, via });
 			kick();
 		};
 
@@ -429,6 +437,11 @@ export function createHeroGL(
 		context.uniform2f(u.img0, currentTex.width, currentTex.height);
 		context.uniform2f(u.img1, nextTex.width, nextTex.height);
 		context.drawArrays(context.TRIANGLE_STRIP, 0, 4);
+		if (!painted) {
+			painted = true;
+			canvas.dataset.painted = 'true';
+			for (const { url, via } of awaitingFirstFrame.splice(0)) options.onTexture?.(url, true, via);
+		}
 		dirty = false;
 		lastDrawAt = now;
 	}

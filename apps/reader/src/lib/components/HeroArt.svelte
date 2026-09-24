@@ -55,7 +55,9 @@
 	}: Props = $props();
 
 	/** The layer currently on top, and the one underneath it fading out. */
-	let layers = $state<Array<{ id: number; src: string | null; focal: RingFocalPoint }>>([]);
+	let layers = $state<
+		Array<{ id: number; src: string | null; focal: RingFocalPoint; fade: boolean }>
+	>([]);
 	let nextId = 0;
 	let lastSrc: string | null | undefined;
 
@@ -138,7 +140,9 @@
 		if (src === lastSrc) return;
 		lastSrc = src;
 
-		layers = [...layers.slice(-1), { id: nextId++, src, focal: position }];
+		// The first cover of a mount appears already in place: fading it in from transparent made the
+		// cover blink every time Discover was returned to. Only a change of member crossfades.
+		layers = [...layers.slice(-1), { id: nextId++, src, focal: position, fade: layers.length > 0 }];
 
 		if (gl && src) {
 			if (direction === 0) gl.set(src, washColor);
@@ -169,6 +173,7 @@
 	{#each layers as layer (layer.id)}
 		<div
 			class="layer"
+			class:fade={layer.fade}
 			style:background-image={layer.src ? `url(${CSS.escape(layer.src)})` : 'none'}
 			style:background-position="{layer.focal.x}% {layer.focal.y}%"
 		></div>
@@ -194,6 +199,9 @@
 		inset: 0;
 		background-size: cover;
 		background-repeat: no-repeat;
+	}
+
+	.layer.fade {
 		animation: hero-in var(--dur-xl) var(--ease) both;
 	}
 
@@ -202,11 +210,14 @@
 		inset: 0;
 		width: 100%;
 		height: 100%;
-		display: none;
+		/* Laid out from the start (so it has a size to draw at) but invisible until it holds the
+		   photo: swapping display:none for block showed an unpainted canvas for a frame. */
+		opacity: 0;
+		pointer-events: none;
 	}
 
 	.gl.active {
-		display: block;
+		opacity: 1;
 	}
 
 	@keyframes hero-in {
@@ -223,7 +234,7 @@
 	 * to change, and a hard cut between two full bleed photographs is more jarring, not less.
 	 */
 	@media (prefers-reduced-motion: reduce) {
-		.layer {
+		.layer.fade {
 			animation-duration: var(--dur-s);
 		}
 	}

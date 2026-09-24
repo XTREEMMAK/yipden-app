@@ -96,6 +96,11 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- Returning to Discover from another screen made the cover blink. Two causes: the cover faded in
+  from transparent every time the screen mounted (now only a change of member crossfades), and the
+  WebGL canvas took over from the CSS cover before it had painted a frame (it is now laid out from
+  the start, invisible, and only shown once it has drawn the photo).
+
 - Tapping a tab felt slow to respond. The tab indicator now starts moving on finger down, before
   the navigation begins (and returns if the finger slides off), all four screens' code is
   preloaded, the hero's draw loop no longer forces a layout on every frame (about 170ms of the

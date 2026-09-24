@@ -1070,3 +1070,23 @@ click and would flash the indicator back). All four screens' code is also preloa
 (most of the profile), which scales with how much that screen renders. The likeliest next step if
 it still feels slow on the device is rendering Feeds' inactive panes lazily; it was not done
 because the test data has no yips, so the saving could not be measured here.
+
+## 2026-09-24: The blink when returning to Discover
+
+Two separate causes, one older and one introduced by the tab tap work above. The cover's CSS layer
+ran its `hero-in` fade every time it mounted, so returning to Discover always faded the cover in
+from transparent; only a change of member should crossfade, so the first layer of a mount now
+appears in place. And deferring WebGL until after the first paint moved the hand off from the CSS
+cover to the canvas to just after the slide, when the canvas (`display: none`, so never drawn to)
+was switched on before it had painted: a blank frame. The canvas is now always laid out, at
+opacity 0, and a photo is announced as drawable only once the canvas has painted a frame
+(`data-painted` marks that); photos preloaded after that are announced when they load, so a wipe
+to a neighbour is unaffected.
+
+Verifying it took some care. Screenshot sampling and a CDP screencast both passed on the old code
+too, because a headless run's first captured frame is already the settled screen and the blink is a
+frame or two. The test instead checks every animation frame from the tap for the two conditions
+directly (a running cover fade, a canvas shown before painting) on a return visit with a slow
+photo host. Its comparison with the old code is weaker than it looks, since the old code has no
+`data-painted` marker at all; the cover fade condition is the part that stands on its own. Not seen
+on a device.

@@ -101,7 +101,7 @@ async function withRing(page: Page, imageHeaders: Record<string, string> = {}) {
 async function canvasIsActive(page: Page): Promise<boolean> {
 	return page.evaluate(() => {
 		const canvas = document.querySelector('canvas.gl');
-		return !!canvas && getComputedStyle(canvas).display !== 'none';
+		return !!canvas && canvas.classList.contains('active');
 	});
 }
 
@@ -433,5 +433,62 @@ test.describe('Discover WebGL hero', () => {
 		expect(prev.right).toBeGreaterThanOrEqual(0);
 		// Previous is the reverse: the left edge leads, back toward the original color.
 		expect(prev.left).toBeLessThanOrEqual(prev.right);
+	});
+});
+
+test.describe('Returning to Discover', () => {
+	test('the cover does not blink: no fade in on arrival, and the canvas is never shown before it has painted', async ({
+		page
+	}) => {
+		const cors = { 'access-control-allow-origin': '*' };
+		await page.route('https://ring.indienodes.us/ring.json', (route) =>
+			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RING) })
+		);
+		// A photo that takes a moment, like a phone's: the hand off from the CSS cover to the canvas
+		// then happens after the screen change, which is when the blink was seen.
+		await page.route('https://example.com/*.jpg', async (route) => {
+			await new Promise((resolve) => setTimeout(resolve, 400));
+			await route.fulfill({
+				status: 200,
+				contentType: 'image/png',
+				headers: cors,
+				body: solidPng(200, 40, 40)
+			});
+		});
+		// A return visit, which is what the blink was seen on: Discover, away to You, and back.
+		await page.goto('/');
+		await expect.poll(() => canvasIsActive(page), { timeout: 5000 }).toBe(true);
+		await page.getByRole('link', { name: 'You', exact: true }).click();
+		await expect(page).toHaveURL(/\/you/);
+		await page.waitForTimeout(800);
+
+		// From the click on, look at every frame for the two things that make a blink.
+		await page.evaluate(() => {
+			const w = window as unknown as { bad: string[]; fades: number };
+			w.bad = [];
+			w.fades = 0;
+			const look = () => {
+				const canvas = document.querySelector('canvas.gl') as HTMLCanvasElement | null;
+				if (canvas?.classList.contains('active') && canvas.dataset.painted !== 'true') {
+					w.bad.push('canvas shown before it painted');
+				}
+				for (const layer of document.querySelectorAll('.art .layer')) {
+					if (getComputedStyle(layer).animationName !== 'none') w.fades += 1;
+				}
+				requestAnimationFrame(look);
+			};
+			look();
+		});
+		await page.getByRole('link', { name: 'Discover', exact: true }).click();
+		await expect(page).toHaveURL(/\/$/);
+		await expect.poll(() => canvasIsActive(page), { timeout: 5000 }).toBe(true);
+		await page.waitForTimeout(500);
+
+		const seen = await page.evaluate(() => {
+			const w = window as unknown as { bad: string[]; fades: number };
+			return { bad: [...new Set(w.bad)], fades: w.fades };
+		});
+		expect(seen.bad).toEqual([]);
+		expect(seen.fades).toBe(0);
 	});
 });
