@@ -41,7 +41,11 @@ void main() {
  * can be almost any aspect ratio, and `cover()` needs the true one to avoid stretching it.
  */
 const FRAGMENT_SHADER = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
 precision mediump float;
+#endif
 varying vec2 vUv;
 uniform sampler2D t0;
 uniform sampler2D t1;
@@ -142,6 +146,8 @@ export interface HeroGLOptions {
 	/** Called once per photo when it finishes loading, or definitively fails, so the caller can
 	 *  show the CSS layer (which needs no CORS) for any photo the canvas cannot draw. */
 	onTexture?: (url: string, loaded: boolean, detail?: string) => void;
+	/** Free-form diagnostics for dev builds: what the GPU offers and what each wipe actually did. */
+	onDebug?: (message: string) => void;
 	/**
 	 * A loader that can read cross-origin bytes where the browser's own `Image` cannot: on
 	 * Android, the native HTTP client. Resolves to a `data:` URL, which a canvas can always read.
@@ -254,6 +260,13 @@ export function createHeroGL(
 	context.uniform1i(u.t0, 0);
 	context.uniform1i(u.t1, 1);
 	context.pixelStorei(context.UNPACK_FLIP_Y_WEBGL, true);
+	if (options.onDebug) {
+		const high = context.getShaderPrecisionFormat(context.FRAGMENT_SHADER, context.HIGH_FLOAT);
+		const medium = context.getShaderPrecisionFormat(context.FRAGMENT_SHADER, context.MEDIUM_FLOAT);
+		options.onDebug(
+			`gl highp=${high?.precision ?? 0}bit medp=${medium?.precision ?? 0}bit fx=${effectStrength()}`
+		);
+	}
 
 	const textures = new Map<string, Texture>();
 	/**
@@ -370,6 +383,7 @@ export function createHeroGL(
 	let contextLost = false;
 	let touchedAt = performance.now();
 	let raf = 0;
+	let framesDrawn = 0;
 	const startedAt = performance.now();
 
 	function isLive(): boolean {
@@ -407,6 +421,7 @@ export function createHeroGL(
 		context.drawArrays(context.TRIANGLE_STRIP, 0, 4);
 		dirty = false;
 		lastDrawAt = now;
+		framesDrawn += 1;
 	}
 
 	function frame(now: number): void {
@@ -479,6 +494,7 @@ export function createHeroGL(
 			release = null;
 			dragAmount = 0;
 			loadTexture(url, fallbackColor);
+			framesDrawn = 0;
 			transition = {
 				start: performance.now(),
 				// The brief's own token for this: "Discover's image transition" gets --dur-xl

@@ -68,6 +68,12 @@
 	let drawable = $state<Set<string>>(new Set());
 	let glShowing = $derived(glActive && src !== null && drawable.has(src));
 
+	const debugLines: string[] = [];
+	function debug(message: string): void {
+		debugLines.push(message);
+		toast.show(`hero: ${debugLines.slice(-3).join(' | ')}`);
+	}
+
 	onMount(() => {
 		console.info(
 			`hero: ${loadDataUrlNative ? 'native photo loader' : 'plain Image loader (browser)'} on ${location.origin}`
@@ -83,8 +89,11 @@
 						// Against the dev server (live reload on a phone) there is no console to
 						// read without USB debugging, so say what happened on screen instead.
 						if (import.meta.env.DEV) {
-							toast.show(`hero ${new URL(url).hostname}: ${loaded ? 'ok' : 'FAIL'} (${detail})`);
+							debug(`${new URL(url).hostname}: ${loaded ? 'ok' : 'FAIL'} (${detail})`);
 						}
+					},
+					onDebug: (message) => {
+						if (import.meta.env.DEV) debug(message);
 					},
 					...(loadDataUrlNative ? { loadDataUrl: loadDataUrlNative } : {})
 				}
