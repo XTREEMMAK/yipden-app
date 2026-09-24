@@ -96,6 +96,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- Changing tabs slid the whole screen including the tab bar and the mini player. They now stay
+  where they are while the screen slides, and the current tab's pill is a single indicator that
+  slides between tabs, like the pills in Feeds.
+
 - Discover's outgoing text could leave in the wrong direction when a button was pressed after a
   swipe the other way: the exit still started from the previous swipe's drag offset. It is now
   used once, by the swipe that set it.

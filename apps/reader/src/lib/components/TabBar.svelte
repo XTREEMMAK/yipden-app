@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 
 	/**
@@ -22,17 +23,64 @@
 	function isCurrent(href: string): boolean {
 		return href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href);
 	}
+
+	/**
+	 * One indicator that slides to the current tab, like the pill in Feeds, instead of each tab
+	 * lighting and dimming on its own. Placed from the icons' measured positions rather than from
+	 * assumed widths, and not animated until it has been placed once, so it never slides in from
+	 * the corner on first paint.
+	 */
+	let iconEls: HTMLElement[] = [];
+	let indicator = $state({ left: 0, top: 0, width: 0, height: 0, placed: false });
+	let animate = $state(false);
+
+	function place() {
+		const at = tabs.findIndex((tab) => isCurrent(tab.href));
+		const el = iconEls[at];
+		if (!el) return;
+		indicator = {
+			left: el.offsetLeft,
+			top: el.offsetTop,
+			width: el.offsetWidth,
+			height: el.offsetHeight,
+			placed: true
+		};
+	}
+
+	$effect(() => {
+		void page.url.pathname;
+		place();
+	});
+
+	onMount(() => {
+		place();
+		const settle = requestAnimationFrame(() => (animate = true));
+		window.addEventListener('resize', place);
+		return () => {
+			cancelAnimationFrame(settle);
+			window.removeEventListener('resize', place);
+		};
+	});
 </script>
 
 <nav class="tabbar" class:dark={onDark} aria-label="Main">
-	{#each tabs as tab (tab.href)}
+	<span
+		class="ind"
+		class:animate
+		aria-hidden="true"
+		style:opacity={indicator.placed ? 1 : 0}
+		style:width={`${indicator.width}px`}
+		style:height={`${indicator.height}px`}
+		style:transform={`translate(${indicator.left}px, ${indicator.top}px)`}
+	></span>
+	{#each tabs as tab, index (tab.href)}
 		<a
 			class="tab"
 			href={tab.href}
 			aria-current={isCurrent(tab.href) ? 'page' : undefined}
 			data-sveltekit-noscroll
 		>
-			<span class="ic" aria-hidden="true">
+			<span class="ic" bind:this={iconEls[index]} aria-hidden="true">
 				{#if tab.label === 'Discover'}
 					<svg viewBox="0 0 24 24"
 						><circle cx="12" cy="12" r="9" /><path d="M15.5 8.5l-2 5-5 2 2-5z" /></svg
@@ -114,12 +162,29 @@
 	}
 
 	.ic {
+		position: relative;
+		z-index: 1;
 		display: grid;
 		place-items: center;
 		width: 52px;
 		height: 32px;
 		border-radius: 999px;
+	}
+
+	.ind {
+		position: absolute;
+		top: 0;
+		left: 0;
+		border-radius: 999px;
+		background: var(--brand-soft);
 		transition: background var(--dur-m) var(--ease);
+	}
+
+	.ind.animate {
+		transition:
+			transform var(--dur-m) var(--ease),
+			width var(--dur-m) var(--ease),
+			background var(--dur-m) var(--ease);
 	}
 
 	.ic svg {
@@ -137,10 +202,6 @@
 		font-weight: 650;
 	}
 
-	.tab[aria-current='page'] .ic {
-		background: var(--brand-soft);
-	}
-
 	.tabbar.dark .tab {
 		color: rgba(255, 255, 255, 0.74);
 	}
@@ -149,7 +210,7 @@
 		color: #fff;
 	}
 
-	.tabbar.dark .tab[aria-current='page'] .ic {
+	.tabbar.dark .ind {
 		background: rgba(255, 255, 255, 0.2);
 	}
 </style>

@@ -1028,3 +1028,21 @@ that set the attributes once left the reused block hidden, and the member's name
 the accessibility tree entirely; a Discover test that steps Next then Previous immediately after
 load caught it. The fix is to clear them only when the exit is reversed, meaning its progress
 returns to 1 after having left it.
+
+## 2026-09-24: The tab bar and mini player are their own transition layers
+
+Tab changes run as a View Transition over the whole document, so the tab bar and mini player,
+being part of it, slid with the screen. Each now has a `view-transition-name`, which pulls it out
+of the page's snapshot so the screen slides underneath it. Two constraints shaped how. The names
+are applied only while a tab navigation is running (`data-nav`, which the layout already sets for
+its direction): a named layer paints above the rest of the snapshot, so a permanent name would
+have put the bar on top of the full screen player during the card to player morph. And the old
+snapshot of each is hidden while the new one is left live, so the bar's own animation keeps
+running rather than crossfading between two stills.
+
+The current tab's highlight became one indicator that slides between tabs (placed from the icons'
+measured positions, not animated on first paint, re-placed on resize), matching Feeds' pills and
+You's theme control. That is what makes the bar read as one object with a marker, rather than
+four tabs each lighting on its own. The DOM cannot show a snapshot's position, so the tests
+watch the transition's own pseudo elements (`document.getAnimations()`), and the indicator's
+travel across intermediate positions.

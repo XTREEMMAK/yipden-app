@@ -173,6 +173,31 @@ button {
 }
 
 /*
+ * The tab bar and the mini player belong to no screen, so they stay put while a screen slides.
+ * Named only while a tab navigation is running (`data-nav`), never for the card to player morph:
+ * a named layer paints above the page snapshot, and would sit on top of the full screen player.
+ * The old snapshot is hidden and the new one is live, so the bar's own indicator animation keeps
+ * running instead of crossfading between two stills.
+ */
+:root[data-nav] .tabbar {
+	view-transition-name: tabbar;
+}
+
+:root[data-nav] .mini {
+	view-transition-name: miniplayer;
+}
+
+::view-transition-old(tabbar),
+::view-transition-old(miniplayer) {
+	display: none;
+}
+
+::view-transition-new(tabbar),
+::view-transition-new(miniplayer) {
+	animation: none;
+}
+
+/*
  * Reduced motion: a short crossfade instead of every slide, fly and morph. The transition is
  * not removed, because losing the sense that one screen replaced another is its own problem.
  */
