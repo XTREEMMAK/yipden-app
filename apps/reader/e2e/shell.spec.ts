@@ -132,4 +132,58 @@ test.describe('the app shell', () => {
 			.poll(async () => (await ind.boundingBox())!.x)
 			.toBeCloseTo((await icon.boundingBox())!.x, 0);
 	});
+
+	test('the indicator answers on finger down, and takes it back if the finger slides off', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await page.waitForTimeout(600);
+		const ind = page.locator('.tabbar .ind');
+		const start = (await ind.boundingBox())!.x;
+		const feeds = (await page.getByRole('link', { name: 'Feeds' }).boundingBox())!;
+
+		await page.mouse.move(feeds.x + feeds.width / 2, feeds.y + feeds.height / 2);
+		await page.mouse.down();
+		// Nothing has been clicked or navigated yet, and the indicator is already on its way.
+		await expect.poll(async () => (await ind.boundingBox())!.x).toBeGreaterThan(start + 20);
+		await expect(page).toHaveURL(/\/$/);
+
+		// Sliding off the tab before lifting cancels the click, and the answer with it.
+		await page.mouse.move(feeds.x + feeds.width / 2, feeds.y - 200, { steps: 4 });
+		await page.mouse.up();
+		await expect.poll(async () => (await ind.boundingBox())!.x).toBeCloseTo(start, 0);
+		await expect(page).toHaveURL(/\/$/);
+	});
+
+	test('a touch tap does not flash the indicator back before navigating', async ({ browser }) => {
+		const context = await browser.newContext({
+			hasTouch: true,
+			viewport: { width: 390, height: 844 }
+		});
+		const page = await context.newPage();
+		await page.goto('/');
+		await page.waitForTimeout(600);
+		const feeds = page.getByRole('link', { name: 'Feeds' });
+		const target = (await feeds.locator('.ic').boundingBox())!.x;
+		// Record every position the indicator is ever laid out at, from finger down onwards.
+		await page.evaluate(() => {
+			const ind = document.querySelector('.tabbar .ind') as HTMLElement;
+			const w = window as unknown as { xs: number[] };
+			w.xs = [];
+			const poll = () => {
+				w.xs.push(ind.getBoundingClientRect().x);
+				requestAnimationFrame(poll);
+			};
+			poll();
+		});
+		await feeds.tap();
+		await expect(page).toHaveURL(/\/feeds/);
+		await page.waitForTimeout(800);
+		const xs = await page.evaluate(() => (window as unknown as { xs: number[] }).xs);
+		const start = xs[0]!;
+		// The indicator only ever moves toward Feeds: it never goes back below where it began.
+		expect(Math.min(...xs)).toBeGreaterThanOrEqual(start - 1);
+		expect(xs[xs.length - 1]).toBeCloseTo(target, 0);
+		await context.close();
+	});
 });

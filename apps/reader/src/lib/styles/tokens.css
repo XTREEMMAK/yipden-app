@@ -13,7 +13,10 @@
 	--ink: #1f1410;
 	--muted: #6b5d55;
 	--ground: #f7f3ee;
+	--ground-art: var(--ground);
 	--surface: #ffffff;
+	--surface-highlight: rgba(255, 255, 255, 0);
+	--surface-shadow: rgba(60, 20, 6, 0.12);
 	--line: #e8dfd6;
 	--brand: #c2410c;
 	--brand-text: #c2410c;
@@ -100,7 +103,7 @@
 
 /* System theme: follow the device unless the reader chose Light explicitly. */
 @media (prefers-color-scheme: dark) {
-	:root:not([data-theme='light']) {
+	:root:not([data-theme='light']):not([data-skin='glass']):not([data-skin='forest']) {
 		--ink: #f3eae3;
 		--muted: #b8a99f;
 		--ground: #120b08;
@@ -117,7 +120,7 @@
 }
 
 /* An explicit choice from You, which beats the device setting in both directions. */
-:root[data-theme='dark'] {
+:root[data-theme='dark']:not([data-skin='glass']):not([data-skin='forest']) {
 	--ink: #f3eae3;
 	--muted: #b8a99f;
 	--ground: #120b08;
@@ -129,6 +132,240 @@
 	--ok: #6fcb9a;
 	--error: #f2877a;
 	--switch-off: #4a3a31;
+	color-scheme: dark;
+}
+
+/* Blue glass: icy depth, translucent surfaces and an ocean-blue player. */
+:root[data-skin='glass'] {
+	--ink: #102a43;
+	--muted: #536f89;
+	--ground: #e7f2ff;
+	--ground-art:
+		radial-gradient(circle at 12% 4%, rgba(255, 255, 255, 0.96), transparent 34%),
+		radial-gradient(circle at 92% 88%, rgba(107, 180, 245, 0.38), transparent 42%),
+		linear-gradient(145deg, #d9ebff 0%, #edf7ff 48%, #d5e8fb 100%);
+	--surface: rgba(248, 252, 255, 0.76);
+	--surface-highlight: rgba(255, 255, 255, 0.78);
+	--surface-shadow: rgba(26, 92, 147, 0.2);
+	--line: rgba(64, 126, 178, 0.26);
+	--brand: #1677c8;
+	--brand-text: #0862aa;
+	--brand-soft: rgba(72, 157, 226, 0.2);
+	--brand-ink: #07518d;
+	--ok: #18745b;
+	--error: #b73545;
+	--switch-off: #a9bfd3;
+	--deep: #061d38;
+	--player: #0c4f86;
+	--toast: #082440;
+	--scrim-card: linear-gradient(
+		180deg,
+		rgba(2, 22, 43, 0.28) 0%,
+		rgba(2, 22, 43, 0.1) 30%,
+		rgba(3, 30, 57, 0.58) 58%,
+		rgba(3, 25, 49, 0.92) 100%
+	);
+	--scrim-hero: linear-gradient(
+		180deg,
+		rgba(2, 19, 38, 0.62) 0%,
+		rgba(2, 19, 38, 0) 20%,
+		rgba(2, 31, 59, 0.1) 36%,
+		rgba(3, 35, 66, 0.76) 60%,
+		rgba(3, 26, 51, 0.96) 100%
+	);
+	--scrim-player: linear-gradient(
+		180deg,
+		rgba(2, 20, 39, 0.58) 0%,
+		transparent 20%,
+		transparent 34%,
+		rgba(12, 79, 134, 0.72) 52%,
+		#0c4f86 66%
+	);
+	color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root[data-skin='glass']:not([data-theme='light']) {
+		--ink: #edf7ff;
+		--muted: #a6bed3;
+		--ground: #061522;
+		--ground-art:
+			radial-gradient(circle at 12% 2%, rgba(43, 113, 169, 0.24), transparent 35%),
+			radial-gradient(circle at 90% 88%, rgba(18, 91, 151, 0.22), transparent 42%),
+			linear-gradient(145deg, #061522 0%, #0a1d2d 52%, #071725 100%);
+		--surface: rgba(14, 37, 58, 0.78);
+		--surface-highlight: rgba(142, 202, 249, 0.16);
+		--surface-shadow: rgba(0, 6, 14, 0.42);
+		--line: rgba(117, 171, 211, 0.25);
+		--brand: #1676b9;
+		--brand-text: #67bdff;
+		--brand-soft: rgba(57, 147, 215, 0.24);
+		--brand-ink: #9bd2ff;
+		--ok: #67c8a5;
+		--error: #ff8b98;
+		--switch-off: #36566e;
+		--deep: #031322;
+		--player: #07375f;
+		--toast: #061c31;
+		--scrim-player: linear-gradient(
+			180deg,
+			rgba(1, 12, 25, 0.62) 0%,
+			transparent 20%,
+			transparent 34%,
+			rgba(7, 55, 95, 0.76) 52%,
+			#07375f 66%
+		);
+		color-scheme: dark;
+	}
+}
+
+:root[data-skin='glass'][data-theme='dark'] {
+	--ink: #edf7ff;
+	--muted: #a6bed3;
+	--ground: #061522;
+	--ground-art:
+		radial-gradient(circle at 12% 2%, rgba(43, 113, 169, 0.24), transparent 35%),
+		radial-gradient(circle at 90% 88%, rgba(18, 91, 151, 0.22), transparent 42%),
+		linear-gradient(145deg, #061522 0%, #0a1d2d 52%, #071725 100%);
+	--surface: rgba(14, 37, 58, 0.78);
+	--surface-highlight: rgba(142, 202, 249, 0.16);
+	--surface-shadow: rgba(0, 6, 14, 0.42);
+	--line: rgba(117, 171, 211, 0.25);
+	--brand: #1676b9;
+	--brand-text: #67bdff;
+	--brand-soft: rgba(57, 147, 215, 0.24);
+	--brand-ink: #9bd2ff;
+	--ok: #67c8a5;
+	--error: #ff8b98;
+	--switch-off: #36566e;
+	--deep: #031322;
+	--player: #07375f;
+	--toast: #061c31;
+	--scrim-player: linear-gradient(
+		180deg,
+		rgba(1, 12, 25, 0.62) 0%,
+		transparent 20%,
+		transparent 34%,
+		rgba(7, 55, 95, 0.76) 52%,
+		#07375f 66%
+	);
+	color-scheme: dark;
+}
+
+/* Forest earth: parchment, moss and deep evergreen. */
+:root[data-skin='forest'] {
+	--ink: #20281c;
+	--muted: #65705d;
+	--ground: #f0efe5;
+	--ground-art:
+		radial-gradient(circle at 8% 2%, rgba(255, 253, 237, 0.92), transparent 34%),
+		radial-gradient(circle at 94% 92%, rgba(136, 157, 105, 0.22), transparent 40%),
+		linear-gradient(150deg, #ebe9dc 0%, #f5f3e9 54%, #e4e7d7 100%);
+	--surface: #fbfaf3;
+	--surface-highlight: rgba(255, 255, 255, 0.5);
+	--surface-shadow: rgba(52, 69, 42, 0.14);
+	--line: #d7d9c8;
+	--brand: #426b3a;
+	--brand-text: #35602f;
+	--brand-soft: #e0ead7;
+	--brand-ink: #294d26;
+	--ok: #39734d;
+	--error: #9d392f;
+	--switch-off: #bdc4b0;
+	--deep: #15291c;
+	--player: #38513a;
+	--toast: #202b1f;
+	--scrim-card: linear-gradient(
+		180deg,
+		rgba(9, 25, 13, 0.3) 0%,
+		rgba(9, 25, 13, 0.12) 30%,
+		rgba(12, 39, 22, 0.58) 58%,
+		rgba(10, 31, 17, 0.92) 100%
+	);
+	--scrim-hero: linear-gradient(
+		180deg,
+		rgba(8, 25, 13, 0.62) 0%,
+		rgba(8, 25, 13, 0) 20%,
+		rgba(11, 38, 21, 0.09) 36%,
+		rgba(16, 48, 27, 0.76) 60%,
+		rgba(10, 31, 17, 0.96) 100%
+	);
+	--scrim-player: linear-gradient(
+		180deg,
+		rgba(9, 25, 13, 0.58) 0%,
+		transparent 20%,
+		transparent 34%,
+		rgba(56, 81, 58, 0.72) 52%,
+		#38513a 66%
+	);
+	color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root[data-skin='forest']:not([data-theme='light']) {
+		--ink: #edf1df;
+		--muted: #b5bea7;
+		--ground: #10160f;
+		--ground-art:
+			radial-gradient(circle at 8% 2%, rgba(81, 108, 67, 0.2), transparent 34%),
+			radial-gradient(circle at 94% 92%, rgba(71, 91, 54, 0.18), transparent 40%),
+			linear-gradient(150deg, #10160f 0%, #171e15 54%, #111710 100%);
+		--surface: #192018;
+		--surface-highlight: rgba(191, 212, 168, 0.08);
+		--surface-shadow: rgba(4, 9, 3, 0.38);
+		--line: #343e30;
+		--brand: #4f7546;
+		--brand-text: #9fcb8e;
+		--brand-soft: #283924;
+		--brand-ink: #b6dba7;
+		--ok: #80bc8b;
+		--error: #ed8d80;
+		--switch-off: #455141;
+		--deep: #0a170e;
+		--player: #2d4931;
+		--toast: #172117;
+		--scrim-player: linear-gradient(
+			180deg,
+			rgba(5, 16, 8, 0.62) 0%,
+			transparent 20%,
+			transparent 34%,
+			rgba(45, 73, 49, 0.76) 52%,
+			#2d4931 66%
+		);
+		color-scheme: dark;
+	}
+}
+
+:root[data-skin='forest'][data-theme='dark'] {
+	--ink: #edf1df;
+	--muted: #b5bea7;
+	--ground: #10160f;
+	--ground-art:
+		radial-gradient(circle at 8% 2%, rgba(81, 108, 67, 0.2), transparent 34%),
+		radial-gradient(circle at 94% 92%, rgba(71, 91, 54, 0.18), transparent 40%),
+		linear-gradient(150deg, #10160f 0%, #171e15 54%, #111710 100%);
+	--surface: #192018;
+	--surface-highlight: rgba(191, 212, 168, 0.08);
+	--surface-shadow: rgba(4, 9, 3, 0.38);
+	--line: #343e30;
+	--brand: #4f7546;
+	--brand-text: #9fcb8e;
+	--brand-soft: #283924;
+	--brand-ink: #b6dba7;
+	--ok: #80bc8b;
+	--error: #ed8d80;
+	--switch-off: #455141;
+	--deep: #0a170e;
+	--player: #2d4931;
+	--toast: #172117;
+	--scrim-player: linear-gradient(
+		180deg,
+		rgba(5, 16, 8, 0.62) 0%,
+		transparent 20%,
+		transparent 34%,
+		rgba(45, 73, 49, 0.76) 52%,
+		#2d4931 66%
+	);
 	color-scheme: dark;
 }
 

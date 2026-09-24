@@ -6,10 +6,15 @@
  * from local storage.
  */
 try {
-	var stored = localStorage.getItem('yipden:theme');
-	if (stored === 'light' || stored === 'dark') {
-		document.documentElement.dataset.theme = stored;
+	var storedTheme = localStorage.getItem('yipden:theme');
+	if (storedTheme === 'light' || storedTheme === 'dark') {
+		document.documentElement.dataset.theme = storedTheme;
+	}
+
+	var storedSkin = localStorage.getItem('yipden:skin');
+	if (storedSkin === 'glass' || storedSkin === 'forest') {
+		document.documentElement.dataset.skin = storedSkin;
 	}
 } catch {
-	/* Private mode, or site data blocked. The system theme is a fine answer. */
+	/* Private mode, or site data blocked. The defaults are a fine answer. */
 }

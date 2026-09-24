@@ -1,5 +1,6 @@
 /**
- * Theme: System, Light or Dark, chosen in You and applied as an attribute on the document.
+ * Appearance: a brightness theme and color skin, chosen in You and applied as attributes on the
+ * document.
  *
  * This is the one piece of state that deliberately lives in localStorage rather than behind the
  * `Store` interface. It has to be readable synchronously before first paint, which is what
@@ -8,26 +9,40 @@
  */
 
 export type Theme = 'system' | 'light' | 'dark';
+export type Skin = 'original' | 'glass' | 'forest';
 
-const STORAGE_KEY = 'yipden:theme';
+const THEME_STORAGE_KEY = 'yipden:theme';
+const SKIN_STORAGE_KEY = 'yipden:skin';
 
-function read(): Theme {
+function readTheme(): Theme {
 	if (typeof localStorage === 'undefined') return 'system';
 	try {
-		const stored = localStorage.getItem(STORAGE_KEY);
+		const stored = localStorage.getItem(THEME_STORAGE_KEY);
 		return stored === 'light' || stored === 'dark' ? stored : 'system';
 	} catch {
 		return 'system';
 	}
 }
 
+function readSkin(): Skin {
+	if (typeof localStorage === 'undefined') return 'original';
+	try {
+		const stored = localStorage.getItem(SKIN_STORAGE_KEY);
+		return stored === 'glass' || stored === 'forest' ? stored : 'original';
+	} catch {
+		return 'original';
+	}
+}
+
 class ThemeState {
 	current = $state<Theme>('system');
+	skin = $state<Skin>('original');
 
 	/** Read the stored choice once the app is running in a browser. */
 	hydrate(): void {
-		this.current = read();
-		this.apply(this.current);
+		this.current = readTheme();
+		this.skin = readSkin();
+		this.apply();
 	}
 
 	/**
@@ -42,13 +57,30 @@ class ThemeState {
 		this.current = next;
 
 		try {
-			if (next === 'system') localStorage.removeItem(STORAGE_KEY);
-			else localStorage.setItem(STORAGE_KEY, next);
+			if (next === 'system') localStorage.removeItem(THEME_STORAGE_KEY);
+			else localStorage.setItem(THEME_STORAGE_KEY, next);
 		} catch {
 			// Storage refused. The theme still applies for this session.
 		}
 
-		const change = () => this.apply(next);
+		this.transition(() => this.applyTheme(next));
+	}
+
+	setSkin(next: Skin): void {
+		if (next === this.skin) return;
+		this.skin = next;
+
+		try {
+			if (next === 'original') localStorage.removeItem(SKIN_STORAGE_KEY);
+			else localStorage.setItem(SKIN_STORAGE_KEY, next);
+		} catch {
+			// Storage refused. The skin still applies for this session.
+		}
+
+		this.transition(() => this.applySkin(next));
+	}
+
+	private transition(change: () => void): void {
 		if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
 			document.startViewTransition(change);
 		} else {
@@ -56,9 +88,19 @@ class ThemeState {
 		}
 	}
 
-	private apply(next: Theme): void {
+	private apply(): void {
+		this.applyTheme(this.current);
+		this.applySkin(this.skin);
+	}
+
+	private applyTheme(next: Theme): void {
 		if (typeof document === 'undefined') return;
 		document.documentElement.dataset.theme = next;
+	}
+
+	private applySkin(next: Skin): void {
+		if (typeof document === 'undefined') return;
+		document.documentElement.dataset.skin = next;
 	}
 }
 

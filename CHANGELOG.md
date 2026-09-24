@@ -96,6 +96,12 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- Tapping a tab felt slow to respond. The tab indicator now starts moving on finger down, before
+  the navigation begins (and returns if the finger slides off), all four screens' code is
+  preloaded, the hero's draw loop no longer forces a layout on every frame (about 170ms of the
+  wait at a 6x slower CPU), and the WebGL canvas is started after the first paint rather than
+  during the screen change. See DECISIONS.md.
+
 - Changing tabs slid the whole screen including the tab bar and the mini player. They now stay
   where they are while the screen slides, and the current tab's pill is a single indicator that
   slides between tabs, like the pills in Feeds.

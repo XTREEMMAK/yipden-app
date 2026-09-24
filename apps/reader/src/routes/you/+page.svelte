@@ -3,7 +3,7 @@
 	import { fly } from 'svelte/transition';
 	import { flyIn, staggerDelay } from '$lib/motion.js';
 	import { prefs } from '$lib/prefs.svelte.js';
-	import { theme, type Theme } from '$lib/theme.svelte.js';
+	import { theme, type Skin, type Theme } from '$lib/theme.svelte.js';
 	import Switch from '$components/Switch.svelte';
 	import { you } from '$lib/you.svelte.js';
 	import { downloadTextFile, pickTextFile } from '$lib/platform/download.js';
@@ -19,6 +19,26 @@
 		{ key: 'system', label: 'System' },
 		{ key: 'light', label: 'Light' },
 		{ key: 'dark', label: 'Dark' }
+	];
+	const SKINS: Array<{ key: Skin; label: string; description: string; colors: string[] }> = [
+		{
+			key: 'original',
+			label: 'Original',
+			description: 'Warm clay',
+			colors: ['#f7f3ee', '#c2410c', '#2a0f06']
+		},
+		{
+			key: 'glass',
+			label: 'Blue glass',
+			description: 'Cool & clear',
+			colors: ['#ddecff', '#1677c8', '#061d38']
+		},
+		{
+			key: 'forest',
+			label: 'Forest earth',
+			description: 'Moss & stone',
+			colors: ['#f2f0e7', '#426b3a', '#162a1d']
+		}
 	];
 
 	let segEls: HTMLButtonElement[] = [];
@@ -39,6 +59,7 @@
 
 	onMount(() => {
 		void you.load();
+		measureSeg();
 		const onResize = () => measureSeg();
 		window.addEventListener('resize', onResize);
 		return () => window.removeEventListener('resize', onResize);
@@ -92,23 +113,51 @@
 	<div class="groups">
 		<section class="grp" in:fly={flyIn({ delay: staggerDelay(0) })}>
 			<h3 class="grp-h">Appearance</h3>
-			<div class="seg" role="radiogroup" aria-label="Theme">
-				<span
-					class="seg-ind"
-					aria-hidden="true"
-					style:transform={`translateX(${segIndicator.left}px)`}
-					style:width={`${segIndicator.width}px`}
-				></span>
-				{#each THEMES as entry, index (entry.key)}
-					<button
-						bind:this={segEls[index]}
-						role="radio"
-						aria-checked={theme.current === entry.key}
-						onclick={() => theme.set(entry.key)}
-					>
-						{entry.label}
-					</button>
-				{/each}
+			<div class="appearance-stack">
+				<div class="appearance-setting">
+					<p class="setting-label">Brightness</p>
+					<div class="seg" role="radiogroup" aria-label="Brightness">
+						<span
+							class="seg-ind"
+							aria-hidden="true"
+							style:transform={`translateX(${segIndicator.left}px)`}
+							style:width={`${segIndicator.width}px`}
+						></span>
+						{#each THEMES as entry, index (entry.key)}
+							<button
+								bind:this={segEls[index]}
+								role="radio"
+								aria-checked={theme.current === entry.key}
+								onclick={() => theme.set(entry.key)}
+							>
+								{entry.label}
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<div class="appearance-setting">
+					<p class="setting-label">Color skin</p>
+					<div class="skin-grid" role="radiogroup" aria-label="Color skin">
+						{#each SKINS as entry (entry.key)}
+							<button
+								class="skin-option"
+								role="radio"
+								aria-label={entry.label}
+								aria-checked={theme.skin === entry.key}
+								onclick={() => theme.setSkin(entry.key)}
+							>
+								<span class="skin-swatches" aria-hidden="true">
+									{#each entry.colors as color}
+										<i style:background={color}></i>
+									{/each}
+								</span>
+								<strong>{entry.label}</strong>
+								<small>{entry.description}</small>
+							</button>
+						{/each}
+					</div>
+				</div>
 			</div>
 		</section>
 
@@ -287,6 +336,32 @@
 		color: var(--muted);
 	}
 
+	.appearance-stack {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+		padding: 14px;
+		border: 1px solid var(--line);
+		border-radius: var(--r-group);
+		background: var(--surface);
+	}
+
+	.appearance-setting {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.setting-label {
+		margin: 0 2px;
+		color: var(--muted);
+		font-family: var(--mono);
+		font-size: 10.5px;
+		font-weight: 500;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
 	.seg {
 		position: relative;
 		display: flex;
@@ -326,6 +401,69 @@
 
 	.seg button[aria-checked='true'] {
 		color: #fff;
+	}
+
+	.skin-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 8px;
+	}
+
+	.skin-option {
+		display: flex;
+		min-width: 0;
+		min-height: 92px;
+		padding: 9px;
+		border: 1px solid var(--line);
+		border-radius: 15px;
+		background: color-mix(in srgb, var(--surface) 78%, var(--ground));
+		color: var(--ink);
+		flex-direction: column;
+		align-items: flex-start;
+		text-align: left;
+		transition:
+			border-color var(--dur-s) var(--ease),
+			background var(--dur-s) var(--ease),
+			transform var(--dur-s) var(--ease);
+	}
+
+	.skin-option:active {
+		transform: scale(0.97);
+	}
+
+	.skin-option[aria-checked='true'] {
+		border-color: var(--brand);
+		background: var(--brand-soft);
+		box-shadow: inset 0 0 0 1px var(--brand);
+	}
+
+	.skin-swatches {
+		display: flex;
+		width: 100%;
+		height: 22px;
+		margin-bottom: 8px;
+		border-radius: 7px;
+		overflow: hidden;
+		box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+	}
+
+	.skin-swatches i {
+		flex: 1;
+	}
+
+	.skin-option strong {
+		display: block;
+		font-size: 12.5px;
+		line-height: 1.15;
+		font-weight: 650;
+	}
+
+	.skin-option small {
+		display: block;
+		margin-top: 3px;
+		color: var(--muted);
+		font-size: 10.5px;
+		line-height: 1.15;
 	}
 
 	.rows {

@@ -258,6 +258,27 @@ export function createHeroGL(
 	context.uniform1i(u.t0, 0);
 	context.uniform1i(u.t1, 1);
 	context.pixelStorei(context.UNPACK_FLIP_Y_WEBGL, true);
+	/*
+	 * The canvas's CSS size, kept by a ResizeObserver instead of read from `clientWidth` on every
+	 * frame. Each of those reads forces a layout, and while a screen change is mounting the next
+	 * screen that layout is the most expensive thing on the page: profiled at a 6x slower CPU it
+	 * was ~170ms of the wait between tapping a tab and the slide starting.
+	 */
+	let cssWidth = canvas.clientWidth;
+	let cssHeight = canvas.clientHeight;
+	const resizeObserver =
+		typeof ResizeObserver === 'undefined'
+			? null
+			: new ResizeObserver((entries) => {
+					const box = entries[entries.length - 1]?.contentRect;
+					if (!box) return;
+					cssWidth = box.width;
+					cssHeight = box.height;
+					dirty = true;
+					kick();
+				});
+	resizeObserver?.observe(canvas);
+
 	const textures = new Map<string, Texture>();
 	/**
 	 * A 1x1 placeholder in the given color, until the real image lands, or forever if it never
@@ -381,8 +402,8 @@ export function createHeroGL(
 
 	function draw(progress: number, dragForDraw: number, now: number): void {
 		const dpr = Math.min(1.5, window.devicePixelRatio || 1);
-		const width = Math.round(canvas.clientWidth * dpr);
-		const height = Math.round(canvas.clientHeight * dpr);
+		const width = Math.round(cssWidth * dpr);
+		const height = Math.round(cssHeight * dpr);
 		if (!width || !height) return;
 		if (canvas.width !== width || canvas.height !== height) {
 			canvas.width = width;
@@ -519,6 +540,7 @@ export function createHeroGL(
 		},
 		kick,
 		destroy() {
+			resizeObserver?.disconnect();
 			canvas.removeEventListener('webglcontextlost', onContextLost);
 			if (raf) cancelAnimationFrame(raf);
 			for (const { texture } of textures.values()) context.deleteTexture(texture);

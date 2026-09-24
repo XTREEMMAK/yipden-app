@@ -22,7 +22,8 @@ body {
 }
 
 body {
-	background: var(--ground);
+	background: var(--ground-art);
+	background-attachment: fixed;
 	color: var(--ink);
 	font-family: var(--body);
 	font-size: 15px;
@@ -73,8 +74,30 @@ button {
 	flex-direction: column;
 	height: 100dvh;
 	overflow: hidden;
-	background: var(--ground);
+	background: var(--ground-art);
+	background-attachment: fixed;
 	isolation: isolate;
+}
+
+/*
+ * The glass skin gets its depth from restrained edge light and shadow. The panels stay cheap to
+ * scroll: translucent color carries the effect without putting a live blur behind every card.
+ */
+:root[data-skin='glass'] :is(.appearance-stack, .rows, .mini, .tabbar:not(.dark), .yip.text) {
+	box-shadow:
+		inset 0 1px 0 var(--surface-highlight),
+		0 14px 34px -24px var(--surface-shadow);
+}
+
+:root[data-skin='glass'] :is(.mini, .tabbar:not(.dark)) {
+	-webkit-backdrop-filter: blur(18px) saturate(140%);
+	backdrop-filter: blur(18px) saturate(140%);
+}
+
+:root[data-skin='forest'] :is(.appearance-stack, .rows, .mini, .yip.text) {
+	box-shadow:
+		inset 0 1px 0 var(--surface-highlight),
+		0 12px 28px -25px var(--surface-shadow);
 }
 
 /**

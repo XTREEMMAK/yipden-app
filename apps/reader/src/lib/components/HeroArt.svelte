@@ -67,26 +67,46 @@
 	let drawable = $state<Set<string>>(new Set());
 	let glShowing = $derived(glActive && src !== null && drawable.has(src));
 
-	onMount(() => {
-		if (canvas) {
-			gl = createHeroGL(
-				canvas,
-				() => (prefersReducedMotion() ? 0 : 1),
-				() => (glActive = false),
-				{
-					onTexture: (url, loaded) => {
-						if (loaded) drawable = new Set(drawable).add(url);
-					},
-					...(loadDataUrlNative ? { loadDataUrl: loadDataUrlNative } : {})
-				}
-			);
-		}
+	/**
+	 * Standing up the canvas compiles a shader and creates a GL context, which is the heaviest
+	 * thing Discover does on arrival. Done inside mount it lands in the middle of the screen
+	 * change, ahead of the slide, and on a phone that is a visible pause between tapping the tab
+	 * and anything moving. The CSS layer already shows the photo, so the canvas can wait until
+	 * the first frame has painted; it takes over once it is ready and holds the photo.
+	 */
+	function startGL() {
+		if (!canvas || gl) return;
+		gl = createHeroGL(
+			canvas,
+			() => (prefersReducedMotion() ? 0 : 1),
+			() => (glActive = false),
+			{
+				onTexture: (url, loaded) => {
+					if (loaded) drawable = new Set(drawable).add(url);
+				},
+				...(loadDataUrlNative ? { loadDataUrl: loadDataUrlNative } : {})
+			}
+		);
 		glActive = gl !== null;
-		if (gl && src) gl.set(src, washColor);
+		if (!gl) return;
+		gl.setLive(player.sheet !== 'full' && !document.hidden);
+		if (src) gl.set(src, washColor);
+		for (const url of preload) gl.preload(url, washColor);
+	}
+
+	onMount(() => {
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		const frame = requestAnimationFrame(() => {
+			timer = setTimeout(startGL, 0);
+		});
 
 		const onVisibility = () => gl?.setLive(!document.hidden);
 		document.addEventListener('visibilitychange', onVisibility);
-		return () => document.removeEventListener('visibilitychange', onVisibility);
+		return () => {
+			cancelAnimationFrame(frame);
+			clearTimeout(timer);
+			document.removeEventListener('visibilitychange', onVisibility);
+		};
 	});
 
 	onDestroy(() => gl?.destroy());
@@ -98,12 +118,19 @@
 	 * (destroying `gl` with it) the moment the reader leaves the tab.
 	 */
 	$effect(() => {
-		gl?.setLive(player.sheet !== 'full');
+		// Read first, for the same reason as the preload effect below: `gl?.` would skip evaluating
+		// its argument while the canvas is not up yet, leaving this effect subscribed to nothing.
+		const live = player.sheet !== 'full';
+		gl?.setLive(live);
 	});
 
 	$effect(() => {
+		// Read before the early return: an effect that returns first subscribes to nothing, and
+		// this one must re-run when the neighbours change even though it starts before the canvas.
+		const urls = preload;
+		const color = washColor;
 		if (!gl) return;
-		for (const url of preload) gl.preload(url, washColor);
+		for (const url of urls) gl.preload(url, color);
 	});
 
 	$effect(() => {

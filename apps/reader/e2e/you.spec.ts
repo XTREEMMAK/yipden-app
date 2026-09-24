@@ -106,6 +106,27 @@ test.describe('You', () => {
 		await expect(page.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true');
 	});
 
+	test('switches color skin and keeps it across reloads', async ({ page }) => {
+		await page.goto('/you');
+		await page.getByRole('radio', { name: 'Blue glass' }).click();
+
+		await expect(page.locator('html')).toHaveAttribute('data-skin', 'glass');
+		await expect(page.getByRole('radio', { name: 'Blue glass' })).toHaveAttribute(
+			'aria-checked',
+			'true'
+		);
+
+		await page.reload();
+		await expect(page.locator('html')).toHaveAttribute('data-skin', 'glass');
+		await expect(page.getByRole('radio', { name: 'Blue glass' })).toHaveAttribute(
+			'aria-checked',
+			'true'
+		);
+
+		await page.getByRole('radio', { name: 'Forest earth' }).click();
+		await expect(page.locator('html')).toHaveAttribute('data-skin', 'forest');
+	});
+
 	test('exports a real OPML file naming the followed feed', async ({ page }) => {
 		await followLena(page);
 		await page.goto('/you');

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { page } from '$app/state';
+	import { navigating, page } from '$app/state';
 
 	/**
 	 * The four tabs, as real links.
@@ -17,11 +17,29 @@
 		{ href: '/you', label: 'You' }
 	] as const;
 
+	/**
+	 * Where the reader is headed, not only where they are. A tap answers at once: the indicator
+	 * starts sliding and the tab is marked current the moment the navigation begins, rather than
+	 * after the next screen has finished rendering, which on a phone is the bulk of the wait
+	 * between tapping and seeing anything happen. It answers even earlier than that: on finger
+	 * down, before the click that starts the navigation (rendering is frozen once a screen
+	 * transition begins, so this is the only moment the bar can visibly react), and it takes the
+	 * answer back if the finger slides off the tab instead of lifting on it.
+	 */
+	let pressed = $state<string | null>(null);
+	let pathname = $derived(navigating?.to?.url.pathname ?? pressed ?? page.url.pathname);
+
+	// Once a navigation lands, the page itself is the source of truth again.
+	$effect(() => {
+		void page.url.pathname;
+		pressed = null;
+	});
+
 	/** Discover is a full bleed dark hero, so the bar goes translucent dark over it. */
-	let onDark = $derived(page.url.pathname === '/');
+	let onDark = $derived(pathname === '/');
 
 	function isCurrent(href: string): boolean {
-		return href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href);
+		return href === '/' ? pathname === '/' : pathname.startsWith(href);
 	}
 
 	/**
@@ -48,7 +66,7 @@
 	}
 
 	$effect(() => {
-		void page.url.pathname;
+		void pathname;
 		place();
 	});
 
@@ -78,7 +96,22 @@
 			class="tab"
 			href={tab.href}
 			aria-current={isCurrent(tab.href) ? 'page' : undefined}
+			onpointerdown={(event) => {
+				if (event.isPrimary && event.button === 0) pressed = tab.href;
+			}}
+			onpointerup={(event) => {
+				// A finger that slid off before lifting produces no click, so nothing else would ever
+				// take the answer back. (Not `pointerleave`: for touch it fires on every lift, just
+				// before the click, and would flash the indicator back for a frame.)
+				const under = document.elementFromPoint(event.clientX, event.clientY);
+				if (!event.currentTarget.contains(under)) pressed = null;
+			}}
+			onpointerleave={(event) => {
+				if (event.pointerType === 'mouse') pressed = null;
+			}}
+			onpointercancel={() => (pressed = null)}
 			data-sveltekit-noscroll
+			data-sveltekit-preload-code="eager"
 		>
 			<span class="ic" bind:this={iconEls[index]} aria-hidden="true">
 				{#if tab.label === 'Discover'}

@@ -1046,3 +1046,27 @@ You's theme control. That is what makes the bar read as one object with a marker
 four tabs each lighting on its own. The DOM cannot show a snapshot's position, so the tests
 watch the transition's own pseudo elements (`document.getAnimations()`), and the indicator's
 travel across intermediate positions.
+
+## 2026-09-24: Tab taps: what the delay was, what was done, and what was not
+
+The pause between tapping a tab and the slide starting was measured before anything was changed,
+at a 6x slower CPU to stand in for a phone. Navigation itself begins about 10ms after the tap. The
+slide begins 230 to 340ms after it, because a screen transition cannot start until the browser has
+captured the old screen and the new one has been built and laid out, and rendering is frozen for
+all of that. Profiling found two avoidable costs inside it: the hero's draw loop reading
+`canvas.clientWidth` every frame, forcing a layout while the next screen was mounting (about 170ms,
+now a `ResizeObserver` cache, down to about 40ms), and WebGL setup plus texture uploads landing
+in the same window (deferred until after the first paint).
+
+**The second change did not measurably move when the slide starts** (230ms before and after), and
+the first only shows in the profile, so neither is claimed as the fix. What does change what a
+reader sees is answering earlier than the transition can: the indicator now reacts on finger down,
+about a tap's length before the click, which is the only moment the bar can visibly move, since
+rendering freezes once the transition starts. The bar takes it back if the finger slides off
+(`pointerup` position for touch, since `pointerleave` fires on every touch lift just before the
+click and would flash the indicator back). All four screens' code is also preloaded.
+
+**What remains** is the browser's own style, layout and paint work for the incoming screen
+(most of the profile), which scales with how much that screen renders. The likeliest next step if
+it still feels slow on the device is rendering Feeds' inactive panes lazily; it was not done
+because the test data has no yips, so the saving could not be measured here.
