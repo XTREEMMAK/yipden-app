@@ -71,7 +71,11 @@ test.describe('The card stack', () => {
 	test('a card scrolled past the top is marked behind and stops taking taps', async ({ page }) => {
 		await seed(page);
 		const pane = page.locator('#pane-everything');
-		const firstCard = pane.getByRole('button', { name: /Post 0\b/ });
+		// The stack layer is the `.yip-stack` wrapper around a card (it also carries a grouped card's
+		// source bar), so `behind` lands there, not on the card's own button.
+		const firstCard = pane.locator('.yip-stack', {
+			has: page.getByRole('button', { name: /Post 0\b/ })
+		});
 
 		await pane.evaluate((el) => el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }));
 		// The IntersectionObserver reports asynchronously; give it a moment to settle.
@@ -112,7 +116,11 @@ test.describe('The card stack', () => {
 	test('a card that scrolls back into view sheds its behind state', async ({ page }) => {
 		await seed(page);
 		const pane = page.locator('#pane-everything');
-		const firstCard = pane.getByRole('button', { name: /Post 0\b/ });
+		// The stack layer is the `.yip-stack` wrapper around a card (it also carries a grouped card's
+		// source bar), so `behind` lands there, not on the card's own button.
+		const firstCard = pane.locator('.yip-stack', {
+			has: page.getByRole('button', { name: /Post 0\b/ })
+		});
 
 		await pane.evaluate((el) => el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }));
 		await expect(firstCard).toHaveClass(/\bbehind\b/, { timeout: 5000 });
