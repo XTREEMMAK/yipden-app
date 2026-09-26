@@ -31,6 +31,7 @@ function feed(overrides: Partial<Feed> = {}): Feed {
 function yip(overrides: Partial<StoredYip> = {}): StoredYip {
 	return {
 		key: 'https://lena.example.com/feed.xml::1',
+		feedId: 'https://lena.example.com/feed.xml',
 		id: '1',
 		title: 'A post',
 		url: 'https://lena.example.com/1',
@@ -147,6 +148,32 @@ describe('yips', () => {
 		expect(await store.listYips({ filter: 'everything' })).toHaveLength(3);
 	});
 
+	it('filters cached items by enabled feed without deleting the other records', async () => {
+		await store.putYips([
+			yip({ key: 'site', feedId: 'site-feed', sourceFeedId: 'site-feed' }),
+			yip({ key: 'social', feedId: 'social-feed', sourceFeedId: 'social-feed' })
+		]);
+
+		expect((await store.listYips({ feedIds: ['site-feed'] })).map((item) => item.key)).toEqual([
+			'site'
+		]);
+		expect(await store.listYips()).toHaveLength(2);
+		expect(await store.listYips({ feedIds: [] })).toEqual([]);
+	});
+
+	it('matches legacy cached items that predate feedId', async () => {
+		const legacy = yip({
+			key: 'https://lena.example.com/feed.xml::legacy',
+			id: 'legacy'
+		});
+		delete legacy.feedId;
+		await store.putYips([legacy]);
+
+		expect(await store.listYips({ feedIds: ['https://lena.example.com/feed.xml'] })).toHaveLength(
+			1
+		);
+	});
+
 	it('pages with a cursor', async () => {
 		await store.putYips([
 			yip({ key: 'a', publishedAt: '2026-09-03T00:00:00.000Z' }),
@@ -178,6 +205,13 @@ describe('yips', () => {
 		await store.markAllRead();
 
 		expect((await store.countUnread()).yips).toBe(0);
+	});
+
+	it('marks a cross-post group read atomically', async () => {
+		await store.putYips([yip({ key: 'site' }), yip({ key: 'social', id: '2' })]);
+		await store.markRead(['site', 'social', 'site']);
+
+		expect((await store.listYips()).every((item) => Boolean(item.readAt))).toBe(true);
 	});
 
 	it('clears cached yips without touching the follow list', async () => {
@@ -225,5 +259,58 @@ describe('the ring, peaks and settings', () => {
 		expect(await store.getSetting('includeExplicit')).toBeNull();
 		await store.setSetting('includeExplicit', true);
 		expect(await store.getSetting<boolean>('includeExplicit')).toBe(true);
+	});
+});
+
+describe('source management', () => {
+	it('attaches a manual source without replacing an existing feed', async () => {
+		await store.follow(person(), [feed()]);
+		const manual = feed({
+			id: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCabcdefghijklmnopqrstuv',
+			url: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCabcdefghijklmnopqrstuv',
+			kind: 'youtube',
+			provenance: 'manual',
+			verified: false
+		});
+
+		expect(await store.addFeed(manual)).toEqual({ status: 'added' });
+		expect(await store.addFeed({ ...manual, title: 'replacement' })).toEqual({
+			status: 'already-attached'
+		});
+		expect(
+			(await store.listFeeds('person-lena')).find((item) => item.id === manual.id)?.title
+		).toBe('Lena');
+	});
+
+	it('does not move a globally identified feed between people', async () => {
+		await store.follow(person(), [feed()]);
+		const shared = feed({
+			id: 'https://shared.example/feed.xml',
+			url: 'https://shared.example/feed.xml'
+		});
+		await store.addFeed(shared);
+
+		expect(await store.addFeed({ ...shared, personId: 'person-sam' })).toEqual({
+			status: 'belongs-to-other',
+			personId: 'person-lena'
+		});
+	});
+
+	it('removes only that source and its cached yips', async () => {
+		await store.follow(person(), [
+			feed(),
+			feed({ id: 'social-feed', url: 'https://social.example/feed' })
+		]);
+		await store.putYips([
+			yip(),
+			yip({ key: 'social-feed::2', feedId: 'social-feed', sourceFeedId: 'social-feed', id: '2' })
+		]);
+
+		await store.removeFeed('person-lena', 'social-feed');
+
+		expect((await store.listFeeds('person-lena')).map((item) => item.id)).toEqual([
+			'https://lena.example.com/feed.xml'
+		]);
+		expect((await store.listYips()).map((item) => item.id)).toEqual(['1']);
 	});
 });

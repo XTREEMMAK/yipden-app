@@ -187,6 +187,23 @@ test.describe('From the ring', () => {
 		await expect(page.getByRole('button', { name: /Up next/ })).toContainText('Bo Track One');
 	});
 
+	test('an emptied ring queue is not restored on the next launch', async ({ page }) => {
+		await seed(page);
+		await page.getByRole('button', { name: 'Play Ada Reed' }).click();
+		await queueBoWhilePlaying(page);
+		await page.getByRole('button', { name: 'Open the queue' }).click();
+		const sheet = page.getByRole('dialog', { name: 'Queue' });
+
+		await sheet.getByRole('button', { name: 'Remove Ada Track One from the queue' }).click();
+		await sheet.getByRole('button', { name: 'Remove Bo Track One from the queue' }).click();
+		await sheet.getByRole('button', { name: 'Remove Bo Track Two from the queue' }).click();
+		await expect(page.getByRole('button', { name: 'Open the player' })).toHaveCount(0);
+
+		await page.waitForTimeout(500);
+		await page.reload();
+		await expect(page.getByRole('button', { name: 'Open the player' })).toHaveCount(0);
+	});
+
 	test('every new control clears the 44px minimum', async ({ page }) => {
 		await seed(page);
 		for (const name of ['Play Ada Reed', 'Add Bo Quill to the queue']) {

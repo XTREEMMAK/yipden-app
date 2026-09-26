@@ -353,7 +353,7 @@
 	>
 		{#if ring.current}
 			{#key ring.current.id}
-				<div class="body-inner" out:exit|global>
+				<div class="body-inner" out:exit>
 					{#if ring.isNodeOfTheDay}
 						<span class="glass-chip" in:fly|global={enter('chip')}>Node of the day</span>
 					{/if}

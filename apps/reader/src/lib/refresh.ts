@@ -24,6 +24,7 @@ export function toStoredYip(item: Item, feed: Feed, personId: string, now: strin
 	return {
 		...item,
 		key: `${feed.id}::${item.id}`,
+		feedId: feed.id,
 		personId,
 		feedKind: feed.kind,
 		category: categorize(item),

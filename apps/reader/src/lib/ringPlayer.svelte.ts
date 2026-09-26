@@ -20,6 +20,7 @@ import { queueItemsFromRing, shuffled } from './queue.js';
  */
 
 export interface RingQueueRecord {
+	version: 2;
 	queue: QueueItem[];
 	currentIndex: number;
 	playedEntryIds: string[];
@@ -74,6 +75,7 @@ class RingPlayerState {
 	snapshot(): RingQueueRecord | null {
 		if (player.loop || !player.queue.length) return null;
 		return {
+			version: 2,
 			queue: $state.snapshot(player.queue),
 			currentIndex: player.currentIndex,
 			playedEntryIds: $state.snapshot(this.playedEntryIds)
@@ -82,6 +84,7 @@ class RingPlayerState {
 
 	/** Restores a session saved from a previous launch, paused until the reader presses play. */
 	restore(record: RingQueueRecord): void {
+		if (record.version !== 2) return;
 		player.hydrate(record.queue, record.currentIndex, { loop: false });
 		this.playedEntryIds = record.playedEntryIds;
 	}

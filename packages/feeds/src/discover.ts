@@ -116,6 +116,47 @@ export async function discoverFeeds(
 	const feeds: DiscoveredFeed[] = [];
 	const unresolved: DiscoveryResult['unresolved'] = [];
 
+	// A pasted profile URL is already a useful discovery input. Resolve it before treating the
+	// response as a generic web page; client-rendered profile pages may contain no useful anchors.
+	const directProfile = resolveProfile(target.toString());
+	if (directProfile.status === 'resolved') {
+		return {
+			canonicalUrl: target.toString(),
+			title: directProfile.match.label,
+			iconUrl: null,
+			feeds: [
+				{
+					url: directProfile.match.feedUrl,
+					kind: directProfile.match.kind,
+					title: directProfile.match.label,
+					via: 'known-pattern',
+					verified: false
+				}
+			],
+			unresolved
+		};
+	}
+	if (directProfile.status === 'needs-page') {
+		const resolved = await resolveNeedsPage(http, directProfile.url, directProfile.kind);
+		if (resolved) {
+			return {
+				canonicalUrl: target.toString(),
+				title: resolved.label,
+				iconUrl: null,
+				feeds: [
+					{
+						url: resolved.feedUrl,
+						kind: directProfile.kind,
+						title: resolved.label,
+						via: 'known-pattern',
+						verified: false
+					}
+				],
+				unresolved
+			};
+		}
+	}
+
 	const response = await http.get(target.toString());
 	// The address it actually resolved to is the one that matters from here on. A person behind
 	// a redirect is still one person, and following them twice would be the bug.
@@ -161,7 +202,7 @@ export async function discoverFeeds(
 
 	// Profiles: rel=me first, since that is the person saying "this is also me", then any other
 	// outbound link that matches a platform pattern.
-	const candidates = [...page.relMe, ...page.links].slice(0, maxProfiles * 4);
+	const candidates = [...page.relMe, ...page.links];
 	const declared = new Set(page.relMe.map((url) => url.toLowerCase()));
 	let profilesSeen = 0;
 

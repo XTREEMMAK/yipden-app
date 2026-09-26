@@ -252,3 +252,63 @@ describe('an h-card', () => {
 		expect((await result).title).toBe('Real Name');
 	});
 });
+
+describe('profile discovery regressions', () => {
+	it('accepts a pasted YouTube handle without requiring a website first', async () => {
+		const { result } = discover(
+			{
+				'https://www.youtube.com/@maker': {
+					body: '<html><head><link href="https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv" rel="canonical"></head></html>',
+					headers: HTML
+				}
+			},
+			'https://www.youtube.com/@maker'
+		);
+
+		expect((await result).feeds[0]).toMatchObject({
+			url: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCabcdefghijklmnopqrstuv',
+			kind: 'youtube',
+			verified: false
+		});
+	});
+
+	it('finds a legacy custom YouTube URL declared through Schema.org sameAs', async () => {
+		const { result } = discover(
+			{
+				'https://maker.example.com/': page(`<script type="application/ld+json">
+					{"@type":"Person","sameAs":["https://www.youtube.com/keyjayhd"]}
+				</script>`),
+				'https://www.youtube.com/keyjayhd': {
+					body: '<script>var data={"channelId":"UCzyxwvutsrqponmlkjihgf1","externalId":"UCabcdefghijklmnopqrstuv"}</script>',
+					headers: HTML
+				}
+			},
+			'https://maker.example.com/',
+			{ verifyBacklinks: false }
+		);
+
+		expect((await result).feeds[0]).toMatchObject({
+			url: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCabcdefghijklmnopqrstuv',
+			kind: 'youtube',
+			verified: false
+		});
+	});
+
+	it('keeps looking for profiles after ordinary links', async () => {
+		const ordinary = Array.from(
+			{ length: 40 },
+			(_, index) => `<a href="https://example.org/page-${index}">ordinary</a>`
+		).join('');
+		const { result } = discover(
+			{
+				'https://maker.example.com/': page(
+					`${ordinary}<a href="https://bsky.app/profile/maker.bsky.social">Bluesky</a>`
+				)
+			},
+			'https://maker.example.com/',
+			{ verifyBacklinks: false }
+		);
+
+		expect((await result).feeds[0]?.url).toBe('https://bsky.app/profile/maker.bsky.social/rss');
+	});
+});

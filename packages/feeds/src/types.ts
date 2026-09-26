@@ -27,14 +27,22 @@ export interface MediaAttachment {
 	/** Seconds. */
 	durationSeconds?: number;
 	title?: string;
+	/** A creator-supplied description of visual media. */
+	alt?: string;
+	/** The source marked this individual attachment as sensitive. */
+	sensitive?: boolean;
 }
 
 export interface Item {
 	/** Stable within a feed: the feed's own guid or id when it has one, else the URL. */
 	id: string;
 	title: string;
-	/** Where the yip lives on the creator's own site. Always https, always checked. */
+	/** Where the yip can be opened. Always https, always checked. */
 	url: string;
+	/** An explicitly declared canonical URL, when it differs from or confirms `url`. */
+	canonicalUrl?: string;
+	/** Other published copies declared by the creator. Used for syndication grouping later. */
+	syndicationUrls?: string[];
 	author?: string;
 	/** ISO 8601. Null when the feed gave no usable date, which the UI sorts to the end. */
 	publishedAt: string | null;
@@ -42,6 +50,14 @@ export interface Item {
 	summary: string;
 	/** Sanitized HTML, kept for a later reader view. Never raw feed markup. */
 	contentHtml: string | null;
+	/** Creator-supplied content warning text, without the hidden body. */
+	contentWarning?: string;
+	/** The source marked the item or one of its attachments as sensitive. */
+	sensitive?: boolean;
+	replyToUrl?: string;
+	repostOfUrl?: string;
+	likeOfUrl?: string;
+	bookmarkOfUrl?: string;
 	media: MediaAttachment[];
 	sourceFeedId: string;
 }

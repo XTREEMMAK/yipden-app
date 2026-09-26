@@ -100,7 +100,7 @@ function layoutFallback(pane: HTMLElement): void {
 	const scrollTop = pane.scrollTop;
 	const viewport = pane.clientHeight - dockPx(pane);
 
-	for (const card of pane.querySelectorAll<HTMLElement>('.yip')) {
+	for (const card of pane.querySelectorAll<HTMLElement>('.yip-stack')) {
 		const height = card.offsetHeight;
 		const relative = card.offsetTop - scrollTop;
 		const placement = cardPlacement(relative, height, viewport);
@@ -142,7 +142,7 @@ export function cardStack(pane: HTMLElement) {
 
 	function observeCards(): void {
 		observer.disconnect();
-		for (const card of pane.querySelectorAll('.yip')) observer.observe(card);
+		for (const card of pane.querySelectorAll('.yip-stack')) observer.observe(card);
 	}
 	observeCards();
 
@@ -169,7 +169,7 @@ export function cardStack(pane: HTMLElement) {
 			mutationObserver.disconnect();
 			pane.removeEventListener('scroll', onScroll);
 			pane.classList.remove('stack', 'stack-sda');
-			for (const card of pane.querySelectorAll<HTMLElement>('.yip')) {
+			for (const card of pane.querySelectorAll<HTMLElement>('.yip-stack')) {
 				resetCard(card);
 				card.classList.remove('behind');
 			}

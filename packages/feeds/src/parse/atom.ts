@@ -19,6 +19,15 @@ export interface AtomParseOptions {
 
 const DEFAULT_MAX_ITEMS = 100;
 
+interface ParsedMedia {
+	media: MediaAttachment[];
+	sensitive: boolean;
+}
+
+function sensitiveRating(value: string | undefined): boolean {
+	return ['adult', 'explicit', 'true', 'yes'].includes(value?.trim().toLowerCase() ?? '');
+}
+
 /** The first link with this rel, or with no rel at all, which Atom defines as alternate. */
 function linkWithRel(parent: XmlElement, rel: string, baseUrl: string): XmlElement | null {
 	for (const link of children(parent, 'link')) {
@@ -28,53 +37,83 @@ function linkWithRel(parent: XmlElement, rel: string, baseUrl: string): XmlEleme
 	return null;
 }
 
-function mediaFrom(entry: XmlElement, baseUrl: string): MediaAttachment[] {
+function mediaFrom(entry: XmlElement, baseUrl: string): ParsedMedia {
 	const media: MediaAttachment[] = [];
-	const seen = new Set<string>();
+	let sensitive = false;
+
+	const add = (
+		rawUrl: string | undefined,
+		mimeType: string | undefined,
+		extra: Partial<MediaAttachment> = {}
+	) => {
+		const url = absoluteUrl(rawUrl, baseUrl);
+		if (!url) return;
+		const existing = media.find((item) => item.url === url);
+		if (existing) {
+			if (!existing.mimeType && mimeType) existing.mimeType = mimeType;
+			for (const [key, value] of Object.entries(extra)) {
+				if (value !== undefined && existing[key as keyof MediaAttachment] === undefined) {
+					Object.assign(existing, { [key]: value });
+				}
+			}
+			return;
+		}
+		const kind = mediaKindFor(mimeType, url);
+		if (!kind) return;
+		media.push({ url, kind, ...(mimeType ? { mimeType } : {}), ...extra });
+	};
 
 	for (const link of children(entry, 'link')) {
 		if ((attr(link, 'rel') ?? '').toLowerCase() !== 'enclosure') continue;
-		const url = absoluteUrl(attr(link, 'href'), baseUrl);
-		if (!url || seen.has(url)) continue;
 		const mimeType = attr(link, 'type');
-		const kind = mediaKindFor(mimeType, url);
-		if (!kind) continue;
 		const length = Number(attr(link, 'length'));
-		seen.add(url);
-		media.push({
-			url,
-			kind,
-			...(mimeType ? { mimeType } : {}),
+		add(attr(link, 'href'), mimeType, {
 			...(Number.isFinite(length) && length > 0 ? { sizeBytes: length } : {})
 		});
 	}
 
 	// Media RSS inside Atom, which is how YouTube publishes.
 	for (const group of [entry, ...children(entry, 'group')]) {
+		const groupDescription = group === entry ? '' : childText(group, 'description');
+		const groupTitle = group === entry ? '' : childText(group, 'title');
+		const groupSensitive = sensitiveRating(childText(group, 'rating'));
+		if (groupSensitive) sensitive = true;
+
 		for (const content of children(group, 'content')) {
-			const url = absoluteUrl(attr(content, 'url'), baseUrl);
-			if (!url || seen.has(url)) continue;
 			const mimeType = attr(content, 'type') ?? attr(content, 'medium');
-			const kind = mediaKindFor(mimeType, url);
-			if (!kind) continue;
 			const duration = parseDuration(attr(content, 'duration'));
-			seen.add(url);
-			media.push({
-				url,
-				kind,
-				...(mimeType ? { mimeType } : {}),
-				...(duration ? { durationSeconds: duration } : {})
+			const size = Number(attr(content, 'filesize') ?? attr(content, 'length'));
+			const contentSensitive = groupSensitive || sensitiveRating(childText(content, 'rating'));
+			if (contentSensitive) sensitive = true;
+			const alt = childText(content, 'description') || groupDescription;
+			const title = childText(content, 'title') || groupTitle;
+			add(attr(content, 'url'), mimeType, {
+				...(duration ? { durationSeconds: duration } : {}),
+				...(Number.isFinite(size) && size > 0 ? { sizeBytes: size } : {}),
+				...(title ? { title } : {}),
+				...(alt ? { alt: summarize(alt, 1000) } : {}),
+				...(contentSensitive ? { sensitive: true } : {})
 			});
 		}
 		for (const thumbnail of children(group, 'thumbnail')) {
-			const url = absoluteUrl(attr(thumbnail, 'url'), baseUrl);
-			if (!url || seen.has(url)) continue;
-			seen.add(url);
-			media.push({ url, kind: 'image' });
+			add(attr(thumbnail, 'url'), 'image/*', {
+				...(groupDescription ? { alt: summarize(groupDescription, 1000) } : {}),
+				...(groupSensitive ? { sensitive: true } : {})
+			});
 		}
 	}
 
-	return media;
+	return { media, sensitive };
+}
+
+function relatedUrls(entry: XmlElement, relation: string, baseUrl: string): string[] {
+	const urls: string[] = [];
+	for (const link of children(entry, 'link')) {
+		if ((attr(link, 'rel') ?? 'alternate').toLowerCase() !== relation) continue;
+		const url = absoluteUrl(attr(link, 'href'), baseUrl);
+		if (url && !urls.includes(url)) urls.push(url);
+	}
+	return urls;
 }
 
 function itemFrom(entry: XmlElement, options: AtomParseOptions): Item | null {
@@ -89,16 +128,27 @@ function itemFrom(entry: XmlElement, options: AtomParseOptions): Item | null {
 	const rawSummary = summaryElement?.text.trim() ?? '';
 	const authorElement = child(entry, 'author');
 	const author = authorElement ? childText(authorElement, 'name') : '';
+	const canonicalUrl = relatedUrls(entry, 'canonical', url)[0];
+	const syndicationUrls = relatedUrls(entry, 'syndication', url);
+	const inReplyTo = child(entry, 'in-reply-to');
+	const replyToUrl = inReplyTo
+		? absoluteUrl(attr(inReplyTo, 'href') ?? attr(inReplyTo, 'ref'), url)
+		: null;
+	const parsedMedia = mediaFrom(entry, url);
 
 	return {
 		id: childText(entry, 'id') || url,
 		title: childText(entry, 'title') || 'Untitled',
 		url,
+		...(canonicalUrl ? { canonicalUrl } : {}),
+		...(syndicationUrls.length ? { syndicationUrls } : {}),
 		...(author ? { author } : {}),
 		publishedAt: parseDate(childText(entry, 'published') || childText(entry, 'updated')),
 		summary: summarize(rawSummary || rawContent),
 		contentHtml: rawContent ? sanitizeHtml(rawContent, { baseUrl: url }) : null,
-		media: mediaFrom(entry, url),
+		...(parsedMedia.sensitive ? { sensitive: true } : {}),
+		...(replyToUrl ? { replyToUrl } : {}),
+		media: parsedMedia.media,
 		sourceFeedId: feedUrl
 	};
 }

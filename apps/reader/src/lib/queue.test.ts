@@ -41,6 +41,7 @@ describe('queueItemFromYip', () => {
 			id: 'k1',
 			title: 'Low Tide',
 			mediaUrl: 'https://ada.example.com/low-tide.mp3',
+			personId: 'p1',
 			siteUrl: 'https://ada.example.com/low-tide'
 		});
 	});

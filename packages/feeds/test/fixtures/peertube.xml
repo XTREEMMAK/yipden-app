@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:dc="http://purl.org/dc/elements/1.1/"
+     xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Open Studio Videos</title>
+    <link>https://tube.example/c/open_studio/videos</link>
+    <description>Videos made in the open.</description>
+    <item>
+      <title>Making a field recorder</title>
+      <link>https://tube.example/w/3f04e2d1-30c8-4a99-88f7-bb31ca2cfbe1</link>
+      <guid isPermaLink="false">3f04e2d1-30c8-4a99-88f7-bb31ca2cfbe1</guid>
+      <pubDate>Mon, 21 Sep 2026 09:30:00 GMT</pubDate>
+      <dc:creator>Open Studio</dc:creator>
+      <description><![CDATA[<p>Building a portable recorder from repairable parts.</p>]]></description>
+      <enclosure
+        url="https://tube.example/static/webseed/3f04e2d1/video-1080.mp4"
+        type="video/mp4"
+        length="84500000" />
+      <media:group>
+        <media:title>Making a field recorder</media:title>
+        <media:description>The completed blue recorder beside its circuit board.</media:description>
+        <media:content
+          url="https://tube.example/static/webseed/3f04e2d1/video-1080.mp4"
+          type="video/mp4"
+          medium="video"
+          fileSize="84500000"
+          duration="754" />
+        <media:thumbnail url="https://tube.example/lazy-static/previews/3f04e2d1.jpg" />
+        <media:rating scheme="urn:simple">nonadult</media:rating>
+      </media:group>
+    </item>
+  </channel>
+</rss>

@@ -13,6 +13,36 @@ import type { FetchLike, HttpResponse } from '@yipden/feeds';
  * the browser's own protections are exactly what is being stepped around.
  */
 
+function abortError(): DOMException {
+	return new DOMException('The operation was aborted.', 'AbortError');
+}
+
+/** Make Capacitor's non-cancellable promise obey the FetchLike AbortSignal contract. */
+export function abortable<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+	if (signal?.aborted) return Promise.reject(abortError());
+
+	const promise = work();
+	if (!signal) return promise;
+
+	return new Promise<T>((resolve, reject) => {
+		const cleanup = () => signal.removeEventListener('abort', onAbort);
+		const onAbort = () => {
+			cleanup();
+			reject(abortError());
+		};
+		signal.addEventListener('abort', onAbort, { once: true });
+		promise.then(
+			(value) => {
+				cleanup();
+				resolve(value);
+			},
+			(cause) => {
+				cleanup();
+				reject(cause);
+			}
+		);
+	});
+}
 function headersFrom(raw: unknown): HttpResponse['headers'] {
 	const entries = Object.entries((raw ?? {}) as Record<string, string>);
 	const lower = Object.fromEntries(entries.map(([key, value]) => [key.toLowerCase(), value]));
@@ -20,16 +50,20 @@ function headersFrom(raw: unknown): HttpResponse['headers'] {
 }
 
 const nativeFetch: FetchLike = async (url, init) => {
-	const response = await CapacitorHttp.request({
-		url,
-		method: init?.method ?? 'GET',
-		headers: init?.headers ?? {},
-		// Redirects are followed by hand in packages/feeds so every hop is checked.
-		disableRedirects: init?.redirect === 'manual',
-		responseType: 'text',
-		readTimeout: 20_000,
-		connectTimeout: 20_000
-	});
+	const response = await abortable(
+		() =>
+			CapacitorHttp.request({
+				url,
+				method: init?.method ?? 'GET',
+				headers: init?.headers ?? {},
+				// Redirects are followed by hand in packages/feeds so every hop is checked.
+				disableRedirects: init?.redirect === 'manual',
+				responseType: 'text',
+				readTimeout: 20_000,
+				connectTimeout: 20_000
+			}),
+		init?.signal
+	);
 
 	return {
 		status: response.status,

@@ -31,8 +31,31 @@ export type ProfileResolution =
 const MASTODON_PATH = /^\/@([A-Za-z0-9_]{1,30})\/?$/;
 const BLUESKY_PATH = /^\/profile\/([^/]+)\/?$/;
 const YOUTUBE_CHANNEL = /^\/channel\/(UC[A-Za-z0-9_-]{22})\/?$/;
-const YOUTUBE_HANDLE = /^\/@([A-Za-z0-9._-]{3,30})\/?$/;
+const YOUTUBE_HANDLE = /^\/@([^/]{1,100})\/?$/;
 const YOUTUBE_USER = /^\/(?:user|c)\/([A-Za-z0-9._-]{1,50})\/?$/;
+const YOUTUBE_LEGACY_CUSTOM = /^\/([A-Za-z0-9._-]{1,100})\/?$/;
+const YOUTUBE_RESERVED_PATHS = new Set([
+	'about',
+	'account',
+	'ads',
+	'creators',
+	'embed',
+	'feed',
+	'gaming',
+	'howyoutubeworks',
+	'live',
+	'logout',
+	'music',
+	'playlist',
+	'premium',
+	'results',
+	'shorts',
+	'signin',
+	't',
+	'trending',
+	'upload',
+	'watch'
+]);
 
 /**
  * Turn a profile URL into a feed URL where the pattern is documented and stable.
@@ -75,7 +98,12 @@ export function resolveProfile(url: string): ProfileResolution {
 				}
 			};
 		}
-		if (YOUTUBE_HANDLE.test(path) || YOUTUBE_USER.test(path)) {
+		const legacy = path.match(YOUTUBE_LEGACY_CUSTOM)?.[1]?.toLowerCase();
+		if (
+			YOUTUBE_HANDLE.test(path) ||
+			YOUTUBE_USER.test(path) ||
+			(legacy && !YOUTUBE_RESERVED_PATHS.has(legacy))
+		) {
 			return {
 				status: 'needs-page',
 				url: parsed.toString(),
@@ -145,11 +173,16 @@ export const FALLBACK_PATHS = [
  * in the page in two stable forms. Both are checked; neither is guessed at.
  */
 export function channelIdFromPage(html: string): string | null {
-	const canonical = html.match(
-		/<link[^>]+rel=["']canonical["'][^>]+href=["']https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})["']/i
-	);
-	if (canonical?.[1]) return canonical[1];
+	for (const match of html.matchAll(/<link\b[^>]*>/gi)) {
+		const tag = match[0];
+		if (!/\brel=["']canonical["']/i.test(tag)) continue;
+		const href = tag.match(/\bhref=["']https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})["']/i);
+		if (href?.[1]) return href[1];
+	}
 
-	const embedded = html.match(/"(?:channelId|externalId)":"(UC[\w-]{22})"/);
-	return embedded?.[1] ?? null;
+	// externalId identifies the page's channel. A generic channelId can belong to one of the
+	// many recommended channels embedded in the same document, so it is only the last fallback.
+	const external = html.match(/"externalId"\s*:\s*"(UC[\w-]{22})"/);
+	if (external?.[1]) return external[1];
+	return html.match(/"channelId"\s*:\s*"(UC[\w-]{22})"/)?.[1] ?? null;
 }

@@ -8,6 +8,8 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- Leaving Discover now keeps its cover in the outgoing View Transition snapshot without retaining
+  the live full-height route and displacing Feeds, Follow, or You until a creator outro finishes.
 - The player's waveform draws. wavesurfer's aborted first load was being read as a failure, so
   every track showed the plain bar. See DECISIONS.md.
 - Discover no longer sits on "Loading the ring" after the app resumes: the saved ring draws at
@@ -15,6 +17,14 @@ Every notable change to YipDen, newest first. The format follows
   on resume. An update never moves the member on screen. See DECISIONS.md.
 
 ### Added
+
+- You's About row now opens a modal with the YipDen mark, package version and build commit, the
+  build-time `CHANGELOG.md`, the IndieNodes Discover explanation, privacy and source links, and
+  audited dependency/content attributions. Escape and browser or Android Back close it and return
+  focus to the row.
+- Follow searches the locally loaded IndieNodes Ring as a creator name, hostname, tag, or declared
+  feed is typed. A matching Ring record with feeds reaches the source picker without requesting the
+  creator's website; entries without feeds require an explicit website check.
 
 - Discover's first ever load shows a centered ring animation instead of a text chip, with a slot
   for artwork to replace it later.

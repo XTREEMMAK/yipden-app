@@ -1,4 +1,5 @@
 import { refreshAll } from './refresh.js';
+import { groupCrossposts, type FeedYip } from './syndication.js';
 import { store, type Feed, type Person, type StoredYip, type YipCategory } from './store/index.js';
 
 /**
@@ -19,21 +20,35 @@ export const FEEDS_FILTERS = [
 export type FeedsFilterKey = (typeof FEEDS_FILTERS)[number]['key'];
 
 const PAGE_SIZE = 50;
+const GROUP_SCAN_SIZE = PAGE_SIZE * 3;
+
+function newestFirst(left: StoredYip, right: StoredYip): number {
+	const leftTime = new Date(left.publishedAt ?? left.seenAt).getTime();
+	const rightTime = new Date(right.publishedAt ?? right.seenAt).getTime();
+	return rightTime - leftTime || left.key.localeCompare(right.key);
+}
 
 class FeedsState {
 	filter = $state<FeedsFilterKey>('everything');
 	/** One list per filter, so switching panes keeps each one's scroll position and content. */
-	panes = $state<Record<FeedsFilterKey, StoredYip[]>>({
+	panes = $state<Record<FeedsFilterKey, FeedYip[]>>({
 		everything: [],
 		posts: [],
 		watch: [],
 		listen: []
 	});
 	people = $state<Map<string, Person>>(new Map());
+	separatedGroupIds = $state<Set<string>>(new Set());
 	status = $state<'idle' | 'loading' | 'refreshing'>('loading');
 	refreshError = $state<string | null>(null);
 
-	unreadCount = $derived(this.panes.everything.filter((yip) => !yip.readAt).length);
+	unreadCount = $derived(
+		new Set(
+			this.panes.everything
+				.filter((yip) => !yip.readAt)
+				.map((yip) => yip.crosspostGroupId ?? yip.key)
+		).size
+	);
 	peopleCount = $derived(
 		new Set(this.panes.everything.filter((yip) => !yip.readAt).map((y) => y.personId)).size
 	);
@@ -41,21 +56,33 @@ class FeedsState {
 	/** From storage only. Called on mount, and again after a refresh completes. */
 	async load(): Promise<void> {
 		await store.init();
-		const [people, ...lists] = await Promise.all([
-			store.listPeople(),
-			...FEEDS_FILTERS.map((filter) => store.listYips({ filter: filter.key, limit: PAGE_SIZE }))
-		]);
+		const [people, followedFeeds] = await Promise.all([store.listPeople(), store.listFeeds()]);
+		const enabledFeedIds = followedFeeds.filter((feed) => feed.enabled).map((feed) => feed.id);
+		const lists = await Promise.all(
+			FEEDS_FILTERS.map((filter) =>
+				store.listYips({
+					filter: filter.key,
+					feedIds: enabledFeedIds,
+					limit: GROUP_SCAN_SIZE
+				})
+			)
+		);
+		const siteUrls = new Map(people.map((person) => [person.id, person.siteUrl]));
+		const readKeys = new Set<string>();
 
 		this.people = new Map(people.map((person) => [person.id, person]));
-		const next: Record<FeedsFilterKey, StoredYip[]> = {
+		const next: Record<FeedsFilterKey, FeedYip[]> = {
 			everything: [],
 			posts: [],
 			watch: [],
 			listen: []
 		};
 		FEEDS_FILTERS.forEach((filter, index) => {
-			next[filter.key] = lists[index] ?? [];
+			const grouped = groupCrossposts(lists[index] ?? [], siteUrls);
+			for (const key of grouped.readKeys) readKeys.add(key);
+			next[filter.key] = this.expandSeparated(grouped.yips).slice(0, PAGE_SIZE);
 		});
+		if (readKeys.size) await store.markRead([...readKeys]);
 		this.panes = next;
 		this.status = 'idle';
 	}
@@ -93,12 +120,49 @@ class FeedsState {
 		this.filter = key;
 	}
 
-	async markRead(key: string): Promise<void> {
-		await store.markRead(key);
+	async markRead(yip: FeedYip): Promise<void> {
+		const keys = new Set(yip.crosspostKeys ?? (yip.crossposts ?? [yip]).map((copy) => copy.key));
+		await store.markRead([...keys]);
+		const readAt = new Date().toISOString();
 		for (const list of Object.values(this.panes)) {
-			const yip = list.find((item) => item.key === key);
-			if (yip && !yip.readAt) yip.readAt = new Date().toISOString();
+			for (const item of list) {
+				const belongsToGroup =
+					(yip.crosspostGroupId && item.crosspostGroupId === yip.crosspostGroupId) ||
+					keys.has(item.key) ||
+					item.crossposts?.some((copy) => keys.has(copy.key));
+				if (!belongsToGroup) continue;
+				if (!item.readAt) item.readAt = readAt;
+				if (item.crossposts) {
+					item.crossposts = item.crossposts.map((copy) =>
+						copy.readAt ? copy : { ...copy, readAt }
+					);
+				}
+			}
 		}
+	}
+
+	showSeparately(groupId: string): void {
+		this.separatedGroupIds = new Set(this.separatedGroupIds).add(groupId);
+		for (const [filter, list] of Object.entries(this.panes) as Array<[FeedsFilterKey, FeedYip[]]>) {
+			this.panes[filter] = this.expandSeparated(list).sort(newestFirst).slice(0, PAGE_SIZE);
+		}
+	}
+
+	private expandSeparated(items: FeedYip[]): FeedYip[] {
+		return items.flatMap((item) => {
+			const groupId = item.crosspostGroupId;
+			if (!groupId || !this.separatedGroupIds.has(groupId)) {
+				return [item];
+			}
+			const copies = item.crossposts ?? [item];
+			const keys = copies.map((copy) => copy.key);
+			return copies.map((copy) => ({
+				...copy,
+				...(item.readAt && !copy.readAt ? { readAt: item.readAt } : {}),
+				crosspostGroupId: groupId,
+				crosspostKeys: keys
+			}));
+		});
 	}
 
 	personFor(yip: StoredYip): Person | null {
@@ -142,11 +206,22 @@ export function sourceLabel(yip: StoredYip): string {
 		bluesky: 'Bluesky',
 		mastodon: 'Mastodon',
 		youtube: 'YouTube',
-		peertube: 'Video',
+		peertube: 'PeerTube',
 		podcast: 'Podcast',
 		forum: 'Forum'
 	};
 	return byKind[yip.feedKind] ?? SOURCE_LABELS[yip.category] ?? SOURCE_LABELS.default;
+}
+
+/** Prefer the post's own byline; a followed person's name is only a missing-byline fallback. */
+export function displayAuthor(yip: Pick<StoredYip, 'author'>, personName?: string): string {
+	return yip.author || personName || 'Unknown';
+}
+
+/** Duration belongs to the playable attachment, not necessarily the first (often a thumbnail). */
+export function mediaDuration(yip: Pick<StoredYip, 'media' | 'category'>): number | undefined {
+	const kind = yip.category === 'listen' ? 'audio' : yip.category === 'watch' ? 'video' : null;
+	return (kind ? yip.media.find((media) => media.kind === kind) : undefined)?.durationSeconds;
 }
 
 /** mm:ss or h:mm:ss, for a track or clip length under a card. */

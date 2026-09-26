@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, relativeAge, sourceLabel } from './feeds.svelte.js';
+import {
+	displayAuthor,
+	formatDuration,
+	mediaDuration,
+	relativeAge,
+	sourceLabel
+} from './feeds.svelte.js';
 import type { StoredYip } from './store/types.js';
 
 describe('relativeAge', () => {
@@ -47,10 +53,32 @@ describe('sourceLabel', () => {
 		expect(sourceLabel({ ...base, feedKind: 'bluesky' })).toBe('Bluesky');
 		expect(sourceLabel({ ...base, feedKind: 'youtube' })).toBe('YouTube');
 		expect(sourceLabel({ ...base, feedKind: 'podcast' })).toBe('Podcast');
+		expect(sourceLabel({ ...base, feedKind: 'peertube' })).toBe('PeerTube');
 	});
 
 	it('falls back to the category for a kind it does not recognize', () => {
 		expect(sourceLabel({ ...base, feedKind: 'something-new', category: 'listen' })).toBe('Podcast');
+	});
+});
+
+describe('displayAuthor', () => {
+	it('keeps a multi-author feed item byline ahead of the followed publication', () => {
+		expect(displayAuthor({ author: 'Topic Author' }, 'Followed Forum')).toBe('Topic Author');
+		expect(displayAuthor({}, 'Followed Forum')).toBe('Followed Forum');
+	});
+});
+
+describe('mediaDuration', () => {
+	it('finds the playable attachment when a thumbnail comes first', () => {
+		expect(
+			mediaDuration({
+				category: 'watch',
+				media: [
+					{ url: 'https://example.com/thumb.jpg', kind: 'image' },
+					{ url: 'https://example.com/video.mp4', kind: 'video', durationSeconds: 754 }
+				]
+			})
+		).toBe(754);
 	});
 });
 

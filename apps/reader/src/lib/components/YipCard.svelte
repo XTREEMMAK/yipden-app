@@ -3,7 +3,14 @@
 	import { buildListenQueue } from '$lib/queue.js';
 	import { ring } from '$lib/ring.svelte.js';
 	import { washFor } from '$lib/ring.svelte.js';
-	import { feeds, formatDuration, relativeAge, sourceLabel } from '$lib/feeds.svelte.js';
+	import {
+		displayAuthor,
+		feeds,
+		formatDuration,
+		mediaDuration,
+		relativeAge,
+		sourceLabel
+	} from '$lib/feeds.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
 	import type { StoredYip } from '$lib/store/index.js';
 
@@ -22,21 +29,30 @@
 
 	let { yip }: Props = $props();
 
-	let image = $derived(yip.media.find((media) => media.kind === 'image')?.url ?? null);
-	let isPlayable = $derived(yip.category === 'listen' || yip.category === 'watch');
-	let isMedia = $derived(isPlayable || image !== null);
-	let creatorName = $derived(feeds.personFor(yip)?.name ?? yip.author ?? 'Unknown');
-	let duration = $derived(formatDuration(yip.media[0]?.durationSeconds));
+	let imageAttachment = $derived(yip.media.find((media) => media.kind === 'image') ?? null);
+	let image = $derived(imageAttachment?.url ?? null);
+	let imageAlt = $derived(imageAttachment?.alt ?? '');
+	let isAudio = $derived(yip.category === 'listen');
+	let isVideo = $derived(yip.category === 'watch');
+	let isMedia = $derived(isAudio || isVideo || image !== null);
+	let authorName = $derived(displayAuthor(yip, feeds.personFor(yip)?.name));
+	let duration = $derived(formatDuration(mediaDuration(yip)));
 	let age = $derived(relativeAge(yip.publishedAt));
+	let revealed = $state(false);
+	let concealed = $derived((yip.sensitive === true || Boolean(yip.contentWarning)) && !revealed);
+	let warning = $derived(yip.contentWarning || 'Sensitive media');
 
 	/**
-	 * "Tapping an audio yip opens the player; everything else opens the creator's URL." A watch
-	 * yip still gets the play icon, matching a video's own affordance, but this app does not
-	 * play video: it opens the creator's page the same as a post does.
+	 * The first activation reveals warned content. After that, audio opens the player and every
+	 * other yip opens its source URL; video is deliberately presented as an external action.
 	 */
 	function open(event: MouseEvent) {
-		void feeds.markRead(yip.key);
-		if (yip.category === 'listen') {
+		if (concealed) {
+			revealed = true;
+			return;
+		}
+		void feeds.markRead(yip);
+		if (isAudio) {
 			const queue = buildListenQueue(feeds.panes.listen, ring.all);
 			const index = queue.findIndex((item) => item.id === yip.key);
 			if (index !== -1) {
@@ -51,16 +67,17 @@
 {#if isMedia}
 	<button
 		class="yip media"
-		class:listen={yip.category === 'listen'}
+		class:listen={isAudio}
+		class:concealed
 		class:unread={!yip.readAt}
 		onclick={open}
-		aria-label={isPlayable
-			? `${yip.title} by ${creatorName}${duration ? `, ${duration}` : ''}`
-			: `${yip.title} by ${creatorName}. Opens on ${new URL(yip.url).hostname}.`}
+		aria-label={concealed
+			? `Content warning: ${warning}. Show content.`
+			: `${yip.title} by ${authorName}${duration ? `, ${duration}` : ''}. ${isAudio ? 'Play audio.' : `Opens on ${new URL(yip.url).hostname}.`}${imageAlt ? ` Image description: ${imageAlt}` : ''}`}
 	>
 		<span
 			class="art"
-			style:background-image={image ? `url(${image})` : washFor(yip.key)}
+			style:background-image={!concealed && image ? `url(${image})` : washFor(yip.key)}
 			aria-hidden="true"
 		></span>
 		<span class="shade" aria-hidden="true"></span>
@@ -70,11 +87,24 @@
 		</span>
 		<span class="bottom">
 			<span class="txtcol">
-				<span class="ttl">{yip.title}</span>
-				<span class="meta">{creatorName}{duration ? ` · ${duration}` : ''}</span>
+				<span class="ttl">{concealed ? warning : yip.title}</span>
+				<span class="meta">
+					{concealed ? 'Tap to show' : authorName}{!concealed && duration ? ` · ${duration}` : ''}
+				</span>
 			</span>
-			<span class="go" class:play={isPlayable} aria-hidden="true">
-				{#if isPlayable}
+			<span
+				class="go"
+				class:play={isAudio && !concealed}
+				class:warning={concealed}
+				aria-hidden="true"
+			>
+				{#if concealed}
+					<svg viewBox="0 0 24 24"
+						><path
+							d="M12 9v4M12 17h.01M10.3 4.2 2.6 18a1.5 1.5 0 0 0 1.3 2.2h16.2a1.5 1.5 0 0 0 1.3-2.2L13.7 4.2a2 2 0 0 0-3.4 0Z"
+						/></svg
+					>
+				{:else if isAudio}
 					<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
 				{:else}
 					<svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8" /></svg>
@@ -85,9 +115,12 @@
 {:else}
 	<button
 		class="yip text"
+		class:concealed
 		class:unread={!yip.readAt}
 		onclick={open}
-		aria-label={`${yip.title && yip.title !== 'Untitled' ? `${yip.title}. ` : ''}Post by ${creatorName} on ${sourceLabel(yip)}. Opens on ${new URL(yip.url).hostname}.`}
+		aria-label={concealed
+			? `Content warning: ${warning}. Show post.`
+			: `${yip.title && yip.title !== 'Untitled' ? `${yip.title}. ` : ''}Post by ${authorName} on ${sourceLabel(yip)}. Opens on ${new URL(yip.url).hostname}.`}
 	>
 		<span class="who">
 			<span
@@ -97,19 +130,23 @@
 					: ''}
 			></span>
 			<span class="wn">
-				<b>{creatorName}</b>
+				<b>{authorName}</b>
 				<small>{sourceLabel(yip)} {'·'} {age}</small>
 			</span>
 			<span class="src-light">{sourceLabel(yip)}</span>
 		</span>
-		{#if yip.title && yip.title !== 'Untitled'}
+		{#if !concealed && yip.title && yip.title !== 'Untitled'}
 			<span class="ttl-text">{yip.title}</span>
 		{/if}
-		<span class="body">{yip.summary}</span>
-		<span class="link">
-			Open on {new URL(yip.url).hostname.replace(/^www\./, '')}
-			<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
-		</span>
+		<span class="body">{concealed ? warning : yip.summary}</span>
+		{#if concealed}
+			<span class="link">Show post</span>
+		{:else}
+			<span class="link">
+				Open on {new URL(yip.url).hostname.replace(/^www\./, '')}
+				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
+			</span>
+		{/if}
 	</button>
 {/if}
 
@@ -248,12 +285,17 @@
 		fill: currentColor;
 	}
 
-	.go:not(.play) svg {
+	.go:not(.play) svg,
+	.go.warning svg {
 		fill: none;
 		stroke: currentColor;
 		stroke-width: 2;
 		stroke-linecap: round;
 		stroke-linejoin: round;
+	}
+
+	.concealed .art {
+		filter: saturate(0.45) brightness(0.65);
 	}
 
 	/* A small dot for an unread yip, the same idea the tab bar's badge would use. */

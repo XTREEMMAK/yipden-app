@@ -24,7 +24,11 @@ const FEED = `<?xml version="1.0"?><rss version="2.0"><channel>
 	<pubDate>Mon, 15 Sep 2026 14:02:00 GMT</pubDate></item>
 </channel></rss>`;
 
-async function mockUpstream(page: Page, routes: Record<string, { body: string; type?: string }>) {
+async function mockUpstream(
+	page: Page,
+	routes: Record<string, { body: string; type?: string }>,
+	ring = { version: '1.0', entries: [] as unknown[] }
+) {
 	/*
 	 * These tests run against the built preview server, the same as the rest of the e2e suite
 	 * (see docs/ci-cd.md). A production build's browser fetch goes direct, not through the dev
@@ -52,7 +56,7 @@ async function mockUpstream(page: Page, routes: Record<string, { body: string; t
 		route.fulfill({
 			status: 200,
 			contentType: 'application/json',
-			body: '{"version":"1.0","entries":[]}'
+			body: JSON.stringify(ring)
 		})
 	);
 }
@@ -63,7 +67,51 @@ test.describe('Follow', () => {
 		await page.goto('/follow');
 
 		await page.getByRole('button', { name: 'Find feeds' }).click();
-		await expect(page.getByText('Paste a website or profile link first.')).toBeVisible();
+		await expect(
+			page.getByText('Type a creator name, website, or profile link first.')
+		).toBeVisible();
+	});
+
+	test('suggests a Ring creator while typing and uses its feeds without visiting their site', async ({
+		page
+	}) => {
+		const ring = {
+			version: '1.0',
+			entries: [
+				{
+					id: 'ada-ring',
+					creator: 'Ada Reed',
+					type: 'audio',
+					tags: ['synth'],
+					source_url: 'https://ada.example.com/',
+					feeds: [
+						{ type: 'rss', url: 'https://ada.example.com/feed.xml', verified: true },
+						{ type: 'bluesky', url: 'https://bsky.app/profile/ada/rss' }
+					],
+					verification_token: 'ada',
+					joined_at: '2026-01-01T00:00:00.000Z'
+				}
+			]
+		};
+		let creatorRequests = 0;
+		page.on('request', (request) => {
+			if (request.url().startsWith('https://ada.example.com/')) creatorRequests += 1;
+		});
+		await mockUpstream(page, {}, ring);
+		await page.goto('/follow');
+
+		await page.getByLabel('Creator, website, or profile').fill('Ada');
+		await expect(page.getByText('Already in IndieNodes')).toBeVisible();
+		await page.getByRole('button', { name: /Ada Reed.*2 known sources/ }).click();
+
+		await expect(page.getByText('Found in the IndieNodes ring')).toBeVisible();
+		await expect(page.getByText('Blog', { exact: true })).toBeVisible();
+		await expect(page.getByText('Bluesky', { exact: true })).toBeVisible();
+		expect(creatorRequests).toBe(0);
+
+		await page.getByRole('button', { name: 'Follow Ada Reed in 2 places' }).click();
+		await expect(page.getByText('Following Ada Reed')).toBeVisible();
+		expect(creatorRequests).toBe(0);
 	});
 
 	test('finds a feed and a linked profile, verifying the two way link', async ({ page }) => {
@@ -75,7 +123,7 @@ test.describe('Follow', () => {
 		});
 		await page.goto('/follow');
 
-		await page.getByLabel('Website or profile').fill('lenaofori.com');
+		await page.getByLabel('Creator, website, or profile').fill('lenaofori.com');
 		await page.getByRole('button', { name: 'Find feeds' }).click();
 
 		await expect(page.getByText('Lena Ofori', { exact: true })).toBeVisible();
@@ -91,7 +139,7 @@ test.describe('Follow', () => {
 		});
 		await page.goto('/follow');
 
-		await page.getByLabel('Website or profile').fill('lenaofori.com');
+		await page.getByLabel('Creator, website, or profile').fill('lenaofori.com');
 		await page.getByRole('button', { name: 'Find feeds' }).click();
 		await expect(page.getByText('Found from lenaofori.com')).toBeVisible();
 	});
@@ -105,7 +153,7 @@ test.describe('Follow', () => {
 			'https://lenaofori.com/feed.xml': { body: FEED, type: 'application/rss+xml' }
 		});
 		await page.goto('/follow');
-		await page.getByLabel('Website or profile').fill('lenaofori.com');
+		await page.getByLabel('Creator, website, or profile').fill('lenaofori.com');
 		await page.getByRole('button', { name: 'Find feeds' }).click();
 		await expect(page.getByText('Blog', { exact: true })).toBeVisible();
 
@@ -127,7 +175,7 @@ test.describe('Follow', () => {
 			'https://mastodon.social/@lena': { body: MASTODON_PAGE }
 		});
 		await page.goto('/follow');
-		await page.getByLabel('Website or profile').fill('lenaofori.com');
+		await page.getByLabel('Creator, website, or profile').fill('lenaofori.com');
 		await page.getByRole('button', { name: 'Find feeds' }).click();
 		await expect(page.getByText('Mastodon', { exact: true })).toBeVisible();
 
@@ -144,7 +192,7 @@ test.describe('Follow', () => {
 			'https://lenaofori.com/feed.xml': { body: FEED, type: 'application/rss+xml' }
 		});
 		await page.goto('/follow');
-		await page.getByLabel('Website or profile').fill('lenaofori.com');
+		await page.getByLabel('Creator, website, or profile').fill('lenaofori.com');
 		await page.getByRole('button', { name: 'Find feeds' }).click();
 
 		await expect(page.getByText(/stays on your phone/)).toBeVisible();
@@ -160,12 +208,12 @@ test.describe('Follow', () => {
 			'https://lenaofori.com/feed.xml': { body: FEED, type: 'application/rss+xml' }
 		});
 		await page.goto('/follow');
-		await page.getByLabel('Website or profile').fill('lenaofori.com');
+		await page.getByLabel('Creator, website, or profile').fill('lenaofori.com');
 		await page.getByRole('button', { name: 'Find feeds' }).click();
 		await page.getByRole('button', { name: /Follow Lena Ofori in/ }).click();
 
 		await page.getByRole('button', { name: 'Find someone else' }).click();
-		await expect(page.getByLabel('Website or profile')).toHaveValue('');
+		await expect(page.getByLabel('Creator, website, or profile')).toHaveValue('');
 		await expect(page.getByRole('button', { name: 'Find feeds' })).toBeVisible();
 	});
 
@@ -175,7 +223,7 @@ test.describe('Follow', () => {
 			'https://lenaofori.com/feed.xml': { body: FEED, type: 'application/rss+xml' }
 		});
 		await page.goto('/follow');
-		await page.getByLabel('Website or profile').fill('lenaofori.com');
+		await page.getByLabel('Creator, website, or profile').fill('lenaofori.com');
 		await page.getByRole('button', { name: 'Find feeds' }).click();
 		await page.getByRole('button', { name: /Follow Lena Ofori in/ }).click();
 		await expect(page.getByText('Following Lena Ofori')).toBeVisible();
@@ -189,7 +237,7 @@ test.describe('Follow', () => {
 			'https://quiet.example.com/': { body: '<!doctype html><title>Quiet</title>' }
 		});
 		await page.goto('/follow');
-		await page.getByLabel('Website or profile').fill('quiet.example.com');
+		await page.getByLabel('Creator, website, or profile').fill('quiet.example.com');
 		await page.getByRole('button', { name: 'Find feeds' }).click();
 
 		await expect(page.getByText('No feeds found on that page.')).toBeVisible();
@@ -209,10 +257,37 @@ test.describe('Follow', () => {
 		);
 		await page.route('https://unreachable.example.com/**', (route) => route.abort());
 		await page.goto('/follow');
-		await page.getByLabel('Website or profile').fill('unreachable.example.com');
+		await page.getByLabel('Creator, website, or profile').fill('unreachable.example.com');
 		await page.getByRole('button', { name: 'Find feeds' }).click();
 
 		await expect(page.getByText(/Could not read/)).toBeVisible();
+	});
+
+	test('contains an unusually long feed address inside the results card', async ({ page }) => {
+		const longPath = `${'deep-segment-'.repeat(30)}feed.xml`;
+		await mockUpstream(page, {
+			'https://long.example.com/': {
+				body: `<!doctype html><title>Long Feed</title><link rel="alternate" type="application/rss+xml" title="A very long source" href="/${longPath}">`
+			}
+		});
+		await page.goto('/follow');
+		await page.getByLabel('Creator, website, or profile').fill('long.example.com');
+		await page.getByRole('button', { name: 'Find feeds' }).click();
+		await expect(page.getByText('Blog', { exact: true })).toBeVisible();
+
+		const bounds = await page.locator('.found').evaluate((element) => {
+			const rect = element.getBoundingClientRect();
+			return {
+				left: rect.left,
+				right: rect.right,
+				viewport: window.innerWidth,
+				scrollWidth: element.scrollWidth,
+				clientWidth: element.clientWidth
+			};
+		});
+		expect(bounds.left).toBeGreaterThanOrEqual(0);
+		expect(bounds.right).toBeLessThanOrEqual(bounds.viewport);
+		expect(bounds.scrollWidth).toBeLessThanOrEqual(bounds.clientWidth);
 	});
 
 	test('every switch clears the 44px minimum', async ({ page }) => {
@@ -221,7 +296,7 @@ test.describe('Follow', () => {
 			'https://lenaofori.com/feed.xml': { body: FEED, type: 'application/rss+xml' }
 		});
 		await page.goto('/follow');
-		await page.getByLabel('Website or profile').fill('lenaofori.com');
+		await page.getByLabel('Creator, website, or profile').fill('lenaofori.com');
 		await page.getByRole('button', { name: 'Find feeds' }).click();
 		await expect(page.getByText('Blog', { exact: true })).toBeVisible();
 

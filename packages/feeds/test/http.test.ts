@@ -291,3 +291,22 @@ describe('the injected fetch', () => {
 		expect(spy).toHaveBeenCalledOnce();
 	});
 });
+
+describe('shared cancellation', () => {
+	it('aborts a request when the caller cancels the whole operation', async () => {
+		const controller = new AbortController();
+		const http = new FeedHttp({
+			...quiet,
+			timeoutMs: 10_000,
+			signal: controller.signal,
+			fetch: (_url, init) =>
+				new Promise((_resolve, reject) => {
+					init?.signal?.addEventListener('abort', () => reject(new Error('caller aborted')));
+				})
+		});
+
+		const request = http.get('https://example.com/feed.xml');
+		controller.abort();
+		await expect(request).rejects.toThrow(/aborted/);
+	});
+});

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Aria Makes Things</title>
+    <link>https://social.example/@aria</link>
+    <description>Public posts from @aria@social.example</description>
+    <generator>Mastodon v4.5.0</generator>
+    <image>
+      <url>https://social.example/system/accounts/avatars/aria/original/avatar.png</url>
+      <title>Aria Makes Things</title>
+      <link>https://social.example/@aria</link>
+    </image>
+    <item>
+      <link>https://social.example/@aria/114123456789</link>
+      <pubDate>Tue, 22 Sep 2026 14:02:00 GMT</pubDate>
+      <description><![CDATA[<p><strong>Content warning:</strong> spiders</p><hr><p>A tiny studio visitor.</p>]]></description>
+      <media:content
+        url="https://social.example/system/media_attachments/files/spider.jpg"
+        type="image/jpeg"
+        fileSize="248000"
+        medium="image">
+        <media:rating scheme="urn:simple">adult</media:rating>
+        <media:description>A small garden spider on the corner of a mixing desk.</media:description>
+        <media:thumbnail url="https://social.example/system/media_attachments/files/spider-small.jpg" />
+      </media:content>
+      <category>studio</category>
+    </item>
+  </channel>
+</rss>

@@ -1,6 +1,6 @@
-import { discoverFeeds, type DiscoveredFeed, type DiscoveryResult } from '@yipden/feeds';
+import type { DiscoveredFeed, DiscoveryResult } from '@yipden/feeds';
+import { discoverWithDeadline } from './discovery.js';
 import { heroImage, type RingEntry } from '@yipden/ring-client';
-import { httpFetch } from './platform/http.js';
 import { store, type Feed, type Person } from './store/index.js';
 
 /**
@@ -34,14 +34,18 @@ function personFromRing(entry: RingEntry): Person {
  * union `@yipden/feeds` discovers with, because a ring entry's own `feeds[].type` is
  * documented as free text: a new platform never needs a client release to be followable.
  */
-interface FeedCandidate {
+export interface FeedCandidate {
 	url: string;
 	kind: string;
 	title: string;
 	verified: boolean;
 }
 
-function feedsFrom(personId: string, found: FeedCandidate[]): Feed[] {
+function feedsFrom(
+	personId: string,
+	found: FeedCandidate[],
+	provenance: NonNullable<Feed['provenance']>
+): Feed[] {
 	return found.map((feed) => ({
 		id: feed.url,
 		personId,
@@ -49,9 +53,21 @@ function feedsFrom(personId: string, found: FeedCandidate[]): Feed[] {
 		kind: feed.kind,
 		title: feed.title,
 		verified: feed.verified,
+		provenance,
 		failures: 0,
 		enabled: true
 	}));
+}
+
+/** Save only the Ring sources the reader kept switched on in the Follow screen. */
+export async function followRingSelection(
+	entry: RingEntry,
+	selected: FeedCandidate[]
+): Promise<FollowOutcome> {
+	const person = personFromRing(entry);
+	const feeds = feedsFrom(person.id, selected, 'ring');
+	await store.follow(person, feeds);
+	return { person, feeds, discovered: false };
 }
 
 /**
@@ -65,8 +81,8 @@ export async function followRingEntry(entry: RingEntry): Promise<FollowOutcome> 
 	const person = personFromRing(entry);
 
 	if (entry.feeds?.length) {
-		const feeds = feedsFrom(
-			person.id,
+		return followRingSelection(
+			entry,
 			entry.feeds.map((feed) => ({
 				url: feed.url,
 				kind: feed.type || 'blog',
@@ -74,12 +90,10 @@ export async function followRingEntry(entry: RingEntry): Promise<FollowOutcome> 
 				verified: feed.verified === true
 			}))
 		);
-		await store.follow(person, feeds);
-		return { person, feeds, discovered: false };
 	}
 
-	const found = await discoverFeeds(entry.source_url, { fetch: httpFetch });
-	const feeds = feedsFrom(person.id, found.feeds);
+	const found = await discoverWithDeadline(entry.source_url);
+	const feeds = feedsFrom(person.id, found.feeds, 'discovered');
 	await store.follow(person, feeds);
 	return { person, feeds, discovered: true };
 }
@@ -103,7 +117,7 @@ export async function followDiscovered(
 		followedAt: new Date().toISOString()
 	};
 
-	const feeds = feedsFrom(person.id, selected);
+	const feeds = feedsFrom(person.id, selected, 'discovered');
 	await store.follow(person, feeds);
 	return { person, feeds, discovered: true };
 }

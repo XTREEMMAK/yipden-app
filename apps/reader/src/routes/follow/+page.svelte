@@ -1,19 +1,21 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { heroImage, type RingEntry } from '@yipden/ring-client';
+	import type { DiscoveredFeed, DiscoveryResult } from '@yipden/feeds';
+	import { onMount } from 'svelte';
 	import { fly } from 'svelte/transition';
-	import { discoverFeeds, type DiscoveredFeed, type DiscoveryResult } from '@yipden/feeds';
-	import { followDiscovered } from '$lib/follow.js';
-	import { flyIn, staggerDelay } from '$lib/motion.js';
-	import { httpFetch } from '$lib/platform/http.js';
-	import { ring } from '$lib/ring.svelte.js';
 	import Switch from '$components/Switch.svelte';
+	import { discoverWithDeadline, DiscoveryTimeoutError } from '$lib/discovery.js';
+	import { followDiscovered, followRingSelection } from '$lib/follow.js';
+	import { flyIn, staggerDelay } from '$lib/motion.js';
+	import { ring } from '$lib/ring.svelte.js';
+	import { discoveryFromRing, isExactRingMatch, searchRing } from '$lib/ringSearch.js';
 
 	/**
-	 * Follow: paste a link, see everywhere that person publishes, pick which of it you want.
+	 * Follow: type a person or paste a link, see everywhere they publish, and pick what to keep.
 	 *
-	 * The list of found feeds is a list the reader edits, never a list the app acts on by
-	 * itself. Following everything found would make the toggles a decoration, and following is
-	 * the one thing in this app a reader does about another person.
+	 * Ring matching is local and deliberately precedes web discovery. The list of found feeds is
+	 * still a list the reader edits, never a list the app acts on by itself.
 	 */
 
 	type Phase = 'idle' | 'looking' | 'results' | 'followed';
@@ -22,6 +24,9 @@
 	let input = $state('');
 	let error = $state<string | null>(null);
 	let result = $state<DiscoveryResult | null>(null);
+	let resultOrigin = $state<'ring' | 'web'>('web');
+	let selectedRing = $state<RingEntry | null>(null);
+	let ringMatches = $state<RingEntry[]>([]);
 	let chosen = $state<Set<string>>(new Set());
 	let busy = $state(false);
 
@@ -29,6 +34,23 @@
 		result?.title ?? (result ? hostOf(result.canonicalUrl) : 'this person')
 	);
 	let chosenFeeds = $derived(result?.feeds.filter((feed) => chosen.has(feed.url)) ?? []);
+
+	onMount(() => {
+		void ring.load();
+	});
+
+	$effect(() => {
+		const query = input.trim();
+		const entries = ring.all;
+		if (phase !== 'idle' || query.length < 2) {
+			ringMatches = [];
+			return;
+		}
+		const timer = setTimeout(() => {
+			ringMatches = searchRing(entries, query);
+		}, 180);
+		return () => clearTimeout(timer);
+	});
 
 	function hostOf(url: string): string {
 		try {
@@ -50,30 +72,67 @@
 		}
 	}
 
-	async function find(event: SubmitEvent) {
-		event.preventDefault();
-		const url = asUrl(input);
-		if (!url) {
-			error = 'Paste a website or profile link first.';
-			return;
-		}
+	function useRingResult(entry: RingEntry) {
+		const found = discoveryFromRing(entry);
+		selectedRing = entry;
+		resultOrigin = 'ring';
+		result = found;
+		chosen = new Set(found.feeds.map((feed) => feed.url));
+		error = null;
+		phase = 'results';
+	}
 
+	async function lookupUrl(url: string) {
 		error = null;
 		phase = 'looking';
 		result = null;
+		selectedRing = null;
+		resultOrigin = 'web';
 
 		try {
-			const found = await discoverFeeds(url, { fetch: httpFetch });
+			const found = await discoverWithDeadline(url);
 			result = found;
 			chosen = new Set(found.feeds.map((feed) => feed.url));
 			phase = 'results';
 		} catch (cause) {
 			phase = 'idle';
 			error =
-				cause instanceof Error && cause.message.includes('https address')
-					? 'That does not look like a website address.'
-					: `Could not read ${hostOf(url)}. Check the address, or try again when you are online.`;
+				cause instanceof DiscoveryTimeoutError
+					? `Finding feeds on ${hostOf(url)} took too long. Try again when the site is responding.`
+					: cause instanceof Error && cause.message.includes('https address')
+						? 'That does not look like a website address.'
+						: `Could not read ${hostOf(url)}. Check the address, or try again when you are online.`;
 		}
+	}
+
+	async function find(event: SubmitEvent) {
+		event.preventDefault();
+		const localMatches = searchRing(ring.all, input, 2);
+		const local =
+			localMatches.find((entry) => isExactRingMatch(entry, input)) ??
+			(localMatches.length === 1 ? localMatches[0] : undefined);
+		if (local) {
+			if (local.feeds?.length) useRingResult(local);
+			else await lookupUrl(local.source_url);
+			return;
+		}
+
+		const url = asUrl(input);
+		if (!url) {
+			error = 'Type a creator name, website, or profile link first.';
+			return;
+		}
+		await lookupUrl(url);
+	}
+
+	async function chooseRing(entry: RingEntry) {
+		if (ring.isFollowing(entry)) return;
+		if (entry.feeds?.length) {
+			useRingResult(entry);
+			return;
+		}
+		input = entry.source_url;
+		await lookupUrl(entry.source_url);
 	}
 
 	function toggle(feed: DiscoveredFeed, on: boolean) {
@@ -87,7 +146,8 @@
 		if (!result || !chosenFeeds.length || busy) return;
 		busy = true;
 		try {
-			await followDiscovered(result, chosenFeeds);
+			if (selectedRing) await followRingSelection(selectedRing, chosenFeeds);
+			else await followDiscovered(result, chosenFeeds);
 			await ring.refreshFollowing();
 			phase = 'followed';
 		} catch {
@@ -100,6 +160,8 @@
 	function again() {
 		phase = 'idle';
 		result = null;
+		selectedRing = null;
+		resultOrigin = 'web';
 		input = '';
 		error = null;
 	}
@@ -129,24 +191,28 @@
 		<p class="eyebrow">Follow</p>
 		<h2 class="screen-title">Follow a <em>person</em>, not a platform.</h2>
 		<p class="lede">
-			Paste any website or profile. YipDen reads that one page and the profiles it links to, then
-			shows you everywhere they publish.
+			Type a creator name or paste any website or profile. YipDen checks the IndieNodes ring first,
+			then reads the web only when it needs to.
 		</p>
 	</header>
 
 	<form class="find" onsubmit={find} novalidate in:fly={flyIn({ delay: 40 })}>
-		<label for="followUrl">Website or profile</label>
+		<label for="followUrl">Creator, website, or profile</label>
 		<div class="field">
 			<input
 				id="followUrl"
 				name="followUrl"
 				type="text"
-				inputmode="url"
+				inputmode="search"
 				autocomplete="off"
 				autocapitalize="off"
 				spellcheck="false"
-				placeholder="lenaofori.com"
+				placeholder="Lena or lenaofori.com"
 				bind:value={input}
+				role="combobox"
+				aria-autocomplete="list"
+				aria-controls="ringMatches"
+				aria-expanded={phase === 'idle' && ringMatches.length > 0}
 				aria-describedby={error ? 'findErr' : undefined}
 				aria-invalid={error ? 'true' : undefined}
 			/>
@@ -154,6 +220,35 @@
 				{phase === 'looking' ? 'Looking…' : 'Find feeds'}
 			</button>
 		</div>
+		{#if phase === 'idle' && ringMatches.length > 0}
+			<div class="ring-matches" id="ringMatches" aria-label="People already in IndieNodes">
+				<p class="match-label">Already in IndieNodes</p>
+				{#each ringMatches as entry (entry.id)}
+					<button
+						class="ring-match"
+						type="button"
+						disabled={ring.isFollowing(entry)}
+						onclick={() => chooseRing(entry)}
+					>
+						<span
+							class="match-av"
+							style:background-image={heroImage(entry) ? `url(${heroImage(entry)})` : ''}
+						></span>
+						<span class="match-copy">
+							<b>{entry.creator}</b>
+							<small>{hostOf(entry.source_url)}</small>
+						</span>
+						<span class="match-action">
+							{ring.isFollowing(entry)
+								? 'Already following'
+								: entry.feeds?.length
+									? `${entry.feeds.length} known ${entry.feeds.length === 1 ? 'source' : 'sources'}`
+									: 'Check website'}
+						</span>
+					</button>
+				{/each}
+			</div>
+		{/if}
 		{#if error}
 			<p class="err" id="findErr">{error}</p>
 		{/if}
@@ -191,7 +286,11 @@
 				</div>
 
 				<fieldset class="found" in:fly={flyIn({ delay: 40 })}>
-					<legend class="eyebrow">Found from {hostOf(result.canonicalUrl)}</legend>
+					<legend class="eyebrow">
+						{resultOrigin === 'ring'
+							? 'Found in the IndieNodes ring'
+							: `Found from ${hostOf(result.canonicalUrl)}`}
+					</legend>
 					{#each result.feeds as feed, index (feed.url)}
 						<label class="frow" for="feed-{index}">
 							<span class="ft">
@@ -288,6 +387,93 @@
 	.field {
 		display: flex;
 		gap: 8px;
+	}
+
+	.ring-matches {
+		display: flex;
+		flex-direction: column;
+		margin-top: 2px;
+		border: 1px solid var(--line);
+		border-radius: var(--r-group);
+		background: var(--surface);
+		overflow: hidden;
+	}
+
+	.match-label {
+		margin: 0;
+		padding: 9px 12px;
+		border-bottom: 1px solid var(--line);
+		color: var(--muted);
+		font-family: var(--mono);
+		font-size: 10.5px;
+		letter-spacing: 0.07em;
+		text-transform: uppercase;
+	}
+
+	.ring-match {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		width: 100%;
+		min-height: 58px;
+		padding: 8px 12px;
+		border: 0;
+		border-bottom: 1px solid var(--line);
+		background: none;
+		color: var(--ink);
+		font: inherit;
+		text-align: left;
+	}
+
+	.ring-match:last-child {
+		border-bottom: 0;
+	}
+
+	.ring-match:disabled {
+		opacity: 0.6;
+	}
+
+	.match-av {
+		flex: 0 0 auto;
+		width: 38px;
+		height: 38px;
+		border-radius: 50%;
+		background-color: var(--brand-soft);
+		background-position: center;
+		background-size: cover;
+	}
+
+	.match-copy {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.match-copy b,
+	.match-copy small {
+		display: block;
+	}
+
+	.match-copy b {
+		font-size: 14px;
+		font-weight: 650;
+	}
+
+	.match-copy small {
+		margin-top: 2px;
+		overflow: hidden;
+		color: var(--muted);
+		font-size: 11.5px;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.match-action {
+		flex: 0 0 auto;
+		max-width: 110px;
+		color: var(--brand-text);
+		font-size: 11px;
+		font-weight: 650;
+		text-align: right;
 	}
 
 	.field input {
@@ -391,6 +577,9 @@
 	}
 
 	.found {
+		width: 100%;
+		min-width: 0;
+		max-width: 100%;
 		margin: 0;
 		padding: 0;
 		border: 1px solid var(--line);
@@ -400,6 +589,8 @@
 	}
 
 	.found legend {
+		min-width: 0;
+		overflow-wrap: anywhere;
 		float: left;
 		width: 100%;
 		padding: 12px 16px;
@@ -408,6 +599,9 @@
 	}
 
 	.frow {
+		width: 100%;
+		min-width: 0;
+		max-width: 100%;
 		display: flex;
 		clear: both;
 		align-items: center;
@@ -423,6 +617,7 @@
 	}
 
 	.ft {
+		overflow: hidden;
 		flex: 1;
 		min-width: 0;
 	}
@@ -465,6 +660,8 @@
 	}
 
 	.nofeed {
+		min-width: 0;
+		overflow-wrap: anywhere;
 		clear: both;
 		padding: 12px 16px;
 		font-size: 13px;

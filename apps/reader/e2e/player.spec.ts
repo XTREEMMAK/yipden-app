@@ -72,7 +72,7 @@ async function seed(page: Page) {
 	);
 
 	await page.goto('/follow');
-	await page.getByLabel('Website or profile').fill('lenaofori.com');
+	await page.getByLabel('Creator, website, or profile').fill('lenaofori.com');
 	await page.getByRole('button', { name: 'Find feeds' }).click();
 	await page.getByText('Blog', { exact: true }).waitFor({ timeout: 10_000 });
 	await page.getByRole('button', { name: /Follow Lena Ofori in/ }).click();
@@ -175,6 +175,24 @@ test.describe('The player', () => {
 
 		await page.getByRole('link', { name: 'You' }).click();
 		await expect(page.getByRole('button', { name: 'Open the player' })).toBeVisible();
+	});
+
+	test('unfollowing the playing creator clears their loaded media across an app return', async ({
+		page
+	}) => {
+		await seed(page);
+		await page
+			.locator('#pane-everything')
+			.getByRole('button', { name: /Low Tide/ })
+			.click();
+		await page.getByRole('button', { name: 'Collapse the player' }).click();
+		await page.getByRole('link', { name: 'You' }).click();
+		await page.getByRole('button', { name: 'Unfollow Lena Ofori' }).click();
+		await page.getByRole('button', { name: 'Unfollow', exact: true }).click();
+
+		await expect(page.getByRole('button', { name: 'Open the player' })).toHaveCount(0);
+		await page.reload();
+		await expect(page.getByRole('button', { name: 'Open the player' })).toHaveCount(0);
 	});
 
 	test('seeking back moves the clock, while playing', async ({ page }) => {

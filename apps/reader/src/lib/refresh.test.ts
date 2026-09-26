@@ -132,6 +132,7 @@ describe('toStoredYip', () => {
 		};
 		const yip = toStoredYip(item, feed(), 'person-lena', '2026-09-22T00:00:00.000Z');
 		expect(yip.key).toBe('https://lena.example.com/feed.xml::1');
+		expect(yip.feedId).toBe('https://lena.example.com/feed.xml');
 		expect(yip.personId).toBe('person-lena');
 		expect(yip.feedKind).toBe('blog');
 	});

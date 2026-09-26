@@ -4,7 +4,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import type { RingEntry } from '@yipden/ring-client';
 import { player, type QueueItem } from './player.svelte.js';
 import { prefs } from './prefs.svelte.js';
-import { ringPlayer } from './ringPlayer.svelte.js';
+import { ringPlayer, type RingQueueRecord } from './ringPlayer.svelte.js';
 import { store } from './store/index.js';
 
 function queueItem(overrides: Partial<QueueItem> = {}): QueueItem {
@@ -127,6 +127,17 @@ describe('snapshot and restore', () => {
 		await store.setSetting('ringQueue', snapshot);
 		const stored = await store.getSetting<typeof snapshot>('ringQueue');
 		expect(stored?.playedEntryIds).toEqual(['ada', 'bo']);
+	});
+
+	it('rejects a legacy saved queue whose ownership cannot be proven', () => {
+		const legacy = {
+			queue: [queueItem({ batchKey: 'ada' })],
+			currentIndex: 0,
+			playedEntryIds: ['ada']
+		} as unknown as RingQueueRecord;
+
+		ringPlayer.restore(legacy);
+		expect(player.current).toBeNull();
 	});
 
 	it('round trips a session through snapshot and restore', () => {

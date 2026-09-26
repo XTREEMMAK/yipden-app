@@ -77,6 +77,65 @@ describe('a podcast feed', () => {
 	});
 });
 
+describe('Mastodon RSS', () => {
+	const feed = parseFeed(fixture('mastodon.xml'), {
+		feedUrl: 'https://social.example/@aria.rss'
+	});
+	const item = feed.items[0];
+
+	it('keeps the content warning separate from the hidden body', () => {
+		expect(feed.kind).toBe('mastodon');
+		expect(item?.contentWarning).toBe('spiders');
+		expect(item?.sensitive).toBe(true);
+		expect(item?.summary).toBe('A tiny studio visitor.');
+		expect(item?.contentHtml).toBe('<p>A tiny studio visitor.</p>');
+	});
+
+	it('retains attachment alt text and sensitive state', () => {
+		expect(item?.media[0]).toMatchObject({
+			url: 'https://social.example/system/media_attachments/files/spider.jpg',
+			kind: 'image',
+			mimeType: 'image/jpeg',
+			sizeBytes: 248000,
+			alt: 'A small garden spider on the corner of a mixing desk.',
+			sensitive: true
+		});
+		expect(item?.media[1]).toMatchObject({
+			kind: 'image',
+			alt: 'A small garden spider on the corner of a mixing desk.',
+			sensitive: true
+		});
+	});
+});
+
+describe('PeerTube Media RSS', () => {
+	const feed = parseFeed(fixture('peertube.xml'), {
+		feedUrl: 'https://tube.example/feeds/videos.xml?videoChannelId=1'
+	});
+	const item = feed.items[0];
+
+	it('is labeled PeerTube and keeps the item author', () => {
+		expect(feed.kind).toBe('peertube');
+		expect(item?.author).toBe('Open Studio');
+	});
+
+	it('merges Media RSS duration into an enclosure with the same URL', () => {
+		expect(item?.media.find((media) => media.kind === 'video')).toMatchObject({
+			url: 'https://tube.example/static/webseed/3f04e2d1/video-1080.mp4',
+			durationSeconds: 754,
+			sizeBytes: 84500000,
+			title: 'Making a field recorder'
+		});
+	});
+
+	it('retains the thumbnail and its description', () => {
+		expect(item?.media.find((media) => media.kind === 'image')).toMatchObject({
+			url: 'https://tube.example/lazy-static/previews/3f04e2d1.jpg',
+			alt: 'The completed blue recorder beside its circuit board.'
+		});
+	});
+});
+
 describe('Atom', () => {
 	const feed = parseFeed(fixture('atom.xml'), { feedUrl: 'https://frammyjammy.com/atom.xml' });
 
@@ -100,6 +159,14 @@ describe('Atom', () => {
 
 	it('reads the author name from the author element', () => {
 		expect(feed.items[0]?.author).toBe('Nori Jammy');
+	});
+
+	it('retains canonical, syndication and reply relationships', () => {
+		expect(feed.items[0]).toMatchObject({
+			canonicalUrl: 'https://frammyjammy.com/suzu-and-jack/30',
+			syndicationUrls: ['https://social.example/@nori/30'],
+			replyToUrl: 'https://frammyjammy.com/suzu-and-jack/29'
+		});
 	});
 
 	it('reads an enclosure link as media', () => {

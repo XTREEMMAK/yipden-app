@@ -23,6 +23,14 @@ export interface Person {
 	followedAt: string;
 }
 
+/** How a source entered this reader; this is provenance, not an identity guarantee. */
+export type FeedProvenance = 'ring' | 'discovered' | 'manual' | 'opml';
+
+export type AddFeedResult =
+	| { status: 'added' }
+	| { status: 'already-attached' }
+	| { status: 'belongs-to-other'; personId: string };
+
 /** One feed belonging to a person. Following a person follows all of theirs. */
 export interface Feed {
 	/** The feed's canonical URL, which is also its identity. */
@@ -38,6 +46,8 @@ export interface Feed {
 	kind: string;
 	title: string;
 	verified: boolean;
+	/** Manual means reader-supplied and remains unverified unless a separate proof exists. */
+	provenance?: FeedProvenance;
 	/** Conditional request validators from the last fetch, so the next one costs nothing. */
 	etag?: string;
 	lastModified?: string;
@@ -60,6 +70,8 @@ export type YipCategory = 'posts' | 'watch' | 'listen';
 export interface StoredYip extends Item {
 	/** Unique across feeds: an item id is only stable within the feed that published it. */
 	key: string;
+	/** The followed feed record this came from. Absent only on records stored before this field. */
+	feedId?: string;
 	personId: string;
 	/** See `Feed.kind`: free text, not the closed union. */
 	feedKind: string;
@@ -72,6 +84,8 @@ export interface StoredYip extends Item {
 export interface YipQuery {
 	/** Feeds' filter pills. */
 	filter?: 'everything' | 'posts' | 'watch' | 'listen';
+	/** Only items from these followed feed records. An empty list intentionally returns none. */
+	feedIds?: string[];
 	limit?: number;
 	/** Cursor: return yips older than this ISO timestamp. */
 	before?: string;
@@ -101,6 +115,10 @@ export interface Store {
 	listFeeds(personId?: string): Promise<Feed[]>;
 	/** Follow a person and their feeds in one transaction, so a partial follow cannot happen. */
 	follow(person: Person, feeds: Feed[]): Promise<void>;
+	/** Attach one source without overwriting a source already owned by another person. */
+	addFeed(feed: Feed): Promise<AddFeedResult>;
+	/** Remove one source and only the cached yips that came from it. */
+	removeFeed(personId: string, feedId: string): Promise<void>;
 	/** Unfollow a person, their feeds and their yips. A reader's undo is following again. */
 	unfollow(personId: string): Promise<void>;
 	isFollowing(siteUrl: string): Promise<boolean>;
@@ -108,8 +126,10 @@ export interface Store {
 
 	putYips(yips: StoredYip[]): Promise<{ added: number }>;
 	listYips(query?: YipQuery): Promise<StoredYip[]>;
+	/** Every cached record, including undated items omitted by the publishedAt index. */
+	listAllYips(): Promise<StoredYip[]>;
 	countUnread(): Promise<{ yips: number; people: number }>;
-	markRead(key: string): Promise<void>;
+	markRead(keys: string | string[]): Promise<void>;
 	markAllRead(): Promise<void>;
 	clearYips(): Promise<void>;
 

@@ -5,7 +5,10 @@
 	import { fly } from 'svelte/transition';
 	import { flyIn, prefersReducedMotion, staggerDelay } from '$lib/motion.js';
 	import { ring } from '$lib/ring.svelte.js';
-	import { feeds, FEEDS_FILTERS, type FeedsFilterKey } from '$lib/feeds.svelte.js';
+	import { feeds, FEEDS_FILTERS, sourceLabel, type FeedsFilterKey } from '$lib/feeds.svelte.js';
+	import { openExternal } from '$lib/platform/external.js';
+	import type { FeedYip } from '$lib/syndication.js';
+	import type { StoredYip } from '$lib/store/index.js';
 	import YipCard from '$components/YipCard.svelte';
 	import RingMemberCard from '$components/RingMemberCard.svelte';
 
@@ -119,6 +122,15 @@
 		pullY = 0;
 		if (shouldRefresh) await feeds.refresh();
 	}
+
+	function sourceHost(yip: StoredYip): string {
+		return new URL(yip.url).hostname.replace(/^www\./, '');
+	}
+
+	function openCopy(group: FeedYip, copy: StoredYip) {
+		void feeds.markRead(group);
+		openExternal(copy.url);
+	}
 </script>
 
 <svelte:head><title>Feeds</title></svelte:head>
@@ -204,7 +216,32 @@
 					{:else}
 						{#each feeds.panes[filter.key] as yip, index (yip.key)}
 							<div in:fly={flyIn({ delay: staggerDelay(index) })}>
-								<YipCard {yip} />
+								<div class="yip-stack">
+									<YipCard {yip} />
+									{#if yip.crosspostGroupId && yip.crossposts && yip.crossposts.length > 1}
+										<div class="crosspost-bar" aria-label="Copies of this post">
+											<span class="crosspost-label">Same post</span>
+											<div class="source-chips">
+												{#each yip.crossposts as copy (copy.key)}
+													<button
+														class="source-chip"
+														title={`Open on ${sourceHost(copy)}`}
+														aria-label={`Open ${sourceLabel(copy)} copy on ${sourceHost(copy)}`}
+														onclick={() => openCopy(yip, copy)}
+													>
+														{sourceLabel(copy)}
+													</button>
+												{/each}
+											</div>
+											<button
+												class="separate"
+												onclick={() => feeds.showSeparately(yip.crosspostGroupId!)}
+											>
+												Show separately
+											</button>
+										</div>
+									{/if}
+								</div>
 							</div>
 						{/each}
 					{/if}
@@ -399,6 +436,70 @@
 		display: none;
 	}
 
+	.yip-stack {
+		position: relative;
+		flex: 0 0 auto;
+		border-radius: var(--r-card);
+	}
+
+	.crosspost-bar {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		min-height: 44px;
+		margin-top: 4px;
+		padding: 4px 8px 4px 12px;
+		border: 1px solid var(--line);
+		border-radius: 14px;
+		background: var(--surface);
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+
+	.crosspost-bar::-webkit-scrollbar {
+		display: none;
+	}
+
+	.crosspost-label {
+		flex: 0 0 auto;
+		color: var(--muted);
+		font-family: var(--mono);
+		font-size: 9.5px;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+	}
+
+	.source-chips {
+		display: flex;
+		gap: 5px;
+		flex: 0 0 auto;
+	}
+
+	.source-chip,
+	.separate {
+		min-height: 44px;
+		padding: 0 10px;
+		border: 0;
+		border-radius: 999px;
+		font-family: var(--body);
+		font-size: 11.5px;
+		font-weight: 600;
+		white-space: nowrap;
+	}
+
+	.source-chip {
+		background: var(--brand-soft);
+		color: var(--brand-ink);
+	}
+
+	.separate {
+		margin-left: auto;
+		background: transparent;
+		color: var(--muted);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+
 	.empty {
 		margin: 40px 4px;
 		color: var(--muted);
@@ -431,15 +532,14 @@
 	}
 
 	/*
-	 * The 3D card stack. Targets `.yip`, the class every card in YipCard.svelte carries,
-	 * through `:global()` since that class belongs to a different component; nothing about
-	 * stacking needed to live inside the card itself, only in the pane that lays cards out.
+	 * The 3D card stack targets the wrapper around every YipCard. Keeping the transform on the
+	 * wrapper lets a grouped card include its source bar in the same physical stack layer.
 	 *
 	 * `.stack-sda` is the scroll-driven path: a named view-timeline per card animates on the
 	 * compositor with no JavaScript per frame. Plain `.stack` without it is what the rAF
 	 * fallback in cardStack.ts drives by hand, so the same visual target is reached either way.
 	 */
-	:global(.pane.stack .yip) {
+	:global(.pane.stack .yip-stack) {
 		content-visibility: auto;
 		contain-intrinsic-size: auto 200px;
 	}
@@ -452,15 +552,19 @@
 	 * wrong total is what made "From the ring," below the last card, feel unreachable or stuck:
 	 * the pane's real scrollable area was smaller than its content actually needed.
 	 */
-	:global(.pane.stack .yip.listen) {
+	:global(.pane.stack .yip-stack:has(.yip.listen)) {
 		contain-intrinsic-size: auto 172px;
 	}
 
-	:global(.pane.stack .yip.behind) {
+	:global(.pane.stack .yip-stack:has(.crosspost-bar)) {
+		contain-intrinsic-size: auto 260px;
+	}
+
+	:global(.pane.stack .yip-stack.behind) {
 		pointer-events: none;
 	}
 
-	:global(.pane.stack .yip::after) {
+	:global(.pane.stack .yip-stack::after) {
 		content: '';
 		position: absolute;
 		inset: 0;
@@ -477,7 +581,7 @@
 		backdrop-filter: none !important;
 	}
 
-	:global(.pane.stack-sda .yip) {
+	:global(.pane.stack-sda .yip-stack) {
 		view-timeline: --yip block;
 		view-timeline-inset: 0px var(--dock);
 		animation:
@@ -489,7 +593,7 @@
 			exit 0% exit 100%;
 	}
 
-	:global(.pane.stack-sda .yip::after) {
+	:global(.pane.stack-sda .yip-stack::after) {
 		animation: yip-dim linear forwards;
 		animation-timeline: --yip;
 		animation-range: exit 0% exit 100%;

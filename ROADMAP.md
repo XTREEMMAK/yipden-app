@@ -1,9 +1,9 @@
 # Roadmap
 
-Where YipDen stands and what comes next. Built from a code audit and the git history (48 commits,
-2026-09-22 to 2026-09-24) on 2026-09-24. The brief this started from is v0.9: no server, no
-accounts. [CHANGELOG.md](CHANGELOG.md) says what shipped, [DECISIONS.md](DECISIONS.md) says why.
-This file says what is left, in the order to do it.
+Where YipDen stands and what comes next. Built from code and product audits through 2026-09-25.
+The brief this started from is v0.9: no server, no accounts. [CHANGELOG.md](CHANGELOG.md) says
+what shipped, [DECISIONS.md](DECISIONS.md) says why. This file says what is left, in the order to
+do it.
 
 Items marked **(ask first)** need a go-ahead under the brief's rules: a native dependency, an
 animation or gesture library, a `ring.json` contract change, or anything needing a server.
@@ -96,12 +96,17 @@ built so the mascot can drop in later.
 
 ## Next: You, About and release readiness
 
-### 4. About becomes a modal
+### 4. About becomes a modal (done 2026-09-25)
 
 Today About is one paragraph in [you/+page.svelte](apps/reader/src/routes/you/+page.svelte) plus
 a version line at the bottom. Make it an **About row that opens a modal sheet**, styled like the
 existing Filter and preview sheets so it reuses their open, close, focus and back button handling
 (Android Back should close it).
+
+**Shipped 2026-09-25:** the inline paragraph is now an About sheet with the existing YipDen den
+mark, build-time package version and git short hash, `CHANGELOG.md` rendered from the source file,
+privacy and source links, audited dependency and creator-content attributions, focus return, Escape,
+and browser/Android Back handling.
 
 Contents:
 
@@ -118,7 +123,7 @@ Contents:
    | Bricolage Grotesque, Instrument Sans, JetBrains Mono (self hosted) | SIL OFL 1.1, notices already in `static/fonts` |
    | wavesurfer.js                                                      | BSD 3-Clause                                   |
    | Capacitor (`core`, `app`, `android`)                               | MIT                                            |
-   | `@capgo/capacitor-media-session`                                   | check the package                              |
+   | `@capgo/capacitor-media-session`                                   | MPL 2.0                                        |
    | `@rgrove/parse-xml`                                                | ISC                                            |
    | Svelte, SvelteKit                                                  | MIT                                            |
    | IndieNodes webring and every member's own art, audio and text      | belongs to its creators                        |
@@ -129,7 +134,8 @@ Contents:
 
 5. A link to the privacy stance: no account, no analytics, follows stay on the phone.
 
-The app logo needs to exist first (see item 6).
+The modal uses Discover's existing den mark. Launcher, adaptive icon, splash and store artwork remain
+part of item 6 rather than blocking the information architecture here.
 
 ### 5. Device verification pass
 
@@ -145,7 +151,7 @@ Open questions DECISIONS.md already flags as unverified, all needing a phone:
 ### 6. App identity
 
 - Launcher icon, adaptive icon and splash: the `mipmap` and `drawable` folders hold the Capacitor
-  defaults. A logo is needed for About, the launcher and the Play listing.
+  defaults. Final launcher and Play listing artwork is still needed.
 - Reconcile the package version (`0.0.1`) with a real release number.
 
 ### 7. Housekeeping
@@ -201,6 +207,57 @@ Work for this item: check each row against a real account (one per platform), wr
 rows fail, add a fixture test for each pattern that passes, and decide which of the "reader side"
 items belong in 0.9.x. Any new pattern is a change in `profiles.ts` only, with a fixture.
 
+## Active reader-resilience batch (approved 2026-09-25)
+
+These four items are active work rather than post-release ideas. They answer the recurring
+IndieWeb/decentralized-web problems found in the product audit: fragile discovery, noisy or
+all-or-nothing following, inconsistent publishing formats, and weak portability between apps.
+
+### 9. Source health, recovery and manual attachment
+
+**First slice shipped 2026-09-25:** You now shows health per source, exposes a retry that bypasses
+the automatic five-failure backoff, and lets a reader attach a feed, website or profile to an
+already-followed creator. Manual sources have explicit `manual` provenance and remain unverified:
+reader intent is not proof that a creator owns an account. Duplicate URLs cannot silently move
+between creators, and removing a manual source removes only its own cached yips.
+
+Follow also searches the locally loaded IndieNodes Ring after a short typing pause. A matching member
+is offered before web discovery; when the Ring declares feeds, the reader can choose and save them
+without requesting the creator's website. Members without declared feeds offer an explicit website
+check instead of starting one merely because their name matched.
+
+Discovery was widened at the same time: a profile can be pasted directly; Schema.org `sameAs` is
+read alongside `rel=me`; YouTube legacy custom URLs and either canonical-link attribute order are
+accepted; the page's `externalId` wins over unrelated recommended `channelId` values; and ordinary
+links no longer consume the profile scan budget before a useful link is reached.
+
+Still in this item: offer a replacement-URL flow when a source stays dead, and distinguish a
+parse failure from a network failure in the health copy.
+
+### 10. Calm feed controls
+
+**First slice shipped 2026-09-25:** the per-creator source panel has individual switches,
+creator-level pause/resume, and an explicit Check now action. Pausing stops fetches and hides that
+source's cached yips without deleting it. Next, add optional per-source update frequency. Defaults
+stay chronological and finite; none of these controls may become ranking or engagement tuning.
+
+### 11. A broader readable web
+
+**First slice shipped 2026-09-25:** direct profile input, Schema.org `sameAs`, legacy YouTube
+custom URLs, and a profile-budget fix broaden the readable web without adding platform APIs.
+The discovery improvements in item 9 cover more sites without a platform API. Next, parse a small,
+tested `h-feed` subset when a page exposes posts but no RSS, Atom or JSON Feed, then add a sanitized
+reader view for linked articles. Preserve the original URL as the primary action and make fallback
+content visibly different from a creator-published feed.
+
+### 12. Portable YipDen backup
+
+**First slice shipped 2026-09-25:** OPML remains the interoperable follows format. A versioned,
+plain JSON YipDen backup now carries people, sources and provenance, preferences, read state and
+cached yips. Import validates the whole file first, shows a count preview, merges existing data,
+reports and skips identity collisions, and strips cached HTML before storage because it did not
+pass through this install's sanitizer.
+
 ## Later: v0.9 release
 
 1. Release signing: a Play Console identity and an upload keystore, stored as GitHub secrets, per
@@ -213,10 +270,16 @@ items belong in 0.9.x. Any new pattern is a change in `profiles.ts` only, with a
 
 ## Later: after 0.9
 
+Multiring inclusion stays exploratory until after this active batch. Treat each ring as a provider
+adapter, validate it at the boundary, and normalize only a small common member shape. Rich fields
+such as IndieNodes media and feed metadata remain capability-gated instead of forcing every ring
+into the richest schema. Initial support should be explicit per ring, with fixtures for each
+adapter; do not accept arbitrary remote JSON as if all ring formats were interchangeable.
+
 Out of scope for v0.9 in the brief, so none of this starts before it ships:
 
-- Clean reader view, forum digests, creator packs and claimed creator pages. Webmentions and
-  real ActivityPub need a server; see item 8.
+- Forum digests, creator packs and claimed creator pages. Webmentions and real ActivityPub need a
+  server; see item 8. Clean reader view moved into the approved active batch in item 11.
 - Ambient or display mode. Discover was built with auto advance in mind; a decision on
   2026-09-24 chose no auto rotate for now.
 - Watch yips: they open the creator's page. Whether video ever plays in app is unsettled and

@@ -52,6 +52,8 @@ export class HttpError extends Error {
 
 export interface FeedHttpOptions {
 	fetch?: FetchLike;
+	/** Cancel every request made by this client, including redirect and robots.txt requests. */
+	signal?: AbortSignal;
 	/**
 	 * Honest, and pointing somewhere a server operator can read about the client. An anonymous
 	 * or forged agent string is how readers get blocked, deservedly.
@@ -161,9 +163,14 @@ export class FeedHttp {
 		if (conditional.lastModified) headers['if-modified-since'] = conditional.lastModified;
 
 		const controller = new AbortController();
+		const externalSignal = this.options.signal;
+		const abortFromCaller = () => controller.abort();
+		if (externalSignal?.aborted) abortFromCaller();
+		else externalSignal?.addEventListener('abort', abortFromCaller, { once: true });
 		const timer = setTimeout(() => controller.abort(), this.options.timeoutMs);
 
 		try {
+			if (controller.signal.aborted) throw new HttpError('request aborted');
 			const response = await this.options.fetch(url, {
 				headers,
 				signal: controller.signal,
@@ -223,6 +230,7 @@ export class FeedHttp {
 			};
 		} finally {
 			clearTimeout(timer);
+			externalSignal?.removeEventListener('abort', abortFromCaller);
 		}
 	}
 

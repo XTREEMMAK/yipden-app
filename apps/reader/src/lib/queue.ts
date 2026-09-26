@@ -18,6 +18,7 @@ export function queueItemFromYip(yip: StoredYip): QueueItem | null {
 		id: yip.key,
 		title: yip.title,
 		creator: yip.author ?? '',
+		personId: yip.personId,
 		url: yip.url,
 		siteUrl: yip.url,
 		artUrl: yip.media.find((entry) => entry.kind === 'image')?.url ?? null,

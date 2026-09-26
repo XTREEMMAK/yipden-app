@@ -14,7 +14,7 @@ import type { Feed, Person } from './store/index.js';
 export interface ImportedPerson {
 	name: string;
 	siteUrl: string | null;
-	feeds: Array<{ url: string; title: string; kind: string }>;
+	feeds: Array<{ url: string; title: string; kind: string; enabled?: boolean }>;
 }
 
 function escapeAttribute(value: string): string {
@@ -39,7 +39,7 @@ export function exportOpml(people: Person[], feedsByPerson: Map<string, Feed[]>)
 					(feed) =>
 						`\t\t\t<outline type="${opmlType(feed.kind)}" text="${escapeAttribute(feed.title)}" ` +
 						`title="${escapeAttribute(feed.title)}" xmlUrl="${escapeAttribute(feed.url)}" ` +
-						`htmlUrl="${escapeAttribute(person.siteUrl)}"/>`
+						`htmlUrl="${escapeAttribute(person.siteUrl)}"${feed.enabled === false ? ' yipdenEnabled="false"' : ''}/>`
 				)
 				.join('\n');
 			return (
@@ -98,7 +98,12 @@ export function parseOpml(xml: string): ImportedPerson[] {
 		if (!url) return null;
 		const title = outline.attributes.title || outline.attributes.text || new URL(url).hostname;
 		const kind = (outline.attributes.type || '').toLowerCase() || 'blog';
-		return { url, title, kind };
+		return {
+			url,
+			title,
+			kind,
+			...(outline.attributes.yipdenEnabled === 'false' ? { enabled: false } : {})
+		};
 	};
 
 	for (const outline of topLevel) {

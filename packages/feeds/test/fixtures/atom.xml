@@ -8,7 +8,10 @@
   <entry>
     <title>Suzu and Jack, page 30</title>
     <link rel="alternate" href="https://frammyjammy.com/suzu-and-jack/30"/>
+	<link rel="canonical" href="https://frammyjammy.com/suzu-and-jack/30"/>
+	<link rel="syndication" href="https://social.example/@nori/30"/>
     <link rel="enclosure" type="image/png" href="https://frammyjammy.com/pages/30.png"/>
+	<thr:in-reply-to xmlns:thr="http://purl.org/syndication/thread/1.0" href="https://frammyjammy.com/suzu-and-jack/29"/>
     <id>urn:uuid:9e1b2c3d-0000-4000-8000-000000000030</id>
     <published>2026-09-18T11:30:00Z</published>
     <updated>2026-09-19T08:00:00Z</updated>

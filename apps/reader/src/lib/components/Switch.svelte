@@ -11,10 +11,11 @@
 		checked: boolean;
 		id: string;
 		label: string;
+		disabled?: boolean;
 		onchange?: (checked: boolean) => void;
 	}
 
-	let { checked = $bindable(), id, label, onchange }: Props = $props();
+	let { checked = $bindable(), id, label, disabled = false, onchange }: Props = $props();
 </script>
 
 <span class="switch">
@@ -24,6 +25,7 @@
 		role="switch"
 		{id}
 		aria-label={label}
+		{disabled}
 		bind:checked
 		onchange={(event) => onchange?.(event.currentTarget.checked)}
 	/>
@@ -69,6 +71,14 @@
 		margin: 0;
 		opacity: 0;
 		cursor: pointer;
+	}
+
+	.switch-input:disabled {
+		cursor: wait;
+	}
+
+	.switch:has(.switch-input:disabled) {
+		opacity: 0.55;
 	}
 
 	.track {

@@ -10,7 +10,9 @@ import type { Store } from './types.js';
 export const store: Store = new IdbStore();
 
 export type {
+	AddFeedResult,
 	Feed,
+	FeedProvenance,
 	PeaksRecord,
 	Person,
 	SettingKey,

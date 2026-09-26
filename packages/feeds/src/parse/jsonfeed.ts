@@ -55,6 +55,8 @@ function attachmentsOf(value: unknown, baseUrl: string): MediaAttachment[] {
 		const size = Number(record.size_in_bytes);
 		const duration = parseDuration(record.duration_in_seconds);
 		const title = text(record.title, 200);
+		const alt = text(record.alt_text ?? record._alt_text, 1000);
+		const sensitive = record.sensitive === true || record._sensitive === true;
 		seen.add(url);
 		media.push({
 			url,
@@ -62,7 +64,9 @@ function attachmentsOf(value: unknown, baseUrl: string): MediaAttachment[] {
 			...(mimeType ? { mimeType } : {}),
 			...(Number.isFinite(size) && size > 0 ? { sizeBytes: size } : {}),
 			...(duration ? { durationSeconds: duration } : {}),
-			...(title ? { title } : {})
+			...(title ? { title } : {}),
+			...(alt ? { alt } : {}),
+			...(sensitive ? { sensitive: true } : {})
 		});
 	}
 
@@ -81,8 +85,14 @@ function itemFrom(raw: unknown, options: JsonFeedParseOptions): Item | null {
 	const contentText = text(record.content_text, 20_000);
 	const summarySource = text(record.summary, 2000) || contentHtml || contentText;
 	const author = authorOf(record);
+	const contentWarning = text(record.content_warning ?? record._content_warning, 500);
 	const image = absoluteUrl(record.image, url);
 	const media = attachmentsOf(record.attachments, url);
+	const sensitive =
+		record.sensitive === true ||
+		record._sensitive === true ||
+		Boolean(contentWarning) ||
+		media.some((attachment) => attachment.sensitive);
 	if (image && !media.some((entry) => entry.url === image)) {
 		media.unshift({ url: image, kind: 'image' });
 	}
@@ -95,6 +105,8 @@ function itemFrom(raw: unknown, options: JsonFeedParseOptions): Item | null {
 		publishedAt: parseDate(record.date_published ?? record.date_modified),
 		summary: summarize(summarySource),
 		contentHtml: contentHtml ? sanitizeHtml(contentHtml, { baseUrl: url }) : null,
+		...(contentWarning ? { contentWarning } : {}),
+		...(sensitive ? { sensitive: true } : {}),
 		media,
 		sourceFeedId: feedUrl
 	};

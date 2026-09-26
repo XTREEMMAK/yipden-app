@@ -34,7 +34,7 @@ async function followLena(page: Page) {
 	);
 
 	await page.goto('/follow');
-	await page.getByLabel('Website or profile').fill('lenaofori.com');
+	await page.getByLabel('Creator, website, or profile').fill('lenaofori.com');
 	await page.getByRole('button', { name: 'Find feeds' }).click();
 	await page.getByText('Blog', { exact: true }).waitFor({ timeout: 10_000 });
 	await page.getByRole('button', { name: /Follow Lena Ofori in/ }).click();
@@ -55,7 +55,67 @@ test.describe('You', () => {
 		await page.goto('/you');
 
 		await expect(page.getByText('Lena Ofori')).toBeVisible();
-		await expect(page.getByText('1 feed · lenaofori.com')).toBeVisible();
+		await expect(
+			page.getByRole('button', { name: /Lena Ofori 1 of 1 sources active/ })
+		).toBeVisible();
+	});
+
+	test('adds and removes a manually supplied creator source', async ({ page }) => {
+		await followLena(page);
+		await page.route('https://youtube.com/keyjayhd', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'text/html',
+				body: '<link href="https://www.youtube.com/channel/UCLCemz-Z5S_hLjZ7PPEbj8Q" rel="canonical">'
+			})
+		);
+		await page.route(
+			'https://www.youtube.com/feeds/videos.xml?channel_id=UCLCemz-Z5S_hLjZ7PPEbj8Q',
+			(route) =>
+				route.fulfill({
+					status: 200,
+					contentType: 'application/atom+xml',
+					body: '<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><title>KeyJay HD</title></feed>'
+				})
+		);
+
+		await page.goto('/you');
+		await page.getByRole('button', { name: /Lena Ofori.*sources active/ }).click();
+		await page.getByRole('button', { name: '+ Add source' }).click();
+		await expect(page.getByText(/Manual sources stay unverified/)).toBeVisible();
+		await page.getByLabel('Feed, website, or profile link').fill('youtube.com/keyjayhd');
+		await page.getByRole('button', { name: 'Find', exact: true }).click();
+		await page.getByRole('button', { name: 'Add', exact: true }).click();
+
+		await expect(page.getByRole('status')).toContainText('YouTube was added and checked');
+		await expect(page.getByText(/Added manually/)).toBeVisible();
+		await expect(
+			page.getByRole('button', { name: /Lena Ofori 2 of 2 sources active/ })
+		).toBeVisible();
+
+		await page.getByRole('button', { name: 'Remove', exact: true }).click();
+		await page.getByRole('button', { name: 'Remove', exact: true }).click();
+		await expect(page.getByRole('status')).toContainText('Removed YouTube and its cached yips');
+		await expect(
+			page.getByRole('button', { name: /Lena Ofori 1 of 1 sources active/ })
+		).toBeVisible();
+	});
+
+	test('pauses and resumes every source for one creator', async ({ page }) => {
+		await followLena(page);
+		await page.goto('/you');
+		await page.getByRole('button', { name: /Lena Ofori.*sources active/ }).click();
+
+		await page.getByRole('button', { name: 'Pause all' }).click();
+		await expect(
+			page.getByRole('switch', { name: 'Enable Website for Lena Ofori' })
+		).not.toBeChecked();
+		await expect(
+			page.getByRole('button', { name: /Lena Ofori 0 of 1 sources active/ })
+		).toBeVisible();
+
+		await page.getByRole('button', { name: 'Enable all' }).click();
+		await expect(page.getByRole('switch', { name: 'Pause Website for Lena Ofori' })).toBeChecked();
 	});
 
 	test('unfollow needs a confirm, and Keep cancels it', async ({ page }) => {
@@ -179,6 +239,70 @@ test.describe('You', () => {
 		await expect(page.getByText('Cy Marsh')).toBeVisible();
 	});
 
+	test('exports a versioned full backup', async ({ page }) => {
+		await followLena(page);
+		await page.goto('/you');
+
+		const [download] = await Promise.all([
+			page.waitForEvent('download'),
+			page.getByRole('button', { name: 'Export full backup' }).click()
+		]);
+		const downloadPath = await download.path();
+		const backup = JSON.parse(downloadPath ? await readFile(downloadPath, 'utf8') : '{}');
+		expect(backup).toMatchObject({ format: 'yipden-backup', version: 1 });
+		expect(backup.people).toHaveLength(1);
+		expect(backup.feeds[0].url).toBe('https://lenaofori.com/feed.xml');
+	});
+
+	test('previews a full backup before restoring it', async ({ page }) => {
+		await page.goto('/you');
+		const backup = {
+			format: 'yipden-backup',
+			version: 1,
+			exportedAt: '2026-09-25T12:00:00.000Z',
+			people: [
+				{
+					id: 'person-cy',
+					name: 'Cy Marsh',
+					siteUrl: 'https://cy.example.com/',
+					followedAt: '2026-09-25T12:00:00.000Z'
+				}
+			],
+			feeds: [
+				{
+					id: 'https://cy.example.com/feed.xml',
+					personId: 'person-cy',
+					url: 'https://cy.example.com/feed.xml',
+					kind: 'blog',
+					title: 'Cy Marsh',
+					verified: false,
+					provenance: 'manual',
+					failures: 0,
+					enabled: true
+				}
+			],
+			yips: [],
+			settings: { shuffleMusic: false },
+			appearance: { theme: 'dark', skin: 'forest' }
+		};
+		const [chooser] = await Promise.all([
+			page.waitForEvent('filechooser'),
+			page.getByRole('button', { name: 'Preview backup import' }).click()
+		]);
+		const dir = await mkdtemp(join(tmpdir(), 'yipden-backup-'));
+		const file = join(dir, 'backup.json');
+		await writeFile(file, JSON.stringify(backup));
+		await chooser.setFiles(file);
+
+		await expect(page.getByText('Ready to restore')).toBeVisible();
+		await expect(page.getByText('Cy Marsh')).toHaveCount(0);
+		await page.getByRole('button', { name: 'Restore', exact: true }).click();
+		await expect(page.getByRole('status')).toContainText('Restored');
+		await expect(page.getByText('Cy Marsh')).toBeVisible();
+		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+		await expect(page.locator('html')).toHaveAttribute('data-skin', 'forest');
+	});
+
 	test('clearing cached yips confirms without touching the follow list', async ({ page }) => {
 		await followLena(page);
 		await page.goto('/you');
@@ -203,9 +327,39 @@ test.describe('You', () => {
 		}
 	});
 
-	test('About says where Discover content comes from', async ({ page }) => {
+	test('About opens as a complete modal and closes with Escape or Back', async ({ page }) => {
+		const errors: string[] = [];
+		page.on('pageerror', (error) => errors.push(error.message));
 		await page.goto('/you');
-		await expect(page.getByText('How Discover works')).toBeVisible();
-		await expect(page.getByText(/IndieNodes webring/)).toBeVisible();
+		const trigger = page.getByRole('button', { name: 'About YipDen' });
+		await expect(trigger).toBeVisible();
+		await expect(page.getByRole('dialog', { name: 'YipDen' })).toHaveCount(0);
+
+		await trigger.click();
+		await page.waitForTimeout(100);
+		expect(errors).toEqual([]);
+		const dialog = page.getByRole('dialog', { name: 'YipDen' });
+		await expect(dialog).toBeVisible();
+		await expect(dialog.getByText(/v0\.0\.1 · build/)).toBeVisible();
+		await expect(
+			dialog.getByText(/Everyone in Discover comes from the IndieNodes webring/)
+		).toBeVisible();
+		await expect(
+			dialog.getByRole('heading', { name: 'Your den stays on your device.' })
+		).toBeVisible();
+		await expect(dialog.getByRole('heading', { name: 'What changed' })).toBeVisible();
+		await expect(dialog.getByRole('heading', { name: 'Built with and around' })).toBeVisible();
+		await expect(dialog.getByText('@capgo/capacitor-media-session', { exact: true })).toBeVisible();
+		await expect(dialog.getByText('MPL 2.0')).toBeVisible();
+
+		await page.keyboard.press('Escape');
+		await expect(dialog).toHaveCount(0);
+		await expect(trigger).toBeFocused();
+
+		await trigger.click();
+		await expect(dialog).toBeVisible();
+		await page.goBack();
+		await expect(dialog).toHaveCount(0);
+		await expect(trigger).toBeFocused();
 	});
 });

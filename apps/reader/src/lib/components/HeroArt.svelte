@@ -9,17 +9,16 @@
 	/**
 	 * The full bleed image behind a ring member.
 	 *
-	 * Two layers that crossfade, so a new member's image arrives over the old one instead of
-	 * replacing it in a blink. The image is decoration, never content: it carries no meaning the
-	 * text does not, so it is a background rather than an `img` and is hidden from assistive
-	 * technology entirely.
+	 * Ready covers use two layers to crossfade. If the incoming cover is still loading, the outgoing
+	 * creator's art is removed immediately and the incoming creator's own wash is shown until its
+	 * cover can be drawn. The image is decoration, never content: it carries no meaning the text does
+	 * not, so it is a background rather than an `img` and is hidden from assistive technology.
 	 *
-	 * The brief allows a WebGL displacement wipe here as an optional upgrade over this crossfade,
-	 * and this is both: the crossfade above never stops running, and a canvas drawn over it takes
+	 * The brief allows a WebGL displacement wipe here as an optional upgrade over this fallback,
+	 * and this is both: the CSS path stays available underneath, and a canvas drawn over it takes
 	 * over visually whenever `createHeroGL` manages to stand one up. No WebGL context, a shader
-	 * that will not compile, a lost context mid-session, all leave the crossfade as what the
-	 * reader actually sees, which is why it keeps running underneath rather than being skipped
-	 * while the canvas is active. A photo the canvas cannot read (in a browser, most of them: most
+	 * that will not compile, a lost context mid-session, all leave the CSS fallback as what the
+	 * reader actually sees. A photo the canvas cannot read (in a browser, most of them: most
 	 * personal sites send no CORS headers) is not a failure of the hero either, but it is shown
 	 * by that CSS layer, never by a flat stand-in on the canvas. On Android the photo's bytes come
 	 * through the native HTTP client (see platform/image.ts), which is why the wipe works there.
@@ -59,7 +58,39 @@
 		Array<{ id: number; src: string | null; focal: RingFocalPoint; fade: boolean }>
 	>([]);
 	let nextId = 0;
-	let lastSrc: string | null | undefined;
+	let lastIdentity: string | undefined;
+	let sourceGeneration = 0;
+	let destroyed = false;
+	const cssReady = new Set<string>();
+	const cssLoads = new Map<string, Promise<boolean>>();
+
+	/**
+	 * CSS backgrounds do not expose a load event. Loading the same URL through an Image first lets
+	 * us keep an outgoing creator's cover out of the incoming creator's card, then reveal the new
+	 * cover as soon as it is actually drawable. Browsers coalesce this with the background request.
+	 */
+	function loadCssPhoto(url: string): Promise<boolean> {
+		if (cssReady.has(url)) return Promise.resolve(true);
+		const pending = cssLoads.get(url);
+		if (pending) return pending;
+		if (typeof Image === 'undefined') return Promise.resolve(false);
+
+		const task = new Promise<boolean>((resolve) => {
+			const image = new Image();
+			const finish = (loaded: boolean) => {
+				image.onload = null;
+				image.onerror = null;
+				if (loaded) cssReady.add(url);
+				else cssLoads.delete(url);
+				resolve(loaded);
+			};
+			image.onload = () => finish(true);
+			image.onerror = () => finish(false);
+			image.src = url;
+		});
+		cssLoads.set(url, task);
+		return task;
+	}
 
 	let canvas: HTMLCanvasElement | undefined;
 	let gl: HeroGLHandle | null = null;
@@ -84,7 +115,16 @@
 			() => (glActive = false),
 			{
 				onTexture: (url, loaded) => {
-					if (loaded) drawable = new Set(drawable).add(url);
+					if (!loaded) return;
+					const newlyDrawable = !drawable.has(url);
+					drawable = new Set(drawable).add(url);
+					// A target can become current while its texture is still the one-pixel wash.
+					// Re-selecting it after upload guarantees the real pixels paint immediately.
+					if (newlyDrawable && url === src && gl) {
+						const position = focal ?? { x: 50, y: 50 };
+						gl.setFocal(url, position.x, position.y);
+						gl.set(url, washColor);
+					}
 				},
 				...(loadDataUrlNative ? { loadDataUrl: loadDataUrlNative } : {})
 			}
@@ -132,7 +172,10 @@
 		};
 	});
 
-	onDestroy(() => gl?.destroy());
+	onDestroy(() => {
+		destroyed = true;
+		gl?.destroy();
+	});
 
 	/*
 	 * No ambient drift under the full screen player: Discover sits behind it but the canvas
@@ -152,18 +195,37 @@
 		// this one must re-run when the neighbours change even though it starts before the canvas.
 		const items = preload;
 		void washColor;
+		for (const item of items) void loadCssPhoto(item.url);
 		if (!gl) return;
 		for (const item of items) preloadOne(item);
 	});
 
 	$effect(() => {
 		const position = focal ?? { x: 50, y: 50 };
-		if (src === lastSrc) return;
-		lastSrc = src;
+		const identity = JSON.stringify([src, wash, position.x, position.y]);
+		if (identity === lastIdentity) return;
+		const firstSource = lastIdentity === undefined;
+		lastIdentity = identity;
+		const generation = ++sourceGeneration;
 
-		// The first cover of a mount appears already in place: fading it in from transparent made the
-		// cover blink every time Discover was returned to. Only a change of member crossfades.
-		layers = [...layers.slice(-1), { id: nextId++, src, focal: position, fade: layers.length > 0 }];
+		if (!src) {
+			layers = [];
+		} else if (cssReady.has(src)) {
+			// Keep the outgoing layer only when the incoming cover is already drawable. That preserves
+			// the smooth crossfade without ever pairing old art with new creator metadata.
+			layers = [
+				...layers.slice(-1),
+				{ id: nextId++, src, focal: position, fade: layers.length > 0 }
+			];
+		} else {
+			// The wash belongs to the new creator. Remove the outgoing photo immediately while this
+			// creator's cover loads, then reveal it only if this is still the active request.
+			layers = [];
+			void loadCssPhoto(src).then((loaded) => {
+				if (!loaded || destroyed || generation !== sourceGeneration) return;
+				layers = [{ id: nextId++, src, focal: position, fade: !firstSource }];
+			});
+		}
 
 		if (gl && src) {
 			gl.setFocal(src, position.x, position.y);

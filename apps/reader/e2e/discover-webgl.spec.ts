@@ -1,5 +1,5 @@
 import { deflateSync } from 'node:zlib';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 
 /**
  * Discover's WebGL hero: the displacement wipe is optional by the brief's own words, and every
@@ -177,6 +177,87 @@ test.describe('Discover WebGL hero', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('keeps the cover in the snapshot without retaining Discover in live layout', async ({
+		page
+	}) => {
+		await withRing(page, { 'access-control-allow-origin': '*' });
+		await page.goto('/');
+		await expect.poll(() => canvasIsActive(page)).toBe(true);
+
+		/*
+		 * The cover must be present when the old snapshot is captured, but the live Discover route
+		 * must be removed before that transition is ready to animate the incoming page. A global
+		 * creator outro used to retain the full-height route for ~400ms and displace the next page.
+		 */
+		await page.evaluate(() => {
+			const original = document.startViewTransition!.bind(document);
+			const win = window as unknown as {
+				navMeasure?: {
+					artDisplay: string;
+					canvasDisplay: string;
+					removedAfter?: number;
+					readyAfter?: number;
+				};
+			};
+			const intercept = (update: () => void | Promise<void>) => {
+				const started = performance.now();
+				const art = document.querySelector('.art');
+				const canvas = document.querySelector('canvas.gl');
+				const measure = (win.navMeasure = {
+					artDisplay: art ? getComputedStyle(art).display : 'missing',
+					canvasDisplay: canvas ? getComputedStyle(canvas).display : 'missing'
+				});
+				const observer = new MutationObserver(() => {
+					if (!document.querySelector('.discover')) {
+						measure.removedAfter = performance.now() - started;
+						observer.disconnect();
+					}
+				});
+				observer.observe(document.body, { childList: true, subtree: true });
+				const transition = original(update);
+				void transition.ready.then(() => {
+					measure.readyAfter = performance.now() - started;
+				});
+				return transition;
+			};
+			Object.defineProperty(document, 'startViewTransition', {
+				configurable: true,
+				value: intercept
+			});
+		});
+
+		await page.getByRole('link', { name: 'Feeds', exact: true }).click();
+		await expect(page).toHaveURL(/feeds/);
+		await expect
+			.poll(() =>
+				page.evaluate(
+					() =>
+						(
+							window as unknown as {
+								navMeasure?: { removedAfter?: number; readyAfter?: number };
+							}
+						).navMeasure
+				)
+			)
+			.toMatchObject({ removedAfter: expect.any(Number), readyAfter: expect.any(Number) });
+
+		const measure = await page.evaluate(
+			() =>
+				(
+					window as unknown as {
+						navMeasure: {
+							artDisplay: string;
+							canvasDisplay: string;
+							removedAfter: number;
+							readyAfter: number;
+						};
+					}
+				).navMeasure
+		);
+		expect(measure.artDisplay).not.toBe('none');
+		expect(measure.canvasDisplay).not.toBe('none');
+		expect(measure.removedAfter).toBeLessThan(measure.readyAfter);
+	});
 	test('next, previous and shuffle all run without error while the canvas is active', async ({
 		page
 	}) => {
@@ -300,6 +381,74 @@ test.describe('Discover WebGL hero', () => {
 		await page.getByRole('button', { name: 'Next in the ring' }).click();
 		// Immediately after the press, not after a wait: the canvas already holds the new photo.
 		expect(await canvasIsActive(page)).toBe(true);
+	});
+
+	test('a slow current cover replaces the old creator and appears as soon as it loads', async ({
+		page
+	}) => {
+		const cors = { 'access-control-allow-origin': '*' };
+		let releaseAda = () => {};
+		let releaseBo = () => {};
+		const adaReady = new Promise<void>((resolve) => (releaseAda = resolve));
+		const boReady = new Promise<void>((resolve) => (releaseBo = resolve));
+		await page.route('https://ring.indienodes.us/ring.json', (route) =>
+			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(RING) })
+		);
+		const delayCover = async (route: Route) => {
+			const isAda = route.request().url().endsWith('/ada.jpg');
+			await (isAda ? adaReady : boReady);
+			await route.fulfill({
+				status: 200,
+				contentType: 'image/png',
+				headers: cors,
+				body: isAda ? solidPng(200, 40, 40) : solidPng(40, 40, 200)
+			});
+		};
+		await page.route('https://example.com/ada.jpg', delayCover);
+		await page.route('https://example.com/bo.jpg', delayCover);
+
+		await page.goto('/');
+		const heading = page.getByRole('heading', { level: 1 });
+		await expect(heading).toBeVisible();
+		const first = await heading.textContent();
+		const firstIsAda = first === 'Ada Reed';
+		const firstUrl = firstIsAda ? 'https://example.com/ada.jpg' : 'https://example.com/bo.jpg';
+		const secondUrl = firstIsAda ? 'https://example.com/bo.jpg' : 'https://example.com/ada.jpg';
+
+		(firstIsAda ? releaseAda : releaseBo)();
+		await expect.poll(() => canvasIsActive(page), { timeout: 5000 }).toBe(true);
+		await expect
+			.poll(() =>
+				page
+					.locator('.art .layer')
+					.evaluateAll(
+						(layers, url) =>
+							layers.some((layer) => (layer as HTMLElement).style.backgroundImage.includes(url)),
+						firstUrl
+					)
+			)
+			.toBe(true);
+
+		await page.getByRole('button', { name: 'Next in the ring' }).click();
+		await expect(heading).not.toHaveText(first ?? '');
+		// Metadata may change immediately, but an old creator's cover must never remain behind it.
+		await expect(page.locator('.art .layer')).toHaveCount(0);
+		expect(await canvasIsActive(page)).toBe(false);
+
+		(firstIsAda ? releaseBo : releaseAda)();
+		// A late completion updates the current creator in place; no extra swipe is needed.
+		await expect.poll(() => canvasIsActive(page), { timeout: 5000 }).toBe(true);
+		await expect
+			.poll(() =>
+				page
+					.locator('.art .layer')
+					.evaluateAll(
+						(layers, url) =>
+							layers.some((layer) => (layer as HTMLElement).style.backgroundImage.includes(url)),
+						secondUrl
+					)
+			)
+			.toBe(true);
 	});
 
 	test('falls back to the CSS crossfade outright when the browser has no WebGL at all', async ({

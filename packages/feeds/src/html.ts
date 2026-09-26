@@ -31,9 +31,45 @@ export interface ScannedPage {
 }
 
 const MAX_LINKS = 500;
+const MAX_JSON_LD_BYTES = 256 * 1024;
 
 function relTokens(value: string | undefined): string[] {
 	return (value ?? '').toLowerCase().split(/\s+/).filter(Boolean);
+}
+
+/**
+ * Schema.org's `sameAs` is a common way for a client-rendered site to publish its social
+ * identities without putting those links in server-rendered anchors. Treat it as a one-way
+ * identity declaration, like rel=me on this page. It is not two-way verification by itself.
+ */
+function sameAsUrls(source: string, baseUrl: string): string[] {
+	if (!source.trim() || source.length > MAX_JSON_LD_BYTES) return [];
+	try {
+		const document: unknown = JSON.parse(source);
+		const found: string[] = [];
+		const visit = (value: unknown) => {
+			if (!value || found.length >= 50) return;
+			if (Array.isArray(value)) {
+				for (const item of value) visit(item);
+				return;
+			}
+			if (typeof value !== 'object') return;
+			for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+				if (key === 'sameAs') {
+					for (const candidate of Array.isArray(child) ? child : [child]) {
+						const url = absoluteUrl(candidate, baseUrl);
+						if (url && !found.includes(url)) found.push(url);
+					}
+				} else {
+					visit(child);
+				}
+			}
+		};
+		visit(document);
+		return found;
+	} catch {
+		return [];
+	}
 }
 
 /**
@@ -54,9 +90,12 @@ export function scanPage(html: string, baseUrl: string): ScannedPage {
 	let pendingCardName = false;
 	let anchorText = '';
 	let inAnchor = false;
+	let inJsonLd = false;
+	let jsonLd = '';
 
 	for (const token of tokenize(html)) {
 		if (token.type === 'text') {
+			if (inJsonLd && jsonLd.length <= MAX_JSON_LD_BYTES) jsonLd += token.value;
 			if (inTitle && !title) title = token.value.trim() || null;
 			if (pendingCardName && !cardName) cardName = token.value.trim() || null;
 			if (inAnchor) anchorText += token.value;
@@ -66,11 +105,24 @@ export function scanPage(html: string, baseUrl: string): ScannedPage {
 		if (token.type === 'end') {
 			if (token.name === 'title') inTitle = false;
 			if (token.name === 'a') inAnchor = false;
+			if (token.name === 'script' && inJsonLd) {
+				for (const href of sameAsUrls(jsonLd, baseUrl)) {
+					if (!relMe.includes(href)) relMe.push(href);
+				}
+				inJsonLd = false;
+				jsonLd = '';
+			}
 			pendingCardName = false;
 			continue;
 		}
 
 		const { name, attributes } = token;
+
+		if (name === 'script' && (attributes.type ?? '').toLowerCase() === 'application/ld+json') {
+			inJsonLd = true;
+			jsonLd = '';
+			continue;
+		}
 
 		if (name === 'title' && !title) {
 			inTitle = true;

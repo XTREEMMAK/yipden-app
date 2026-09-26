@@ -15,6 +15,7 @@
 	import '$styles/app.css';
 
 	let { children } = $props();
+	let ringQueueRestored = $state(false);
 
 	onMount(() => {
 		theme.hydrate();
@@ -51,12 +52,13 @@
 		await store.init();
 		const record = await store.getSetting<RingQueueRecord>('ringQueue');
 		if (record) ringPlayer.restore(record);
+		ringQueueRestored = true;
 	}
 
-	/** Saved after every change to a ring session's queue; not fired for any other kind of queue. */
+	/** Once restoration finishes, save every change; null explicitly removes an obsolete session. */
 	$effect(() => {
 		const snapshot = ringPlayer.snapshot();
-		if (snapshot) void store.setSetting('ringQueue', snapshot);
+		if (ringQueueRestored) void store.setSetting('ringQueue', snapshot);
 	});
 
 	/**

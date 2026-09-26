@@ -205,6 +205,28 @@ describe('removeBatch', () => {
 	});
 });
 
+describe('removePerson', () => {
+	it('removes only that creator and clears the player when none remain', () => {
+		player.play(
+			[item({ id: 'a', personId: 'person-ada' }), item({ id: 'b', personId: 'person-bo' })],
+			0
+		);
+
+		player.removePerson('person-ada');
+		expect(player.queue.map((entry) => entry.id)).toEqual(['b']);
+		expect(player.current?.personId).toBe('person-bo');
+
+		player.removePerson('person-bo');
+		expect(player.current).toBeNull();
+		expect(player.queue).toEqual([]);
+		expect(player.sheet).toBe('hidden');
+
+		player.play([item({ id: 'legacy' })], 0);
+		player.removePerson('person-ada', 'https://ada.example.com/');
+		expect(player.current).toBeNull();
+	});
+});
+
 describe('hydrate', () => {
 	it('restores the queue and position without starting playback', () => {
 		player.hydrate([item({ id: 'a' }), item({ id: 'b' })], 1, { loop: false });

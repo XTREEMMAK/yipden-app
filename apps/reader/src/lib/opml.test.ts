@@ -45,6 +45,12 @@ describe('exportOpml', () => {
 		expect(xml).not.toContain('<Team>');
 	});
 
+	it('preserves a disabled source as an ignorable OPML extension', () => {
+		const xml = exportOpml([person()], new Map([['p1', [feed({ enabled: false })]]]));
+		expect(xml).toContain('yipdenEnabled="false"');
+		expect(parseOpml(xml)[0]?.feeds[0]?.enabled).toBe(false);
+	});
+
 	it('produces nothing for a person with no feeds beyond an empty outline', () => {
 		const xml = exportOpml([person()], new Map());
 		expect(xml).toContain('<outline text="Lena Ofori"');

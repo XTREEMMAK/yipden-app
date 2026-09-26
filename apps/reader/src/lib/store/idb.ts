@@ -1,5 +1,14 @@
 import type { RingCacheRecord } from '@yipden/ring-client';
-import type { Feed, PeaksRecord, Person, SettingKey, Store, StoredYip, YipQuery } from './types.js';
+import type {
+	AddFeedResult,
+	Feed,
+	PeaksRecord,
+	Person,
+	SettingKey,
+	Store,
+	StoredYip,
+	YipQuery
+} from './types.js';
 
 /**
  * The one on device implementation of `Store`, over IndexedDB.
@@ -123,6 +132,37 @@ export class IdbStore implements Store {
 		return done(transaction);
 	}
 
+	async addFeed(feed: Feed): Promise<AddFeedResult> {
+		const transaction = await this.transaction([STORE.feeds], 'readwrite');
+		const feeds = transaction.objectStore(STORE.feeds);
+		const existing = (await promisify(feeds.get(feed.id))) as Feed | undefined;
+
+		if (existing) {
+			await done(transaction);
+			return existing.personId === feed.personId
+				? { status: 'already-attached' }
+				: { status: 'belongs-to-other', personId: existing.personId };
+		}
+
+		feeds.add(feed);
+		await done(transaction);
+		return { status: 'added' };
+	}
+
+	async removeFeed(personId: string, feedId: string): Promise<void> {
+		const transaction = await this.transaction([STORE.feeds, STORE.yips], 'readwrite');
+		const feeds = transaction.objectStore(STORE.feeds);
+		const existing = (await promisify(feeds.get(feedId))) as Feed | undefined;
+		if (!existing || existing.personId !== personId) return done(transaction);
+
+		feeds.delete(feedId);
+		const yips = transaction.objectStore(STORE.yips);
+		for (const yip of (await promisify(yips.index('personId').getAll(personId))) as StoredYip[]) {
+			if (yip.feedId === feedId || yip.key.startsWith(`${feedId}::`)) yips.delete(yip.key);
+		}
+		return done(transaction);
+	}
+
 	async unfollow(personId: string): Promise<void> {
 		const transaction = await this.transaction(
 			[STORE.people, STORE.feeds, STORE.yips],
@@ -191,9 +231,12 @@ export class IdbStore implements Store {
 	}
 
 	async listYips(query: YipQuery = {}): Promise<StoredYip[]> {
-		const { filter = 'everything', limit = 100, before } = query;
+		const { filter = 'everything', feedIds, limit = 100, before } = query;
+		if (feedIds?.length === 0) return [];
 		const transaction = await this.transaction([STORE.yips], 'readonly');
 		const index = transaction.objectStore(STORE.yips).index('publishedAt');
+		const allowedFeeds = feedIds ? new Set(feedIds) : null;
+		const legacyFeedPrefixes = feedIds?.map((feedId) => `${feedId}::`) ?? [];
 
 		const results: StoredYip[] = [];
 		// Newest first, walking the index backwards rather than reading everything and sorting.
@@ -205,13 +248,26 @@ export class IdbStore implements Store {
 				const cursor = cursorRequest.result;
 				if (!cursor || results.length >= limit) return resolve();
 				const yip = cursor.value as StoredYip;
-				if (filter === 'everything' || yip.category === filter) results.push(yip);
+				const inEnabledFeed =
+					allowedFeeds === null ||
+					(yip.feedId
+						? allowedFeeds.has(yip.feedId)
+						: allowedFeeds.has(yip.sourceFeedId) ||
+							legacyFeedPrefixes.some((prefix) => yip.key.startsWith(prefix)));
+				if (inEnabledFeed && (filter === 'everything' || yip.category === filter)) {
+					results.push(yip);
+				}
 				cursor.continue();
 			};
 			cursorRequest.onerror = () => reject(cursorRequest.error);
 		});
 
 		return results;
+	}
+
+	async listAllYips(): Promise<StoredYip[]> {
+		const transaction = await this.transaction([STORE.yips], 'readonly');
+		return promisify(transaction.objectStore(STORE.yips).getAll());
 	}
 
 	async countUnread(): Promise<{ yips: number; people: number }> {
@@ -221,11 +277,14 @@ export class IdbStore implements Store {
 		return { yips: unread.length, people: new Set(unread.map((yip) => yip.personId)).size };
 	}
 
-	async markRead(key: string): Promise<void> {
+	async markRead(keys: string | string[]): Promise<void> {
 		const transaction = await this.transaction([STORE.yips], 'readwrite');
 		const store = transaction.objectStore(STORE.yips);
-		const yip = (await promisify(store.get(key))) as StoredYip | undefined;
-		if (yip && !yip.readAt) store.put({ ...yip, readAt: new Date().toISOString() });
+		const now = new Date().toISOString();
+		for (const key of typeof keys === 'string' ? [keys] : [...new Set(keys)]) {
+			const yip = (await promisify(store.get(key))) as StoredYip | undefined;
+			if (yip && !yip.readAt) store.put({ ...yip, readAt: now });
+		}
 		return done(transaction);
 	}
 

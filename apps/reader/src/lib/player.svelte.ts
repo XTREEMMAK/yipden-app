@@ -18,6 +18,8 @@ export interface QueueItem {
 	id: string;
 	title: string;
 	creator: string;
+	/** Follow identity for feed yips, so unfollow can evict only that creator's audio. */
+	personId?: string;
 	url: string;
 	/** Where playback opens the creator's page, distinct from the media file itself. */
 	siteUrl: string;
@@ -56,6 +58,15 @@ const PLAYER_MORPH_TARGETS: readonly [selector: string, name: string][] = [
  * since a bare `.catch()` on a non-promise throws a TypeError that would otherwise surface as
  * an unrelated crash the moment autoplay is refused.
  */
+function sameSite(left: string, right: string): boolean {
+	try {
+		const host = (value: string) => new URL(value).hostname.toLowerCase().replace(/^www\./, '');
+		return host(left) === host(right);
+	} catch {
+		return false;
+	}
+}
+
 function safePlay(audio: HTMLAudioElement): void {
 	const result = audio.play();
 	if (result && typeof result.catch === 'function') {
@@ -212,8 +223,7 @@ class PlayerState {
 		this.queue = this.queue.filter((_, index) => index !== at);
 
 		if (!this.queue.length) {
-			this.currentIndex = -1;
-			this.audio.pause();
+			this.clear();
 			return;
 		}
 		if (at < this.currentIndex) {
@@ -233,6 +243,16 @@ class PlayerState {
 	removeBatch(batchKey: string): void {
 		for (let at = this.queue.length - 1; at >= 0; at -= 1) {
 			if (this.queue[at]?.batchKey === batchKey) this.removeAt(at);
+		}
+	}
+
+	/** Removes this creator's current items, including queues saved before personId was added. */
+	removePerson(personId: string, siteUrl?: string): void {
+		for (let at = this.queue.length - 1; at >= 0; at -= 1) {
+			const item = this.queue[at];
+			if (!item) continue;
+			const legacySiteMatch = !item.personId && siteUrl && sameSite(item.siteUrl, siteUrl);
+			if (item.personId === personId || legacySiteMatch) this.removeAt(at);
 		}
 	}
 
@@ -432,6 +452,28 @@ class PlayerState {
 		if (this.current) this.sheet = 'full';
 	}
 
+	/** Unloads everything, including native media-session state. */
+	clear(): void {
+		if (this._audio) {
+			this._audio.pause();
+			this._audio.removeAttribute('src');
+			this._audio.load();
+		}
+		this.queue = [];
+		this.currentIndex = -1;
+		this.playing = false;
+		this.currentTime = 0;
+		this.duration = 0;
+		this.pendingSeek = null;
+		this.loop = true;
+		this.ended = false;
+		this.sheet = 'hidden';
+		void MediaSession.setMetadata({ title: '', artist: '', album: '', artwork: [] }).catch(
+			() => {}
+		);
+		void MediaSession.setPlaybackState({ playbackState: 'none' }).catch(() => {});
+	}
+
 	/** Stops playback outright and dismisses the mini player, unlike `collapse`, which keeps it. */
 	stop(): void {
 		this.audio.pause();
@@ -490,8 +532,9 @@ class PlayerState {
 	}
 
 	private updateMediaSessionState(): void {
+		const active = this.current !== null && this.sheet !== 'hidden';
 		void MediaSession.setPlaybackState({
-			playbackState: this.playing ? 'playing' : 'paused'
+			playbackState: active ? (this.playing ? 'playing' : 'paused') : 'none'
 		}).catch(() => {});
 	}
 

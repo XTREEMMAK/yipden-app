@@ -43,7 +43,7 @@ async function seed(page: Page, count = 12) {
 	);
 
 	await page.goto('/follow');
-	await page.getByLabel('Website or profile').fill('lenaofori.com');
+	await page.getByLabel('Creator, website, or profile').fill('lenaofori.com');
 	await page.getByRole('button', { name: 'Find feeds' }).click();
 	await page.getByText('Blog', { exact: true }).waitFor({ timeout: 10_000 });
 	await page.getByRole('button', { name: /Follow Lena Ofori in/ }).click();
