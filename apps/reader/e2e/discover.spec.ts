@@ -202,6 +202,36 @@ test.describe('Discover', () => {
 		await expect(trigger).toBeFocused();
 	});
 
+	test('the shuffle button turns shuffle back off', async ({ page }) => {
+		await page.goto('/');
+		const shuffle = page.getByRole('button', { name: 'Shuffle the ring' });
+
+		await expect(shuffle).toHaveAttribute('aria-pressed', 'false');
+		await shuffle.click();
+		await expect(shuffle).toHaveAttribute('aria-pressed', 'true');
+		await shuffle.click();
+		await expect(shuffle).toHaveAttribute('aria-pressed', 'false');
+	});
+
+	test('the hero photo drifts slowly while idle', async ({ page }) => {
+		await page.route('https://example.com/**', (route) =>
+			route.fulfill({
+				contentType: 'image/gif',
+				body: Buffer.from('R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==', 'base64')
+			})
+		);
+		await page.goto('/');
+		const layer = page.locator('.art .layer').last();
+		// The member of the day changes daily and one of the three has no photo: step to one that does.
+		for (let step = 0; step < 3 && !(await layer.isVisible().catch(() => false)); step += 1) {
+			await ringNext(page);
+			await page.waitForTimeout(300);
+		}
+		await expect(layer).toBeVisible();
+		const name = await layer.evaluate((el) => getComputedStyle(el).animationName);
+		expect(name).toContain('drift');
+	});
+
 	test('every control clears the 44px minimum', async ({ page }) => {
 		await page.goto('/');
 

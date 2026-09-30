@@ -468,3 +468,8 @@ hundred or a thousand follows, one notification per yip is unusable. Whatever sh
 at the moment of following someone, not buried later in You. The exact trigger UI (a toggle on the
 follow confirmation, a toast with a settings link, or something else) is undecided and should be
 designed against the real screen once the backend exists, not guessed at here.
+
+## Ideas
+
+- Folders: group follows (an optional folder on each follow, folder chips on Feeds, OPML
+  category round-trip). Nothing exists yet; raised 2026-09-30.

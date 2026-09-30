@@ -1,10 +1,12 @@
 <script lang="ts">
-	/** A small turning ring for work in progress. It holds still for readers who ask for less motion. */
-	let { label = 'Loading', size = 16 }: { label?: string; size?: number } = $props();
+	/**
+	 * A small turning ring for work in progress. Decorative: the words beside it say what is
+	 * happening. It slows for readers who ask for less motion.
+	 */
+	let { size = 16 }: { size?: number } = $props();
 </script>
 
-<span class="spinner" role="status" aria-label={label} style:width="{size}px" style:height="{size}px"
-></span>
+<span class="spinner" aria-hidden="true" style:width="{size}px" style:height="{size}px"></span>
 
 <style>
 	.spinner {

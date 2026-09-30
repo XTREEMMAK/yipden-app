@@ -356,7 +356,7 @@
 						{chosenFeeds.length === 1 ? 'place' : 'places'}, saved on this phone
 					</small>
 					{#if fetchingPosts}
-						<small class="fetching"><Spinner size={12} label="Fetching posts" /> Fetching their posts…</small>
+						<small class="fetching"><Spinner size={12} /> Fetching their posts…</small>
 					{/if}
 				</span>
 			</div>

@@ -340,9 +340,7 @@
 											{new URL(row.person.siteUrl).hostname.replace(/^www\./, '')}
 										</small>
 										{#if feeds.fetching.has(row.person.id)}
-											<small class="fetching"
-												><Spinner size={11} label="Fetching posts" /> Fetching posts{'…'}</small
-											>
+											<small class="fetching"><Spinner size={11} /> Fetching posts{'…'}</small>
 										{/if}
 									</span>
 									<svg
@@ -452,7 +450,9 @@
 													you.setPersonMaxAge(row.person.id, Number(event.currentTarget.value))}
 											/>
 											{#if row.person.maxAgeDays !== undefined}
-												<button class="source-btn" onclick={() => you.setPersonMaxAge(row.person.id, null)}
+												<button
+													class="source-btn"
+													onclick={() => you.setPersonMaxAge(row.person.id, null)}
 													>Use default</button
 												>
 											{/if}

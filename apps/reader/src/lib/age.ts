@@ -8,7 +8,10 @@ export const MAX_MAX_AGE_DAYS = 90;
 const DAY = 24 * 60 * 60 * 1000;
 
 /** A person's own limit wins over the reader's default. */
-export function effectiveMaxAgeDays(person: Pick<Person, 'maxAgeDays'> | undefined, fallback: number): number {
+export function effectiveMaxAgeDays(
+	person: Pick<Person, 'maxAgeDays'> | undefined,
+	fallback: number
+): number {
 	return person?.maxAgeDays ?? fallback;
 }
 

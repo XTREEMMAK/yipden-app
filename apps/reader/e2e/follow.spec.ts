@@ -95,8 +95,11 @@ test.describe('Follow', () => {
 			]
 		};
 		let creatorRequests = 0;
+		let feedRequests = 0;
 		page.on('request', (request) => {
-			if (request.url().startsWith('https://ada.example.com/')) creatorRequests += 1;
+			if (!request.url().startsWith('https://ada.example.com/')) return;
+			creatorRequests += 1;
+			if (['/feed.xml', '/robots.txt'].includes(new URL(request.url()).pathname)) feedRequests += 1;
 		});
 		await mockUpstream(page, {}, ring);
 		await page.goto('/follow');
@@ -112,7 +115,8 @@ test.describe('Follow', () => {
 
 		await page.getByRole('button', { name: 'Follow Ada Reed in 2 places' }).click();
 		await expect(page.getByText('Following Ada Reed')).toBeVisible();
-		expect(creatorRequests).toBe(0);
+		// Their posts are fetched at once now, so their feed (and its robots.txt) is requested; their site never is.
+		expect(creatorRequests).toBe(feedRequests);
 	});
 
 	test('finds a feed and a linked profile, verifying the two way link', async ({ page }) => {

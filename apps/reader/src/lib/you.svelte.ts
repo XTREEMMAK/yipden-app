@@ -59,7 +59,9 @@ class YouState {
 		const { maxAgeDays: _previous, ...rest } = row.person;
 		const person: Person = days === null ? rest : { ...rest, maxAgeDays: days };
 		await store.updatePerson(person);
-		this.rows = this.rows.map((entry) => (entry.person.id === personId ? { ...entry, person } : entry));
+		this.rows = this.rows.map((entry) =>
+			entry.person.id === personId ? { ...entry, person } : entry
+		);
 		await pruneToMaxAge();
 	}
 

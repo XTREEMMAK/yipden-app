@@ -1880,3 +1880,27 @@ of the same thing the counter was only ever a proxy for. `discover-preview.spec.
 is shown once" test lost the one assertion that was actually about the counter; the rest of it
 (no redundant "Ring ·" / "IndieNodes webring" / "in the ring" text) was never about the counter at
 all and is kept, renamed to say what it is actually guarding.
+
+## 2026-09-30 (last) — The wave wipe removed for an idle drift, a post age limit, and immediate fetch on follow
+
+**The WebGL displacement wipe is gone.** After all the work to get it right it did not add enough
+to justify a shader, a canvas, per-platform texture loading and the CORS caveats. The photo now
+crossfades (the CSS layers already did) and, at rest, drifts slowly: a transform-only keyframe
+loop on each `.layer` (48s, scaled 1.1, four routes chosen by layer id). It pauses under the full
+player and holds still for reduced motion. Pre-removal snapshot: commit `80fac42`; revert from
+there to bring the wipe back. Removed with it: `heroGL.ts`, `platform/image.ts`,
+`washColorFor`, and `discover-webgl.spec.ts`.
+
+**Post age limit is a global default (30 days, 7 to 90) plus an optional per-follow override**
+(`Person.maxAgeDays`). It is applied at ingest in `refreshAll` (undated posts are kept) and by
+`pruneToMaxAge` when a limit changes, so following a prolific creator no longer recalls their
+whole history.
+
+**Following now fetches immediately** through `feeds.fetchNewFollow`, scoped to the new person's
+feeds, instead of waiting for Feeds to open, and `feeds.fetching` drives the spinners.
+
+**Shuffle toggles** via `ring.unshuffle()`, staying on the member being shown.
+
+**The Discover tab bar's `.dark` tint uses `rgba(var(--deep-rgb), .62)`** so it follows the skin.
+
+Folders were asked about and do not exist; they are on ROADMAP.md as an idea.
