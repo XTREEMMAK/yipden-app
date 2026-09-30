@@ -213,23 +213,17 @@ test.describe('Discover', () => {
 		await expect(shuffle).toHaveAttribute('aria-pressed', 'false');
 	});
 
-	test('the hero photo drifts slowly while idle', async ({ page }) => {
-		await page.route('https://example.com/**', (route) =>
-			route.fulfill({
-				contentType: 'image/gif',
-				body: Buffer.from('R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==', 'base64')
-			})
-		);
+	test('the hero drifts slowly while idle', async ({ page }) => {
 		await page.goto('/');
-		const layer = page.locator('.art .layer').last();
-		// The member of the day changes daily and one of the three has no photo: step to one that does.
-		for (let step = 0; step < 3 && !(await layer.isVisible().catch(() => false)); step += 1) {
-			await ringNext(page);
-			await page.waitForTimeout(300);
-		}
-		await expect(layer).toBeVisible();
-		const name = await layer.evaluate((el) => getComputedStyle(el).animationName);
-		expect(name).toContain('drift');
+		const drift = page.locator('.drift');
+		await expect(drift).toBeAttached();
+		expect(await drift.evaluate((el) => getComputedStyle(el).animationName)).toBe('hero-drift');
+
+		// It actually moves: the transform differs a moment apart.
+		const pose = () => drift.evaluate((el) => getComputedStyle(el).transform);
+		const first = await pose();
+		await page.waitForTimeout(1500);
+		expect(await pose()).not.toBe(first);
 	});
 
 	test('every control clears the 44px minimum', async ({ page }) => {

@@ -1,7 +1,10 @@
 <script lang="ts">
 	import type { RingFocalPoint } from '@yipden/ring-client';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { player } from '$lib/player.svelte.js';
+	import { prefersReducedMotion } from '$lib/motion.js';
+	import { loadDataUrlNative } from '$lib/platform/image.js';
+	import { createHeroGL, type HeroGLHandle } from '$lib/webgl/heroGL.js';
 
 	/**
 	 * The full bleed image behind a ring member.
@@ -11,25 +14,47 @@
 	 * cover can be drawn. The image is decoration, never content: it carries no meaning the text does
 	 * not, so it is a background rather than an `img` and is hidden from assistive technology.
 	 *
-	 * At rest the photo drifts very slowly around its frame, a different route for each slide, so an
-	 * idle Discover is never a frozen picture. It is a transform only, so it costs the compositor
-	 * and nothing else, and it holds still under the full player and for reduced motion.
-	 * (A WebGL displacement wipe used to live here; see DECISIONS.md for why it was removed.)
+	 * The brief allows a WebGL displacement wipe here as an optional upgrade over this fallback,
+	 * and this is both: the CSS path stays available underneath, and a canvas drawn over it takes
+	 * over visually whenever `createHeroGL` manages to stand one up. No WebGL context, a shader
+	 * that will not compile, a lost context mid-session, all leave the CSS fallback as what the
+	 * reader actually sees. A photo the canvas cannot read (in a browser, most of them: most
+	 * personal sites send no CORS headers) is not a failure of the hero either, but it is shown
+	 * by that CSS layer, never by a flat stand-in on the canvas. On Android the photo's bytes come
+	 * through the native HTTP client (see platform/image.ts), which is why the wipe works there.
 	 */
+
+	/** No drift under the full screen player: Discover sits behind it and nobody can see it. */
+	let paused = $derived(player.sheet === 'full');
 
 	interface Props {
 		src: string | null;
 		/** Drawn when a member has no image at all, derived from their id so it is stable. */
 		wash: string;
+		/** The same wash, as RGB bytes: what the WebGL hero paints if `src` never loads. */
+		washColor: [number, number, number];
 		focal?: RingFocalPoint | undefined;
-		/** Photos likely to be shown next (the neighbours), fetched ahead so they appear at once. */
+		/** Which way the wipe should travel for the next `src` change: -1/1 for a swipe or the
+		 * prev/next buttons, 0 for a plain crossfade (shuffle, a filter change). Follows this
+		 * app's own convention (the same edge a left drag reveals), not the shader's. */
+		direction?: -1 | 0 | 1;
+		/** How far a committed swipe had already dragged, as a fraction of viewport width, so the
+		 * wipe continues from the live preview instead of restarting from zero bend. */
+		dragFraction?: number;
+		/** Photos likely to be wiped to next (the neighbours), fetched ahead so the wipe has real
+		 *  pixels to draw instead of finishing before the photo arrives. */
 		preload?: Array<{ url: string; focal?: RingFocalPoint | undefined }>;
 	}
 
-	let { src, wash, focal, preload = [] }: Props = $props();
-
-	/** No drift under the full screen player: Discover sits behind it and nobody can see it. */
-	let paused = $derived(player.sheet === 'full');
+	let {
+		src,
+		wash,
+		washColor,
+		focal,
+		direction = 0,
+		dragFraction = 0,
+		preload = []
+	}: Props = $props();
 
 	/** The layer currently on top, and the one underneath it fading out. */
 	let layers = $state<
@@ -70,9 +95,112 @@
 		return task;
 	}
 
+	let canvas: HTMLCanvasElement | undefined;
+	let gl: HeroGLHandle | null = null;
+	let glActive = $state(false);
+	/** Photos the canvas holds as real pixels. Any other photo is shown by the CSS layer, which
+	 *  needs no CORS, rather than the canvas painting a flat stand-in over it. */
+	let drawable = $state<Set<string>>(new Set());
+	let glShowing = $derived(glActive && src !== null && drawable.has(src));
+
+	/**
+	 * Standing up the canvas compiles a shader and creates a GL context, which is the heaviest
+	 * thing Discover does on arrival. Done inside mount it lands in the middle of the screen
+	 * change, ahead of the slide, and on a phone that is a visible pause between tapping the tab
+	 * and anything moving. The CSS layer already shows the photo, so the canvas can wait until
+	 * the first frame has painted; it takes over once it is ready and holds the photo.
+	 */
+	function startGL() {
+		if (!canvas || gl) return;
+		gl = createHeroGL(
+			canvas,
+			() => (prefersReducedMotion() ? 0 : 1),
+			() => (glActive = false),
+			{
+				onTexture: (url, loaded) => {
+					if (!loaded) return;
+					const newlyDrawable = !drawable.has(url);
+					drawable = new Set(drawable).add(url);
+					// A target can become current while its texture is still the one-pixel wash.
+					// Re-selecting it after upload guarantees the real pixels paint immediately.
+					if (newlyDrawable && url === src && gl) {
+						const position = focal ?? { x: 50, y: 50 };
+						gl.setFocal(url, position.x, position.y);
+						gl.set(url, washColor);
+					}
+				},
+				...(loadDataUrlNative ? { loadDataUrl: loadDataUrlNative } : {})
+			}
+		);
+		glActive = gl !== null;
+		if (!gl) return;
+		gl.setLive(player.sheet !== 'full' && !document.hidden);
+		if (src) gl.set(src, washColor);
+		if (src && focal) gl.setFocal(src, focal.x, focal.y);
+		for (const item of preload) preloadOne(item);
+	}
+
+	function preloadOne(item: { url: string; focal?: RingFocalPoint | undefined }) {
+		if (!gl) return;
+		if (item.focal) gl.setFocal(item.url, item.focal.x, item.focal.y);
+		gl.preload(item.url, washColor);
+	}
+
+	onMount(() => {
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		let waited = 0;
+		/*
+		 * Not while a screen change is running. The layout marks the document (`data-nav`) for
+		 * the length of a tab transition; standing the canvas up during it puts a shader compile and
+		 * a texture upload in the middle of the slide, and its arrival is the thing that was
+		 * visible as the cover changing when returning to Discover. Wait for the slide to finish
+		 * (bounded, in case the marker is ever left behind), then start on the next frame.
+		 */
+		const whenSettled = () => {
+			if (document.documentElement.dataset.nav && waited < 1500) {
+				waited += 50;
+				timer = setTimeout(whenSettled, 50);
+				return;
+			}
+			timer = setTimeout(startGL, 0);
+		};
+		const frame = requestAnimationFrame(whenSettled);
+
+		const onVisibility = () => gl?.setLive(!document.hidden);
+		document.addEventListener('visibilitychange', onVisibility);
+		return () => {
+			cancelAnimationFrame(frame);
+			clearTimeout(timer);
+			document.removeEventListener('visibilitychange', onVisibility);
+		};
+	});
+
+	onDestroy(() => {
+		destroyed = true;
+		gl?.destroy();
+	});
+
+	/*
+	 * No ambient drift under the full screen player: Discover sits behind it but the canvas
+	 * would otherwise keep animating, spending battery on frames nobody can see. Off Discover
+	 * entirely is already covered without any code here, since SvelteKit unmounts this component
+	 * (destroying `gl` with it) the moment the reader leaves the tab.
+	 */
 	$effect(() => {
+		// Read first, for the same reason as the preload effect below: `gl?.` would skip evaluating
+		// its argument while the canvas is not up yet, leaving this effect subscribed to nothing.
+		const live = player.sheet !== 'full';
+		gl?.setLive(live);
+	});
+
+	$effect(() => {
+		// Read before the early return: an effect that returns first subscribes to nothing, and
+		// this one must re-run when the neighbours change even though it starts before the canvas.
 		const items = preload;
+		void washColor;
 		for (const item of items) void loadCssPhoto(item.url);
+		if (!gl) return;
+		for (const item of items) preloadOne(item);
 	});
 
 	$effect(() => {
@@ -101,34 +229,97 @@
 				layers = [{ id: nextId++, src, focal: position, fade: !firstSource }];
 			});
 		}
+
+		if (gl && src) {
+			gl.setFocal(src, position.x, position.y);
+			if (direction === 0) gl.set(src, washColor);
+			// The shader's `dir` uniform is ported byte for byte from the prototype, whose wipe
+			// travels from the edge dir itself names; this component's own `direction` prop is
+			// the opposite convention (see above), so it is negated here, once, at the boundary.
+			else gl.go(src, direction === 1 ? -1 : 1, dragFraction, washColor);
+		}
 	});
 
-	onDestroy(() => {
-		destroyed = true;
-	});
+	/** Called during a swipe's live drag, as a fraction of the viewport width. */
+	export function dragPreview(fraction: number): void {
+		gl?.drag(fraction);
+	}
+
+	/** Called when a swipe ends without committing, so the live preview springs back to rest. */
+	export function releasePreview(): void {
+		gl?.release();
+	}
+
+	/** Wakes the ambient loop; call on whatever gesture would start a drag. */
+	export function wake(): void {
+		gl?.kick();
+	}
 </script>
 
-<div class="art" style:background-image={wash} aria-hidden="true">
-	{#each layers as layer (layer.id)}
-		<div
-			class="layer"
-			class:fade={layer.fade}
-			class:paused
-			style:--drift="drift-{layer.id % 4}"
-			style:background-image={layer.src ? `url(${CSS.escape(layer.src)})` : 'none'}
-			style:background-position="{layer.focal.x}% {layer.focal.y}%"
-		></div>
-	{/each}
+<div class="drift" class:paused aria-hidden="true">
+	<div class="art" style:background-image={wash}>
+		{#each layers as layer (layer.id)}
+			<div
+				class="layer"
+				class:fade={layer.fade}
+				style:background-image={layer.src ? `url(${CSS.escape(layer.src)})` : 'none'}
+				style:background-position="{layer.focal.x}% {layer.focal.y}%"
+			></div>
+		{/each}
+	</div>
+	<canvas bind:this={canvas} class="gl" class:active={glShowing}></canvas>
 </div>
 
 <style>
+	/*
+	 * One continuous, very slow drift for the whole hero (photo layers and canvas together, so the
+	 * hand off between them never shows). It never restarts on a slide change, which would snap
+	 * the photo back to its start. Scaled past the frame so an edge is never revealed. Transform
+	 * only, so it costs the compositor and nothing else. The keyframes are global because Svelte
+	 * renames a scoped keyframe and this one is named through a class.
+	 */
+	.drift {
+		position: absolute;
+		inset: 0;
+		animation: hero-drift 64s ease-in-out infinite;
+		will-change: transform;
+	}
+
+	.drift.paused {
+		animation-play-state: paused;
+	}
+
+	@keyframes -global-hero-drift {
+		0%,
+		100% {
+			transform: scale(1.14) translate(-4.5%, -3.5%);
+		}
+		14% {
+			transform: scale(1.14) translate(1%, -5%);
+		}
+		28% {
+			transform: scale(1.14) translate(5%, -2%);
+		}
+		42% {
+			transform: scale(1.14) translate(4%, 4.5%);
+		}
+		57% {
+			transform: scale(1.14) translate(-1%, 5%);
+		}
+		71% {
+			transform: scale(1.14) translate(-5%, 2.5%);
+		}
+		85% {
+			transform: scale(1.14) translate(-2%, -1%);
+		}
+	}
+
 	.art {
 		position: absolute;
 		/* Slightly oversized so a focal point near an edge still fills the frame. */
 		inset: -2%;
 		background-size: cover;
 		background-position: center;
-		overflow: hidden;
 	}
 
 	.layer {
@@ -136,19 +327,34 @@
 		inset: 0;
 		background-size: cover;
 		background-repeat: no-repeat;
-		/* Scaled past the frame so drifting toward a corner never shows an edge. */
-		animation: var(--drift) 48s ease-in-out infinite;
-		will-change: transform;
 	}
 
 	.layer.fade {
-		animation:
-			hero-in var(--dur-xl) var(--ease) both,
-			var(--drift) 48s ease-in-out infinite;
+		animation: hero-in var(--dur-xl) var(--ease) both;
 	}
 
-	.layer.paused {
-		animation-play-state: paused;
+	/*
+	 * Exactly the box of `.art`, oversize included. They were different sizes (the cover 2% past
+	 * every edge, the canvas flush with the screen), so the hand off from one to the other jumped in
+	 * scale. A canvas is a replaced element, so `inset` alone would not stretch it: explicit size.
+	 */
+	.gl {
+		position: absolute;
+		left: -2%;
+		top: -2%;
+		width: 104%;
+		height: 104%;
+		/* Laid out from the start (so it has a size to draw at) but invisible until it holds the
+		   photo: swapping display:none for block showed an unpainted canvas for a frame. */
+		opacity: 0;
+		pointer-events: none;
+		/* The hand off from the CSS cover fades in rather than swapping, so any last difference
+		   between the two (a focal point, a pixel of rounding) is eased, not popped. */
+		transition: opacity var(--dur-m) var(--ease);
+	}
+
+	.gl.active {
+		opacity: 1;
 	}
 
 	@keyframes hero-in {
@@ -160,84 +366,18 @@
 		}
 	}
 
-	/* Four loops through the same four corners, each starting somewhere else. */
-	@keyframes drift-0 {
-		0%,
-		100% {
-			transform: scale(1.1) translate(-2.5%, -2.5%);
-		}
-		25% {
-			transform: scale(1.1) translate(2.5%, -1.5%);
-		}
-		50% {
-			transform: scale(1.1) translate(2.5%, 2.5%);
-		}
-		75% {
-			transform: scale(1.1) translate(-2%, 1.5%);
-		}
-	}
-
-	@keyframes drift-1 {
-		0%,
-		100% {
-			transform: scale(1.1) translate(2.5%, -2%);
-		}
-		25% {
-			transform: scale(1.1) translate(2%, 2.5%);
-		}
-		50% {
-			transform: scale(1.1) translate(-2.5%, 1.5%);
-		}
-		75% {
-			transform: scale(1.1) translate(-1.5%, -2.5%);
-		}
-	}
-
-	@keyframes drift-2 {
-		0%,
-		100% {
-			transform: scale(1.1) translate(2.5%, 2.5%);
-		}
-		25% {
-			transform: scale(1.1) translate(-2%, 2%);
-		}
-		50% {
-			transform: scale(1.1) translate(-2.5%, -2.5%);
-		}
-		75% {
-			transform: scale(1.1) translate(1.5%, -2%);
-		}
-	}
-
-	@keyframes drift-3 {
-		0%,
-		100% {
-			transform: scale(1.1) translate(-2.5%, 2%);
-		}
-		25% {
-			transform: scale(1.1) translate(-1.5%, -2.5%);
-		}
-		50% {
-			transform: scale(1.1) translate(2.5%, -2%);
-		}
-		75% {
-			transform: scale(1.1) translate(2%, 2.5%);
-		}
-	}
-
 	/*
-	 * Under reduced motion the photo holds still and the crossfade shortens rather than
-	 * disappearing: the image still has to change, and a hard cut between two full bleed
-	 * photographs is more jarring, not less.
+	 * Under reduced motion the crossfade shortens rather than disappearing: the image still has
+	 * to change, and a hard cut between two full bleed photographs is more jarring, not less.
 	 */
 	@media (prefers-reduced-motion: reduce) {
-		.layer,
-		.layer.fade {
+		.drift {
 			animation: none;
+			transform: scale(1.02);
 		}
 
 		.layer.fade {
-			animation: hero-in var(--dur-s) var(--ease) both;
+			animation-duration: var(--dur-s);
 		}
 	}
 </style>

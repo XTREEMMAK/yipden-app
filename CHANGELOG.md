@@ -12,8 +12,8 @@ Every notable change to YipDen, newest first. The format follows
   Follow screen, the person's row in You, and a bar on Feeds while it refreshes.
 - Keep-posts-for limit: Settings has a slider (7 to 90 days, default 30) and each follow can
   override it in You. Older posts are not stored, and shrinking the limit prunes what is saved.
-- While a Discover slide is idle its photo drifts slowly around the frame, a different route each
-  slide.
+- While Discover is idle its photo drifts slowly around the frame (one continuous loop that never
+  restarts on a slide change).
 
 - Real launcher icon: a howling fox in a ring, framed by an arch, replacing the Capacitor default.
   The background switches between brand orange and this app's own dark tone with the system's
@@ -25,7 +25,8 @@ Every notable change to YipDen, newest first. The format follows
 
 - Discover's tab bar takes the selected skin's deep colour (Blue Glass is blue-tinted, not brown).
 - Shuffle on Discover now toggles: tapping it again returns to the ring's own order.
-- Swipes and prev/next crossfade the photo; the WebGL displacement wipe is removed.
+- The swipe wipe keeps its drag and full-swipe wipe but loses the water wobble: a straight edge and
+  a flat push, no noise displacement.
 
 - Discover's header mark and the About sheet's mark are the same fox-in-an-arch mark as the new
   launcher icon, not the old hand-drawn den shape. Still a single `currentColor` SVG path, so it

@@ -1881,15 +1881,21 @@ is shown once" test lost the one assertion that was actually about the counter; 
 (no redundant "Ring ·" / "IndieNodes webring" / "in the ring" text) was never about the counter at
 all and is kept, renamed to say what it is actually guarding.
 
-## 2026-09-30 (last) — The wave wipe removed for an idle drift, a post age limit, and immediate fetch on follow
+## 2026-09-30 (last) — The wave's wobble removed, an idle drift added, a post age limit, and immediate fetch on follow
 
-**The WebGL displacement wipe is gone.** After all the work to get it right it did not add enough
-to justify a shader, a canvas, per-platform texture loading and the CORS caveats. The photo now
-crossfades (the CSS layers already did) and, at rest, drifts slowly: a transform-only keyframe
-loop on each `.layer` (48s, scaled 1.1, four routes chosen by layer id). It pauses under the full
-player and holds still for reduced motion. Pre-removal snapshot: commit `80fac42`; revert from
-there to bring the wipe back. Removed with it: `heroGL.ts`, `platform/image.ts`,
-`washColorFor`, and `discover-webgl.spec.ts`.
+**The wipe stays; the water wobble is gone.** For a short while it was removed outright (commit
+`80fac42` is the snapshot before that, and the wipe was restored right after), but the drag that
+pulls the background and the full-swipe wipe were wanted. What went was the fbm noise: the shader
+now uses a straight edge and a flat push (`n = 0.5`), with no ripple in the edge, the warp or the
+drag's vertical displacement.
+
+**Idle drift is one continuous CSS loop on a wrapper (`.drift`) around both the CSS photo layers
+and the canvas**, so it shows whichever of them is on top and the hand off never jumps. It never
+restarts on a slide change (which would snap the photo back to its first pose). Two earlier
+mistakes are worth remembering: putting it on the CSS layer alone was invisible once the canvas
+took over, and Svelte renames scoped `@keyframes`, so a keyframe named through a CSS variable never
+matched until it was declared `-global-`. It pauses under the full player and holds still for
+reduced motion.
 
 **Post age limit is a global default (30 days, 7 to 90) plus an optional per-follow override**
 (`Person.maxAgeDays`). It is applied at ingest in `refreshAll` (undated posts are kept) and by
