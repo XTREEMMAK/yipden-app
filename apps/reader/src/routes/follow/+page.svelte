@@ -38,7 +38,16 @@
 	let chosenFeeds = $derived(result?.feeds.filter((feed) => chosen.has(feed.url)) ?? []);
 
 	onMount(() => {
-		void ring.load();
+		void (async () => {
+			await ring.load();
+			// Arrived from a link (a partner ring's "Find feeds"): fill the address in and look it
+			// up, which checks the ring's own known feeds before it touches the site.
+			const prefill = new URL(location.href).searchParams.get('url')?.trim();
+			if (prefill && phase === 'idle') {
+				input = prefill;
+				await runFind();
+			}
+		})();
 	});
 
 	$effect(() => {
@@ -109,6 +118,10 @@
 
 	async function find(event: SubmitEvent) {
 		event.preventDefault();
+		await runFind();
+	}
+
+	async function runFind() {
 		const localMatches = searchRing(ring.all, input, 2);
 		const local =
 			localMatches.find((entry) => isExactRingMatch(entry, input)) ??

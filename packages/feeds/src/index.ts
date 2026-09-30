@@ -21,7 +21,7 @@ export { parseFeed, parseAtom, parseJsonFeed, parseRss, type ParseOptions } from
 export { FeedParseError, MAX_XML_BYTES } from './xml.js';
 
 export { byPublishedDescending, parseDate, parseDuration } from './dates.js';
-export { feedKindFromUrl, mediaKindFor, refineKind } from './kind.js';
+export { feedKindFromUrl, mediaKindFor, refineKind, youtubeVideoId } from './kind.js';
 
 export { decodeEntities, htmlToText, sanitizeHtml, summarize } from './sanitize.js';
 export {

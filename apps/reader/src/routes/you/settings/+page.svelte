@@ -254,6 +254,18 @@
 		<section class="grp" in:fly={flyIn({ delay: staggerDelay(2) })}>
 			<h3 class="grp-h">Feeds</h3>
 			<div class="rows">
+				<div class="srow">
+					<span class="tt">
+						<b>Mark as read when scrolled past</b>
+						<small>A card counts as read once it leaves the top of the screen</small>
+					</span>
+					<Switch
+						id="mark-read-on-scroll"
+						label="Mark as read when scrolled past"
+						checked={prefs.markReadOnScroll}
+						onchange={(on) => prefs.setMarkReadOnScroll(on)}
+					/>
+				</div>
 				<div class="srow slider-row">
 					<span class="tt">
 						<b>Keep posts from the last {prefs.maxAgeDays} days</b>

@@ -81,6 +81,20 @@ const DEFAULTS = {
 /** The statuses that actually mean "look somewhere else". 304 is deliberately not one. */
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
+/**
+ * Endpoints a site publishes specifically to be subscribed to, which robots.txt's crawler rules
+ * were never meant to stop a reader from fetching on the reader's own behalf.
+ *
+ * YouTube is the case that forced this: its robots.txt disallows `/feeds/videos.xml` for every
+ * agent, while that same URL is the channel feed YouTube links from each channel page. Honoring
+ * the rule made every YouTube follow fail with "robots.txt disallows". It is an exact host and
+ * path, not a general bypass: everything else, including YouTube's pages, is still checked.
+ */
+export function isPublishedFeedEndpoint(target: URL): boolean {
+	const host = target.hostname.replace(/^www\./, '');
+	return host === 'youtube.com' && target.pathname === '/feeds/videos.xml';
+}
+
 /** Cached robots rules live this long. A day is polite without being stale. */
 const ROBOTS_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -119,7 +133,11 @@ export class FeedHttp {
 		const target = safeUrl(url);
 		if (!target) throw new HttpError(`refusing to request ${url}`);
 
-		if (this.options.respectRobots && !(await this.allowed(target))) {
+		if (
+			this.options.respectRobots &&
+			!isPublishedFeedEndpoint(target) &&
+			!(await this.allowed(target))
+		) {
 			throw new HttpError(`robots.txt disallows ${target.pathname}`, 999);
 		}
 

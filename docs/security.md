@@ -79,7 +79,10 @@ Following Mozilla's web security guidance, adapted to an app whose origin is loc
 - **https only**, everywhere, with no exception for development against real feeds.
 - **A Content Security Policy** on the app document: `default-src 'self'`, `script-src 'self'`,
   `object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`, `form-action 'none'`, with
-  `img-src` and `media-src` allowing `https:` because creator media comes from everywhere.
+  `img-src` and `media-src` allowing `https:` because creator media comes from everywhere, and
+  `frame-src` allowing only `https://www.youtube-nocookie.com`. A YouTube yip shows its thumbnail and
+  loads that player only when the reader taps play; the address is built from a validated video id,
+  never from markup a feed supplied.
 - **`Referrer-Policy: strict-origin-when-cross-origin`**, so a creator's server never learns
   which yip the reader came from beyond the origin.
 - **Android cleartext traffic disabled** in the manifest, release builds not debuggable,

@@ -11,6 +11,28 @@ import type { FeedKind, Item, MediaKind } from './types.js';
 
 const YOUTUBE_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com']);
 
+const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
+
+/**
+ * The 11 character id of a YouTube video link, or null for anything else.
+ *
+ * The one thing an embed is ever built from: the reader's app never embeds markup a feed supplied,
+ * only this validated id against a fixed address.
+ */
+export function youtubeVideoId(url: string): string | null {
+	const parsed = safeUrl(url);
+	if (!parsed) return null;
+	const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+	let id: string | null | undefined;
+	if (host === 'youtu.be') id = parsed.pathname.split('/')[1];
+	else if (host === 'youtube.com' || host === 'm.youtube.com') {
+		const [, first, second] = parsed.pathname.split('/');
+		if (first === 'watch') id = parsed.searchParams.get('v');
+		else if (first === 'shorts' || first === 'embed' || first === 'v') id = second;
+	}
+	return id && YOUTUBE_ID.test(id) ? id : null;
+}
+
 export function feedKindFromUrl(url: string): FeedKind {
 	const parsed = safeUrl(url);
 	if (!parsed) return 'blog';

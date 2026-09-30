@@ -75,10 +75,34 @@ export function searchRing(entries: RingEntry[], rawQuery: string, limit = 4): R
 		.map(({ entry }) => entry);
 }
 
+/**
+ * A pasted page on a member's own site ("https://ada.example.com/blog/") is still that member.
+ *
+ * Only for a member whose ring address is the whole site (a bare host). A member whose address
+ * has a path lives on a shared host, like a profile on a social site, where the same host is
+ * many different people and a host match would follow the wrong one.
+ */
+function isOnMemberSite(entry: RingEntry, rawQuery: string): boolean {
+	const trimmed = rawQuery.trim();
+	if (!trimmed || /\s/.test(trimmed)) return false;
+	let typed: URL;
+	let source: URL;
+	try {
+		typed = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
+		source = new URL(entry.source_url);
+	} catch {
+		return false;
+	}
+	if (source.pathname.replace(/\/+$/, '') !== '') return false;
+	const strip = (host: string) => host.replace(/^www\./, '').toLocaleLowerCase();
+	return strip(typed.hostname) === strip(source.hostname);
+}
+
 /** True when submitting the typed value can safely prefer a Ring record over a web lookup. */
 export function isExactRingMatch(entry: RingEntry, rawQuery: string): boolean {
 	const query = normalized(rawQuery);
 	return (
+		isOnMemberSite(entry, rawQuery) ||
 		normalized(entry.creator) === query ||
 		hostname(entry.source_url) === query ||
 		normalized(entry.source_url) === query ||

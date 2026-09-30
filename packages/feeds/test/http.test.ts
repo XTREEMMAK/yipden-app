@@ -252,6 +252,29 @@ describe('robots.txt', () => {
 	});
 });
 
+describe('robots.txt and published feed endpoints', () => {
+	const youtube = {
+		'https://www.youtube.com/robots.txt': {
+			body: 'User-agent: *\nDisallow: /feeds/videos.xml\nDisallow: /results',
+			headers: { 'content-type': 'text/plain' }
+		},
+		'https://www.youtube.com/feeds/videos.xml?channel_id=UCabc': { body: MINIMAL_RSS },
+		'https://www.youtube.com/results?q=x': { body: MINIMAL_RSS }
+	};
+
+	it("fetches YouTube's channel feed even though its robots.txt lists it", async () => {
+		const http = new FeedHttp({ minHostIntervalMs: 0, fetch: fakeServer(youtube).fetch });
+		await expect(
+			http.get('https://www.youtube.com/feeds/videos.xml?channel_id=UCabc')
+		).resolves.toMatchObject({ status: 200 });
+	});
+
+	it('still honors robots.txt for everything else on that host', async () => {
+		const http = new FeedHttp({ minHostIntervalMs: 0, fetch: fakeServer(youtube).fetch });
+		await expect(http.get('https://www.youtube.com/results?q=x')).rejects.toThrow(/robots/);
+	});
+});
+
 describe('parseRobots', () => {
 	const agent = 'YipDen/0.0.1 (+https://yipden.com/about)';
 

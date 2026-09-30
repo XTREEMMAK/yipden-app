@@ -40,6 +40,13 @@ describe('Ring search for Follow', () => {
 		expect(isExactRingMatch(entries[0]!, 'Ada')).toBe(false);
 	});
 
+	it('recognizes a page on a member site, but never guesses on a shared host', () => {
+		expect(isExactRingMatch(entries[0]!, 'https://ada.example.com/blog/post-1')).toBe(true);
+		expect(isExactRingMatch(entries[0]!, 'ada.example.com/about')).toBe(true);
+		const profile = { ...entries[0]!, source_url: 'https://social.example/@ada' };
+		expect(isExactRingMatch(profile, 'https://social.example/@someone-else')).toBe(false);
+	});
+
 	it('adapts Ring feeds without claiming unverified ownership', () => {
 		const result = discoveryFromRing(entries[0]!);
 		expect(result.title).toBe('Ada Reed');

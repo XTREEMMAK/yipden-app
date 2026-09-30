@@ -11,6 +11,9 @@ class Prefs {
 	/** On by default: a ring member's tracks are queued in a shuffled order. See ringPlayer. */
 	shuffleMusic = $state(true);
 
+	/** Count a feed card as read once it scrolls off the top. Off by default. */
+	markReadOnScroll = $state(false);
+
 	/** How many days back a followed person's posts are kept, unless a follow says otherwise. */
 	maxAgeDays = $state(DEFAULT_MAX_AGE_DAYS);
 
@@ -18,6 +21,8 @@ class Prefs {
 		await store.init();
 		const saved = await store.getSetting<boolean>('shuffleMusic');
 		if (typeof saved === 'boolean') this.shuffleMusic = saved;
+		const scroll = await store.getSetting<boolean>('markReadOnScroll');
+		if (typeof scroll === 'boolean') this.markReadOnScroll = scroll;
 		const days = await store.getSetting<number>('maxAgeDays');
 		if (typeof days === 'number') this.maxAgeDays = days;
 	}
@@ -25,6 +30,11 @@ class Prefs {
 	setShuffleMusic(on: boolean): void {
 		this.shuffleMusic = on;
 		void store.setSetting('shuffleMusic', on);
+	}
+
+	setMarkReadOnScroll(on: boolean): void {
+		this.markReadOnScroll = on;
+		void store.setSetting('markReadOnScroll', on);
 	}
 
 	async setMaxAgeDays(days: number): Promise<void> {

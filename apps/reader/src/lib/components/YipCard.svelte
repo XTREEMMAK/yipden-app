@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { youtubeVideoId } from '@yipden/feeds';
 	import { player } from '$lib/player.svelte.js';
 	import { buildListenQueue } from '$lib/queue.js';
 	import { ring } from '$lib/ring.svelte.js';
@@ -34,6 +35,9 @@
 	let imageAlt = $derived(imageAttachment?.alt ?? '');
 	let isAudio = $derived(yip.category === 'listen');
 	let isVideo = $derived(yip.category === 'watch');
+	/** A YouTube video plays in the card, in the privacy-enhanced player, after the reader taps. */
+	let videoId = $derived(isVideo ? youtubeVideoId(yip.url) : null);
+	let embedding = $state(false);
 	let isMedia = $derived(isAudio || isVideo || image !== null);
 	let authorName = $derived(displayAuthor(yip, feeds.personFor(yip)?.name));
 	let duration = $derived(formatDuration(mediaDuration(yip)));
@@ -52,6 +56,12 @@
 			return;
 		}
 		void feeds.markRead(yip);
+		if (videoId) {
+			// Only one thing plays at a time: a reader starting a video means the audio should stop.
+			if (player.playing) player.toggle();
+			embedding = true;
+			return;
+		}
 		if (isAudio) {
 			const queue = buildListenQueue(feeds.panes.listen, ring.all);
 			const index = queue.findIndex((item) => item.id === yip.key);
@@ -64,7 +74,22 @@
 	}
 </script>
 
-{#if isMedia}
+{#if embedding && videoId}
+	<div class="yip media embed" class:unread={!yip.readAt}>
+		<iframe
+			title={`${yip.title}, video player`}
+			src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&playsinline=1`}
+			allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+			allowfullscreen
+			referrerpolicy="strict-origin-when-cross-origin"
+			sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+		></iframe>
+		<div class="embed-bar">
+			<button class="embed-btn" onclick={() => (embedding = false)}>Close video</button>
+			<button class="embed-btn" onclick={() => openExternal(yip.url)}>Open on YouTube</button>
+		</div>
+	</div>
+{:else if isMedia}
 	<button
 		class="yip media"
 		class:listen={isAudio}
@@ -73,7 +98,7 @@
 		onclick={open}
 		aria-label={concealed
 			? `Content warning: ${warning}. Show content.`
-			: `${yip.title} by ${authorName}${duration ? `, ${duration}` : ''}. ${isAudio ? 'Play audio.' : `Opens on ${new URL(yip.url).hostname}.`}${imageAlt ? ` Image description: ${imageAlt}` : ''}`}
+			: `${yip.title} by ${authorName}${duration ? `, ${duration}` : ''}. ${isAudio ? 'Play audio.' : videoId ? 'Play video.' : `Opens on ${new URL(yip.url).hostname}.`}${imageAlt ? ` Image description: ${imageAlt}` : ''}`}
 	>
 		<span
 			class="art"
@@ -94,7 +119,7 @@
 			</span>
 			<span
 				class="go"
-				class:play={isAudio && !concealed}
+				class:play={(isAudio || videoId !== null) && !concealed}
 				class:warning={concealed}
 				aria-hidden="true"
 			>
@@ -104,7 +129,7 @@
 							d="M12 9v4M12 17h.01M10.3 4.2 2.6 18a1.5 1.5 0 0 0 1.3 2.2h16.2a1.5 1.5 0 0 0 1.3-2.2L13.7 4.2a2 2 0 0 0-3.4 0Z"
 						/></svg
 					>
-				{:else if isAudio}
+				{:else if isAudio || videoId}
 					<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
 				{:else}
 					<svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8" /></svg>
@@ -316,6 +341,96 @@
 		top: 16px;
 		right: 16px;
 		box-shadow: none;
+	}
+
+	/* The ghost of the dot, sent outward as a ring. Transform and opacity only. */
+	.yip.unread::after {
+		content: '';
+		position: absolute;
+		top: 14px;
+		right: 14px;
+		z-index: 1;
+		box-sizing: border-box;
+		width: 8px;
+		height: 8px;
+		border: 1.5px solid var(--brand);
+		border-radius: 50%;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.yip.text.unread::after {
+		top: 16px;
+		right: 16px;
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		.yip.unread::before {
+			animation: unread-blink 2.4s ease-in-out infinite;
+		}
+
+		.yip.unread::after {
+			animation: unread-ring 2.4s ease-out infinite;
+		}
+	}
+
+	@keyframes unread-blink {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.45;
+		}
+	}
+
+	@keyframes unread-ring {
+		0% {
+			transform: scale(1);
+			opacity: 0.75;
+		}
+		70%,
+		100% {
+			transform: scale(3);
+			opacity: 0;
+		}
+	}
+
+	.yip.embed {
+		height: auto;
+		aspect-ratio: 16 / 9;
+	}
+
+	.yip.embed iframe {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		border: 0;
+	}
+
+	.embed-bar {
+		position: absolute;
+		left: 8px;
+		right: 8px;
+		top: 8px;
+		display: flex;
+		justify-content: space-between;
+		gap: 8px;
+		pointer-events: none;
+	}
+
+	.embed-btn {
+		pointer-events: auto;
+		min-height: 32px;
+		padding: 0 12px;
+		border: 0;
+		border-radius: 999px;
+		background: rgba(var(--deep-rgb), 0.72);
+		color: #fff;
+		font-family: var(--body);
+		font-size: 12px;
+		font-weight: 600;
 	}
 
 	.yip.text {

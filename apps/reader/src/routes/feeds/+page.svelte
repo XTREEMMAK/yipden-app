@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { cardStack } from '$lib/actions/cardStack.js';
-	import { swipe } from '$lib/actions/swipe.js';
+	import { readOnScroll } from '$lib/actions/readOnScroll.js';
+	import { prefs } from '$lib/prefs.svelte.js';
 	import { fly } from 'svelte/transition';
-	import { flyIn, prefersReducedMotion, staggerDelay } from '$lib/motion.js';
+	import { flyIn, staggerDelay } from '$lib/motion.js';
 	import { ring } from '$lib/ring.svelte.js';
 	import {
 		displayAuthor,
@@ -22,13 +23,12 @@
 
 	/**
 	 * Feeds: everything followed, merged and reverse chronological, in four panes a reader
-	 * pages between by pill or by swipe. Each pane keeps its own scroll position because all
+	 * pages between by pill. Swiping sideways was removed: it fought the vertical scroll and
+	 * the pull to refresh, and the pills are always on screen. Each pane keeps its own scroll position because all
 	 * four stay mounted; only the track that holds them moves.
 	 */
 
 	let filterIndex = $derived(FEEDS_FILTERS.findIndex((filter) => filter.key === feeds.filter));
-	let dragX = $state(0);
-	let dragging = $state(false);
 	let viewport: HTMLDivElement | undefined;
 
 	/*
@@ -91,13 +91,10 @@
 		};
 	});
 
-	function onFilterSwipeEnd(commit: boolean, direction: -1 | 0 | 1) {
-		dragging = false;
-		dragX = 0;
-		if (!commit) return;
-		const next = filterIndex + direction;
-		const clamped = Math.max(0, Math.min(FEEDS_FILTERS.length - 1, next));
-		feeds.setFilter(FEEDS_FILTERS[clamped]!.key);
+	/** A card that scrolled off the top counts as read, when the reader turned that on. */
+	function markScrolledPast(key: string) {
+		const yip = feeds.panes[feeds.filter].find((candidate) => candidate.key === key);
+		if (yip && !yip.readAt) void feeds.markRead(yip);
 	}
 
 	function activePane(): HTMLElement | null {
@@ -191,17 +188,7 @@
 		</div>
 	</header>
 
-	<div
-		class="viewport"
-		bind:this={viewport}
-		use:swipe={{
-			axis: 'x',
-			enabled: () => !pulling,
-			onStart: () => (dragging = true),
-			onMove: (delta) => (dragX = prefersReducedMotion() ? 0 : delta),
-			onEnd: ({ commit, direction }) => onFilterSwipeEnd(commit, direction)
-		}}
-	>
+	<div class="viewport" bind:this={viewport}>
 		{#if feeds.status === 'refreshing' && !pulling && pullY === 0}
 			<div class="pull refreshing" role="status" aria-label="Refreshing your feeds">
 				<span class="spinner"></span>
@@ -213,11 +200,7 @@
 			</div>
 		{/if}
 
-		<div
-			class="track"
-			style:transform={`translateX(calc(${-filterIndex * 100}% + ${dragX}px))`}
-			style:transition={dragging ? 'none' : 'transform var(--dur-m) var(--ease)'}
-		>
+		<div class="track" style:transform={`translateX(${-filterIndex * 100}%)`}>
 			{#each FEEDS_FILTERS as filter (filter.key)}
 				<div
 					class="pane"
@@ -228,6 +211,10 @@
 					aria-labelledby="pill-{filter.key}"
 					inert={feeds.filter !== filter.key}
 					use:cardStack
+					use:readOnScroll={{
+						enabled: () => prefs.markReadOnScroll && feeds.filter === filter.key,
+						onRead: markScrolledPast
+					}}
 					onpointerdown={onPullStart}
 					onpointermove={onPullMove}
 					onpointerup={onPullEnd}
@@ -244,7 +231,7 @@
 					{:else}
 						{#each feeds.panes[filter.key] as yip, index (yip.key)}
 							<div in:fly={flyIn({ delay: staggerDelay(index) })}>
-								<div class="yip-stack">
+								<div class="yip-stack" data-key={yip.key}>
 									<YipCard {yip} />
 									{#if isDesktopFirst(yip)}
 										{@const saved = shelf.has(yip.url)}

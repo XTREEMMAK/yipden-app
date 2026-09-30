@@ -37,7 +37,9 @@ export default {
 				'media-src': ['self', 'https:', 'blob:'],
 				'font-src': ['self'],
 				'connect-src': ['self', 'https:'],
-				'frame-src': ['none'],
+				// Only the privacy-enhanced YouTube player, and only after a reader taps play on a video: see
+				// YipCard. Nothing is contacted before that tap.
+				'frame-src': ['https://www.youtube-nocookie.com'],
 				'object-src': ['none'],
 				'base-uri': ['none'],
 				'form-action': ['none'],
