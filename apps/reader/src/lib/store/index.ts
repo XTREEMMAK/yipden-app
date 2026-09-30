@@ -16,6 +16,7 @@ export type {
 	PeaksRecord,
 	Person,
 	SettingKey,
+	ShelfItem,
 	Store,
 	StoredYip,
 	YipCategory,

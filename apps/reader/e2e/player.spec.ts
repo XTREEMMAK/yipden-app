@@ -30,6 +30,7 @@ function silentWav(seconds: number, sampleRate = 8000): Buffer {
 const TRACK = silentWav(6);
 
 const LENA_PAGE = `<!doctype html><html><head>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Lena Ofori</title>
 	<link rel="alternate" type="application/rss+xml" title="Blog" href="/feed.xml">
 </head></html>`;

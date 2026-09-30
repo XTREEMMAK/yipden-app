@@ -1,6 +1,6 @@
 import { parseXml, XmlElement } from '@rgrove/parse-xml';
 import { safeUrl } from '@yipden/ring-client';
-import type { Feed, Person } from './store/index.js';
+import type { Feed, Person, ShelfItem } from './store/index.js';
 
 /**
  * A reader's follow list as OPML, in and out.
@@ -30,7 +30,39 @@ function opmlType(kind: string): string {
 	return kind === 'jsonfeed' ? 'json' : kind === 'atom' ? 'atom' : 'rss';
 }
 
-export function exportOpml(people: Person[], feedsByPerson: Map<string, Feed[]>): string {
+/**
+ * The attribute that marks the Shelf's group, so YipDen can find it again without guessing from
+ * its title. Other readers ignore it, and ignore the link outlines inside for lack of an `xmlUrl`.
+ */
+const SHELF_GROUP = 'yipdenShelf';
+
+/**
+ * The Shelf as OPML's own kind of outline for a plain link (`type="link"` with a `url`), grouped
+ * under one folder so a reader's feed list and their saved links travel in one file.
+ */
+function shelfOutline(shelf: ShelfItem[]): string {
+	if (!shelf.length) return '';
+	const links = shelf
+		.map(
+			(item) =>
+				`\t\t\t<outline type="link" text="${escapeAttribute(item.title)}" ` +
+				`title="${escapeAttribute(item.title)}" url="${escapeAttribute(item.url)}"` +
+				`${item.creator ? ` yipdenCreator="${escapeAttribute(item.creator)}"` : ''}` +
+				`${item.via ? ` yipdenVia="${escapeAttribute(item.via)}"` : ''}` +
+				` yipdenFrom="${item.from}" yipdenSavedAt="${escapeAttribute(item.savedAt)}"/>`
+		)
+		.join('\n');
+	return (
+		`\t\t<outline text="YipDen Shelf" title="YipDen Shelf" ${SHELF_GROUP}="true">\n` +
+		`${links}\n\t\t</outline>`
+	);
+}
+
+export function exportOpml(
+	people: Person[],
+	feedsByPerson: Map<string, Feed[]>,
+	shelf: ShelfItem[] = []
+): string {
 	const outlines = people
 		.map((person) => {
 			const feeds = feedsByPerson.get(person.id) ?? [];
@@ -48,6 +80,7 @@ export function exportOpml(people: Person[], feedsByPerson: Map<string, Feed[]>)
 			);
 		})
 		.join('\n');
+	const body = [outlines, shelfOutline(shelf)].filter(Boolean).join('\n');
 
 	return (
 		'<?xml version="1.0" encoding="UTF-8"?>\n' +
@@ -57,7 +90,7 @@ export function exportOpml(people: Person[], feedsByPerson: Map<string, Feed[]>)
 		`\t\t<dateCreated>${new Date().toUTCString()}</dateCreated>\n` +
 		'\t</head>\n' +
 		'\t<body>\n' +
-		outlines +
+		body +
 		'\n\t</body>\n' +
 		'</opml>\n'
 	);
@@ -107,6 +140,8 @@ export function parseOpml(xml: string): ImportedPerson[] {
 	};
 
 	for (const outline of topLevel) {
+		// The Shelf is not a person; `parseOpmlShelf` reads it.
+		if (outline.attributes[SHELF_GROUP] === 'true') continue;
 		const nested = outlineChildren(outline);
 
 		if (outline.attributes.xmlUrl && !nested.length) {
@@ -139,4 +174,45 @@ export function parseOpml(xml: string): ImportedPerson[] {
 	}
 
 	return people;
+}
+
+export interface ImportedShelfItem {
+	url: string;
+	title: string;
+	creator?: string;
+	via?: string;
+	from: ShelfItem['from'];
+	savedAt?: string;
+}
+
+/**
+ * Read the Shelf out of an OPML file, when it has one. Same rule as everywhere: every URL goes
+ * through `safeUrl`, and an unusable one is dropped rather than failing the import.
+ */
+export function parseOpmlShelf(xml: string): ImportedShelfItem[] {
+	const document = parseXml(xml.trim(), { ignoreUndefinedEntities: true });
+	const body = document.root?.children.find(
+		(child): child is XmlElement =>
+			child instanceof XmlElement && child.name.toLowerCase() === 'body'
+	);
+	if (!body) return [];
+
+	const items: ImportedShelfItem[] = [];
+	for (const group of outlineChildren(body)) {
+		if (group.attributes[SHELF_GROUP] !== 'true') continue;
+		for (const outline of outlineChildren(group)) {
+			const url = safeUrl(outline.attributes.url)?.toString();
+			if (!url) continue;
+			const item: ImportedShelfItem = {
+				url,
+				title: outline.attributes.title || outline.attributes.text || new URL(url).hostname,
+				from: outline.attributes.yipdenFrom === 'discover' ? 'discover' : 'feeds'
+			};
+			if (outline.attributes.yipdenCreator) item.creator = outline.attributes.yipdenCreator;
+			if (outline.attributes.yipdenVia) item.via = outline.attributes.yipdenVia;
+			if (outline.attributes.yipdenSavedAt) item.savedAt = outline.attributes.yipdenSavedAt;
+			items.push(item);
+		}
+	}
+	return items;
 }

@@ -1,9 +1,10 @@
 import type { DiscoveredFeed, DiscoveryResult } from '@yipden/feeds';
 import { discoverWithDeadline } from './discovery.js';
-import { exportOpml, parseOpml } from './opml.js';
+import { exportOpml, parseOpml, parseOpmlShelf } from './opml.js';
 import { player } from './player.svelte.js';
 import { refreshAll, type FeedRefreshResult } from './refresh.js';
 import { ringPlayer } from './ringPlayer.svelte.js';
+import { shelf, shelfItemFrom } from './shelf.svelte.js';
 import { store, type Feed, type Person } from './store/index.js';
 
 /**
@@ -28,7 +29,11 @@ class YouState {
 
 	async load(): Promise<void> {
 		await store.init();
-		const [people, feeds] = await Promise.all([store.listPeople(), store.listFeeds()]);
+		const [people, feeds] = await Promise.all([
+			store.listPeople(),
+			store.listFeeds(),
+			shelf.load()
+		]);
 		const byPerson = new Map<string, Feed[]>();
 		for (const feed of feeds)
 			byPerson.set(feed.personId, [...(byPerson.get(feed.personId) ?? []), feed]);
@@ -98,6 +103,12 @@ class YouState {
 		};
 	}
 
+	/** Pull to refresh: check every followed feed, then reload from what was actually stored. */
+	async refreshAllFollowed(): Promise<void> {
+		await refreshAll();
+		await this.load();
+	}
+
 	async findSources(input: string): Promise<DiscoveryResult> {
 		return discoverWithDeadline(input);
 	}
@@ -158,7 +169,8 @@ class YouState {
 		const feedsByPerson = new Map(this.rows.map((row) => [row.person.id, row.feeds]));
 		return exportOpml(
 			this.rows.map((row) => row.person),
-			feedsByPerson
+			feedsByPerson,
+			shelf.items
 		);
 	}
 
@@ -169,7 +181,7 @@ class YouState {
 	 * feeds directly, and re-discovering them would be slower and could find something
 	 * different than what the reader had before.
 	 */
-	async importOpml(xml: string): Promise<{ people: number; feeds: number }> {
+	async importOpml(xml: string): Promise<{ people: number; feeds: number; saved: number }> {
 		const imported = parseOpml(xml);
 		let feedCount = 0;
 
@@ -200,8 +212,19 @@ class YouState {
 			feedCount += feeds.length;
 		}
 
+		// The Shelf rides in the same file. Saved again is kept once, so importing is safe to repeat.
+		let saved = 0;
+		const alreadySaved = new Set((await store.listShelf()).map((item) => item.id));
+		for (const entry of parseOpmlShelf(xml)) {
+			const item = shelfItemFrom(entry, entry.savedAt ? new Date(entry.savedAt) : undefined);
+			if (!item || alreadySaved.has(item.id)) continue;
+			await store.saveToShelf(item);
+			alreadySaved.add(item.id);
+			saved += 1;
+		}
+
 		await this.load();
-		return { people: imported.length, feeds: feedCount };
+		return { people: imported.length, feeds: feedCount, saved };
 	}
 }
 

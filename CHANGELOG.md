@@ -6,8 +6,62 @@ Every notable change to YipDen, newest first. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Real launcher icon: a howling fox in a ring, framed by an arch, replacing the Capacitor default.
+  The background switches between brand orange and this app's own dark tone with the system's
+  day/night mode, and it adapts to Android 13+ themed icons too. See DECISIONS.md.
+- Browse members: a sheet listing whichever members Discover's active filter currently shows, to
+  jump straight to one instead of stepping through them. Replaces the node counter, which is gone.
+
+### Changed
+
+- Discover's header mark and the About sheet's mark are the same fox-in-an-arch mark as the new
+  launcher icon, not the old hand-drawn den shape. Still a single `currentColor` SVG path, so it
+  keeps recoloring itself the same way.
+- Discover's Filter button moved up next to Shuffle and the ring switcher; nothing is left at the
+  bottom of the screen. Shuffle now shows the same active-state mark Filter and the ring switcher
+  already had, so leaving shuffle mode is still visible without the old counter's text spelling it
+  out. See DECISIONS.md.
+- Discover's prev/next buttons are gone; swipe and the left/right arrow keys move through the ring
+  now. See DECISIONS.md and ROADMAP.md for teaching the swipe gesture itself, still to come.
+- A long name no longer overflows its container on Follow's "Already in IndieNodes" matches or on
+  a partner card's title.
+- A partner card's site-link button is a plain "Visit"/"Open" with a globe icon, not a repeat of
+  the host already shown above it.
+- Discover's round buttons (Shuffle, the ring switcher) now tint with the chosen skin, the same
+  way the hero behind them already does, instead of a flat color that never moved. See
+  DECISIONS.md.
+- A partner ring member's own badge shows at its own size (up to 96×64), not forced into a
+  small 40×40 square. When it turns out to be real art rather than a button graphic, tapping it
+  opens a full screen preview; a classic webring banner stays plain, since blowing one up only
+  shows the same handful of pixels bigger. See DECISIONS.md.
+- Reading every registered partner ring happens in parallel, not one after another, and Discover
+  now shows a loading state on the ring-switch button while that read is still in flight instead
+  of the button simply not existing yet. See DECISIONS.md.
+- Pull to refresh, already on Feeds, is now on Discover (the ring on screen, IndieNodes and every
+  registered partner ring) and You (every followed feed) too.
+- Discover's ring switcher is its own button next to Shuffle, not buried inside the Filter
+  sheet, once a partner ring is registered (there is still none in a normal build).
+- A second testing-only partner ring, Knifebeetle (a webcomic ring), reads the same way
+  Musicians Webring does, gated behind its own local flag, its maintainer not yet asked.
+- A partner member's own thumbnail shows as a small badge, and a Listen/Open button shows that
+  platform's own mark (SoundCloud, Bandcamp, Spotify, Apple Music, YouTube), not one icon for all
+  of them.
+- A partner ring member's sample link is labelled by what it actually is ("Open on SoundCloud",
+  "Watch on YouTube", a plain "Listen" for a real file), not one label for everything.
+- You is now two screens: You (Following, Shelf) and a new Settings, reached from You's gear icon
+  (Appearance, Playback, the follows file, full backup, About). The tab bar is unchanged.
+
 ### Fixed
 
+- A partner card's image preview no longer opens clipped to that card's own bounds; it now fills
+  the real screen. See DECISIONS.md.
+- Following someone now checks only what was just followed, not every followed feed, so a new
+  follow's yips are reliably ready by the time Feeds is opened. See DECISIONS.md.
+- A YouTube video now sorts into Feeds' Watch filter instead of Posts. YouTube's real RSS declares
+  its video as a decade-old, extensionless Flash placeholder type that was never recognized as
+  video at all. See DECISIONS.md.
 - Leaving Discover now keeps its cover in the outgoing View Transition snapshot without retaining
   the live full-height route and displacing Feeds, Follow, or You until a creator outro finishes.
 - The player's waveform draws. wavesurfer's aborted first load was being read as a failure, so
@@ -18,6 +72,20 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- The Shelf: a local list of links to open on a bigger screen. Sites declared, or found to be,
+  built for desktop offer **Save for later** in Discover (as the main action, with following
+  and the site still one tap away) and under their yips in Feeds. You lists the Shelf, and it
+  travels in the existing OPML follows file and full backup. No account, no server; it leaves
+  the phone only when exported. See DECISIONS.md and docs/shelf-format.md.
+- Layout awareness: `@yipden/ring-client` reads an optional `layout` field (`mobile-friendly` or
+  `desktop-first`) on ring entries, and Follow's paste-a-link discovery guesses from a missing
+  viewport meta tag on the page it already fetched. Undeclared, unknown or unguessable means
+  mobile friendly.
+- A scaffold for partner rings: a per-ring adapter boundary in `@yipden/ring-client`, a ring
+  switcher in Discover's Filter sheet, and cards labelled "via [ring name]" that link to that
+  ring's own hub. No partner ring is registered yet, so nothing shows until the first adapter is
+  agreed.
+- About states YipDen's posture: a doorway, not a destination.
 - You's About row now opens a modal with the YipDen mark, package version and build commit, the
   build-time `CHANGELOG.md`, the IndieNodes Discover explanation, privacy and source links, and
   audited dependency/content attributions. Escape and browser or Android Back close it and return

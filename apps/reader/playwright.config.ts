@@ -7,6 +7,9 @@ import { defineConfig, devices } from '@playwright/test';
  *
  * Nothing here touches the network. Feeds come from fixtures.
  */
+// Override when 4173 belongs to something else, or the suite will reuse that server.
+const PORT = Number(process.env.E2E_PORT ?? 4173);
+
 export default defineConfig({
 	testDir: 'e2e',
 	fullyParallel: true,
@@ -14,7 +17,7 @@ export default defineConfig({
 	retries: process.env.CI ? 2 : 0,
 	reporter: process.env.CI ? 'github' : 'list',
 	use: {
-		baseURL: 'http://localhost:4173',
+		baseURL: `http://localhost:${PORT}`,
 		trace: 'on-first-retry'
 	},
 	// Discovery does real, sequential round trips per host it checks (robots.txt, then the
@@ -32,8 +35,11 @@ export default defineConfig({
 		}
 	],
 	webServer: {
-		command: 'pnpm build && pnpm preview --port 4173',
-		port: 4173,
+		// The flag compiles in the made-up partner ring (a bundled fixture, no network) so the tab
+		// and its "via" label can be tested. A release build never sets it, and even here a test
+		// has to opt in. Reusing a preview server built without it will fail shelf.spec.ts.
+		command: `VITE_YIPDEN_PARTNER_FIXTURE=1 pnpm build && pnpm preview --port ${PORT}`,
+		port: PORT,
 		reuseExistingServer: !process.env.CI,
 		timeout: 120_000
 	}

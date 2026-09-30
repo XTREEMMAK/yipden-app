@@ -7,6 +7,7 @@ import { expect, test, type Page } from '@playwright/test';
  */
 
 const LENA_PAGE = `<!doctype html><html><head>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Lena Ofori</title>
 	<link rel="alternate" type="application/rss+xml" title="Blog" href="/feed.xml">
 </head></html>`;

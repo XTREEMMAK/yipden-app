@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const LENA_PAGE = `<!doctype html><html><head>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Lena Ofori</title>
 	<link rel="alternate" type="application/rss+xml" title="Blog" href="/feed.xml">
 </head></html>`;
@@ -147,7 +148,7 @@ test.describe('You', () => {
 	});
 
 	test('switches theme and the document reflects it', async ({ page }) => {
-		await page.goto('/you');
+		await page.goto('/you/settings');
 
 		await page.getByRole('radio', { name: 'Dark' }).click();
 		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -158,7 +159,7 @@ test.describe('You', () => {
 	});
 
 	test('theme choice survives a reload', async ({ page }) => {
-		await page.goto('/you');
+		await page.goto('/you/settings');
 		await page.getByRole('radio', { name: 'Dark' }).click();
 
 		await page.reload();
@@ -167,7 +168,7 @@ test.describe('You', () => {
 	});
 
 	test('switches color skin and keeps it across reloads', async ({ page }) => {
-		await page.goto('/you');
+		await page.goto('/you/settings');
 		await page.getByRole('radio', { name: 'Blue glass' }).click();
 
 		await expect(page.locator('html')).toHaveAttribute('data-skin', 'glass');
@@ -189,8 +190,8 @@ test.describe('You', () => {
 
 	test('exports a real OPML file naming the followed feed', async ({ page }) => {
 		await followLena(page);
-		await page.goto('/you');
-		await page.getByText('Lena Ofori').waitFor();
+		await page.goto('/you/settings');
+		await expect(page.getByRole('button', { name: 'Export as OPML' })).toBeEnabled();
 
 		const [download] = await Promise.all([
 			page.waitForEvent('download'),
@@ -205,7 +206,7 @@ test.describe('You', () => {
 	});
 
 	test('the export button is disabled with nobody to export', async ({ page }) => {
-		await page.goto('/you');
+		await page.goto('/you/settings');
 		await expect(page.getByRole('button', { name: 'Export as OPML' })).toBeDisabled();
 	});
 
@@ -217,7 +218,7 @@ test.describe('You', () => {
 				body: '{"version":"1.0","entries":[]}'
 			})
 		);
-		await page.goto('/you');
+		await page.goto('/you/settings');
 
 		const opml =
 			'<?xml version="1.0"?><opml version="2.0"><body>' +
@@ -236,12 +237,14 @@ test.describe('You', () => {
 		await chooser.setFiles(file);
 
 		await expect(page.getByRole('status')).toContainText('Imported 1 person, 1 feed');
+
+		await page.goto('/you');
 		await expect(page.getByText('Cy Marsh')).toBeVisible();
 	});
 
 	test('exports a versioned full backup', async ({ page }) => {
 		await followLena(page);
-		await page.goto('/you');
+		await page.goto('/you/settings');
 
 		const [download] = await Promise.all([
 			page.waitForEvent('download'),
@@ -255,7 +258,7 @@ test.describe('You', () => {
 	});
 
 	test('previews a full backup before restoring it', async ({ page }) => {
-		await page.goto('/you');
+		await page.goto('/you/settings');
 		const backup = {
 			format: 'yipden-backup',
 			version: 1,
@@ -295,42 +298,60 @@ test.describe('You', () => {
 		await chooser.setFiles(file);
 
 		await expect(page.getByText('Ready to restore')).toBeVisible();
-		await expect(page.getByText('Cy Marsh')).toHaveCount(0);
 		await page.getByRole('button', { name: 'Restore', exact: true }).click();
 		await expect(page.getByRole('status')).toContainText('Restored');
-		await expect(page.getByText('Cy Marsh')).toBeVisible();
 		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 		await expect(page.locator('html')).toHaveAttribute('data-skin', 'forest');
+
+		await page.goto('/you');
+		await expect(page.getByText('Cy Marsh')).toBeVisible();
 	});
 
 	test('clearing cached yips confirms without touching the follow list', async ({ page }) => {
 		await followLena(page);
-		await page.goto('/you');
-		await page.getByText('Lena Ofori').waitFor();
+		await page.goto('/you/settings');
 
 		await page.getByRole('button', { name: 'Clear cached yips' }).click();
 		await expect(page.getByRole('status')).toContainText('Cleared cached yips');
+
+		await page.goto('/you');
 		await expect(page.getByText('Lena Ofori')).toBeVisible();
 	});
 
-	test('every seg control and unfollow button clears the 44px minimum', async ({ page }) => {
+	test('every unfollow button clears the 44px minimum', async ({ page }) => {
 		await followLena(page);
 		await page.goto('/you');
 		await page.getByText('Lena Ofori').waitFor();
 
-		for (const control of [
-			...(await page.getByRole('radio').all()),
-			...(await page.getByRole('button', { name: /Unfollow/ }).all())
-		]) {
+		for (const control of await page.getByRole('button', { name: /Unfollow/ }).all()) {
 			const box = await control.boundingBox();
 			expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
 		}
 	});
 
+	test('every theme and skin radio clears the 44px minimum', async ({ page }) => {
+		await page.goto('/you/settings');
+
+		for (const control of await page.getByRole('radio').all()) {
+			const box = await control.boundingBox();
+			expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+		}
+	});
+
+	test('a gear icon on You reaches Settings, and Back returns', async ({ page }) => {
+		await page.goto('/you');
+		await page.getByRole('link', { name: 'Settings' }).click();
+		await expect(page).toHaveURL(/\/you\/settings\/?$/);
+		await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+
+		await page.getByRole('button', { name: 'Back to You' }).click();
+		await expect(page).toHaveURL(/\/you\/?$/);
+	});
+
 	test('About opens as a complete modal and closes with Escape or Back', async ({ page }) => {
 		const errors: string[] = [];
 		page.on('pageerror', (error) => errors.push(error.message));
-		await page.goto('/you');
+		await page.goto('/you/settings');
 		const trigger = page.getByRole('button', { name: 'About YipDen' });
 		await expect(trigger).toBeVisible();
 		await expect(page.getByRole('dialog', { name: 'YipDen' })).toHaveCount(0);
@@ -344,6 +365,10 @@ test.describe('You', () => {
 		await expect(
 			dialog.getByText(/Everyone in Discover comes from the IndieNodes webring/)
 		).toBeVisible();
+		await expect(
+			dialog.getByRole('heading', { name: 'A doorway, not a destination.' })
+		).toBeVisible();
+		await expect(dialog.getByText(/Every yip links out to its creator’s own site/)).toBeVisible();
 		await expect(
 			dialog.getByRole('heading', { name: 'Your den stays on your device.' })
 		).toBeVisible();

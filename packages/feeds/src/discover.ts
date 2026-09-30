@@ -1,6 +1,6 @@
 import { safeUrl } from '@yipden/ring-client';
 import { FeedHttp, type FeedHttpOptions, type FetchLike } from './http.js';
-import { isFeedLink, linksBackTo, scanPage, type ScannedPage } from './html.js';
+import { isFeedLink, layoutSignal, linksBackTo, scanPage, type ScannedPage } from './html.js';
 import { parseFeed } from './parse/index.js';
 import { channelIdFromPage, FALLBACK_PATHS, resolveProfile } from './profiles.js';
 import { feedKindFromUrl } from './kind.js';
@@ -263,10 +263,12 @@ export async function discoverFeeds(
 		}
 	}
 
+	const layout = layoutSignal(page);
 	return {
 		canonicalUrl,
 		title: page.cardName ?? page.title,
 		iconUrl: page.iconUrl,
+		...(layout ? { layout } : {}),
 		feeds,
 		unresolved
 	};

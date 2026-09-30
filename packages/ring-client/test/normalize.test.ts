@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import live from './fixtures/ring-live.json' with { type: 'json' };
-import { heroImage, normalize } from '../src/normalize.js';
+import { heroImage, layoutOf, normalize } from '../src/normalize.js';
 import type { RingEntry } from '../src/types.js';
 
 const entries = live.entries as unknown as RingEntry[];
@@ -77,5 +77,27 @@ describe('heroImage', () => {
 
 	it('returns null when there is nothing to paint, so the caller draws its own wash', () => {
 		expect(heroImage(normalize(withoutThumb(byId('audio-key-jay'))))).toBeNull();
+	});
+});
+
+describe('layout', () => {
+	const base = byId('audio-key-jay');
+
+	it('keeps a declared, recognized layout', () => {
+		expect(normalize({ ...base, layout: 'desktop-first' }).layout).toBe('desktop-first');
+		expect(normalize({ ...base, layout: 'mobile-friendly' }).layout).toBe('mobile-friendly');
+	});
+
+	it('drops a value it does not know rather than guessing what it means', () => {
+		const entry = normalize({ ...base, layout: 'tablet-only' } as unknown as RingEntry);
+		expect('layout' in entry).toBe(false);
+	});
+
+	it('leaves an undeclared layout undeclared, and layoutOf answers mobile friendly for it', () => {
+		const entry = normalize(base);
+		expect('layout' in entry).toBe(false);
+		expect(layoutOf(entry.layout)).toBe('mobile-friendly');
+		expect(layoutOf('tablet-only')).toBe('mobile-friendly');
+		expect(layoutOf('desktop-first')).toBe('desktop-first');
 	});
 });

@@ -1,5 +1,6 @@
 import { deflateSync } from 'node:zlib';
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { ringNext, ringPrev } from './support.js';
 
 /**
  * Discover's WebGL hero: the displacement wipe is optional by the brief's own words, and every
@@ -270,9 +271,9 @@ test.describe('Discover WebGL hero', () => {
 		const heading = page.getByRole('heading', { level: 1 });
 		const first = await heading.textContent();
 
-		await page.getByRole('button', { name: 'Next in the ring' }).click();
+		await ringNext(page);
 		await expect(heading).not.toHaveText(first ?? '');
-		await page.getByRole('button', { name: 'Previous in the ring' }).click();
+		await ringPrev(page);
 		await expect(heading).toHaveText(first ?? '');
 		await page.getByRole('button', { name: 'Shuffle the ring' }).click();
 		await page.waitForTimeout(300);
@@ -347,7 +348,7 @@ test.describe('Discover WebGL hero', () => {
 
 		expect(await canvasIsActive(page)).toBe(false);
 
-		await page.getByRole('button', { name: 'Next in the ring' }).click();
+		await ringNext(page);
 		await expect(heading).not.toHaveText(first ?? '');
 		expect(await canvasIsActive(page)).toBe(false);
 		await expect(page.locator('.art')).toBeVisible();
@@ -378,7 +379,7 @@ test.describe('Discover WebGL hero', () => {
 		await expect.poll(() => canvasIsActive(page), { timeout: 5000 }).toBe(true);
 		await page.waitForTimeout(1200); // the neighbour has had time to arrive
 
-		await page.getByRole('button', { name: 'Next in the ring' }).click();
+		await ringNext(page);
 		// Immediately after the press, not after a wait: the canvas already holds the new photo.
 		expect(await canvasIsActive(page)).toBe(true);
 	});
@@ -429,7 +430,7 @@ test.describe('Discover WebGL hero', () => {
 			)
 			.toBe(true);
 
-		await page.getByRole('button', { name: 'Next in the ring' }).click();
+		await ringNext(page);
 		await expect(heading).not.toHaveText(first ?? '');
 		// Metadata may change immediately, but an old creator's cover must never remain behind it.
 		await expect(page.locator('.art .layer')).toHaveCount(0);
@@ -479,7 +480,7 @@ test.describe('Discover WebGL hero', () => {
 		await page.goto('/');
 		const heading = page.getByRole('heading', { level: 1 });
 		const first = await heading.textContent();
-		await page.getByRole('button', { name: 'Next in the ring' }).click();
+		await ringNext(page);
 		await expect(heading).not.toHaveText(first ?? '');
 
 		expect(errors).toEqual([]);
@@ -576,7 +577,14 @@ test.describe('Discover WebGL hero', () => {
 			return { left, right };
 		}
 
-		await page.getByRole('button', { name: 'Next in the ring' }).click();
+		/*
+		 * `page.keyboard.press` directly, not the `ringNext`/`ringPrev` helpers: those wait for
+		 * the text transition to fully settle before returning, which is exactly wrong here —
+		 * this samples pixels in the moments right after the trigger on purpose, to catch the
+		 * wipe itself mid-flight, the same reasoning the comment above `firstDivergence` already
+		 * gives for polling in short bursts instead of a fixed wait.
+		 */
+		await page.keyboard.press('ArrowRight');
 		const next = await firstDivergence(before.left);
 		expect(next.right).toBeGreaterThanOrEqual(0);
 		expect(next.left).toBeGreaterThanOrEqual(0);
@@ -588,7 +596,7 @@ test.describe('Discover WebGL hero', () => {
 			.toBeGreaterThan(20);
 		const afterNext = await edgeColors(page);
 
-		await page.getByRole('button', { name: 'Previous in the ring' }).click();
+		await page.keyboard.press('ArrowLeft');
 		const prev = await firstDivergence(afterNext.left);
 		expect(prev.left).toBeGreaterThanOrEqual(0);
 		expect(prev.right).toBeGreaterThanOrEqual(0);

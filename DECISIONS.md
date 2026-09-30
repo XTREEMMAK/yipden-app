@@ -1157,3 +1157,726 @@ aborts that load when ours starts, and emits the abort as an `error`. `Waveform.
 any error as failure. It now ignores `AbortError`. Verified in a browser against real ring
 tracks, and by an e2e that fails without the change. The earlier entry about CORS on Android
 still stands as unconfirmed on a device; see ROADMAP.md, which also notes one slow host.
+
+## 2026-09-28: YipDen is a doorway, and what we do with a site grows only with its owner's consent
+
+Agreed with the sibling project, IndieNodes: reading never requires an account or a change to
+anyone's site. Everything below follows from it, and it is why nothing in this batch touches a
+server. Found-site discovery (suggesting sites nobody submitted) is deliberately **not** built: it
+needs its own consent design first, and is a placeholder in ROADMAP.md.
+
+## 2026-09-28: The save for desktop list is called the Shelf, and lives in the existing local store
+
+"Trail" was ruled out because IndieNodes has a planned "discovery trail". Of Shelf, Later and Crate,
+the Shelf was chosen: it names a place things wait without implying a queue the reader owes
+attention. The action still reads **Save for later**, which says what a tap does; the Shelf is where
+it goes.
+
+It is a new IndexedDB object store (`shelf`) behind the same `Store` interface as follows and
+preferences, so a v2.0 sync implementation would carry it through the same door. That took the first
+schema change since the store was written, database version 1 to 2. The upgrade only creates what is
+missing and is tested against a real version 1 database holding a follow. The alternative, one array
+in a setting, needed no migration but would have rewritten the whole list on every save and raced
+two quick saves; the migration was the cheaper risk.
+
+An item is a link and a title and nothing else: no fetched content, so there is nothing of anyone's
+site stored. Its identity is its address, so saving twice is one entry and the first save's date
+wins. Unfollowing a person or clearing cached yips never touches it, because a reader saved that
+link for themselves, not as a byproduct of following.
+
+**Export reuses the two paths that exist rather than adding a third.** The full backup gains an
+optional `shelf` array without a version bump, since a backup without it stays valid and an older
+build ignores it; restore merges. OPML gains one folder outline of standard `type="link"` entries,
+which other readers skip, and `parseOpml` skips explicitly so it is never mistaken for a person.
+The OPML export button is enabled by a Shelf alone. See docs/shelf-format.md. The static page that
+opens an exported file and lists the links, for the desktop handoff, belongs on YipDen's marketing
+and docs site, which is not in this repository. It is a follow-up there, not built here.
+
+## 2026-09-28: Layout is declared by the ring, and guessed only for a pasted link
+
+`layout` (`mobile-friendly` or `desktop-first`) is an additive optional field on a ring entry, added
+to `ring-client` the way `feeds` and `discoverable` were: it is not published yet, so nothing changes
+until it is. `docs/ring-contract.md` lists it as owed. This is a ring contract change and was made at
+the maintainer's direction; the ring side still has to add it to its schemas. Only a recognized value
+survives normalization, and an absent or unknown one is mobile friendly, so a member is never handled
+differently on a guess, and a newer ring can add values without breaking this client.
+
+For a site followed through Follow's paste-a-link path there is no declaration, so discovery reads a
+missing viewport meta tag on the page it already fetched (no extra request) as a signal for
+desktop-first. Deliberate limits, so it is not mistaken for more than it is:
+
+- It only ever looks at HTML. A pasted feed, a known profile pattern and a fragment that is not a
+  page give no signal, and no signal means mobile friendly.
+- It is a guess about a site by a client that is not its owner. It changes which button leads, never
+  what is reachable: the site stays one tap away and every yip still links out.
+- A ring member is never guessed at, only declared.
+- A hand written page with no viewport tag that reads fine on a phone will be called desktop-first.
+  There is no reader override yet; ROADMAP.md lists it, along with saying so on the Follow screen.
+
+The signal is stored on the person once, at follow time, and travels in the backup. Existing follows
+have no layout and keep the old behavior.
+
+**Discover** gives a desktop-first member Save for later as the white primary button. Following steps
+back to an icon (still labelled Follow everything) so the row stays one line at 390px, the preview
+and Visit site icons stay, and a "Best on desktop" chip says why the row is arranged this way.
+**Feeds** adds a small bar under a desktop-first person's yips; the card itself still opens the
+creator's page as before.
+
+## 2026-09-28: Partner rings get a boundary and a scaffold, not a first adapter
+
+Built now: `readPartnerRing` in `ring-client`, the tab and the "via" attribution in Discover. The
+pattern is the one ROADMAP.md sketched. An adapter only maps a ring's own document onto loose
+candidates; every candidate then crosses one boundary that validates it (public https address, a
+name, a stable id), reduces it to a small common shape, and reads richer fields (`thumbnails`,
+`tags`, `layout`) only when the adapter declared that capability. A partner member is a different
+type from a ring entry, and nothing builds the second from the first, so mixing into the IndieNodes
+rotation is a type error rather than a convention.
+
+Discover shows a partner ring in its own panel, chosen in the Filter sheet, replacing the hero while
+open, with the hero inert underneath. That is a real requirement, not polish: a first version left
+the hero's buttons focusable and readable behind the overlay, which the visual pass caught. Every
+card says "via [ring name]", links to that ring's own hub, and links out to the member's site; a
+desktop-first member leads with Save for later like anywhere else. Choosing a category returns to
+IndieNodes, since categories belong to it.
+
+**No partner ring is registered.** The registry is empty and Discover shows no switcher while it is.
+Which ring to read first and how is a ring contract decision, so it is **ask first**. The end to end
+suite uses a made up ring and a made up shape, bundled with no network and compiled in only when a
+build sets `VITE_YIPDEN_PARTNER_FIXTURE=1`, then only when a test opts in by a localStorage key. A
+normal build was checked to contain neither the fixture nor the key.
+
+## 2026-09-28: `noai` for the reader view is decided, not built
+
+Recorded so it is not rediscovered later. When the clean reader view is built (ROADMAP.md item 11),
+it honors `noai` (meta robots) and `X-Robots-Tag: noai` in the same place `http.ts` honors
+robots.txt: the request that fetches a page for the reader view, not the feed or discovery fetches.
+YipDen has no AI, so the directive does not bear on following someone; applying it to feed fetching
+would break following for anyone who set it. Honoring it means the reader view declines to render a
+cleaned copy for that page and offers only the original link. The original URL is the primary action
+on every reader-view card, and fallback content, meaning anything YipDen extracted rather than
+something the creator published in their feed, is styled visibly differently from a creator-published
+item. None of this is code yet, because the reader view itself is not.
+
+## 2026-09-28: IndieNodes' posture lives in About, not a dedicated page
+
+Asked whether IndieNodes' new posture page existed to reuse. It did not exist in the sibling
+repositories yet, so the paragraph in About was written from the three points given: every yip links
+out, nothing is ranked, saved lists are local until exported, plus "a doorway, not a destination".
+
+**No dedicated posture page is needed, in this app or on YipDen's marketing site.** The posture is
+inferable from About as it stands. This is the permanent home for that copy, not a placeholder
+waiting on IndieNodes to publish something to swap in.
+
+## 2026-09-28: Two smaller things this batch surfaced
+
+- **The older end to end fixtures gained a viewport tag.** Their minimal home pages had none, so once
+  the heuristic existed they read as desktop-first and every card grew a Save for later bar, which
+  broke 32 tests. The fixtures are now ordinary mobile pages, which is what they were always meant
+  to model; the heuristic was not weakened to suit them. `shelf.spec.ts` covers both cases.
+- **Feeds had no toast.** Saving from Feeds was silent because that page never mounted `<Toast />`,
+  found by the first end to end run and fixed.
+- **The e2e port is overridable (`E2E_PORT`).** The suite reuses whatever server is on 4173, and
+  another project's preview was there, which would have run these tests against the wrong app.
+
+## 2026-09-28: A YouTube video was never sorted into Watch, and never carried a video attachment
+
+Reported from a real device follow: a real channel's yips showed up in Feeds, but never under the
+Watch filter. Confirmed live against `youtube.com/feeds/videos.xml` for a real channel, not
+guessed from the fixture: YouTube's own RSS has declared `media:content type="application/x-
+shockwave-flash"` on an extensionless `/v/<id>?version=3` URL for over a decade. `mediaKindFor`
+recognized neither the type (not `audio/`, `video/` or `image/`) nor the URL (no file extension),
+so the attachment was silently dropped; only the `media:thumbnail` survived, as an image. With no
+`video` attachment, `categorize()` (`apps/reader/src/lib/refresh.ts`) had nothing to call Watch, and
+every YouTube item landed in Posts instead, correctly labeled "YouTube" but sorted wrong.
+
+**`mediaKindFor` now recognizes that exact type on YouTube's own hosts as video**, scoped to those
+hosts rather than the MIME type generally, since a legitimate reason for another site to still send
+`application/x-shockwave-flash` for something that is not video cannot be ruled out. `test/fixtures/
+youtube.xml`'s existing shape already matched YouTube's real output, so the gap had a passing test
+all along; that test only ever asserted the thumbnail, never that a video attachment existed at all,
+which is why this was not caught before shipping. Added: an assertion that the video attachment is
+now recognized, a check that an unrelated site's `shockwave-flash` content is not swept up by the
+same rule, and an end to end `refreshAll` test with a real YouTube-shaped feed asserting
+`category: 'watch'`, confirmed to fail without the fix.
+
+**Separately checked and found not broken:** `channelIdFromPage`, which resolves a pasted handle
+(`youtube.com/@name`) to a channel id for Follow's discovery, against two real, live channel pages.
+Both still carry the `rel="canonical"` link and `"externalId"` the parser looks for.
+
+## 2026-09-28: Musicians Webring reads for real, for testing, pending its maintainer's approval
+
+Asked directly to prove the partner ring boundary against a real ring rather than only the
+fixture, using [Musicians Webring](https://lydels.neocities.org/musicianswebring/webring) until
+its own maintainer has been asked and agreed. That approval has not happened yet, and this is not
+a shipped inclusion; it exists so the boundary and Discover's UI can be tested against something
+real while it is sought.
+
+**The ring itself is exactly the uncooperative case the boundary was built for.** No JSON, no
+schema, no versioning promise: one maintainer's hand-written HTML table, styled for a person to
+read, not a client. Reading it (`apps/reader/src/lib/partner/musiciansWebring.ts`) walks the same
+untrusted-HTML tokenizer `packages/feeds` already trusts for sanitizing feed content and scanning a
+page for its own feed links (`tokenize`, now exported from `@yipden/feeds` for this third use),
+rather than a hand rolled regex against a stranger's markup. It reads one thing per row: the
+member's own link (their name is whatever text sits directly inside it, which correctly skips the
+site's own "no button" placeholder `<div>` text sitting one level deeper) and their description; a
+rare `<b>nsfw</b>` immediately after the link is the one thing beyond the common shape it declares.
+
+Verified against a real, saved capture of the live page
+(`apps/reader/src/lib/partner/test-fixtures/musicians-webring.html`, 2026-09-28), not an invented
+shape, kept exactly as fetched rather than reformatted (see `.prettierignore`, the HTML case of the
+same rule the XML and JSON fixtures elsewhere in this repo already follow). It found 73 of the
+page's own claimed "74" members; the one difference is not a scraper miss, it is "Bailey Lockheart",
+whose site is plain `http://`, which `safeUrl` correctly refuses same as anywhere else in the app.
+
+**A `sensitive` capability was added to the partner boundary** (`ring-client`'s
+`PARTNER_CAPABILITIES`), because two of this ring's members carry that `nsfw` mark. Rather than
+invent a second "explicit content" concept, partner members reuse `includeExplicit`, the setting
+IndieNodes' own `explicit` field already answers to (`packages/ring-client/src/filter.ts`): a
+sensitive member is dropped from `partnerRings.svelte.ts`'s results unless a reader has opted in,
+which is the same conservative default IndieNodes already committed to and the same reason given
+for it. One setting, one meaning, across both ring types.
+
+**Registration is gated by a local flag alone** (`localStorage: yipden:partnerMusiciansWebring`),
+not the build-time flag the fixture uses: there is nothing to keep out of the bundle here, only a
+live fetch to a real, small site's server this reader chooses to make, so the gate is about
+politeness and intent rather than shipping size. `FeedHttp` still applies: robots.txt honored, one
+request at that host at a time, the same size cap discovery already uses. **This must not still be
+able to turn on when `v0.9.0` is tagged** unless the maintainer has said yes by then; see ROADMAP.md.
+
+**Found writing the test, worth keeping in mind generally**: `vi.resetModules()` followed by a
+fresh dynamic `import()` gives that import its own copy of every module it depends on, including
+its own fresh `store` singleton, distinct from one imported statically at the top of the same test
+file before any reset ever ran. A setting written through the top-level reference before calling
+`freshState()` silently never reached the instance the freshly imported code actually opened,
+which read back its default and produced an empty ring rather than a filtered one; the assertion
+did fail, so nothing shipped broken, but resolving it took establishing which of two `IdbStore`
+objects a given call was actually touching. `partnerRings.test.ts`'s `freshState` now sets any
+needed setting through the same store reference the reset epoch it creates will actually use, and
+`shelf.test.ts`'s own comment about the singleton keeping a stale database handle across a
+`beforeEach`'s `globalThis.indexedDB` reassignment (found earlier this session) is the same family
+of hazard from the opposite direction: a _reused_ singleton clinging to an old handle instead of a
+_freshly reset_ one opening the current handle but going unwritten-to by an old reference.
+
+## 2026-09-29: A partner member's own sample link is read too, not just its name
+
+Raised directly: browsing Musicians Webring feels like "complete serendipitous discovery" next
+to IndieNodes, where every member has something previewable in app. Two paths were on the table —
+ask the ring to publish richer data, or build a tool that visits every member's own site to pull a
+sample ourselves — and neither was needed. The ring's own listing page already has a third column,
+either `-` or a link the member handed the maintainer specifically to be heard; the scraper simply
+never read it. It does now (`packages/ring-client`'s new `preview` capability, a `previewUrl` on
+`PartnerCandidate`/`PartnerMember`, and `musiciansWebring.ts` reading the row's third `<td>`).
+Verified against the real, saved page: 53 of the 73 usable members carry one.
+
+**The second path, an automated per-member crawl, was declined, not merely deferred.** It would
+mean fetching from 73 individual small creators' own servers, well beyond the one ring index page
+this adapter already reads, and doing it silently would run against the posture this whole project
+already committed to (see the 2026-09-28 doorway entry: "what we do with a site grows only with
+its owner's consent"). The listen link is the opposite case: each member chose that specific link
+and gave it to the ring for exactly this purpose. Reading it is using something offered; crawling
+every site ourselves would not be.
+
+**It is deliberately never treated as playable in app.** Unlike IndieNodes' own `tracks[]`, a
+`previewUrl` is neither a known audio format nor something this client fetched and verified — most
+of Musicians Webring's are Bandcamp, SoundCloud or YouTube pages, not files. `PartnerRingPanel`
+opens it externally with `openExternal`, same as Visit and Save for later, never attempts to embed
+or stream it. A ring that does publish something YipDen can actually play would still go through
+`tracks[]`-shaped richer fields under its own future capability, not this one.
+
+**"OnionRing", checked directly, is not a richer data source.** It is a real, small open source
+webring engine (joey + mord of allium house, CNPL v4+) this ring uses only for the prev/next/random
+widget its members embed on their own pages. Its own file, `onionring-variables.js`, is a bare
+`sites[]` array of URLs with no names or descriptions at all — less structured than the table this
+adapter already reads. The richer table is this maintainer's own addition on top of OnionRing, not
+something that would generalize to another OnionRing-based ring's own adapter later.
+
+## 2026-09-29: You splits into You and Settings
+
+Raised directly: You read as both a personal dashboard and the app's configuration screen at
+once. Split along that line: **You** keeps Following and the Shelf, the reader's own data, gaining
+only a gear icon in its header; **Settings**, a new route at `/you/settings`, holds Appearance,
+Playback, the follows file (export/import OPML, clear cached yips) and the full YipDen backup, and
+About. Not a fifth tab: the tab bar's four items, their sizing and their animation are established,
+tested surface (see the 2026-09-23 tab bar entries), and a screen a reader configures occasionally
+does not carry the same weight as one they check daily. `TabBar.svelte`'s own `isCurrent` already
+matches by `pathname.startsWith(href)`, and `navigation.ts`'s `tabIndex` already treats anything
+outside the four tab paths as a detail view that pushes in and reverses on the way back, so Settings
+needed no change to either: it is exactly the category those two files already existed to handle.
+
+Settings keeps its own explicit "Back to You" button (matching `PartnerRingPanel`'s own back
+button) in addition to the hardware/gesture back that a real route already gets for free, since a
+reader should not have to know that gesture exists to leave a screen they can also just tap out of.
+
+Splitting an established, heavily tested file is also a hazard, named here so it is not
+rediscovered: several existing e2e assertions crossed the new page boundary without their author
+initially registering it (an OPML import checks the imported person shows up in the Following
+list, previewing then restoring a backup does the same, "every control clears 44px" mixed radios
+now on Settings with Unfollow buttons still on You). Each was found by actually running the suite
+against the split, not by inspection, and fixed by having the test navigate to wherever its
+assertion now actually lives, rather than weakening what it checks.
+
+**Found and fixed on the way**: `you.svelte.ts`'s own page never called `shelf.load()`; the Shelf
+section rendering there worked only because Discover or Feeds, visited first in the same session,
+had already loaded it. Both You and the new Settings page now call it in their own `onMount`,
+matching the app's existing pattern (`you.load()`) of a page ensuring its own data rather than
+depending on another screen having run first.
+
+## 2026-09-29: A partner ring's cards fold and stand the same way Feeds' yips do
+
+Asked directly for the same treatment. `cardStack.ts` needed no change at all: it already looks
+for nothing more specific than a `.yip-stack` class on a scrolling pane's children, so applying it
+elsewhere is only marking `PartnerRingPanel`'s own scrolling `<section>` with `use:cardStack` and
+its `<li>` cards with that same class, plus the matching CSS (kept literally line for line with
+Feeds' own selectors and keyframe names, `.pane` swapped for `.partner`; Svelte scopes both
+components' `@keyframes` and named view-timelines independently, so reusing the same names carries
+no collision risk between them).
+
+**Deliberately not copied**: Feeds' `content-visibility: auto` / `contain-intrinsic-size` pair.
+That optimization is tuned to Feeds' own cards' known, fixed heights (200px, 172px for Listen, and
+so on); a partner member's card varies with its own blurb length and how many action buttons wrap
+onto a second line, and guessing a size for content that varies this much is exactly the mistake
+that produced the "stuck scrollable area" bug already recorded for Feeds' own Listen pane. A
+partner ring is also at most a few dozen cards, not the hundreds that optimization exists to keep
+cheap, so the case for it here is weak even before the risk. `.card` also needed `position:
+relative` added, which Feeds' equivalent already had on its own wrapper: the stack's dim overlay
+is an absolutely positioned `::after`, and without it the overlay would have sized to `.partner`
+itself (the nearest positioned ancestor, being the sheet's own `position: absolute`), covering the
+whole panel rather than the one card passing behind the top.
+
+## 2026-09-29: The partner ring stack's bleed-through, and its back bar pinned
+
+Two adjustments to yesterday's card stack, both raised directly against how it actually looked
+and behaved.
+
+**The see-through was real, and the cause was a background, not the transform math.** A card
+passing behind the next one during the fold used the same translucent tint every glass chip on
+Discover uses (`rgba(255,255,255,0.07)`), so the receding card showed straight through the one
+replacing it: a visible glitch, not "one card passing behind another." Feeds never has this
+problem because the animated wrapper there (`.yip-stack`) contains a fully opaque `.yip`; here the
+animated element and the visible card were the same element. Fixed by making `.card`'s background
+opaque (`color-mix(in srgb, #fff 7%, var(--deep))`, over the panel's own solid color rather than
+translucent over whatever sits behind it), which reads identically at rest and stops being
+see-through in motion. The stack itself is kept, not removed: the actual defect was fixable and
+narrow, not a reason to give up the feature.
+
+**The back bar is now pinned**, the same fixed-head-over-a-separately-scrolling-pane split Feeds
+already uses (`.head` / `.pane` there; `.head` / `.scroll` here). `cardStack.ts` needed no change,
+only re-targeting which element it decorates.
+
+**That restructuring surfaced a real, separate bug, found by a real click failing in the end to
+end suite, not by inspection**: the very first card became permanently unclickable
+(`pointer-events: none`), in every browser, with no scrolling having happened at all. Cause: the
+stack's `IntersectionObserver` shrinks its own root by 4px from the top (`rootMargin: '-4px 0 0
+0'`) to decide when a card has scrolled past the pane's edge and should stop taking taps. Moving
+the "back to IndieNodes" spacing out of `.partner` and into `.head` left `.scroll` with zero
+top padding, so the first card sat flush against the pane's top edge at rest, inside that 4px
+shrunk margin, permanently marked "behind" from the first paint. Feeds never hits this because its
+own `.pane` already carries 6px of top padding; `.scroll` now carries the same 6px, for the same
+reason. Recorded because the failure mode is easy to reintroduce: nothing about it is visible by
+eye, a screenshot looks correct, and it only shows up as buttons that quietly do nothing.
+
+## 2026-09-29: A partner preview's platform is named honestly, no fetch, and checking the rest is a separate, manual tool
+
+Closing the loop on the "browsing feels like Web1.0 serendipity" and "would a scrape be a
+violation" discussion (see the two entries above). Three things were on the table; all three
+landed where that discussion pointed.
+
+**Platform classification (yes, ships in the app, no fetch).** `previewKindOf` in `ring-client`
+guesses what a `previewUrl` actually is from the URL alone — the same technique `@yipden/feeds`'
+`feedKindFromUrl` already uses for a feed. `PartnerRingPanel`'s Listen button now says "Open on
+SoundCloud", "Open on Spotify", "Watch on YouTube", and so on, instead of one "Listen" that reads
+the same whether it is a two-second file load or a Spotify paywall. Nothing about what happens on
+tap changed: every one of these still opens externally, same as before.
+
+**A metadata-only check for own-domain links (yes, but as a separate, manual, developer-run
+script, never the app itself).** `scripts/analyze-partner-previews.ts` does one polite `HEAD`
+(falling back to a one-byte ranged `GET` for a host that answers `HEAD` badly) against a small,
+hand-picked list of real, ambiguous Musicians Webring links — a member's own domain, no
+recognized extension, so `previewKindOf` alone cannot say whether it is a file or a page. It is
+not part of the app, its build, or CI; it is run by hand, occasionally
+(`npx tsx scripts/analyze-partner-previews.ts`). That split is the point: the running app's own
+network footprint stays exactly what it already was (the ring's own index page, nothing more),
+rather than every installed copy independently re-checking the same handful of small personal
+sites on its own schedule.
+
+Robots.txt is honored with the real parser already audited for this (`FeedHttp.allowed`), not a
+naive "does the file contain Disallow anywhere" check, and running it against real sites showed
+exactly why that distinction matters: one candidate's robots.txt lists `Disallow: /` for a dozen
+named AI crawlers by name and has no wildcard `User-agent: *` group at all, which the standard
+(and this project's own parser) reads as unrestricted for anyone not on that list, an honest
+reader included. A cruder check would have refused a site that was never actually asking to be
+left alone by something like this.
+
+**First real run, four real candidates**: all four turned out to be pages, not raw files
+(`content-type: text/html`), likely each with its own embedded player. That is real information
+`previewKindOf` could not have produced alone, which is the whole case for the tool existing; it
+is not wired into the shipped app's own data yet, since this was explicitly a "see how this works
+out" run, not a decision to start shipping verified results.
+
+**Declined, unchanged from the "more research" entry**: downloading, caching or embedding the
+audio itself, and crawling a member's whole site looking for a sample the ring never pointed at.
+Neither happened here, and neither is planned.
+
+## 2026-09-29: A second real, differently-shaped ring, and what it actually cost
+
+Asked directly for a plan, then to build it: Knifebeetle (a webcomic ring,
+https://knifebeetle.neocities.org/), gated the same testing-only way as Musicians Webring
+(`localStorage: yipden:partnerKnifebeetle`, no build flag, not shipped, its maintainer not yet
+asked). The point was proving the boundary generalizes to a second, structurally unrelated ring
+before committing further, and it mostly did, with two things worth recording precisely because
+they were found by testing against the real page, not by reasoning about it.
+
+**It is not built on OnionRing or any shared engine.** A fully custom hand-built page, ten genre
+sections, and two different hand-written templates for one listing ("Read:"/"Follow:" on their
+own lines, or a single combined "Links:") that happen to agree on the two things this reads: the
+`<h4>`'s own link is the comic's address (checked against every real example; the "Read: website"
+line, when present, always points at the same address), and the first `<p>` after it is the
+description. Neither the "Read:"/"Follown:" labels nor the number of links after them needed
+reading at all, which is simpler than it first looked.
+
+**Content warnings are not `sensitive`, on purpose, by direct decision.** 57 of the ring's 68
+comics carry one, for ordinary things like "mild violence", nothing like the 18+ flag IndieNodes'
+own `explicit` or Musicians Webring's `nsfw` mark. Treating a content-warning block as `sensitive`
+here would have hidden 84% of the ring by default, the wrong direction to be wrong in for content
+warnings, which exist to inform a reader, not to gate them. `knifebeetleWebring.ts` never declares
+the `sensitive` capability at all; the warning text is folded straight into the blurb instead,
+visible the same way a content note on a book or film listing already is.
+
+**The real count (31 of ~68) is not a bug, and the test says why rather than asserting a bare
+number.** A third of the page's comics are commented out (`<!-- -->`, removed or inactive; `tokenize`
+already discards comment content, so these produce no tokens and need no special casing), and 14
+more link their own site as plain `http://`, which `safeUrl` refuses the same as anywhere else in
+this app, confirmed against two of those sites directly: several answer fine on `https://` too, so
+this is the creator's own listing being out of date, not a real absence of https. Both effects were
+found by writing the test against the real page and getting a number that did not match the naive
+assumption, then checking why by hand rather than adjusting the assertion to fit.
+
+**A real "complete" badge image sitting before a comic's title link** (`<img
+src="/images/complete-2.gif">` inside the same `<h4>`) needed no special handling: the scraper only
+starts tracking the title once it reaches the `<a>`, so an image before it is walked past exactly
+like the untracked `<b>` wrapping it.
+
+## 2026-09-29: A partner member's own thumbnail, and a platform's own mark on the button
+
+Two small, finishing pieces, both raised directly.
+
+**The `thumbnails` capability, built earlier and never actually displayed anywhere, now is.**
+`PartnerRingPanel` shows it as a small 40px badge beside the name, not a hero image: what a ring
+actually publishes here varies from a classic 88x31 webring button (Musicians Webring, a banner,
+not a portrait) to real cover art (Knifebeetle), and `object-fit: contain` over a soft background
+reads sensibly as either without cropping or distorting one to fit the other's shape.
+
+**A Listen/Open button now shows the platform's own mark**, not one generic play triangle for
+SoundCloud, Bandcamp, Spotify, Apple Music and YouTube alike. The marks are real brand icons, not
+a house style redrawn to approximate one: paths taken directly from Simple Icons (CC0 1.0,
+simpleicons.org), fetched once and kept in `PlatformIcon.svelte` rather than loaded at runtime,
+the same self-hosting reasoning already applied to this app's own fonts. Listed in the About
+sheet's attributions, matching how every other dependency here is credited. `fill` is left to
+`currentColor`; nothing hardcodes a brand color, since the same icon sits on both a white pill and
+a glass button depending on which action it is.
+
+Found while wiring this up: `PartnerRingPanel`'s own scoped CSS could not reach into
+`PlatformIcon`'s markup at all. Svelte's style scoping only touches elements written directly in a
+component's own template; passing a `class` prop through to a child and hoping the parent's
+`.secondary .ic` rule would still apply to it does not work, regardless of whether the child
+forwards the class attribute onto its root element, since the parent's compiled CSS is scoped to
+elements carrying the parent's own scope attribute, which a child's markup never does. Fixed by
+giving `PlatformIcon` its own default sizing in its own `<style>` block instead of depending on a
+selector reaching across the component boundary.
+
+**A real, if small, existing test needed fixing for a reason worth keeping in mind generally**:
+wrapping `<h3>` in a new `.title-row` div (for the thumbnail to sit beside it) changed what
+`heading.locator('..')` actually returned, from the whole card to that new wrapper alone, silently
+narrowing what a "get the surrounding card" helper in `shelf.spec.ts` could see. `.locator('..')`
+is fragile exactly because of this: it encodes an assumption about DOM depth that a purely visual
+change, adding one wrapping element, can invalidate without changing anything a test author would
+think to look at. Replaced with Playwright's `has` option (`panel.locator('li.card', { has:
+page.getByText(name) })`), which finds the right ancestor regardless of how deep the matched text
+sits inside it.
+
+## 2026-09-29 — Two gaps found after the thumbnail/icon work shipped
+
+**Musicians Webring never actually had thumbnails to show.** The generic `.thumb` display in
+`PartnerRingPanel.svelte` was built and proven against Knifebeetle, which does extract its own
+`<img class="comicicon">`. Musicians Webring's own scraper, though, never read the button `<img>`
+in each row's first cell at all — its tokenizer walk only tracked the image for depth-counting
+purposes and skipped over it, and its `capabilities` array never declared `'thumbnails'` in the
+first place, so even a hand-added field would have been stripped at the `readPartnerRing()`
+boundary. Fixed by capturing the row's first `<img src>` inside the member's own link (before any
+name text), resolving it with `absoluteUrl()` against the ring's base URL, and adding
+`'thumbnails'` to the adapter's declared capabilities. Confirmed the resolved URL empirically
+(`https://lydels.neocities.org/musicianswebring/imagenes/botones/...`) rather than assuming it,
+since the ring's base URL has no trailing slash and `URL` resolution of a `./relative` path
+against a slash-less base replaces the base's last path segment rather than appending beneath it.
+
+**Knifebeetle never got turned on for the test phone.** The adapter and its `localStorage` gate
+were both correct and tested; the actual gap was operational. The `CAP_LIVE_RELOAD_URL` used for
+the last `cap:sync` only carried `?yipden:partnerMusiciansWebring=1`, so the one-time
+`adoptUrlFlag()` mechanism never had a chance to see the Knifebeetle flag on that device. Fixed by
+resyncing with both flags in the query string
+(`?yipden:partnerMusiciansWebring=1&yipden:partnerKnifebeetle=1`) and rebuilding the debug APK.
+Neither ring is enabled by default; both remain testing-only until their maintainers are asked,
+per the existing pre-`v0.9.0` note in ROADMAP.md.
+
+## 2026-09-29 — Four more gaps, found by actually using the app
+
+**A new follow's yips could take a long time to show up, or never visibly show up at all.**
+`FeedsState.loadAndCatchUp()` already existed for exactly this ("fetch in the background if there
+is a feed nobody has ever actually read"), but its implementation called the plain, unscoped
+`refresh()`, which refetches _every_ followed feed, sequentially, real network per host. On a
+phone already following a lot of people, one new follow meant the new feed's own content sat
+behind a full re-fetch of everyone else. Worse, since Feeds' own pull-to-refresh gesture already
+clears its visible spinner the instant a finger lifts (see the gesture code in
+`feeds/+page.svelte`), that whole refresh ran with no visible indicator at all — indistinguishable
+from a follow that did nothing. Fixed by scoping the catch-up refresh to only the feeds that have
+actually never been fetched (`refresh(feedIds)`, threading through to `refreshAll({ feedIds })`,
+which already supported this), so a new follow's own content is fetched on its own, fast, without
+waiting on anything unrelated.
+
+**Reading a stranger's ring page is a real fetch, and nothing said so.** `partnerRings.svelte.ts`
+read every registered partner ring one at a time (`for await`), and the ring-switch button on
+Discover simply did not exist until that finished (`{#if partners.rings.length}`), with nothing
+distinguishing "still loading" from "nothing registered." A reader who opened the app cold had no
+way to tell those apart. Fixed two ways: the reads now run in parallel (`Promise.allSettled`,
+since they are independent fetches to unrelated hosts, not a queue), and a new `status` field
+(`idle` / `loading` / `ready`) lets Discover show a small spinner in the button's own place the
+instant the read starts, so the button's absence and the button's lateness never look identical.
+
+**Pull to refresh existed only on Feeds.** Discover and You had no way to ask for fresh content
+short of leaving and reopening the app. Extracted the gesture into its own action,
+`actions/pullToRefresh.ts`, rather than copying Feeds' inline pointer handlers a second and third
+time. It is not a drop-in replacement for Feeds' own version, though, and Feeds keeps its
+hand-rolled one rather than being migrated onto the shared action: Feeds' pull lives on `.pane`
+while an unrelated horizontal swipe (between filter panes) lives on `.viewport`, a different
+element, and it works there by grabbing the pointer immediately at pointerdown whenever
+`scrollTop <= 0`, gated only by a shared `pulling` boolean the swipe's `enabled()` reads. That
+would not survive being placed on Discover's own `<section>`, which carries its horizontal
+ring-swipe on that _same_ element: grabbing the pointer unconditionally on every touch start
+would eat every ring swipe before `swipe.ts` ever saw the gesture, since a descendant's listener
+already firing first was the only reason Feeds' version works at all. The shared action instead
+axis-locks on the first decisive movement, the same rule `swipe.ts` already uses, so it can sit
+on the very same element as a horizontal swipe with neither one starving the other. Wired into
+Discover (re-checks IndieNodes and every registered partner ring, ignoring their freshness
+windows) and You (re-checks every followed feed); Feeds' own version is untouched.
+
+**A partner ring's badge was a fixed 40×40 square, and nothing let a reader see a real image
+larger.** What a ring actually publishes here varies from a classic 88×31 webring button
+(confirmed live, Musicians Webring) to real cover art (confirmed live, Knifebeetle's comic
+covers, 300×300) — a fixed square either wasted space around a banner or cropped real art into a
+shape it never had. Changed to a bounded box (max 96×64, `width`/`height: auto`) so a banner shows
+at its true, crisp size and cover art fills the bound proportionally. Separately, a badge that
+turns out to be real art past a threshold (`PREVIEWABLE_MIN_SIZE`, 120 on both sides — chosen
+partway between the confirmed 88×31 and 300×300 cases above) becomes tappable, opening a new
+`ImagePreview` overlay at full screen; a button graphic stays plain, since enlarging an 88×31
+banner only shows the same handful of pixels bigger, not more picture. Decided per image, after
+it loads (`naturalWidth`/`naturalHeight`), not per ring or per adapter: nothing about which kind
+of image a ring will publish next is declared anywhere, so guessing from the URL or the adapter
+would eventually guess wrong. Built as its own component, `PartnerThumb.svelte`, specifically so
+it is not Knifebeetle-specific: any partner ring's `thumbUrl` gets the same treatment automatically,
+without that ring's adapter needing to know or care.
+
+## 2026-09-29 (later) — Four smaller adjustments after actually using the thumbnail/badge work
+
+**A long name overflowed its container** in two unrelated places: the "Already in IndieNodes"
+match row on Follow (`.match-copy b`) and a partner card's title (`PartnerRingPanel.svelte`'s
+`h3`). Both are flex children whose sibling truncation styles (the `<small>` subtitle beside the
+name) masked the fact that the name itself had none: a flex item's default `min-width` is its own
+content size, so a name that does not wrap on its own (typically one long, unbroken word) cannot
+shrink to fit and spills past its box instead. Fixed by truncating the Follow row's name with
+ellipsis, matching its own subtitle's existing treatment, and by letting a partner card's name
+wrap (`min-width: 0`, `overflow-wrap: anywhere`) instead, since a card has room to grow and a
+member's chosen name is worth showing in full rather than eliding.
+
+**A partner card's "Visit example.com" button repeated what `.host` right above it already
+says.** Once a name can also run long, that repetition read as crowding rather than clarity.
+Changed to a plain "Visit"/"Open" label beside a globe icon, with the host kept only in the
+button's `aria-label` so nothing accessible was lost, just what was already redundant on screen.
+
+**Discover's skin choice was barely felt**, even though `--deep` (the token its dark hero reads)
+already has a distinct value per skin. Two things were masking it: `--deep` is usually hidden
+under a real photo (`HeroArt`'s wash gradient is a fallback for a member with no photo at all, not
+a constant background), and every chip over that photo — the round Shuffle/ring-switch buttons —
+hardcoded a flat `rgba(24, 8, 3, …)`, the Original skin's own dark brown, spelled out literally
+rather than read from a token, so it never moved with the rest of the hero underneath it. Added
+`--deep-rgb` beside every skin's `--deep` (its own bytes, so a translucent chip can be composited
+from it with `rgba(var(--deep-rgb), alpha)`), and pointed `.round`'s three backgrounds at it. Left
+`Player.svelte`'s identical `rgba(24, 8, 3, …)` chips alone for now — same latent pattern, against
+`--player` rather than `--deep`, but not raised as part of this batch.
+
+**An `ImagePreview` opened from inside a partner card rendered clipped to that card**, not the
+full screen. `ImagePreview` is `position: fixed`, and a card sits inside `cardStack`'s own
+`.yip-stack`, which the stack action moves with a CSS `transform` on `card.style.transform` every
+frame it is not fully at rest. A `position: fixed` element's containing block becomes the nearest
+ancestor with a `transform` (among a few other properties), not the viewport, the instant one
+exists in its ancestor chain — so a preview opened from a card was fixed to that card's own box,
+which is also why it was never actually caught by an e2e test: nothing exercises the stack
+mid-motion in the fixture ring, which has no thumbnail data of its own to open a preview from in
+the first place. Fixed by moving where `ImagePreview` is rendered from, not by changing
+`ImagePreview` or `cardStack` themselves: `PartnerThumb` now reports a tap via an `onpreview`
+callback instead of opening its own overlay, and `PartnerRingPanel` renders the one `ImagePreview`
+at its own root, a sibling of `.scroll` rather than a descendant of any card, which is never
+transformed.
+
+## 2026-09-29 (later still) — Discover's prev/next buttons removed; arrow keys added in their place
+
+The prev/next buttons at the bottom of Discover are gone, ahead of the rest of the bottom-bar
+evaluation above (ROADMAP.md): swipe is the intended way to move through the ring, and the
+buttons existed as a permanent, always-visible crutch for a gesture that was never actually
+taught. Removing them without anything else would have left swipe as the _only_ way to move
+through the ring, with no keyboard or switch-access equivalent at all, which is a real
+accessibility loss, not just a smaller screen — so `ArrowLeft`/`ArrowRight` were added in the same
+change, not requested on their own, calling the same `goNext()`/`goPrev()` the buttons called,
+guarded the same way swipe already is (no sheet or partner ring open, more than one member to
+move between).
+
+Teaching the gesture itself — a modal prompt, a first-run tour, or something else — is
+deliberately not part of this change. See ROADMAP.md for that and for the rest of the bottom-bar
+evaluation (Filter's position, the node counter, and Driver.js as the recommended tutorial library
+if a guided tour is built).
+
+Every e2e spec that used to click these buttons (18 call sites across 5 files) now presses the
+arrow key instead, through a small shared helper (`e2e/support.ts`). A key press, not a simulated
+swipe, is the correct replacement everywhere, including `discover-swipe.spec.ts`'s own "next goes
+left from where it rests" test: that test specifically depends on the button's old zero-drag
+behavior (`navFraction` of exactly 0, unlike a real swipe, which carries whatever fraction the
+drag actually covered) — a simulated swipe there instead would have changed what the test was
+measuring, not just how it triggered it. A key press calls the exact same function the button did,
+so it carries the same zero fraction and keeps the test meaning what it always meant.
+
+**A real timing race, found only once the buttons were gone.** Three specs — two in
+`discover.spec.ts`, one in `discover-webgl.spec.ts` — failed after the swap, not because arrow
+keys behave any differently from a click at the app level, but because `.click()` was quietly
+doing something a raw key press does not: Playwright's own actionability check for a click waits
+for its target to stop moving before acting on it. Nothing here ever asked for that; it came free
+with every button click, on every one of these tests, the entire time. Pressed again immediately
+(next then previous, back to back) with nothing enforcing that wait, `ArrowLeft` could land in the
+narrow moment the outgoing member's fly-out transition had marked itself
+`.body-inner[aria-hidden="true"]` but the incoming one had not yet mounted, which
+`getByRole('heading', ...)` reports as the heading simply not existing rather than having the
+wrong text. Fixed by having the shared arrow-key helpers (`e2e/support.ts`) wait for that leaving
+copy to be gone before returning, restoring the synchronization `.click()` used to give away for
+free.
+
+Three tests needed the opposite of that fix, and for the same underlying reason: they sample the
+leaving member mid-flight on purpose — two in `discover-swipe.spec.ts` read the outgoing heading's
+own position while it is still animating away (its whole reason for existing), and
+`discover-webgl.spec.ts`'s "the wipe travels..." samples canvas pixels in the instants right after
+the trigger to catch the wipe itself mid-motion. Waiting for the transition to _finish_ first, the
+same wait that fixed the three tests above, is exactly wrong for these three: it would mean the
+element or the pixels they read are already gone or already settled by the time they start
+looking. All three press the arrow key directly (`page.keyboard.press`) rather than through the
+settling helper.
+
+## 2026-09-29 (evening) — Real brand art: the launcher icon, and both in-app marks
+
+Real artwork arrived (`brand/YipDen_Logo.webp`, then a square crop of it made for this,
+`brand/YipDen_Logo_Square.webp`): a howling fox inside a ring, over a mountain silhouette. Three
+questions had to be settled before touching anything, since a launcher icon and the header/About
+marks are highly visible and not cheap to redo three different ways: what to crop (the fox and
+ring, not the mountain — the mountain's detail would not survive down to 48px), what color
+treatment (the mountain switches with the system's day/night mode rather than staying flat black),
+and whether to replace the small existing hand-drawn arch mark in Discover's header and the About
+sheet too (yes). See ROADMAP.md for how this was scoped down from a fourth idea (a splash screen
+update) that was raised but not done here.
+
+**The launcher icon is a real adaptive icon, not a flattened PNG.** The mountain is a full-bleed
+vector background (`drawable/ic_launcher_background.xml`); the fox is a separate vector foreground
+(`drawable/ic_launcher_foreground.xml`), independently scaled and centered within Android's
+documented adaptive-icon safe zone (a 66dp circle inside the 108dp canvas) so it is never clipped
+by whichever mask shape a given launcher applies — deliberately not registered pixel-for-pixel
+against the mountain's own silhouette notch the way the original art has them, a relationship that
+does not survive being shrunk this far anyway. The mountain, by contrast, is left full-bleed
+exactly as composed: a plain background shape loses nothing by being cropped differently on
+different devices, which is the entire reason adaptive icons separate the two layers in the first
+place. A third layer (`drawable/ic_launcher_monochrome.xml`, the fox alone) supports Android 13+
+themed icons, where the OS re-tints it to match the device's Material You theme — a separate,
+OS-level notion of "theme" from the day/night colors below, and worth having since it is
+increasingly a launcher default rather than an opt-in.
+
+**"Change the black part depending on the theme" became two colors, not one, because a single
+swap would have made the mountain invisible half the time.** By day the mountain stays close to
+the source art's own near-black (`#1F1410`, this app's own light-theme ink); by night it becomes
+the brand orange (`#C2410C`) instead of a darker black, since black on the near-black night sky
+(`#120B08`) would stop reading as a mountain at all. The fox stays a constant white throughout,
+since it needs to read against both.
+
+**Legacy pre-Android-8 devices, which do not understand adaptive icons at all, get a flattened
+day-colors-only PNG** per density (`mipmap-*/ic_launcher.png`, `_round.png`) — no night variant:
+vanishingly few real devices are both this old and running a system dark mode a legacy launcher
+would even act on, so a second full set of PNGs was not worth the added asset weight. The old
+per-density `ic_launcher_foreground.png` files and the unused `drawable-v24/ic_launcher_foreground.xml`
+(dead even before this — nothing referenced it) are removed rather than left stale.
+
+**Discover's header mark and the About sheet's mark are now the fox and ring alone, no
+mountain** — a small inline mark has no room for the mountain to read as anything but noise — as a
+single `fill="currentColor"` SVG path, replacing the old hand-drawn arch shape one-for-one so it
+keeps recoloring itself with whatever text color surrounds it, the same as before.
+
+**The raster artwork was traced to vector paths (`potrace`) rather than hand-redrawn**, then
+simplified (`svgo`) from about 28KB of path data down to roughly 2.5KB (fox) and 0.4KB (mountain):
+potrace's default precision traces individual pixel jitter at the source resolution, which no
+launcher icon or 30px header mark needs. `brand/generate-icons.cjs` keeps this whole pipeline
+reproducible; `sharp`, `potrace` and `svgo` are deliberately not added to any `package.json` for
+it, since nothing else in the app will ever need them and a rare, manual regeneration script is
+not worth carrying as a standing dependency. `brand/README.md` has the how-to.
+
+**The source art itself is tracked in git**, in a new top-level `brand/` folder, specifically
+because it previously only existed in the gitignored `tmp/`: everywhere it gets used keeps only a
+derived shape (a traced path, a generated PNG), and losing the original to a gitignore rule would
+have made any future change — a different crop, a color tweak — start from nothing.
+
+## 2026-09-30 — The brand art was redone, dropping the mountain entirely
+
+A second pass at the artwork (`brand/YipDen_Logo.webp`, replacing the mountain-scene version from
+the day before) simplified the mark itself rather than changing how it is used: the fox, its ring
+and the howl are now framed by a plain arch, and the whole thing is a single white shape on
+transparent — no separate black region left at all. Every consumer built the day before
+(`brand/generate-icons.cjs`, the launcher icon's three layers, both in-app marks) was updated to
+match rather than rebuilt from scratch, since the pipeline itself — trace to a vector path with
+potrace, simplify with svgo, scale into the adaptive icon's safe zone — did not need to change,
+only what it was tracing and how many colors the result had.
+
+**"The black part changes with the theme" no longer has a black part to point at**, so the
+day/night reactivity moved from the mountain's own fill color (the previous design) to the
+launcher icon's background plate: brand orange by day, this app's own dark `--ground` by night,
+behind a constant white mark. This is a plainer mechanism than before — one drawable swapped for
+another via `drawable/` vs `drawable-night/`, rather than a color resource read into a shared
+vector — and was preferred specifically because there is now only one thing colored at all (the
+background), where the mountain version had two (the mountain and, separately, the sky behind it).
+
+**The safe-zone target grew from 66 to 72 (of the 108dp adaptive icon canvas)** because this mark
+earns it differently than the fox alone did: the previous icon deliberately shrank the fox well
+below what the full mountain scene used, since the fox was being lifted out of a larger
+composition and re-centered on its own. This mark has no larger composition to be lifted out of —
+its own source frame is already cropped tight around the arch — so keeping it close to that
+frame's own proportions reads as an intact icon rather than a design shrunk to be cautious.
+
+## 2026-09-30 (later) — Filter moved, the node counter dropped for a member list
+
+Built the rest of the evaluation ROADMAP.md had recorded but left undecided: Filter now sits next
+to Shuffle at the top, the node counter is gone, and a new Browse members button opens a sheet
+listing whichever members the active filter currently leaves visible — tap one to jump straight
+there (`ring.jumpTo(id)`, new, alongside the existing `next()`/`prev()`), rather than stepping to
+it one at a time.
+
+**`.bottom` stays in the markup as an empty spacer, not removed outright**, because it is load
+bearing for layout even with nothing left to show: `.body` (the hero text) sits with
+`margin-top: auto` in the same flex column, which only pushes it to the right place because
+`.bottom` still reserves the dock's own height below it. Deleting the element rather than just its
+contents would have pulled the hero text down under the tab bar the instant the mini player
+changed size. A comment says so at the element itself, since an empty div with no visible reason
+to exist is exactly the kind of thing a later pass removes by accident.
+
+**Shuffle now shows the same `.is-active` treatment Filter and the ring switcher already had**
+when `ring.shuffled` is true. Not requested on its own: the old node counter's text
+(`"N / total · shuffled"`) was the only place "you are in shuffle order" was ever actually stated,
+and removing it silently would have made leaving shuffle mode (or realizing you were still in it)
+undiscoverable rather than just less cluttered.
+
+e2e coverage that used to read the counter's own text (`shelf.spec.ts`'s "never join the
+IndieNodes rotation", checking the ring stayed at exactly 3 members and never absorbed a partner
+ring's own) now opens the Browse members sheet and counts its rows instead — a more direct check
+of the same thing the counter was only ever a proxy for. `discover-preview.spec.ts`'s "the position
+is shown once" test lost the one assertion that was actually about the counter; the rest of it
+(no redundant "Ring ·" / "IndieNodes webring" / "in the ring" text) was never about the counter at
+all and is kept, renamed to say what it is actually guarding.

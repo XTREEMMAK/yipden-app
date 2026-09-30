@@ -25,6 +25,8 @@ function personFromRing(entry: RingEntry): Person {
 		siteUrl: entry.source_url,
 		...(icon ? { iconUrl: icon } : {}),
 		ringId: entry.id,
+		// Only what the member declared. A ring entry is never guessed at.
+		...(entry.layout ? { layout: entry.layout } : {}),
 		followedAt: new Date().toISOString()
 	};
 }
@@ -114,6 +116,9 @@ export async function followDiscovered(
 		name: result.title ?? new URL(result.canonicalUrl).hostname.replace(/^www\./, ''),
 		siteUrl: result.canonicalUrl,
 		...(result.iconUrl ? { iconUrl: result.iconUrl } : {}),
+		// The one place a layout is inferred rather than declared: a heuristic from the page that
+		// discovery already fetched. Absent when there was no page to look at.
+		...(result.layout ? { layout: result.layout } : {}),
 		followedAt: new Date().toISOString()
 	};
 

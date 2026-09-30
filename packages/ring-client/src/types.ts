@@ -14,6 +14,14 @@ export type KnownType = (typeof KNOWN_TYPES)[number];
 export const KNOWN_FORMS = ['music', 'spoken'] as const;
 export type KnownForm = (typeof KNOWN_FORMS)[number];
 
+/**
+ * How a member's own site is built to be read. Additive field, not emitted yet: the ring will
+ * publish it as `layout`. Anything undeclared, and any value this client does not know, is
+ * treated as mobile friendly, so a member is never handled differently on a guess.
+ */
+export const KNOWN_LAYOUTS = ['mobile-friendly', 'desktop-first'] as const;
+export type SiteLayout = (typeof KNOWN_LAYOUTS)[number];
+
 /** Feed kinds the reader knows how to label. Anything else renders as a generic feed. */
 export const KNOWN_FEED_TYPES = [
 	'rss',
@@ -84,6 +92,8 @@ export interface RingEntry {
 	trailer_url?: string;
 	explicit?: boolean;
 	discoverable?: boolean;
+	/** Additive. Only a value in `KNOWN_LAYOUTS` survives normalization. */
+	layout?: SiteLayout;
 	verification_token?: string;
 	joined_at?: string;
 	updated_at?: string;

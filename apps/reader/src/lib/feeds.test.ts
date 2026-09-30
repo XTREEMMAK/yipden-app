@@ -1,12 +1,29 @@
-import { describe, expect, it } from 'vitest';
+import 'fake-indexeddb/auto';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+/**
+ * `loadAndCatchUp` only needs to know which feed ids `refreshAll` was actually asked for, not
+ * for it to really fetch anything: a real `refreshAll` would reach the network, which this file
+ * has no business doing to test what `FeedsState` scopes its own catch-up refresh to.
+ */
+const refreshCalls: Array<{ feedIds?: string[] }> = [];
+vi.mock('./refresh.js', () => ({
+	refreshAll: async (options: { feedIds?: string[] } = {}) => {
+		refreshCalls.push(options);
+		return { feeds: [], added: 0 };
+	}
+}));
+
 import {
 	displayAuthor,
+	feeds,
 	formatDuration,
 	mediaDuration,
 	relativeAge,
 	sourceLabel
 } from './feeds.svelte.js';
-import type { StoredYip } from './store/types.js';
+import { store } from './store/index.js';
+import type { Feed, Person, StoredYip } from './store/types.js';
 
 describe('relativeAge', () => {
 	const now = new Date('2026-09-22T12:00:00.000Z');
@@ -95,5 +112,70 @@ describe('formatDuration', () => {
 		expect(formatDuration(undefined)).toBe('');
 		expect(formatDuration(0)).toBe('');
 		expect(formatDuration(Number.NaN)).toBe('');
+	});
+});
+
+describe('FeedsState.loadAndCatchUp', () => {
+	function person(overrides: Partial<Person> = {}): Person {
+		return {
+			id: 'person-lena',
+			name: 'Lena',
+			siteUrl: 'https://lena.example.com/',
+			followedAt: '2026-09-20T10:00:00.000Z',
+			...overrides
+		};
+	}
+
+	function feed(overrides: Partial<Feed> = {}): Feed {
+		return {
+			id: 'https://lena.example.com/feed.xml',
+			personId: 'person-lena',
+			url: 'https://lena.example.com/feed.xml',
+			kind: 'blog',
+			title: 'Lena',
+			verified: true,
+			failures: 0,
+			enabled: true,
+			...overrides
+		};
+	}
+
+	/*
+	 * `store` is the app's one real singleton (see store/index.ts), already opened by whichever
+	 * test in this file ran first: unlike a test that constructs its own `IdbStore`, swapping
+	 * `globalThis.indexedDB` here would not give it a fresh database, since it never reopens once
+	 * `this.database` is set. Isolation instead comes from cleaning up what each test itself
+	 * followed, not from resetting the store.
+	 */
+	beforeEach(async () => {
+		refreshCalls.length = 0;
+		await store.init();
+	});
+
+	afterEach(async () => {
+		await store.unfollow('person-lena');
+	});
+
+	it('asks refreshAll only for the feed that has never been fetched, not every followed one', async () => {
+		await store.follow(person(), [
+			feed({ lastFetchedAt: '2026-09-20T10:05:00.000Z' }),
+			feed({
+				id: 'https://lena.example.com/new.xml',
+				url: 'https://lena.example.com/new.xml',
+				title: 'Lena (new feed)'
+			})
+		]);
+
+		await feeds.loadAndCatchUp();
+
+		expect(refreshCalls).toEqual([{ feedIds: ['https://lena.example.com/new.xml'] }]);
+	});
+
+	it('never calls refreshAll when every followed feed has already been fetched at least once', async () => {
+		await store.follow(person(), [feed({ lastFetchedAt: '2026-09-20T10:05:00.000Z' })]);
+
+		await feeds.loadAndCatchUp();
+
+		expect(refreshCalls).toEqual([]);
 	});
 });

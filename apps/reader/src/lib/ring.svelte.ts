@@ -192,6 +192,12 @@ class RingState {
 		this.index = (this.index - 1 + this.visible.length) % this.visible.length;
 	}
 
+	/** Jump straight to a member, from the browse list rather than stepping one at a time. */
+	jumpTo(id: string): void {
+		const at = this.visible.findIndex((entry) => entry.id === id);
+		if (at >= 0) this.index = at;
+	}
+
 	setFilter(key: RingFilterKey): void {
 		this.filter = key;
 		this.index = 0;

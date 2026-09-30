@@ -58,7 +58,23 @@ export function mediaKindFor(mimeType: string | undefined, url: string): MediaKi
 	if (type.startsWith('video/')) return 'video';
 	if (type.startsWith('image/')) return 'image';
 
-	const path = safeUrl(url)?.pathname.toLowerCase() ?? '';
+	const parsed = safeUrl(url);
+	const path = parsed?.pathname.toLowerCase() ?? '';
+
+	/*
+	 * YouTube's own RSS has declared its `media:content` as this exact type for over a decade
+	 * (confirmed live, 2026-09-28), on an extensionless `/v/<id>?version=3` URL the checks below
+	 * can never match: it is never really Flash, just a placeholder that outlived it. Without
+	 * this, no YouTube item is ever recognized as carrying video at all, so `categorize` in the
+	 * app never returns 'watch' for one. Scoped to YouTube's own hosts, not the type generally.
+	 */
+	if (
+		type === 'application/x-shockwave-flash' &&
+		YOUTUBE_HOSTS.has(parsed?.hostname.toLowerCase() ?? '')
+	) {
+		return 'video';
+	}
+
 	if (/\.(mp3|m4a|aac|ogg|oga|opus|flac|wav)$/.test(path)) return 'audio';
 	if (/\.(mp4|m4v|webm|mov|mkv)$/.test(path)) return 'video';
 	if (/\.(jpg|jpeg|png|gif|webp|avif|svg)$/.test(path)) return 'image';

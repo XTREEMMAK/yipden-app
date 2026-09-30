@@ -87,13 +87,16 @@ class FeedsState {
 		this.status = 'idle';
 	}
 
-	/** Pull to refresh: fetch every followed feed, then reload from what was actually stored. */
-	async refresh(): Promise<void> {
+	/**
+	 * Pull to refresh: fetch every followed feed (or only `feedIds`, when given), then reload
+	 * from what was actually stored.
+	 */
+	async refresh(feedIds?: string[]): Promise<void> {
 		if (this.status === 'refreshing') return;
 		this.status = 'refreshing';
 		this.refreshError = null;
 		try {
-			await refreshAll();
+			await refreshAll(feedIds ? { feedIds } : {});
 		} catch (cause) {
 			this.refreshError = cause instanceof Error ? cause.message : 'Could not refresh.';
 		}
@@ -101,19 +104,30 @@ class FeedsState {
 	}
 
 	/**
-	 * Load, then fetch in the background if there is a feed nobody has ever actually read.
+	 * Load, then fetch in the background whichever feeds nobody has ever actually read.
 	 *
 	 * Following someone only saves who they are; it never fetches what they have published,
 	 * because that fetch belongs to the refresh pipeline, not to the follow flow. Without this,
 	 * a reader who just followed someone and opened Feeds would see an empty screen until a
 	 * pull to refresh or the next background window, which is a worse first look at the app
 	 * than one extra fetch on the way in.
+	 *
+	 * Scoped to only the feeds that have never been fetched, not every followed feed: this used
+	 * to call the plain, unscoped `refresh()`, which on a phone already following a lot of people
+	 * meant one new follow triggered a full sequential re-fetch of everyone else too before the
+	 * new feed's own turn came up. The new feed's content could take a long time to actually
+	 * appear, or never visibly appear at all if the reader gave up and navigated away first
+	 * (the fetch itself kept running in the background and would only show up once the reader
+	 * happened to reopen Feeds after it finished) — indistinguishable, from the reader's side,
+	 * from the follow not having triggered a refresh at all.
 	 */
 	async loadAndCatchUp(): Promise<void> {
 		await this.load();
 		const feeds = await store.listFeeds();
-		const neverFetched = feeds.some((feed: Feed) => feed.enabled && !feed.lastFetchedAt);
-		if (neverFetched) await this.refresh();
+		const neverFetched = feeds
+			.filter((feed: Feed) => feed.enabled && !feed.lastFetchedAt)
+			.map((feed: Feed) => feed.id);
+		if (neverFetched.length) await this.refresh(neverFetched);
 	}
 
 	setFilter(key: FeedsFilterKey): void {

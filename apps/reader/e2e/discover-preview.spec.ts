@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { ringNext } from './support.js';
 
 /**
  * Discover's per-type preview button: audio plays, comics, art and text open a viewer, a game
@@ -68,7 +69,7 @@ async function showMember(page: Page, creator: string) {
 		await expect(heading).toHaveCount(1);
 		await page.waitForTimeout(700);
 		if ((await heading.textContent()) === creator) return;
-		await page.getByRole('button', { name: 'Next in the ring' }).click();
+		await ringNext(page);
 	}
 	await expect(heading).toHaveText(creator);
 }
@@ -122,11 +123,10 @@ test.describe('Discover previews', () => {
 		).toHaveCount(0);
 	});
 
-	test('the position is shown once, with no origin chip', async ({ page }) => {
+	test('no origin chip names the ring a member is already known to be from', async ({ page }) => {
 		await seed(page);
-		await page.getByRole('button', { name: 'Next in the ring' }).click();
+		await ringNext(page);
 		await expect(page.getByText('IndieNodes webring')).toHaveCount(0);
-		await expect(page.getByText(/^\d+ \/ 6$/)).toBeVisible();
 		await expect(page.getByText(/Ring ·/)).toHaveCount(0);
 		await expect(page.getByText(/in the ring/)).toHaveCount(0);
 	});
@@ -155,7 +155,7 @@ test.describe('Discover previews', () => {
 		await seed(page);
 		const name = page.getByRole('heading', { level: 1 });
 		const actions = page.locator('.body-inner:not([aria-hidden]) .actions');
-		await page.getByRole('button', { name: 'Next in the ring' }).click();
+		await ringNext(page);
 
 		// While the lines fly in, the name is nearer its place than the actions row is.
 		let lead = 0;
@@ -176,12 +176,14 @@ test.describe('Discover previews', () => {
 		await expect(page.getByRole('button', { name: 'Open the player' })).toBeVisible();
 		await page.waitForTimeout(500);
 
-		const count = page.locator('.count');
-		const before = (await count.boundingBox())!.y;
+		// `.bottom` itself is a bare spacer with no text of its own to measure (2026-09-30); what it
+		// reserves still shifts `.body` above it, `margin-top: auto`, so the heading moves with it.
+		const heading = page.getByRole('heading', { level: 1 });
+		const before = (await heading.boundingBox())!.y;
 		await page.getByRole('button', { name: 'Stop and close the player' }).click();
 		const seen: number[] = [];
 		for (let i = 0; i < 16; i += 1) {
-			seen.push((await count.boundingBox())!.y);
+			seen.push((await heading.boundingBox())!.y);
 			await page.waitForTimeout(25);
 		}
 		const after = seen[seen.length - 1]!;

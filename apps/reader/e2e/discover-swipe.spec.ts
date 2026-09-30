@@ -61,7 +61,9 @@ test('the outgoing text leaves toward the direction of travel and is hidden from
 	const leaving = page.locator('.body-inner[aria-hidden="true"] h1');
 	const rest = (await page.getByRole('heading', { level: 1 }).boundingBox())!.x;
 
-	await page.getByRole('button', { name: 'Next in the ring' }).click();
+	// A raw key press, not `ringNext`: that helper waits for the leaving copy to be gone before
+	// returning, which is exactly the element this samples mid-flight below.
+	await page.keyboard.press('ArrowRight');
 	const xs: number[] = [];
 	for (let i = 0; i < 12; i += 1) {
 		const b = await leaving.boundingBox({ timeout: 300 }).catch(() => null);
@@ -106,7 +108,8 @@ test('a button press after a swipe the other way still exits in its own directio
 
 	const rest = (await page.getByRole('heading', { level: 1 }).boundingBox())!.x;
 	const leaving = page.locator('.body-inner[aria-hidden="true"] h1');
-	await page.getByRole('button', { name: 'Next in the ring' }).click();
+	// A raw key press, not `ringNext`: see the same note above.
+	await page.keyboard.press('ArrowRight');
 	const xs: number[] = [];
 	for (let i = 0; i < 12; i += 1) {
 		const b = await leaving.boundingBox({ timeout: 300 }).catch(() => null);

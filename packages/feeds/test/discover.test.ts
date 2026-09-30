@@ -312,3 +312,50 @@ describe('profile discovery regressions', () => {
 		expect((await result).feeds[0]?.url).toBe('https://bsky.app/profile/maker.bsky.social/rss');
 	});
 });
+
+describe('layout signal', () => {
+	const feedLink = '<link rel="alternate" type="application/rss+xml" href="/feed.xml">';
+	const feed = { 'https://writer.example.com/feed.xml': { body: MINIMAL_RSS, headers: XML } };
+
+	it('reads a viewport meta tag on the page it already fetched as mobile friendly', async () => {
+		const { server, result } = discover(
+			{
+				'https://writer.example.com/': page(
+					`<meta name="viewport" content="width=device-width, initial-scale=1">${feedLink}`
+				),
+				...feed
+			},
+			'https://writer.example.com/'
+		);
+		expect((await result).layout).toBe('mobile-friendly');
+		// No request was spent on the guess: the page and the feed it announced, nothing more.
+		expect(server.calls).toEqual(['https://writer.example.com/']);
+	});
+
+	it('reads a page with no viewport meta tag as desktop first', async () => {
+		const { result } = discover(
+			{ 'https://writer.example.com/': page(feedLink), ...feed },
+			'https://writer.example.com/'
+		);
+		expect((await result).layout).toBe('desktop-first');
+	});
+
+	it('gives no signal at all when there was no page to look at', async () => {
+		const direct = await discover(
+			{ 'https://example.com/feed.xml': { body: MINIMAL_RSS, headers: XML } },
+			'https://example.com/feed.xml'
+		).result;
+		expect('layout' in direct).toBe(false);
+
+		const profile = await discover({}, 'https://bsky.app/profile/ada.example.com').result;
+		expect('layout' in profile).toBe(false);
+	});
+
+	it('does not call a fragment that is not a page desktop first', async () => {
+		const { result } = discover(
+			{ 'https://writer.example.com/': { body: `<p>hi</p>${feedLink}`, headers: HTML }, ...feed },
+			'https://writer.example.com/'
+		);
+		expect('layout' in (await result)).toBe(false);
+	});
+});

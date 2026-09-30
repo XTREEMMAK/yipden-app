@@ -5,11 +5,19 @@
 	import { fly } from 'svelte/transition';
 	import { flyIn, prefersReducedMotion, staggerDelay } from '$lib/motion.js';
 	import { ring } from '$lib/ring.svelte.js';
-	import { feeds, FEEDS_FILTERS, sourceLabel, type FeedsFilterKey } from '$lib/feeds.svelte.js';
+	import {
+		displayAuthor,
+		feeds,
+		FEEDS_FILTERS,
+		sourceLabel,
+		type FeedsFilterKey
+	} from '$lib/feeds.svelte.js';
+	import { shelf, toggleShelf } from '$lib/shelf.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
 	import type { FeedYip } from '$lib/syndication.js';
 	import type { StoredYip } from '$lib/store/index.js';
 	import YipCard from '$components/YipCard.svelte';
+	import Toast from '$components/Toast.svelte';
 	import RingMemberCard from '$components/RingMemberCard.svelte';
 
 	/**
@@ -52,6 +60,7 @@
 
 	onMount(() => {
 		void feeds.loadAndCatchUp();
+		void shelf.load();
 		if (!ring.all.length) void ring.load();
 
 		/*
@@ -125,6 +134,20 @@
 
 	function sourceHost(yip: StoredYip): string {
 		return new URL(yip.url).hostname.replace(/^www\./, '');
+	}
+
+	/** A yip from a site that declared, or was found to be, built for a bigger screen. */
+	function isDesktopFirst(yip: StoredYip): boolean {
+		return feeds.personFor(yip)?.layout === 'desktop-first';
+	}
+
+	function saveForLater(yip: StoredYip) {
+		void toggleShelf({
+			url: yip.url,
+			title: yip.title && yip.title !== 'Untitled' ? yip.title : sourceHost(yip),
+			creator: displayAuthor(yip, feeds.personFor(yip)?.name),
+			from: 'feeds'
+		});
 	}
 
 	function openCopy(group: FeedYip, copy: StoredYip) {
@@ -218,6 +241,22 @@
 							<div in:fly={flyIn({ delay: staggerDelay(index) })}>
 								<div class="yip-stack">
 									<YipCard {yip} />
+									{#if isDesktopFirst(yip)}
+										{@const saved = shelf.has(yip.url)}
+										<div class="shelf-bar">
+											<span class="shelf-label">Best on desktop</span>
+											<button
+												class="shelf-btn"
+												aria-pressed={saved}
+												aria-label={saved
+													? `Remove ${yip.title || 'this yip'} from your Shelf`
+													: `Save ${yip.title || 'this yip'} for later`}
+												onclick={() => saveForLater(yip)}
+											>
+												{saved ? 'Saved to Shelf' : 'Save for later'}
+											</button>
+										</div>
+									{/if}
 									{#if yip.crosspostGroupId && yip.crossposts && yip.crossposts.length > 1}
 										<div class="crosspost-bar" aria-label="Copies of this post">
 											<span class="crosspost-label">Same post</span>
@@ -263,6 +302,8 @@
 			{/each}
 		</div>
 	</div>
+
+	<Toast />
 </div>
 
 <style>
@@ -460,6 +501,47 @@
 		display: none;
 	}
 
+	.shelf-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		min-height: 44px;
+		margin-top: 4px;
+		padding: 4px 8px 4px 12px;
+		border: 1px solid var(--line);
+		border-radius: 14px;
+		background: var(--surface);
+	}
+
+	.shelf-label {
+		color: var(--muted);
+		font-family: var(--mono);
+		font-size: 9.5px;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+	}
+
+	.shelf-btn {
+		min-height: 44px;
+		padding: 0 14px;
+		border: 0;
+		border-radius: 999px;
+		background: var(--brand-soft);
+		color: var(--brand-ink);
+		font-family: var(--body);
+		font-size: 12.5px;
+		font-weight: 600;
+		white-space: nowrap;
+	}
+
+	.shelf-btn[aria-pressed='true'] {
+		background: transparent;
+		color: var(--muted);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+
 	.crosspost-label {
 		flex: 0 0 auto;
 		color: var(--muted);
@@ -558,6 +640,10 @@
 
 	:global(.pane.stack .yip-stack:has(.crosspost-bar)) {
 		contain-intrinsic-size: auto 260px;
+	}
+
+	:global(.pane.stack .yip-stack:has(.shelf-bar)) {
+		contain-intrinsic-size: auto 252px;
 	}
 
 	:global(.pane.stack .yip-stack.behind) {

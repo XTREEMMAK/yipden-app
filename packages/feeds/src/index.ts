@@ -24,8 +24,22 @@ export { byPublishedDescending, parseDate, parseDuration } from './dates.js';
 export { feedKindFromUrl, mediaKindFor, refineKind } from './kind.js';
 
 export { decodeEntities, htmlToText, sanitizeHtml, summarize } from './sanitize.js';
-export { isFeedLink, linksBackTo, scanPage, type PageLink, type ScannedPage } from './html.js';
+export {
+	isFeedLink,
+	layoutSignal,
+	linksBackTo,
+	scanPage,
+	type PageLink,
+	type ScannedPage
+} from './html.js';
 export { absoluteUrl, sameUrl } from './urls.js';
+/**
+ * The untrusted-HTML tokenizer `sanitizeHtml` and `scanPage` are both built on. Exported for a
+ * third reason: reading arbitrary third-party markup (a partner ring's own hand-built member
+ * list, say) the same safe way, a flat token walk, rather than a bespoke regex against a
+ * stranger's HTML.
+ */
+export { tokenize, type Token } from './tokenize.js';
 
 export {
 	channelIdFromPage,

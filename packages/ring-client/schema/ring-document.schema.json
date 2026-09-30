@@ -137,6 +137,11 @@
           "default": true,
           "description": "Additive, not emitted yet. false keeps a member out of Discover's rotation."
         },
+        "layout": {
+          "type": "string",
+          "description": "Additive, not emitted yet. mobile-friendly or desktop-first. Deliberately not an enum here: a newer ring may add values, and a reader treats one it does not know as mobile-friendly.",
+          "examples": ["mobile-friendly", "desktop-first"]
+        },
         "verification_token": { "type": "string", "maxLength": 200 },
         "joined_at": { "type": "string", "format": "date-time" },
         "updated_at": { "type": "string", "format": "date-time" },

@@ -275,7 +275,7 @@ test.describe('From the ring', () => {
 		await page.getByRole('button', { name: 'Play Bo Quill' }).click();
 		await expect(page.getByRole('heading', { name: 'Bo Track Two' })).toBeVisible();
 
-		await page.goto('/you');
+		await page.goto('/you/settings');
 		const shuffle = page.getByRole('switch', { name: 'Shuffle music' });
 		await expect(shuffle).toBeChecked();
 		await shuffle.uncheck();

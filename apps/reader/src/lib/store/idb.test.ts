@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { IdbStore } from './idb.js';
-import type { Feed, Person, StoredYip } from './types.js';
+import type { Feed, Person, ShelfItem, StoredYip } from './types.js';
 
 function person(overrides: Partial<Person> = {}): Person {
 	return {
@@ -312,5 +312,104 @@ describe('source management', () => {
 			'https://lena.example.com/feed.xml'
 		]);
 		expect((await store.listYips()).map((item) => item.id)).toEqual(['1']);
+	});
+});
+
+function shelfItem(overrides: Partial<ShelfItem> = {}): ShelfItem {
+	return {
+		id: 'https://wide.example.com/essay',
+		url: 'https://wide.example.com/essay',
+		title: 'A wide essay',
+		creator: 'Wide',
+		from: 'feeds',
+		savedAt: '2026-09-26T10:00:00.000Z',
+		...overrides
+	};
+}
+
+describe('the shelf', () => {
+	it('lists newest first', async () => {
+		await store.saveToShelf(
+			shelfItem({
+				id: 'https://a.example.com/',
+				url: 'https://a.example.com/',
+				savedAt: '2026-09-25T00:00:00.000Z'
+			})
+		);
+		await store.saveToShelf(
+			shelfItem({
+				id: 'https://b.example.com/',
+				url: 'https://b.example.com/',
+				savedAt: '2026-09-27T00:00:00.000Z'
+			})
+		);
+
+		expect((await store.listShelf()).map((item) => item.id)).toEqual([
+			'https://b.example.com/',
+			'https://a.example.com/'
+		]);
+	});
+
+	it('keeps the first save when the same address is saved again', async () => {
+		await store.saveToShelf(shelfItem());
+		await store.saveToShelf(shelfItem({ savedAt: '2026-09-28T00:00:00.000Z', title: 'Changed' }));
+
+		const items = await store.listShelf();
+		expect(items).toHaveLength(1);
+		expect(items[0]).toMatchObject({ savedAt: '2026-09-26T10:00:00.000Z', title: 'A wide essay' });
+	});
+
+	it('removes only the item asked for, and unfollowing never touches it', async () => {
+		await store.follow(person(), [feed()]);
+		await store.saveToShelf(shelfItem());
+		await store.saveToShelf(
+			shelfItem({ id: 'https://b.example.com/', url: 'https://b.example.com/' })
+		);
+
+		await store.unfollow('person-lena');
+		expect(await store.listShelf()).toHaveLength(2);
+
+		await store.removeFromShelf('https://wide.example.com/essay');
+		expect((await store.listShelf()).map((item) => item.id)).toEqual(['https://b.example.com/']);
+	});
+
+	it('clearing cached yips leaves the shelf alone', async () => {
+		await store.saveToShelf(shelfItem());
+		await store.clearYips();
+		expect(await store.listShelf()).toHaveLength(1);
+	});
+});
+
+describe('upgrading from database version 1', () => {
+	it('adds the shelf and leaves everything already there where it was', async () => {
+		globalThis.indexedDB = new IDBFactory();
+		// A database exactly as version 1 created it, holding one follow.
+		await new Promise<void>((resolve, reject) => {
+			const request = indexedDB.open('yipden', 1);
+			request.onupgradeneeded = () => {
+				const db = request.result;
+				db.createObjectStore('people', { keyPath: 'id' }).createIndex('siteUrl', 'siteUrl');
+				db.createObjectStore('feeds', { keyPath: 'id' }).createIndex('personId', 'personId');
+				const yips = db.createObjectStore('yips', { keyPath: 'key' });
+				yips.createIndex('publishedAt', 'publishedAt');
+				yips.createIndex('category', 'category');
+				yips.createIndex('personId', 'personId');
+				for (const name of ['ring', 'peaks', 'settings'])
+					db.createObjectStore(name, { keyPath: 'key' });
+				request.transaction!.objectStore('people').put(person());
+			};
+			request.onsuccess = () => {
+				request.result.close();
+				resolve();
+			};
+			request.onerror = () => reject(request.error);
+		});
+
+		const upgraded = new IdbStore();
+		await upgraded.init();
+		expect((await upgraded.listPeople()).map((entry) => entry.id)).toEqual(['person-lena']);
+		expect(await upgraded.listShelf()).toEqual([]);
+		await upgraded.saveToShelf(shelfItem());
+		expect(await upgraded.listShelf()).toHaveLength(1);
 	});
 });

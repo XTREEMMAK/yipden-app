@@ -197,6 +197,32 @@ describe('YouTube', () => {
 	it('keeps the thumbnail from the media group', () => {
 		expect(feed.items[0]?.media.some((media) => media.kind === 'image')).toBe(true);
 	});
+
+	// Confirmed live 2026-09-28: YouTube's real feed still declares this legacy, extensionless
+	// media:content on every entry. Without recognizing it, no YouTube item ever carries video,
+	// and `categorize()` (apps/reader/src/lib/refresh.ts) never sorts one into Watch.
+	it('recognizes the video despite its declared type being a decade-old Flash placeholder', () => {
+		const video = feed.items[0]?.media.find((media) => media.kind === 'video');
+		expect(video).toMatchObject({
+			url: 'https://www.youtube.com/v/abc12345678?version=3',
+			mimeType: 'application/x-shockwave-flash'
+		});
+	});
+
+	it('does not call an unrelated site’s shockwave-flash content a video', () => {
+		const other = parseFeed(
+			`<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/">
+				<title>Not YouTube</title>
+				<entry>
+					<id>1</id><title>One</title>
+					<link rel="alternate" href="https://example.com/1"/>
+					<media:content url="https://example.com/one.swf" type="application/x-shockwave-flash"/>
+				</entry>
+			</feed>`,
+			{ feedUrl: 'https://example.com/feed.xml' }
+		);
+		expect(other.items[0]?.media).toEqual([]);
+	});
 });
 
 describe('RSS 1.0 over RDF', () => {

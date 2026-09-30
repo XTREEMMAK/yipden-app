@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { ringNext, ringPrev } from './support.js';
 
 /**
  * Discover, against a fixed ring.
@@ -87,15 +88,15 @@ test.describe('Discover', () => {
 		expect(await page.getByRole('heading', { level: 1 }).textContent()).toBe(first);
 	});
 
-	test('walks the ring with the next and previous buttons', async ({ page }) => {
+	test('walks the ring with the left and right arrow keys', async ({ page }) => {
 		await page.goto('/');
 		const heading = page.getByRole('heading', { level: 1 });
 		const first = await heading.textContent();
 
-		await page.getByRole('button', { name: 'Next in the ring' }).click();
+		await ringNext(page);
 		await expect(heading).not.toHaveText(first ?? '');
 
-		await page.getByRole('button', { name: 'Previous in the ring' }).click();
+		await ringPrev(page);
 		await expect(heading).toHaveText(first ?? '');
 	});
 
@@ -105,7 +106,7 @@ test.describe('Discover', () => {
 		const first = await heading.textContent();
 
 		for (let i = 0; i < 3; i += 1) {
-			await page.getByRole('button', { name: 'Next in the ring' }).click();
+			await ringNext(page);
 		}
 		await expect(heading).toHaveText(first ?? '');
 	});
@@ -174,15 +175,37 @@ test.describe('Discover', () => {
 		await expect(sheet).not.toBeVisible();
 	});
 
+	test('browses members and jumps straight to the one picked', async ({ page }) => {
+		await page.goto('/');
+		const heading = page.getByRole('heading', { level: 1 });
+		const trigger = page.getByRole('button', { name: 'Browse members' });
+		const sheet = page.getByRole('dialog', { name: 'Browse members' });
+
+		await trigger.click();
+		await expect(sheet).toBeVisible();
+		await expect(sheet.getByRole('button', { name: /Cy Marsh/ })).toBeVisible();
+
+		await sheet.getByRole('button', { name: /Cy Marsh/ }).click();
+		await expect(sheet).not.toBeVisible();
+		await expect(heading).toHaveText('Cy Marsh');
+	});
+
+	test('the members sheet closes on Escape and returns focus to the trigger', async ({ page }) => {
+		await page.goto('/');
+		const trigger = page.getByRole('button', { name: 'Browse members' });
+		const sheet = page.getByRole('dialog', { name: 'Browse members' });
+
+		await trigger.click();
+		await expect(sheet).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(sheet).not.toBeVisible();
+		await expect(trigger).toBeFocused();
+	});
+
 	test('every control clears the 44px minimum', async ({ page }) => {
 		await page.goto('/');
 
-		for (const name of [
-			'Shuffle the ring',
-			'Next in the ring',
-			'Previous in the ring',
-			'Filter the ring'
-		]) {
+		for (const name of ['Shuffle the ring', 'Filter the ring', 'Browse members']) {
 			const box = await page.getByRole('button', { name }).boundingBox();
 			expect(box?.width ?? 0, name).toBeGreaterThanOrEqual(44);
 			expect(box?.height ?? 0, name).toBeGreaterThanOrEqual(44);

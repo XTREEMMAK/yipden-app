@@ -264,7 +264,7 @@
 			{#if result.feeds.length === 0}
 				<div class="person" in:fly={flyIn()}>
 					<span class="av"></span>
-					<span>
+					<span class="person-copy">
 						<b>{personName}</b>
 						<small>No feeds found on that page.</small>
 					</span>
@@ -276,7 +276,7 @@
 				<div class="person" in:fly={flyIn()}>
 					<span class="av" style:background-image={result.iconUrl ? `url(${result.iconUrl})` : ''}
 					></span>
-					<span>
+					<span class="person-copy">
 						<b>{personName}</b>
 						<small>
 							Found {result.feeds.length}
@@ -454,8 +454,11 @@
 	}
 
 	.match-copy b {
+		overflow: hidden;
 		font-size: 14px;
 		font-weight: 650;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.match-copy small {
@@ -557,12 +560,20 @@
 		background-position: center;
 	}
 
+	.person-copy {
+		flex: 1;
+		min-width: 0;
+	}
+
 	.person b {
 		display: block;
+		overflow: hidden;
 		font-family: var(--display);
 		font-size: 20px;
 		font-weight: 650;
 		letter-spacing: -0.01em;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.person small {

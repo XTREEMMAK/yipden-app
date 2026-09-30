@@ -1,6 +1,6 @@
-import { safeUrl } from '@yipden/ring-client';
+import { KNOWN_LAYOUTS, safeUrl } from '@yipden/ring-client';
 import { store as defaultStore } from './store/index.js';
-import type { Feed, Person, SettingKey, Store, StoredYip } from './store/types.js';
+import type { Feed, Person, SettingKey, ShelfItem, Store, StoredYip } from './store/types.js';
 
 const THEME_STORAGE_KEY = 'yipden:theme';
 const SKIN_STORAGE_KEY = 'yipden:skin';
@@ -25,6 +25,11 @@ export interface YipDenBackup {
 	people: Person[];
 	feeds: Feed[];
 	yips: StoredYip[];
+	/**
+	 * The Shelf. Added after version 1 shipped, and additive: a backup without it is still valid,
+	 * and an older build reading one with it ignores what it does not know.
+	 */
+	shelf?: ShelfItem[];
 	settings: Partial<Record<SettingKey, unknown>>;
 	appearance: BackupAppearance;
 }
@@ -34,6 +39,7 @@ export interface BackupPreview {
 	people: number;
 	feeds: number;
 	yips: number;
+	shelf: number;
 }
 
 export interface RestoreReport {
@@ -44,6 +50,7 @@ export interface RestoreReport {
 	feedsMatched: number;
 	feedsSkipped: number;
 	yipsAdded: number;
+	shelfAdded: number;
 	settingsRestored: number;
 }
 
@@ -88,7 +95,22 @@ function validPerson(value: unknown): value is Person {
 		optionalText(value.iconUrl, 8_192) &&
 		(value.iconUrl === undefined || https(value.iconUrl)) &&
 		optionalText(value.ringId, 1_000) &&
+		(value.layout === undefined || KNOWN_LAYOUTS.some((layout) => layout === value.layout)) &&
 		text(value.followedAt, 100)
+	);
+}
+
+function validShelfItem(value: unknown): value is ShelfItem {
+	return (
+		record(value) &&
+		https(value.id) &&
+		https(value.url) &&
+		value.id === value.url &&
+		stringValue(value.title, 1_000) &&
+		optionalText(value.creator, 1_000) &&
+		optionalText(value.via, 1_000) &&
+		['discover', 'feeds'].includes(String(value.from)) &&
+		text(value.savedAt, 100)
 	);
 }
 
@@ -175,10 +197,11 @@ function readAppearance(): BackupAppearance {
 /** Build a plain, versioned file containing the local reader state. */
 export async function createBackup(store: Store = defaultStore): Promise<YipDenBackup> {
 	await store.init();
-	const [people, feeds, yips, settingValues] = await Promise.all([
+	const [people, feeds, yips, shelf, settingValues] = await Promise.all([
 		store.listPeople(),
 		store.listFeeds(),
 		store.listAllYips(),
+		store.listShelf(),
 		Promise.all(SETTING_KEYS.map((key) => store.getSetting<unknown>(key)))
 	]);
 	const settings: Partial<Record<SettingKey, unknown>> = {};
@@ -193,6 +216,7 @@ export async function createBackup(store: Store = defaultStore): Promise<YipDenB
 		people,
 		feeds,
 		yips,
+		shelf,
 		settings,
 		appearance: readAppearance()
 	};
@@ -219,6 +243,10 @@ export function parseBackup(source: string): BackupPreview {
 		!value.feeds.every(validFeed) ||
 		!Array.isArray(value.yips) ||
 		!value.yips.every(validYip) ||
+		(value.shelf !== undefined &&
+			(!Array.isArray(value.shelf) ||
+				value.shelf.length > 10_000 ||
+				!value.shelf.every(validShelfItem))) ||
 		!record(value.settings) ||
 		!record(value.appearance) ||
 		!['system', 'light', 'dark'].includes(String(value.appearance.theme)) ||
@@ -235,7 +263,8 @@ export function parseBackup(source: string): BackupPreview {
 		backup,
 		people: backup.people.length,
 		feeds: backup.feeds.length,
-		yips: backup.yips.length
+		yips: backup.yips.length,
+		shelf: backup.shelf?.length ?? 0
 	};
 }
 
@@ -258,6 +287,7 @@ export async function restoreBackup(
 		feedsMatched: 0,
 		feedsSkipped: 0,
 		yipsAdded: 0,
+		shelfAdded: 0,
 		settingsRestored: 0
 	};
 
@@ -307,6 +337,16 @@ export async function restoreBackup(
 		return [{ ...yip, personId, contentHtml: null }];
 	});
 	report.yipsAdded = (await store.putYips(yips)).added;
+
+	// The Shelf is merged, never replaced: what is already saved stays, saved-again keeps its
+	// first date, and it does not depend on any person or source being present.
+	const shelved = new Set((await store.listShelf()).map((item) => item.id));
+	for (const item of backup.shelf ?? []) {
+		if (shelved.has(item.id)) continue;
+		await store.saveToShelf(item);
+		shelved.add(item.id);
+		report.shelfAdded += 1;
+	}
 
 	for (const key of SETTING_KEYS) {
 		if (!(key in backup.settings)) continue;

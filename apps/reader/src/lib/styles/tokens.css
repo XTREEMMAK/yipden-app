@@ -28,6 +28,13 @@
 
 	/* The same in both themes. Discover and the player are always dark. */
 	--deep: #2a0f06;
+	/*
+	 * `--deep`'s own bytes, so a chip that sits over a photo (Discover's round buttons, its
+	 * pull-to-refresh spinner) can composite a translucent tint from it with `rgba(var(--deep-rgb),
+	 * alpha)` instead of a flat hardcoded brown that never moved with the skin choice underneath
+	 * it, even though `--deep` itself already does. See DECISIONS.md.
+	 */
+	--deep-rgb: 42, 15, 6;
 	--player: #9a3412;
 	--toast: #2a1d17;
 	--on-dark: #ffffff;
@@ -156,6 +163,7 @@
 	--error: #b73545;
 	--switch-off: #a9bfd3;
 	--deep: #061d38;
+	--deep-rgb: 6, 29, 56;
 	--player: #0c4f86;
 	--toast: #082440;
 	--scrim-card: linear-gradient(
@@ -205,6 +213,7 @@
 		--error: #ff8b98;
 		--switch-off: #36566e;
 		--deep: #031322;
+		--deep-rgb: 3, 19, 34;
 		--player: #07375f;
 		--toast: #061c31;
 		--scrim-player: linear-gradient(
@@ -239,6 +248,7 @@
 	--error: #ff8b98;
 	--switch-off: #36566e;
 	--deep: #031322;
+	--deep-rgb: 3, 19, 34;
 	--player: #07375f;
 	--toast: #061c31;
 	--scrim-player: linear-gradient(
@@ -273,6 +283,7 @@
 	--error: #9d392f;
 	--switch-off: #bdc4b0;
 	--deep: #15291c;
+	--deep-rgb: 21, 41, 28;
 	--player: #38513a;
 	--toast: #202b1f;
 	--scrim-card: linear-gradient(
@@ -322,6 +333,7 @@
 		--error: #ed8d80;
 		--switch-off: #455141;
 		--deep: #0a170e;
+		--deep-rgb: 10, 23, 14;
 		--player: #2d4931;
 		--toast: #172117;
 		--scrim-player: linear-gradient(
@@ -356,6 +368,7 @@
 	--error: #ed8d80;
 	--switch-off: #455141;
 	--deep: #0a170e;
+	--deep-rgb: 10, 23, 14;
 	--player: #2d4931;
 	--toast: #172117;
 	--scrim-player: linear-gradient(

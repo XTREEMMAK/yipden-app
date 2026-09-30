@@ -6,6 +6,11 @@ coverage
 tmp
 pnpm-lock.yaml
 docs/reference
+# A real, captured third-party page, kept exactly as fetched (see DECISIONS.md); reformatting it
+# would misrepresent what was actually captured, the same reason other packages' XML/JSON test
+# fixtures are left alone (Prettier has no XML parser to touch them, so this is the HTML case of
+# the same rule).
+apps/reader/src/lib/partner/test-fixtures
 apps/reader/android
 apps/reader/static/fonts
 LICENSE

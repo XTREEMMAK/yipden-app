@@ -1,3 +1,4 @@
+import type { SiteLayout } from '@yipden/ring-client';
 import { tokenize } from './tokenize.js';
 import { absoluteUrl } from './urls.js';
 
@@ -28,6 +29,10 @@ export interface ScannedPage {
 	iconUrl: string | null;
 	/** The name from an h-card, when the page has one. */
 	cardName: string | null;
+	/** The document had an html, head or body tag: it was a page, not a feed or a fragment. */
+	isHtml: boolean;
+	/** The page carries a `meta name=viewport`, which is what a page built for phones declares. */
+	hasViewport: boolean;
 }
 
 const MAX_LINKS = 500;
@@ -85,6 +90,8 @@ export function scanPage(html: string, baseUrl: string): ScannedPage {
 	let title: string | null = null;
 	let iconUrl: string | null = null;
 	let cardName: string | null = null;
+	let isHtml = false;
+	let hasViewport = false;
 
 	let inTitle = false;
 	let pendingCardName = false;
@@ -117,6 +124,11 @@ export function scanPage(html: string, baseUrl: string): ScannedPage {
 		}
 
 		const { name, attributes } = token;
+
+		if (name === 'html' || name === 'head' || name === 'body') isHtml = true;
+		if (name === 'meta' && (attributes.name ?? '').toLowerCase() === 'viewport') {
+			hasViewport = true;
+		}
 
 		if (name === 'script' && (attributes.type ?? '').toLowerCase() === 'application/ld+json') {
 			inJsonLd = true;
@@ -186,7 +198,20 @@ export function scanPage(html: string, baseUrl: string): ScannedPage {
 		}
 	}
 
-	return { title, alternates, relMe, links, iconUrl, cardName };
+	return { title, alternates, relMe, links, iconUrl, cardName, isHtml, hasViewport };
+}
+
+/**
+ * A lightweight guess at how a site is built to be read, from a page already in hand.
+ *
+ * A page made for phones says so with a viewport meta tag; one without it renders as a shrunken
+ * desktop page on a phone. That is a signal, not a declaration, so the answer is `undefined`
+ * whenever there is nothing to go on (the document was not a page at all) and callers treat
+ * `undefined` as mobile friendly. A creator's own declaration, when there is one, always wins.
+ */
+export function layoutSignal(page: ScannedPage): SiteLayout | undefined {
+	if (!page.isHtml) return undefined;
+	return page.hasViewport ? 'mobile-friendly' : 'desktop-first';
 }
 
 /** Feed content types, for telling a real alternate link from a stylesheet or a translation. */

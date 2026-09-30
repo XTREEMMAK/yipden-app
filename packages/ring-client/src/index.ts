@@ -19,12 +19,13 @@ export type {
 	RingFocalPoint,
 	RingPage,
 	RingTrack,
+	SiteLayout,
 	ValidationResult
 } from './types.js';
-export { KNOWN_FEED_TYPES, KNOWN_FORMS, KNOWN_TYPES } from './types.js';
+export { KNOWN_FEED_TYPES, KNOWN_FORMS, KNOWN_LAYOUTS, KNOWN_TYPES } from './types.js';
 
 export { displayHost, isPrivateHost, normalizeUrl, safeUrl } from './url.js';
-export { heroImage, normalize, type NormalizeOptions } from './normalize.js';
+export { heroImage, layoutOf, normalize, type NormalizeOptions } from './normalize.js';
 export { validate, type ValidateOptions } from './validate.js';
 
 export {
@@ -56,3 +57,17 @@ export {
 	type RingCacheRecord,
 	type RingSource
 } from './fetch.js';
+
+export {
+	PARTNER_CAPABILITIES,
+	PREVIEW_KINDS,
+	previewKindOf,
+	readPartnerRing,
+	type PartnerAdapter,
+	type PartnerCandidate,
+	type PartnerCapability,
+	type PartnerMember,
+	type PartnerRingInfo,
+	type PartnerRingResult,
+	type PreviewKind
+} from './partner.js';

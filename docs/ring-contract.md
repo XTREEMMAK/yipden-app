@@ -67,6 +67,19 @@ their site links to it.
 A boolean defaulting to true. False keeps a member in the ring, reachable by direct link, but
 out of Discover's rotation. A creator's own opt out.
 
+### `layout` on an entry
+
+```json
+"layout": "desktop-first"
+```
+
+`"mobile-friendly"` or `"desktop-first"`: how the member's own site is built to be read. A
+desktop-first member gets **Save for later** as its main action in Discover instead of an inline
+open, and its yips offer the same in Feeds. A creator declares it; a client never guesses it for a
+ring member. `ring-client` keeps only a recognized value, and an absent or unknown one is treated
+as mobile friendly, so a newer ring can add values without breaking this client. The reader's
+schema leaves it a plain string for the same reason.
+
 ### `generated_at` on the document
 
 An ISO timestamp saying when the ring published this document. Useful for showing a reader how
@@ -91,10 +104,19 @@ bother refetching.
 Not yet opened. The app is being built first so the shape can be proven against real screens
 before the ring commits to it.
 
-1. Add `feeds[]`, `discoverable` and top level `generated_at` to the schemas.
+1. Add `feeds[]`, `discoverable`, `layout` and top level `generated_at` to the schemas.
 2. Emit them from `build-ring.js`.
 3. Extend the submission and update flows so a creator can declare their feeds.
 4. Consider whether `member-health.js` should check feed reachability the way it checks
    `source_url`.
 
 Item 1 is the blocking one for the app; the rest can follow.
+
+## Other rings
+
+Partner rings are not part of this contract. Each one is read through its own adapter in
+`packages/ring-client/src/partner.ts`, which validates at the boundary, reduces the ring to a small
+common member shape (name, public https address, optional blurb) and reads richer fields only when
+the adapter declares the capability. Partner members are a different type from `RingEntry` and never
+enter the IndieNodes rotation. No adapter for a real ring exists yet; choosing the first is a
+decision to make with that ring's maintainers, and it is listed as ask first in ROADMAP.md.

@@ -5,6 +5,7 @@ import type {
 	PeaksRecord,
 	Person,
 	SettingKey,
+	ShelfItem,
 	Store,
 	StoredYip,
 	YipQuery
@@ -23,7 +24,7 @@ import type {
  */
 
 const DB_NAME = 'yipden';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const STORE = {
 	people: 'people',
@@ -31,7 +32,8 @@ const STORE = {
 	yips: 'yips',
 	ring: 'ring',
 	peaks: 'peaks',
-	settings: 'settings'
+	settings: 'settings',
+	shelf: 'shelf'
 } as const;
 
 function promisify<T>(request: IDBRequest<T>): Promise<T> {
@@ -84,6 +86,12 @@ export class IdbStore implements Store {
 				}
 				for (const name of [STORE.ring, STORE.peaks, STORE.settings]) {
 					if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'key' });
+				}
+				// Added in version 2. Every step is guarded by `contains`, so an upgrade from 1 only
+				// creates what is missing and leaves a reader's follows and yips exactly where they are.
+				if (!db.objectStoreNames.contains(STORE.shelf)) {
+					const shelf = db.createObjectStore(STORE.shelf, { keyPath: 'id' });
+					shelf.createIndex('savedAt', 'savedAt', { unique: false });
 				}
 			};
 
@@ -328,6 +336,29 @@ export class IdbStore implements Store {
 		transaction.objectStore(STORE.peaks).put(record);
 		return done(transaction);
 	}
+
+	// ---------- shelf ----------
+
+	async listShelf(): Promise<ShelfItem[]> {
+		const transaction = await this.transaction([STORE.shelf], 'readonly');
+		const items = (await promisify(transaction.objectStore(STORE.shelf).getAll())) as ShelfItem[];
+		return items.sort((a, b) => b.savedAt.localeCompare(a.savedAt) || a.id.localeCompare(b.id));
+	}
+
+	async saveToShelf(item: ShelfItem): Promise<void> {
+		const transaction = await this.transaction([STORE.shelf], 'readwrite');
+		const shelf = transaction.objectStore(STORE.shelf);
+		if (!(await promisify(shelf.get(item.id)))) shelf.put(item);
+		return done(transaction);
+	}
+
+	async removeFromShelf(id: string): Promise<void> {
+		const transaction = await this.transaction([STORE.shelf], 'readwrite');
+		transaction.objectStore(STORE.shelf).delete(id);
+		return done(transaction);
+	}
+
+	// ---------- settings ----------
 
 	async getSetting<T>(key: SettingKey): Promise<T | null> {
 		const transaction = await this.transaction([STORE.settings], 'readonly');

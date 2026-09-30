@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { createBackup, parseBackup, restoreBackup } from './backup.js';
 import { IdbStore } from './store/idb.js';
-import type { Feed, Person, StoredYip } from './store/types.js';
+import type { Feed, Person, ShelfItem, StoredYip } from './store/types.js';
 
 const PERSON: Person = {
 	id: 'person-lena',
@@ -38,6 +38,15 @@ const YIP: StoredYip = {
 	category: 'posts',
 	seenAt: '2026-09-20T11:00:00.000Z',
 	readAt: '2026-09-20T12:00:00.000Z'
+};
+
+const SHELVED: ShelfItem = {
+	id: 'https://wide.example.com/essay',
+	url: 'https://wide.example.com/essay',
+	title: 'A wide essay',
+	creator: 'Wide',
+	from: 'feeds',
+	savedAt: '2026-09-26T10:00:00.000Z'
 };
 
 beforeEach(() => {
@@ -120,5 +129,77 @@ describe('YipDen backup', () => {
 		const report = await restoreBackup(backup, target);
 		expect(report).toMatchObject({ feedsSkipped: 1, yipsAdded: 0 });
 		expect((await target.listFeeds())[0]?.personId).toBe(other.id);
+	});
+});
+
+describe('the Shelf in a backup', () => {
+	const file = (extra: Record<string, unknown>) =>
+		JSON.stringify({
+			format: 'yipden-backup',
+			version: 1,
+			exportedAt: new Date().toISOString(),
+			people: [],
+			feeds: [],
+			yips: [],
+			settings: {},
+			appearance: { theme: 'system', skin: 'original' },
+			...extra
+		});
+
+	it('travels through export and restore, with a person’s declared layout', async () => {
+		const source = new IdbStore();
+		await source.init();
+		await source.follow({ ...PERSON, layout: 'desktop-first' }, [FEED]);
+		await source.saveToShelf(SHELVED);
+
+		const preview = parseBackup(JSON.stringify(await createBackup(source)));
+		expect(preview.shelf).toBe(1);
+
+		globalThis.indexedDB = new IDBFactory();
+		const target = new IdbStore();
+		const report = await restoreBackup(preview.backup, target);
+		expect(report.shelfAdded).toBe(1);
+		expect(await target.listShelf()).toEqual([SHELVED]);
+		expect((await target.listPeople())[0]?.layout).toBe('desktop-first');
+	});
+
+	it('still reads a backup made before the Shelf existed', () => {
+		expect(parseBackup(file({})).shelf).toBe(0);
+	});
+
+	it('merges rather than replaces, and saving twice keeps one', async () => {
+		const target = new IdbStore();
+		await target.init();
+		await target.saveToShelf({ ...SHELVED, title: 'Kept as it was' });
+		await target.saveToShelf({
+			...SHELVED,
+			id: 'https://other.example.com/',
+			url: 'https://other.example.com/'
+		});
+
+		const backup = parseBackup(file({ shelf: [SHELVED] })).backup;
+		const report = await restoreBackup(backup, target);
+
+		expect(report.shelfAdded).toBe(0);
+		const items = await target.listShelf();
+		expect(items).toHaveLength(2);
+		expect(items.find((item) => item.id === SHELVED.id)?.title).toBe('Kept as it was');
+	});
+
+	it('rejects a shelf entry with an unsafe or mismatched address', () => {
+		for (const bad of [
+			{ ...SHELVED, url: 'http://wide.example.com/essay', id: 'http://wide.example.com/essay' },
+			{ ...SHELVED, url: 'javascript:alert(1)', id: 'javascript:alert(1)' },
+			{ ...SHELVED, id: 'https://wide.example.com/other' },
+			{ ...SHELVED, from: 'somewhere' }
+		]) {
+			expect(() => parseBackup(file({ shelf: [bad] }))).toThrow('not a supported YipDen backup');
+		}
+	});
+
+	it('rejects a layout the app does not know', () => {
+		expect(() => parseBackup(file({ people: [{ ...PERSON, layout: 'tablet-only' }] }))).toThrow(
+			'not a supported YipDen backup'
+		);
 	});
 });

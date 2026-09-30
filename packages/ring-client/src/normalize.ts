@@ -1,10 +1,12 @@
-import type {
-	RingArtwork,
-	RingEntry,
-	RingFeed,
-	RingFocalPoint,
-	RingPage,
-	RingTrack
+import {
+	KNOWN_LAYOUTS,
+	type RingArtwork,
+	type RingEntry,
+	type RingFeed,
+	type RingFocalPoint,
+	type RingPage,
+	type RingTrack,
+	type SiteLayout
 } from './types.js';
 import { normalizeUrl } from './url.js';
 
@@ -129,6 +131,12 @@ export function normalize(entry: RingEntry, options: NormalizeOptions = {}): Rin
 	if (feeds?.length) normalized.feeds = feeds;
 	else delete normalized.feeds;
 
+	// Kept only when recognized: an unknown value is not a layout this client can act on, and
+	// `layoutOf` would answer mobile friendly for it anyway.
+	const declared = KNOWN_LAYOUTS.find((layout) => layout === entry.layout);
+	if (declared) normalized.layout = declared;
+	else delete normalized.layout;
+
 	for (const key of ['thumb_url', 'preview_url', 'trailer_url'] as const) {
 		const url = normalizeUrl(entry[key]);
 		if (url) normalized[key] = url;
@@ -136,6 +144,15 @@ export function normalize(entry: RingEntry, options: NormalizeOptions = {}): Rin
 	}
 
 	return normalized;
+}
+
+/**
+ * How a site is built to be read, from the one place that decides it. A declared, recognized
+ * value wins; everything else is mobile friendly, which is also what a client built before the
+ * field existed would do.
+ */
+export function layoutOf(value: unknown): SiteLayout {
+	return KNOWN_LAYOUTS.find((layout) => layout === value) ?? 'mobile-friendly';
 }
 
 /**

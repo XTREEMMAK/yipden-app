@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { exportOpml, parseOpml } from './opml.js';
-import type { Feed, Person } from './store/index.js';
+import { exportOpml, parseOpml, parseOpmlShelf } from './opml.js';
+import type { Feed, Person, ShelfItem } from './store/index.js';
 
 function person(overrides: Partial<Person> = {}): Person {
 	return {
@@ -154,5 +154,67 @@ describe('round trip', () => {
 		const imported = parseOpml(exportOpml(people, feeds));
 		expect(imported.map((p) => p.name).sort()).toEqual(['Cy Marsh', 'Lena Ofori']);
 		expect(imported.flatMap((p) => p.feeds)).toHaveLength(2);
+	});
+});
+
+describe('the Shelf in OPML', () => {
+	const item = (overrides: Partial<ShelfItem> = {}): ShelfItem => ({
+		id: 'https://wide.example.com/essay?a=1&b=2',
+		url: 'https://wide.example.com/essay?a=1&b=2',
+		title: 'Big "wide" <essay>',
+		creator: 'Wide & Co',
+		from: 'feeds',
+		savedAt: '2026-09-26T10:00:00.000Z',
+		...overrides
+	});
+
+	it('is one group of link outlines beside the follows, and absent when empty', () => {
+		expect(exportOpml([person()], new Map([['p1', [feed()]]]))).not.toContain('yipdenShelf');
+
+		const xml = exportOpml([person()], new Map([['p1', [feed()]]]), [item()]);
+		expect(xml).toContain('yipdenShelf="true"');
+		expect(xml).toContain('type="link"');
+		expect(xml).toContain('xmlUrl="https://lena.example.com/feed.xml"');
+	});
+
+	it('round trips, escaping and all', () => {
+		const xml = exportOpml([], new Map(), [
+			item(),
+			item({
+				id: 'https://b.example.com/',
+				url: 'https://b.example.com/',
+				title: 'B',
+				from: 'discover',
+				via: 'Fixture Ring'
+			})
+		]);
+		const back = parseOpmlShelf(xml);
+
+		expect(back).toHaveLength(2);
+		expect(back[0]).toMatchObject({
+			url: 'https://wide.example.com/essay?a=1&b=2',
+			title: 'Big "wide" <essay>',
+			creator: 'Wide & Co',
+			from: 'feeds',
+			savedAt: '2026-09-26T10:00:00.000Z'
+		});
+		expect(back[1]).toMatchObject({ from: 'discover', via: 'Fixture Ring' });
+	});
+
+	it('is not mistaken for a person when the file is imported as follows', () => {
+		const xml = exportOpml([person()], new Map([['p1', [feed()]]]), [item()]);
+		expect(parseOpml(xml).map((entry) => entry.name)).toEqual(['Lena Ofori']);
+	});
+
+	it('drops a link that is not a public https address', () => {
+		const xml = exportOpml([], new Map(), [item()]).replace(
+			'https://wide.example.com/essay?a=1&amp;b=2',
+			'javascript:alert(1)'
+		);
+		expect(parseOpmlShelf(xml)).toEqual([]);
+	});
+
+	it('finds nothing in an OPML file that has no shelf', () => {
+		expect(parseOpmlShelf(exportOpml([person()], new Map([['p1', [feed()]]])))).toEqual([]);
 	});
 });

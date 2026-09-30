@@ -13,7 +13,8 @@ export default tseslint.config(
 			'**/coverage/**',
 			'apps/reader/android/**',
 			'docs/reference/**',
-			'tmp/**'
+			'tmp/**',
+			'brand/**'
 		]
 	},
 	js.configs.recommended,

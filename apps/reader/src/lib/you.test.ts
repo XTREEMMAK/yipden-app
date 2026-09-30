@@ -1,6 +1,22 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
+import type * as RefreshModule from './refresh.js';
+
+/**
+ * `refreshAllFollowed` only needs to know that it asked `refreshAll` for everything (no scoped
+ * `feedIds`) and then reloaded; a real `refreshAll` would reach the network, which this file has
+ * no business doing.
+ */
+const refreshCalls: Array<{ feedIds?: string[] }> = [];
+vi.mock('./refresh.js', async (importOriginal) => ({
+	...(await importOriginal<typeof RefreshModule>()),
+	refreshAll: async (options: { feedIds?: string[] } = {}) => {
+		refreshCalls.push(options);
+		return { feeds: [], added: 0 };
+	}
+}));
+
 import { player, type QueueItem } from './player.svelte.js';
 import { ringPlayer, type RingQueueRecord } from './ringPlayer.svelte.js';
 import { store, type Person } from './store/index.js';
@@ -30,6 +46,7 @@ beforeEach(async () => {
 	player.clear();
 	ringPlayer.playedEntryIds = [];
 	you.rows = [];
+	refreshCalls.length = 0;
 });
 
 describe('you.unfollow', () => {
@@ -51,5 +68,18 @@ describe('you.unfollow', () => {
 
 		expect(player.current).toBeNull();
 		expect(await store.getSetting('ringQueue')).toBeNull();
+	});
+});
+
+describe('you.refreshAllFollowed', () => {
+	it('checks every followed feed, unscoped, then reloads the follow rows', async () => {
+		await store.follow(person, []);
+
+		await you.refreshAllFollowed();
+
+		expect(refreshCalls).toEqual([{}]);
+		expect(you.rows.map((row) => row.person.id)).toEqual([person.id]);
+
+		await you.unfollow(person.id);
 	});
 });

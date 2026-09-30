@@ -1,5 +1,5 @@
 import type { Item } from '@yipden/feeds';
-import type { RingCacheRecord } from '@yipden/ring-client';
+import type { RingCacheRecord, SiteLayout } from '@yipden/ring-client';
 
 export type { Item } from '@yipden/feeds';
 
@@ -20,6 +20,11 @@ export interface Person {
 	iconUrl?: string;
 	/** Set when they were followed from the ring rather than from a pasted link. */
 	ringId?: string;
+	/**
+	 * How their site is built to be read, when known: declared by the ring, or guessed once from
+	 * the page discovery fetched. Absent means unknown, which is treated as mobile friendly.
+	 */
+	layout?: SiteLayout;
 	followedAt: string;
 }
 
@@ -91,6 +96,24 @@ export interface YipQuery {
 	before?: string;
 }
 
+/**
+ * A link a reader set aside to open on a bigger screen. It is local until the reader exports it,
+ * and it is only a link: what it points at stays on its creator's own site.
+ */
+export interface ShelfItem {
+	/** The saved address, which is also its identity: saving one page twice is one entry. */
+	id: string;
+	url: string;
+	title: string;
+	/** Whose it is, when known: a person the reader follows, or a ring member. */
+	creator?: string;
+	/** A partner ring's name, when the link came to the reader through one. */
+	via?: string;
+	/** Which screen it was saved from. */
+	from: 'discover' | 'feeds';
+	savedAt: string;
+}
+
 export type SettingKey =
 	'lastRefreshAt' | 'includeExplicit' | 'ringFilter' | 'ringQueue' | 'shuffleMusic';
 
@@ -138,6 +161,12 @@ export interface Store {
 
 	readPeaks(key: string): Promise<PeaksRecord | null>;
 	writePeaks(record: PeaksRecord): Promise<void>;
+
+	/** Newest first. */
+	listShelf(): Promise<ShelfItem[]>;
+	/** Idempotent: saving an address already on the shelf keeps the first save. */
+	saveToShelf(item: ShelfItem): Promise<void>;
+	removeFromShelf(id: string): Promise<void>;
 
 	getSetting<T>(key: SettingKey): Promise<T | null>;
 	setSetting<T>(key: SettingKey, value: T): Promise<void>;

@@ -1,0 +1,30 @@
+{
+  "note": "A made-up partner ring in a made-up shape, standing in for a real one until a first adapter is agreed. Nothing about this shape is a claim about any real ring.",
+  "ring": { "title": "Fixture Ring", "home": "https://fixture-ring.example/" },
+  "sites": [
+    {
+      "slug": "ash-and-ember",
+      "title": "Ash & Ember",
+      "href": "https://ash.example.com/",
+      "about": "Zines about small fires.",
+      "banner": "https://ash.example.com/banner.png",
+      "labels": ["zine", "Zine", "print"],
+      "responsive": true,
+      "sample": "http://insecure-sample.example.com/x.mp3"
+    },
+    {
+      "title": "Big Monitor Club",
+      "href": "https://bmc.example.org/",
+      "about": "Dense, wide, best on a big screen.",
+      "banner": "https://bmc.example.org/b.png",
+      "responsive": false,
+      "warn": true,
+      "sample": "https://bmc.example.org/track.mp3"
+    },
+    { "title": "No Address", "href": "" },
+    { "title": "Plain http", "href": "http://insecure.example.com/" },
+    { "title": "On the LAN", "href": "https://192.168.1.4/" },
+    { "href": "https://nameless.example.com/" },
+    { "slug": "ash-and-ember", "title": "Duplicate id", "href": "https://dup.example.com/" }
+  ]
+}

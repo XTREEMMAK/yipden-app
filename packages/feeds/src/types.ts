@@ -1,3 +1,5 @@
+import type { SiteLayout } from '@yipden/ring-client';
+
 /**
  * One normalized shape for everything a followed feed produces.
  *
@@ -93,6 +95,12 @@ export interface DiscoveryResult {
 	/** The person's name, from the page title or an h-card, when one was found. */
 	title: string | null;
 	iconUrl: string | null;
+	/**
+	 * A guess at how the site is built to be read, from the page discovery already fetched (no
+	 * extra request). Absent when there was no page to look at, such as a pasted profile or feed,
+	 * and then treated as mobile friendly.
+	 */
+	layout?: SiteLayout;
 	feeds: DiscoveredFeed[];
 	/** Links that looked like a profile but produced no feed, so the UI can say so. */
 	unresolved: Array<{ url: string; reason: string }>;

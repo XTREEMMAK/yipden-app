@@ -1,55 +1,23 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
 	import type { DiscoveredFeed } from '@yipden/feeds';
 	import { fly } from 'svelte/transition';
 	import { flyIn, staggerDelay } from '$lib/motion.js';
-	import { prefs } from '$lib/prefs.svelte.js';
-	import { theme, type Skin, type Theme } from '$lib/theme.svelte.js';
-	import AboutSheet from '$components/AboutSheet.svelte';
+	import { pullToRefresh } from '$lib/actions/pullToRefresh.js';
 	import Switch from '$components/Switch.svelte';
 	import { you } from '$lib/you.svelte.js';
-	import { downloadTextFile, pickTextFile } from '$lib/platform/download.js';
-	import { createBackup, parseBackup, restoreBackup, type BackupPreview } from '$lib/backup.js';
+	import { shelf } from '$lib/shelf.svelte.js';
+	import { openExternal } from '$lib/platform/external.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import Toast from '$components/Toast.svelte';
 
 	/**
-	 * You: appearance, the follow list, and the reader's own data. Everything here is either
-	 * read from or written straight to the device; there is no account in v0.9.
+	 * You: who you follow and what you have saved. The reader's own data, not the app's
+	 * configuration; Appearance, Playback and the backup/export tools live under Settings,
+	 * reached from the gear icon here. See DECISIONS.md for the split.
 	 */
 
-	const THEMES: Array<{ key: Theme; label: string }> = [
-		{ key: 'system', label: 'System' },
-		{ key: 'light', label: 'Light' },
-		{ key: 'dark', label: 'Dark' }
-	];
-	const SKINS: Array<{ key: Skin; label: string; description: string; colors: string[] }> = [
-		{
-			key: 'original',
-			label: 'Original',
-			description: 'Warm clay',
-			colors: ['#f7f3ee', '#c2410c', '#2a0f06']
-		},
-		{
-			key: 'glass',
-			label: 'Blue glass',
-			description: 'Cool & clear',
-			colors: ['#ddecff', '#1677c8', '#061d38']
-		},
-		{
-			key: 'forest',
-			label: 'Forest earth',
-			description: 'Moss & stone',
-			colors: ['#f2f0e7', '#426b3a', '#162a1d']
-		}
-	];
-
-	let segEls: HTMLButtonElement[] = [];
-	let segIndicator = $state({ left: 0, width: 0 });
 	let confirmingId = $state<string | null>(null);
-	let importing = $state(false);
-	let backupPreview = $state<BackupPreview | null>(null);
-	let backupBusy = $state(false);
 	let expandedIds = $state<Set<string>>(new Set());
 	let busyFeedIds = $state<Set<string>>(new Set());
 	let busyPersonIds = $state<Set<string>>(new Set());
@@ -59,28 +27,27 @@
 	let sourceError = $state<string | null>(null);
 	let sourceBusy = $state(false);
 	let busySourceUrl = $state<string | null>(null);
-	let aboutOpen = $state(false);
-	let aboutButton = $state<HTMLButtonElement | undefined>(undefined);
 	let confirmingSourceId = $state<string | null>(null);
 
-	function measureSeg() {
-		const index = THEMES.findIndex((entry) => entry.key === theme.current);
-		const el = segEls[index];
-		if (el) segIndicator = { left: el.offsetLeft, width: el.offsetWidth };
-	}
-
-	$effect(() => {
-		void theme.current;
-		measureSeg();
-	});
+	let scroll: HTMLDivElement | undefined;
+	let pullY = $state(0);
+	let pulling = $state(false);
+	let refreshing = $state(false);
+	const PULL_THRESHOLD = 64;
 
 	onMount(() => {
 		void you.load();
-		measureSeg();
-		const onResize = () => measureSeg();
-		window.addEventListener('resize', onResize);
-		return () => window.removeEventListener('resize', onResize);
+		void shelf.load();
 	});
+
+	async function onPullRefresh() {
+		refreshing = true;
+		try {
+			await you.refreshAllFollowed();
+		} finally {
+			refreshing = false;
+		}
+	}
 
 	async function confirmUnfollow(personId: string, name: string) {
 		confirmingId = null;
@@ -288,178 +255,50 @@
 			busyFeedIds = next;
 		}
 	}
-
-	function exportFollows() {
-		if (!you.rows.length) return;
-		downloadTextFile('yipden-follows.opml', you.toOpml());
-		toast.show('Saved yipden-follows.opml.');
-	}
-
-	async function importFollows() {
-		importing = true;
-		try {
-			const text = await pickTextFile('.opml,.xml,text/xml,text/x-opml');
-			if (!text) return;
-			const { people, feeds } = await you.importOpml(text);
-			toast.show(
-				people === 0
-					? 'Nothing new to import from that file.'
-					: `Imported ${people} ${people === 1 ? 'person' : 'people'}, ${feeds} ${feeds === 1 ? 'feed' : 'feeds'}.`
-			);
-		} catch {
-			toast.show('Could not read that file as OPML.');
-		} finally {
-			importing = false;
-		}
-	}
-
-	async function exportYipDenBackup() {
-		backupBusy = true;
-		try {
-			const backup = await createBackup();
-			downloadTextFile('yipden-backup.json', JSON.stringify(backup, null, 2));
-			toast.show('Saved yipden-backup.json.');
-		} catch {
-			toast.show('Could not build a backup on this phone.');
-		} finally {
-			backupBusy = false;
-		}
-	}
-
-	async function chooseYipDenBackup() {
-		backupBusy = true;
-		backupPreview = null;
-		try {
-			const text = await pickTextFile('.json,application/json');
-			if (!text) return;
-			backupPreview = parseBackup(text);
-		} catch (cause) {
-			toast.show(cause instanceof Error ? cause.message : 'Could not read that backup.');
-		} finally {
-			backupBusy = false;
-		}
-	}
-
-	async function importYipDenBackup() {
-		if (!backupPreview) return;
-		backupBusy = true;
-		try {
-			// `$state` wraps the preview in proxies; detach and revalidate before IndexedDB cloning.
-			const selectedBackup = parseBackup(JSON.stringify(backupPreview.backup)).backup;
-			const report = await restoreBackup(selectedBackup);
-			await you.load();
-			backupPreview = null;
-			theme.hydrate();
-			const skipped = report.peopleSkipped + report.feedsSkipped;
-			toast.show(
-				`Restored ${report.peopleAdded} people, ${report.feedsAdded} sources, and ${report.yipsAdded} cached yips${skipped ? `; skipped ${skipped} conflicts` : ''}.`
-			);
-		} catch (cause) {
-			toast.show(
-				cause instanceof Error
-					? `Could not restore that backup: ${cause.message}`
-					: 'Could not restore that backup. Nothing unsafe was imported.'
-			);
-		} finally {
-			backupBusy = false;
-		}
-	}
-
-	function openAbout() {
-		aboutOpen = true;
-	}
-
-	async function closeAbout() {
-		aboutOpen = false;
-		await tick();
-		aboutButton?.focus();
-	}
-
-	async function clearCachedYips() {
-		await you.clearCachedYips();
-		toast.show('Cleared cached yips. Your follows stay put.');
-	}
 </script>
 
 <svelte:head><title>You</title></svelte:head>
 
-<div class="scroll" inert={aboutOpen} aria-hidden={aboutOpen}>
+<div
+	class="scroll"
+	bind:this={scroll}
+	use:pullToRefresh={{
+		atTop: () => (scroll?.scrollTop ?? 0) <= 0,
+		onChange: (state) => {
+			pullY = state.pullY;
+			pulling = state.pulling;
+		},
+		onRefresh: onPullRefresh
+	}}
+>
+	{#if pulling || pullY > 0 || refreshing}
+		<div class="pull" style:opacity={refreshing ? 1 : Math.min(1, pullY / PULL_THRESHOLD)}>
+			<span
+				class="spinner"
+				class:ready={pullY >= PULL_THRESHOLD || refreshing}
+				class:spinning={refreshing}
+			></span>
+		</div>
+	{/if}
+
 	<header class="head" in:fly={flyIn()}>
-		<p class="eyebrow">You {'·'} on this phone</p>
-		<h2 class="screen-title">Your <em>den</em>.</h2>
-		<p class="lede">Everything here lives on this phone. Reading never needs an account.</p>
+		<div class="head-copy">
+			<p class="eyebrow">You {'·'} on this phone</p>
+			<h2 class="screen-title">Your <em>den</em>.</h2>
+			<p class="lede">Everything here lives on this phone. Reading never needs an account.</p>
+		</div>
+		<a class="settings-link" href="/you/settings" aria-label="Settings">
+			<svg viewBox="0 0 24 24" aria-hidden="true">
+				<path
+					d="M19.4 13a7.4 7.4 0 0 0 .06-1 7.4 7.4 0 0 0-.06-1l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.4.96a7.4 7.4 0 0 0-1.7-1l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54a7.4 7.4 0 0 0-1.7 1l-2.4-.96a.5.5 0 0 0-.6.22L2.7 8.78a.5.5 0 0 0 .12.64L4.85 11a7.4 7.4 0 0 0-.06 1 7.4 7.4 0 0 0 .06 1l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.4-.96a7.4 7.4 0 0 0 1.7 1l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54a7.4 7.4 0 0 0 1.7-1l2.4.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64L19.4 13Z"
+				/>
+				<circle cx="12" cy="12" r="3" />
+			</svg>
+		</a>
 	</header>
 
 	<div class="groups">
 		<section class="grp" in:fly={flyIn({ delay: staggerDelay(0) })}>
-			<h3 class="grp-h">Appearance</h3>
-			<div class="appearance-stack">
-				<div class="appearance-setting">
-					<p class="setting-label">Brightness</p>
-					<div class="seg" role="radiogroup" aria-label="Brightness">
-						<span
-							class="seg-ind"
-							aria-hidden="true"
-							style:transform={`translateX(${segIndicator.left}px)`}
-							style:width={`${segIndicator.width}px`}
-						></span>
-						{#each THEMES as entry, index (entry.key)}
-							<button
-								bind:this={segEls[index]}
-								role="radio"
-								aria-checked={theme.current === entry.key}
-								onclick={() => theme.set(entry.key)}
-							>
-								{entry.label}
-							</button>
-						{/each}
-					</div>
-				</div>
-
-				<div class="appearance-setting">
-					<p class="setting-label">Color skin</p>
-					<div class="skin-grid" role="radiogroup" aria-label="Color skin">
-						{#each SKINS as entry (entry.key)}
-							<button
-								class="skin-option"
-								role="radio"
-								aria-label={entry.label}
-								aria-checked={theme.skin === entry.key}
-								onclick={() => theme.setSkin(entry.key)}
-							>
-								<span class="skin-swatches" aria-hidden="true">
-									{#each entry.colors as color}
-										<i style:background={color}></i>
-									{/each}
-								</span>
-								<strong>{entry.label}</strong>
-								<small>{entry.description}</small>
-							</button>
-						{/each}
-					</div>
-				</div>
-			</div>
-		</section>
-
-		<section class="grp" in:fly={flyIn({ delay: staggerDelay(1) })}>
-			<h3 class="grp-h">Playback</h3>
-			<div class="rows">
-				<div class="srow">
-					<span class="tt">
-						<b>Shuffle music</b>
-						<small>Mix up a member{"'"}s tracks</small>
-					</span>
-					<Switch
-						id="shuffle-music"
-						label="Shuffle music"
-						checked={prefs.shuffleMusic}
-						onchange={(on) => prefs.setShuffleMusic(on)}
-					/>
-				</div>
-			</div>
-		</section>
-
-		<section class="grp" in:fly={flyIn({ delay: staggerDelay(2) })}>
 			<h3 class="grp-h">
 				Following
 				<span>
@@ -661,105 +500,118 @@
 			</div>
 		</section>
 
-		<section class="grp" in:fly={flyIn({ delay: staggerDelay(3) })}>
-			<h3 class="grp-h">Your follows file</h3>
+		<section class="grp" in:fly={flyIn({ delay: staggerDelay(1) })} aria-labelledby="shelf-h">
+			<h3 class="grp-h" id="shelf-h">
+				Shelf
+				<span>{shelf.items.length} {shelf.items.length === 1 ? 'link' : 'links'}</span>
+			</h3>
 			<div class="rows">
-				<button class="srow link" onclick={exportFollows} disabled={!you.rows.length}>
-					<span class="tt">
-						<b>Export as OPML</b>
-						<small>Take your follows to any other reader</small>
-					</span>
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
-				</button>
-				<button class="srow link" onclick={importFollows} disabled={importing}>
-					<span class="tt">
-						<b>{importing ? 'Importing…' : 'Import OPML'}</b>
-						<small>Bring follows in from another reader</small>
-					</span>
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-				</button>
-				<button class="srow link" onclick={clearCachedYips}>
-					<span class="tt">
-						<b>Clear cached yips</b>
-						<small>Your follows stay put</small>
-					</span>
-				</button>
-			</div>
-		</section>
-
-		<section class="grp" in:fly={flyIn({ delay: staggerDelay(4) })}>
-			<h3 class="grp-h">YipDen backup</h3>
-			<div class="rows">
-				<button class="srow link" onclick={exportYipDenBackup} disabled={backupBusy}>
-					<span class="tt">
-						<b>Export full backup</b>
-						<small>Follows, sources, preferences, read state, and cached yips</small>
-					</span>
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
-				</button>
-				<button class="srow link" onclick={chooseYipDenBackup} disabled={backupBusy}>
-					<span class="tt">
-						<b>Preview backup import</b>
-						<small>Nothing changes until you confirm</small>
-					</span>
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-				</button>
-				{#if backupPreview}
-					<div class="backup-preview" aria-live="polite">
-						<span class="tt">
-							<b>Ready to restore</b>
-							<small>
-								{backupPreview.people} people · {backupPreview.feeds} sources · {backupPreview.yips}
-								cached yips. Existing data is kept; source conflicts are skipped.
-							</small>
-						</span>
-						<span class="backup-actions">
-							<button class="mini-btn" onclick={() => (backupPreview = null)}>Cancel</button>
-							<button class="mini-btn restore" onclick={importYipDenBackup} disabled={backupBusy}>
-								{backupBusy ? 'Restoring…' : 'Restore'}
+				{#if !shelf.loaded}
+					<p class="empty">Loading{'…'}</p>
+				{:else if shelf.items.length === 0}
+					<p class="empty">
+						Nothing saved yet. Sites built for a bigger screen offer Save for later, so you can open
+						them at a desk.
+					</p>
+				{:else}
+					{#each shelf.items as item (item.id)}
+						<div class="srow shelf-row">
+							<button
+								class="shelf-open"
+								onclick={() => openExternal(item.url)}
+								aria-label={`Open ${item.title} on ${new URL(item.url).hostname.replace(/^www\./, '')}`}
+							>
+								<span class="tt">
+									<b>{item.title}</b>
+									<small>
+										{item.creator ? `${item.creator} · ` : ''}{item.via
+											? `via ${item.via} · `
+											: ''}{new URL(item.url).hostname.replace(/^www\./, '')}
+									</small>
+								</span>
+								<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
 							</button>
-						</span>
-					</div>
+							<button
+								class="mini-btn"
+								aria-label={`Remove ${item.title} from your Shelf`}
+								onclick={() => {
+									void shelf.remove(item.id);
+									toast.show('Removed from your Shelf.');
+								}}
+							>
+								Remove
+							</button>
+						</div>
+					{/each}
 				{/if}
 			</div>
+			<p class="grp-note">
+				Saved links stay on this phone until you export them, in your follows file or a full backup.
+			</p>
 		</section>
-
-		<section class="grp" in:fly={flyIn({ delay: staggerDelay(5) })}>
-			<h3 class="grp-h">About</h3>
-			<div class="rows">
-				<button
-					bind:this={aboutButton}
-					class="srow link"
-					type="button"
-					aria-haspopup="dialog"
-					onclick={openAbout}
-				>
-					<span class="tt">
-						<b>About YipDen</b>
-						<small>Version, privacy, history, source, and attributions</small>
-					</span>
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-				</button>
-			</div>
-		</section>
-
-		<p class="fine" in:fly={flyIn({ delay: staggerDelay(6) })}>
-			Chronological, no AI, and every yip links out to its creator.
-		</p>
 	</div>
 
 	<Toast />
 </div>
-{#if aboutOpen}
-	<AboutSheet onclose={closeAbout} />
-{/if}
 
 <style>
+	/* Anchors the pull overlay to this scroll area rather than whatever ancestor is positioned. */
+	.scroll {
+		position: relative;
+	}
+
+	.pull {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		z-index: 1;
+		display: flex;
+		justify-content: center;
+		padding: 10px 0 6px;
+		pointer-events: none;
+		transition: opacity var(--dur-s) var(--ease);
+	}
+
+	.spinner {
+		width: 22px;
+		height: 22px;
+		border-radius: 50%;
+		border: 2.5px solid var(--line);
+		border-top-color: var(--brand);
+		transition: border-color var(--dur-s) var(--ease);
+	}
+
+	.spinner.ready {
+		border-top-color: var(--ok);
+	}
+
+	/* Only while the fetch itself is in flight, not during the drag: a held finger already shows
+	   progress against the pull distance, so spinning it too would be motion with no new meaning
+	   until the request is actually running in the background, past the point a finger can show. */
+	.spinner.spinning {
+		animation: spin 0.7s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
 	.head {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 12px;
+		padding: calc(26px + env(safe-area-inset-top, 0px)) 20px 12px;
+	}
+
+	.head-copy {
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
-		padding: calc(26px + env(safe-area-inset-top, 0px)) 20px 12px;
+		min-width: 0;
 	}
 
 	.eyebrow {
@@ -769,6 +621,28 @@
 		letter-spacing: 0.1em;
 		text-transform: uppercase;
 		color: var(--muted);
+	}
+
+	.settings-link {
+		display: grid;
+		place-items: center;
+		flex: 0 0 auto;
+		width: 44px;
+		height: 44px;
+		margin-top: 2px;
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--ink);
+	}
+
+	.settings-link svg {
+		width: 22px;
+		height: 22px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.6;
+		stroke-linecap: round;
+		stroke-linejoin: round;
 	}
 
 	.groups {
@@ -802,136 +676,6 @@
 		font-weight: 400;
 		letter-spacing: 0.02em;
 		color: var(--muted);
-	}
-
-	.appearance-stack {
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
-		padding: 14px;
-		border: 1px solid var(--line);
-		border-radius: var(--r-group);
-		background: var(--surface);
-	}
-
-	.appearance-setting {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-	}
-
-	.setting-label {
-		margin: 0 2px;
-		color: var(--muted);
-		font-family: var(--mono);
-		font-size: 10.5px;
-		font-weight: 500;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-	}
-
-	.seg {
-		position: relative;
-		display: flex;
-		padding: 4px;
-		border: 1px solid var(--line);
-		border-radius: 999px;
-		background: var(--surface);
-	}
-
-	.seg-ind {
-		position: absolute;
-		top: 4px;
-		bottom: 4px;
-		left: 0;
-		border-radius: 999px;
-		background: var(--brand);
-		transition:
-			transform var(--dur-m) var(--ease),
-			width var(--dur-m) var(--ease);
-	}
-
-	.seg button {
-		position: relative;
-		z-index: 1;
-		flex: 1;
-		/* 44px, not the prototype's 42px: the brief's touch target floor. See DECISIONS.md. */
-		height: 44px;
-		border: 0;
-		border-radius: 999px;
-		background: none;
-		color: var(--muted);
-		font-family: var(--body);
-		font-size: 14px;
-		font-weight: 550;
-		transition: color var(--dur-s) var(--ease);
-	}
-
-	.seg button[aria-checked='true'] {
-		color: #fff;
-	}
-
-	.skin-grid {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 8px;
-	}
-
-	.skin-option {
-		display: flex;
-		min-width: 0;
-		min-height: 92px;
-		padding: 9px;
-		border: 1px solid var(--line);
-		border-radius: 15px;
-		background: color-mix(in srgb, var(--surface) 78%, var(--ground));
-		color: var(--ink);
-		flex-direction: column;
-		align-items: flex-start;
-		text-align: left;
-		transition:
-			border-color var(--dur-s) var(--ease),
-			background var(--dur-s) var(--ease),
-			transform var(--dur-s) var(--ease);
-	}
-
-	.skin-option:active {
-		transform: scale(0.97);
-	}
-
-	.skin-option[aria-checked='true'] {
-		border-color: var(--brand);
-		background: var(--brand-soft);
-		box-shadow: inset 0 0 0 1px var(--brand);
-	}
-
-	.skin-swatches {
-		display: flex;
-		width: 100%;
-		height: 22px;
-		margin-bottom: 8px;
-		border-radius: 7px;
-		overflow: hidden;
-		box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
-	}
-
-	.skin-swatches i {
-		flex: 1;
-	}
-
-	.skin-option strong {
-		display: block;
-		font-size: 12.5px;
-		line-height: 1.15;
-		font-weight: 650;
-	}
-
-	.skin-option small {
-		display: block;
-		margin-top: 3px;
-		color: var(--muted);
-		font-size: 10.5px;
-		line-height: 1.15;
 	}
 
 	.rows {
@@ -1234,10 +978,6 @@
 		}
 	}
 
-	.srow:disabled {
-		opacity: 0.5;
-	}
-
 	.av {
 		flex: 0 0 auto;
 		width: 38px;
@@ -1269,7 +1009,26 @@
 		white-space: nowrap;
 	}
 
-	.srow.link svg {
+	.shelf-row {
+		gap: 8px;
+	}
+
+	.shelf-open {
+		display: flex;
+		flex: 1;
+		align-items: center;
+		gap: 12px;
+		min-width: 0;
+		min-height: 44px;
+		padding: 0;
+		border: 0;
+		background: none;
+		color: inherit;
+		text-align: left;
+		font: inherit;
+	}
+
+	.shelf-open svg {
 		flex: 0 0 auto;
 		width: 16px;
 		height: 16px;
@@ -1279,6 +1038,13 @@
 		stroke-width: 2;
 		stroke-linecap: round;
 		stroke-linejoin: round;
+	}
+
+	.grp-note {
+		margin: 8px 4px 0;
+		color: var(--muted);
+		font-size: 12.5px;
+		line-height: 1.4;
 	}
 
 	.mini-btn {
@@ -1300,63 +1066,8 @@
 		color: #fff;
 	}
 
-	.backup-preview {
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		padding: 14px;
-		background: var(--brand-soft);
-	}
-
-	.backup-preview b,
-	.backup-preview small {
-		display: block;
-	}
-
-	.backup-preview b {
-		font-size: 14px;
-	}
-
-	.backup-preview small {
-		margin-top: 3px;
-		color: var(--muted);
-		font-size: 12px;
-		line-height: 1.45;
-	}
-
-	.backup-actions {
-		display: flex;
-		gap: 6px;
-		flex: 0 0 auto;
-	}
-
-	.mini-btn.restore {
-		border-color: var(--brand);
-		background: var(--brand);
-		color: #fff;
-	}
-
-	@media (max-width: 520px) {
-		.backup-preview {
-			align-items: stretch;
-			flex-direction: column;
-		}
-
-		.backup-actions {
-			justify-content: flex-end;
-		}
-	}
-
 	.confirm {
 		display: flex;
 		gap: 6px;
-	}
-
-	.fine {
-		margin: 0;
-		padding: 0 6px;
-		color: var(--muted);
-		font-size: 12.5px;
-		line-height: 1.5;
 	}
 </style>

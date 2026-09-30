@@ -43,15 +43,36 @@ const ONE_VIDEO = RSS(`<item><title>A video</title><link>https://lena.example.co
 	<pubDate>Mon, 15 Sep 2026 14:02:00 GMT</pubDate>
 	<enclosure url="https://lena.example.com/v1.mp4" type="video/mp4"/></item>`);
 
+/**
+ * Real YouTube shape, confirmed live 2026-09-28: `media:content` still declares this exact
+ * legacy type on an extensionless URL, on every channel, not a fixture artifact.
+ */
+const ONE_YOUTUBE = `<?xml version="1.0"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/" xmlns="http://www.w3.org/2005/Atom">
+	<title>Lena Ofori</title>
+	<link rel="alternate" href="https://www.youtube.com/channel/UCexample0123456789abcd"/>
+	<entry>
+		<id>yt:video:abc12345678</id>
+		<title>A new video</title>
+		<link rel="alternate" href="https://www.youtube.com/watch?v=abc12345678"/>
+		<published>2026-09-15T14:02:00+00:00</published>
+		<media:group>
+			<media:content url="https://www.youtube.com/v/abc12345678?version=3" type="application/x-shockwave-flash"/>
+			<media:thumbnail url="https://i2.ytimg.com/vi/abc12345678/hqdefault.jpg"/>
+		</media:group>
+	</entry>
+</feed>`;
+
 function response(
 	status: number,
 	body: string,
-	headers: Record<string, string> = {}
+	headers: Record<string, string> = {},
+	url = 'https://lena.example.com/feed.xml'
 ): HttpResponse {
 	const lower = Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v]));
 	return {
 		status,
-		url: 'https://lena.example.com/feed.xml',
+		url,
 		headers: { get: (name: string) => lower[name.toLowerCase()] ?? null },
 		text: async () => body
 	};
@@ -149,6 +170,27 @@ describe('refreshAll', () => {
 		expect(result.feeds[0]).toMatchObject({ status: 'updated', added: 1 });
 		const [yip] = await store.listYips();
 		expect(yip?.category).toBe('listen');
+	});
+
+	it('sorts a YouTube video into Watch, not Posts', async () => {
+		const youtubeUrl =
+			'https://www.youtube.com/feeds/videos.xml?channel_id=UCexample0123456789abcd';
+		const youtubeFeed = feed({ id: youtubeUrl, url: youtubeUrl, kind: 'youtube' });
+		await store.follow(PERSON, [youtubeFeed]);
+
+		const result = await refreshAll({
+			store,
+			feedIds: [youtubeFeed.id],
+			http: fastHttp(
+				fakeFetch(() =>
+					response(200, ONE_YOUTUBE, { 'content-type': 'application/atom+xml' }, youtubeUrl)
+				)
+			)
+		});
+
+		expect(result.added).toBe(1);
+		const [yip] = await store.listYips({ feedIds: [youtubeUrl] });
+		expect(yip).toMatchObject({ category: 'watch', feedKind: 'youtube' });
 	});
 
 	it('saves the etag and last-modified for the next request', async () => {
