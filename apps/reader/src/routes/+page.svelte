@@ -19,6 +19,7 @@
 	import { openExternal } from '$lib/platform/external.js';
 	import { partners } from '$lib/partnerRings.svelte.js';
 	import { shelf, toggleShelf } from '$lib/shelf.svelte.js';
+	import { verdicts } from '$lib/verdicts.svelte.js';
 	import PartnerRingPanel from '$components/PartnerRingPanel.svelte';
 
 	/**
@@ -225,6 +226,21 @@
 			navFraction = fraction;
 			ring.prev();
 		}
+	}
+
+	/** Like a creator, or set them aside so they are not shown again. Both live in You. */
+	async function decide(verdict: 'liked' | 'hidden') {
+		const entry = ring.current;
+		if (!entry) return;
+		const draft = {
+			url: entry.source_url,
+			name: entry.creator,
+			source: 'indienodes' as const,
+			...(heroImage(entry) ? { thumbUrl: heroImage(entry)! } : {})
+		};
+		const now = await verdicts.toggle(draft, verdict);
+		if (now === 'liked') toast.show(`Liked ${entry.creator}. Find them in You.`);
+		else if (now === 'hidden') toast.show(`${entry.creator} hidden. Bring them back from You.`);
 	}
 
 	async function follow() {
@@ -667,6 +683,27 @@
 									d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"
 								/></svg
 							>
+						</button>
+					</div>
+					<div class="verdicts" in:fly|global={enter('actions')}>
+						<button
+							class="chip-btn"
+							class:is-on={verdicts.verdictFor(ring.current.source_url) === 'liked'}
+							aria-pressed={verdicts.verdictFor(ring.current.source_url) === 'liked'}
+							onclick={() => decide('liked')}
+						>
+							<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"
+								><path
+									d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"
+								/></svg
+							>
+							{verdicts.verdictFor(ring.current.source_url) === 'liked' ? 'Liked' : 'Like'}
+						</button>
+						<button class="chip-btn" onclick={() => decide('hidden')}>
+							<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"
+								><path d="M6 6l12 12M18 6L6 18" /></svg
+							>
+							Not for me
 						</button>
 					</div>
 				</div>
@@ -1134,6 +1171,47 @@
 		color: #fff;
 		-webkit-backdrop-filter: blur(10px);
 		backdrop-filter: blur(10px);
+	}
+
+	.verdicts {
+		display: flex;
+		gap: 8px;
+		margin-top: 2px;
+	}
+
+	.chip-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		min-height: 44px;
+		padding: 0 14px;
+		border: 0;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.12);
+		color: #fff;
+		font-family: var(--body);
+		font-size: 13.5px;
+		font-weight: 600;
+		-webkit-backdrop-filter: blur(10px);
+		backdrop-filter: blur(10px);
+	}
+
+	.chip-btn .ic {
+		width: 18px;
+		height: 18px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.chip-btn.is-on {
+		background: rgba(255, 255, 255, 0.28);
+	}
+
+	.chip-btn.is-on .ic {
+		fill: currentColor;
 	}
 
 	.btn-icon.is-on {

@@ -116,6 +116,28 @@ export interface ShelfItem {
 	savedAt: string;
 }
 
+/**
+ * What a reader thinks of a creator they have not followed: liked, or not for me.
+ *
+ * Keyed by the creator's site, not by which ring showed them, so the same creator seen in the
+ * IndieNodes ring and in a partner ring is one verdict. Private to this device like the rest.
+ */
+export type Verdict = 'liked' | 'hidden';
+
+export interface VerdictRecord {
+	/** `verdictKey(url)`: the site without scheme, `www.` or trailing slash. */
+	id: string;
+	url: string;
+	name: string;
+	verdict: Verdict;
+	/** Which kind of ring it was found in. */
+	source: 'indienodes' | 'partner';
+	/** A partner ring's name, when it came from one. */
+	via?: string;
+	thumbUrl?: string;
+	at: string;
+}
+
 export type SettingKey =
 	| 'lastRefreshAt'
 	| 'includeExplicit'
@@ -178,6 +200,12 @@ export interface Store {
 	/** Idempotent: saving an address already on the shelf keeps the first save. */
 	saveToShelf(item: ShelfItem): Promise<void>;
 	removeFromShelf(id: string): Promise<void>;
+
+	/** Newest first. */
+	listVerdicts(): Promise<VerdictRecord[]>;
+	/** One verdict per creator: setting another replaces the first. */
+	setVerdict(record: VerdictRecord): Promise<void>;
+	removeVerdict(id: string): Promise<void>;
 
 	getSetting<T>(key: SettingKey): Promise<T | null>;
 	setSetting<T>(key: SettingKey, value: T): Promise<void>;

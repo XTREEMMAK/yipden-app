@@ -15,6 +15,7 @@ import {
 } from '@yipden/ring-client';
 import { httpFetch } from './platform/http.js';
 import { store } from './store/index.js';
+import { verdicts } from './verdicts.svelte.js';
 
 /**
  * Discover's state: the ring, where the reader is in it, and what they have filtered to.
@@ -59,7 +60,11 @@ class RingState {
 	private shuffledOrder = $state<RingEntry[]>([]);
 
 	visible = $derived.by(() => {
-		const source = this.shuffled ? this.shuffledOrder : this.all;
+		const ordered = this.shuffled ? this.shuffledOrder : this.all;
+		// Creators marked not for me never come back up, in any filter or order.
+		const source = verdicts.hiddenKeys.size
+			? ordered.filter((entry) => !verdicts.isHidden(entry.source_url))
+			: ordered;
 		const chip = RING_FILTERS.find((entry) => entry.key === this.filter);
 		if (!chip || chip.key === 'all') return source;
 
@@ -78,7 +83,8 @@ class RingState {
 
 	position = $derived.by(() => {
 		if (!this.current) return { index: 0, total: 0 };
-		if (this.filter === 'all' && !this.shuffled) return positionOf(this.all, this.current.id);
+		if (this.filter === 'all' && !this.shuffled && !verdicts.hiddenKeys.size)
+			return positionOf(this.all, this.current.id);
 		return { index: this.index + 1, total: this.visible.length };
 	});
 

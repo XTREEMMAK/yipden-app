@@ -11,6 +11,8 @@
 	import { prefs } from '$lib/prefs.svelte.js';
 	import { MAX_MAX_AGE_DAYS, MIN_MAX_AGE_DAYS } from '$lib/age.js';
 	import { shelf } from '$lib/shelf.svelte.js';
+	import { goto } from '$app/navigation';
+	import { verdicts } from '$lib/verdicts.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import Toast from '$components/Toast.svelte';
@@ -579,6 +581,51 @@
 				Saved links stay on this phone until you export them, in your follows file or a full backup.
 			</p>
 		</section>
+
+		{#each [{ key: 'liked', title: 'Liked', list: verdicts.liked, empty: 'Nothing liked yet. Tap Like on a creator in Discover or a partner ring.' }, { key: 'hidden', title: 'Not for me', list: verdicts.hidden, empty: 'Nobody hidden. Creators you mark Not for me stop appearing in Discover and partner rings.' }] as group (group.key)}
+			<section class="grp" aria-labelledby={`${group.key}-h`}>
+				<h3 class="grp-h" id={`${group.key}-h`}>
+					{group.title}
+					<span>{group.list.length}</span>
+				</h3>
+				<div class="rows">
+					{#if group.list.length === 0}
+						<p class="empty">{group.empty}</p>
+					{:else}
+						{#each group.list as item (item.id)}
+							<div class="srow shelf-row">
+								<button
+									class="shelf-open"
+									onclick={() => openExternal(item.url)}
+									aria-label={`Open ${item.name}`}
+								>
+									<span class="tt">
+										<b>{item.name}</b>
+										<small>
+											{item.via ? `via ${item.via} · ` : ''}{new URL(item.url).hostname.replace(
+												/^www\./,
+												''
+											)}
+										</small>
+									</span>
+								</button>
+								{#if group.key === 'liked'}
+									<button
+										class="mini-btn"
+										onclick={() => goto(`/follow?url=${encodeURIComponent(item.url)}`)}
+									>
+										Follow
+									</button>
+								{/if}
+								<button class="mini-btn" onclick={() => verdicts.clear(item.url)}>
+									{group.key === 'liked' ? 'Remove' : 'Bring back'}
+								</button>
+							</div>
+						{/each}
+					{/if}
+				</div>
+			</section>
+		{/each}
 	</div>
 
 	<Toast />

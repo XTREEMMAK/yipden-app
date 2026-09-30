@@ -2,7 +2,10 @@
 	import { previewKindOf, type PartnerRingResult, type PreviewKind } from '@yipden/ring-client';
 	import { cardStack } from '$lib/actions/cardStack.js';
 	import { openExternal } from '$lib/platform/external.js';
+	import { goto } from '$app/navigation';
 	import { shelf, toggleShelf } from '$lib/shelf.svelte.js';
+	import { toast } from '$lib/toast.svelte.js';
+	import { verdicts } from '$lib/verdicts.svelte.js';
 	import PlatformIcon from './PlatformIcon.svelte';
 	import PartnerThumb from './PartnerThumb.svelte';
 	import ImagePreview from './ImagePreview.svelte';
@@ -28,6 +31,25 @@
 	}
 
 	let { result, onback }: Props = $props();
+
+	/** Members the reader marked not for me are not shown again, here or in any other ring. */
+	let members = $derived(result.members.filter((member) => !verdicts.isHidden(member.url)));
+	let hiddenCount = $derived(result.members.length - members.length);
+
+	async function decide(member: (typeof result.members)[number], verdict: 'liked' | 'hidden') {
+		const now = await verdicts.toggle(
+			{
+				url: member.url,
+				name: member.name,
+				source: 'partner',
+				via: result.ring.name,
+				...(member.thumbUrl ? { thumbUrl: member.thumbUrl } : {})
+			},
+			verdict
+		);
+		if (now === 'liked') toast.show(`Liked ${member.name}. Find them in You.`);
+		else if (now === 'hidden') toast.show(`${member.name} hidden. Bring them back from You.`);
+	}
 	let back = $state<HTMLButtonElement | undefined>(undefined);
 	/**
 	 * Rendered at this component's own root, outside `.scroll`'s stacked cards: see
@@ -79,7 +101,7 @@
 
 	<div class="scroll" use:cardStack>
 		<ul class="cards">
-			{#each result.members as member (member.id)}
+			{#each members as member (member.id)}
 				{@const desktopFirst = member.layout === 'desktop-first'}
 				{@const saved = shelf.has(member.url)}
 				<li class="card yip-stack">
@@ -159,9 +181,31 @@
 							</button>
 						{/if}
 					</div>
+					<div class="acts">
+						<button
+							class="secondary"
+							onclick={() => goto(`/follow?url=${encodeURIComponent(member.url)}`)}
+						>
+							Find feeds
+						</button>
+						<button
+							class="secondary"
+							aria-pressed={verdicts.verdictFor(member.url) === 'liked'}
+							onclick={() => decide(member, 'liked')}
+						>
+							{verdicts.verdictFor(member.url) === 'liked' ? 'Liked' : 'Like'}
+						</button>
+						<button class="secondary" onclick={() => decide(member, 'hidden')}>Not for me</button>
+					</div>
 				</li>
 			{/each}
 		</ul>
+		{#if hiddenCount}
+			<p class="hidden-note">
+				{hiddenCount} hidden as not for me. You can bring {hiddenCount === 1 ? 'them' : 'them'} back in
+				You.
+			</p>
+		{/if}
 	</div>
 </section>
 
@@ -358,6 +402,16 @@
 	}
 
 	.primary,
+	.hidden-note {
+		margin: 12px 16px 0;
+		color: rgba(255, 255, 255, 0.7);
+		font-size: 13px;
+	}
+
+	.secondary[aria-pressed='true'] {
+		background: rgba(255, 255, 255, 0.3);
+	}
+
 	.secondary {
 		display: inline-flex;
 		align-items: center;

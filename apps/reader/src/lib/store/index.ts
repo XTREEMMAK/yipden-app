@@ -19,6 +19,8 @@ export type {
 	ShelfItem,
 	Store,
 	StoredYip,
+	Verdict,
+	VerdictRecord,
 	YipCategory,
 	YipQuery
 } from './types.js';

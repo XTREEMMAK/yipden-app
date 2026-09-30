@@ -6,6 +6,7 @@ import type {
 	Person,
 	SettingKey,
 	ShelfItem,
+	VerdictRecord,
 	Store,
 	StoredYip,
 	YipQuery
@@ -24,7 +25,7 @@ import type {
  */
 
 const DB_NAME = 'yipden';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 const STORE = {
 	people: 'people',
@@ -33,7 +34,8 @@ const STORE = {
 	ring: 'ring',
 	peaks: 'peaks',
 	settings: 'settings',
-	shelf: 'shelf'
+	shelf: 'shelf',
+	verdicts: 'verdicts'
 } as const;
 
 function promisify<T>(request: IDBRequest<T>): Promise<T> {
@@ -92,6 +94,10 @@ export class IdbStore implements Store {
 				if (!db.objectStoreNames.contains(STORE.shelf)) {
 					const shelf = db.createObjectStore(STORE.shelf, { keyPath: 'id' });
 					shelf.createIndex('savedAt', 'savedAt', { unique: false });
+				}
+				// Added in version 3: liked and not-for-me creators.
+				if (!db.objectStoreNames.contains(STORE.verdicts)) {
+					db.createObjectStore(STORE.verdicts, { keyPath: 'id' });
 				}
 			};
 
@@ -375,6 +381,28 @@ export class IdbStore implements Store {
 	async removeFromShelf(id: string): Promise<void> {
 		const transaction = await this.transaction([STORE.shelf], 'readwrite');
 		transaction.objectStore(STORE.shelf).delete(id);
+		return done(transaction);
+	}
+
+	// ---------- verdicts ----------
+
+	async listVerdicts(): Promise<VerdictRecord[]> {
+		const transaction = await this.transaction([STORE.verdicts], 'readonly');
+		const rows = (await promisify(
+			transaction.objectStore(STORE.verdicts).getAll()
+		)) as VerdictRecord[];
+		return rows.sort((a, b) => b.at.localeCompare(a.at) || a.id.localeCompare(b.id));
+	}
+
+	async setVerdict(record: VerdictRecord): Promise<void> {
+		const transaction = await this.transaction([STORE.verdicts], 'readwrite');
+		transaction.objectStore(STORE.verdicts).put(record);
+		return done(transaction);
+	}
+
+	async removeVerdict(id: string): Promise<void> {
+		const transaction = await this.transaction([STORE.verdicts], 'readwrite');
+		transaction.objectStore(STORE.verdicts).delete(id);
 		return done(transaction);
 	}
 

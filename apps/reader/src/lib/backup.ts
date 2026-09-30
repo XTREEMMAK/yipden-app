@@ -1,6 +1,14 @@
 import { KNOWN_LAYOUTS, safeUrl } from '@yipden/ring-client';
 import { store as defaultStore } from './store/index.js';
-import type { Feed, Person, SettingKey, ShelfItem, Store, StoredYip } from './store/types.js';
+import type {
+	Feed,
+	Person,
+	SettingKey,
+	ShelfItem,
+	Store,
+	StoredYip,
+	VerdictRecord
+} from './store/types.js';
 
 const THEME_STORAGE_KEY = 'yipden:theme';
 const SKIN_STORAGE_KEY = 'yipden:skin';
@@ -32,6 +40,8 @@ export interface YipDenBackup {
 	 * and an older build reading one with it ignores what it does not know.
 	 */
 	shelf?: ShelfItem[];
+	/** Liked and not-for-me creators. Additive, like `shelf`. */
+	verdicts?: VerdictRecord[];
 	settings: Partial<Record<SettingKey, unknown>>;
 	appearance: BackupAppearance;
 }
@@ -42,6 +52,7 @@ export interface BackupPreview {
 	feeds: number;
 	yips: number;
 	shelf: number;
+	verdicts: number;
 }
 
 export interface RestoreReport {
@@ -53,6 +64,7 @@ export interface RestoreReport {
 	feedsSkipped: number;
 	yipsAdded: number;
 	shelfAdded: number;
+	verdictsAdded: number;
 	settingsRestored: number;
 }
 
@@ -113,6 +125,20 @@ function validShelfItem(value: unknown): value is ShelfItem {
 		optionalText(value.via, 1_000) &&
 		['discover', 'feeds'].includes(String(value.from)) &&
 		text(value.savedAt, 100)
+	);
+}
+
+function validVerdict(value: unknown): value is VerdictRecord {
+	return (
+		record(value) &&
+		stringValue(value.id, 1_000) &&
+		https(value.url) &&
+		stringValue(value.name, 1_000) &&
+		['liked', 'hidden'].includes(String(value.verdict)) &&
+		['indienodes', 'partner'].includes(String(value.source)) &&
+		optionalText(value.via, 1_000) &&
+		optionalText(value.thumbUrl, 2_000) &&
+		text(value.at, 100)
 	);
 }
 
@@ -199,11 +225,12 @@ function readAppearance(): BackupAppearance {
 /** Build a plain, versioned file containing the local reader state. */
 export async function createBackup(store: Store = defaultStore): Promise<YipDenBackup> {
 	await store.init();
-	const [people, feeds, yips, shelf, settingValues] = await Promise.all([
+	const [people, feeds, yips, shelf, verdicts, settingValues] = await Promise.all([
 		store.listPeople(),
 		store.listFeeds(),
 		store.listAllYips(),
 		store.listShelf(),
+		store.listVerdicts(),
 		Promise.all(SETTING_KEYS.map((key) => store.getSetting<unknown>(key)))
 	]);
 	const settings: Partial<Record<SettingKey, unknown>> = {};
@@ -219,6 +246,7 @@ export async function createBackup(store: Store = defaultStore): Promise<YipDenB
 		feeds,
 		yips,
 		shelf,
+		verdicts,
 		settings,
 		appearance: readAppearance()
 	};
@@ -249,6 +277,10 @@ export function parseBackup(source: string): BackupPreview {
 			(!Array.isArray(value.shelf) ||
 				value.shelf.length > 10_000 ||
 				!value.shelf.every(validShelfItem))) ||
+		(value.verdicts !== undefined &&
+			(!Array.isArray(value.verdicts) ||
+				value.verdicts.length > 10_000 ||
+				!value.verdicts.every(validVerdict))) ||
 		!record(value.settings) ||
 		!record(value.appearance) ||
 		!['system', 'light', 'dark'].includes(String(value.appearance.theme)) ||
@@ -266,7 +298,8 @@ export function parseBackup(source: string): BackupPreview {
 		people: backup.people.length,
 		feeds: backup.feeds.length,
 		yips: backup.yips.length,
-		shelf: backup.shelf?.length ?? 0
+		shelf: backup.shelf?.length ?? 0,
+		verdicts: backup.verdicts?.length ?? 0
 	};
 }
 
@@ -290,6 +323,7 @@ export async function restoreBackup(
 		feedsSkipped: 0,
 		yipsAdded: 0,
 		shelfAdded: 0,
+		verdictsAdded: 0,
 		settingsRestored: 0
 	};
 
@@ -348,6 +382,15 @@ export async function restoreBackup(
 		await store.saveToShelf(item);
 		shelved.add(item.id);
 		report.shelfAdded += 1;
+	}
+
+	// Verdicts merge too: a choice already made on this device is never overwritten by an older file.
+	const decided = new Set((await store.listVerdicts()).map((item) => item.id));
+	for (const item of backup.verdicts ?? []) {
+		if (decided.has(item.id)) continue;
+		await store.setVerdict(item);
+		decided.add(item.id);
+		report.verdictsAdded += 1;
 	}
 
 	for (const key of SETTING_KEYS) {

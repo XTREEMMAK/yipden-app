@@ -12,6 +12,7 @@
 	import { store } from '$lib/store/index.js';
 	import { prefs } from '$lib/prefs.svelte.js';
 	import { theme } from '$lib/theme.svelte.js';
+	import { verdicts } from '$lib/verdicts.svelte.js';
 	import '$styles/app.css';
 
 	let { children } = $props();
@@ -20,6 +21,7 @@
 	onMount(() => {
 		theme.hydrate();
 		void prefs.hydrate();
+		void verdicts.load();
 		void restoreRingQueue();
 		return watchResume();
 	});
