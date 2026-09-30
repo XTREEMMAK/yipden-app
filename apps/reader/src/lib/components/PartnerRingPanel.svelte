@@ -204,6 +204,8 @@
 								{previewLabel(member.previewUrl)}
 							</button>
 						{/if}
+					</div>
+					<div class="acts">
 						<button
 							class="secondary icon-only"
 							aria-label={`Find feeds for ${member.name}`}
@@ -497,15 +499,19 @@
 		background: rgba(255, 255, 255, 0.3);
 	}
 
+	/*
+	 * The glyphs only fill about 60% of their 24 unit box (a heart, a magnifier), so the svg is
+	 * drawn much larger than the glyph looks: 25px read as no change at all from 18px.
+	 */
 	.icon-only {
-		width: 48px;
+		width: 56px;
 		padding: 0;
 	}
 
 	.icon-only .globe {
-		width: 25px;
-		height: 25px;
-		stroke-width: 1.9;
+		width: 36px;
+		height: 36px;
+		stroke-width: 1.7;
 	}
 
 	.primary,
