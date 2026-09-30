@@ -76,7 +76,8 @@ test.describe('the app shell', () => {
 		expect(csp).not.toContain('unsafe-eval');
 		expect(csp).toContain("object-src 'none'");
 		expect(csp).toContain("base-uri 'none'");
-		expect(csp).toContain("frame-src 'none'");
+		// Only the privacy-enhanced YouTube player may be framed; nothing else.
+		expect(csp).toContain('frame-src https://www.youtube-nocookie.com');
 		// frame-ancestors is deliberately absent: the spec ignores it in a meta tag, so it is
 		// declared in svelte.config.js for a future header delivered build and dropped here.
 	});

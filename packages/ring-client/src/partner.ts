@@ -39,6 +39,10 @@ export interface PartnerRingInfo {
 	name: string;
 	/** The ring's own front door. Every member card links here, not to IndieNodes. */
 	hubUrl: string;
+	/** The ring's own small mark (its favicon or logo), https only. Drawn beside its name. */
+	iconUrl?: string;
+	/** The ring's own button or badge, such as an 88x31, https only. Drawn in its header. */
+	badgeUrl?: string;
 }
 
 /** What an adapter hands the boundary for one member: untrusted, and possibly incomplete. */
@@ -147,6 +151,11 @@ export function readPartnerRing(adapter: PartnerAdapter, document: unknown): Par
 	if (!hub) return empty('ring hub is missing, not https, or not public');
 
 	const info: PartnerRingInfo = { id: adapter.ring.id, name, hubUrl: hub };
+	// Art is optional and only ever an https address: a ring that supplies none simply has none.
+	const icon = normalizeUrl(adapter.ring.iconUrl);
+	if (icon) info.iconUrl = icon;
+	const badge = normalizeUrl(adapter.ring.badgeUrl);
+	if (badge) info.badgeUrl = badge;
 
 	let candidates: PartnerCandidate[];
 	try {

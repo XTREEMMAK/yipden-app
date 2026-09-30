@@ -165,7 +165,13 @@ export function scrapeKnifebeetleWebring(document: unknown): PartnerCandidate[] 
 
 export const knifebeetleSource: PartnerSource = {
 	adapter: {
-		ring: { id: 'knifebeetle', name: 'Knifebeetle', hubUrl: KNIFEBEETLE_URL },
+		ring: {
+			id: 'knifebeetle',
+			name: 'Knifebeetle',
+			hubUrl: KNIFEBEETLE_URL,
+			// The favicon the ring's own page declares.
+			iconUrl: 'https://knifebeetle.neocities.org/images/kb-favicon.png'
+		},
 		capabilities: ['thumbnails', 'tags'],
 		read: scrapeKnifebeetleWebring
 	},

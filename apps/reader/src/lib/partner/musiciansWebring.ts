@@ -139,7 +139,9 @@ export const musiciansWebringSource: PartnerSource = {
 		ring: {
 			id: 'musicians-webring',
 			name: 'Musicians Webring',
-			hubUrl: MUSICIANS_WEBRING_URL
+			hubUrl: MUSICIANS_WEBRING_URL,
+			// The favicon the ring's own page declares.
+			iconUrl: 'https://lydels.neocities.org/musicianswebring/imagenes/favicon.gif'
 		},
 		capabilities: ['sensitive', 'preview', 'thumbnails'],
 		read: scrapeMusiciansWebring

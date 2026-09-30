@@ -507,10 +507,14 @@
 					aria-expanded={ringSheetOpen}
 					aria-label={`Switch ring: ${ringLabel}`}
 				>
-					<svg viewBox="0 0 24 24" aria-hidden="true">
-						<circle cx="9.5" cy="12" r="6" />
-						<circle cx="14.5" cy="12" r="6" />
-					</svg>
+					{#if partners.selected?.ring.iconUrl}
+						<img class="ring-mark" src={partners.selected.ring.iconUrl} alt="" />
+					{:else}
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<circle cx="9.5" cy="12" r="6" />
+							<circle cx="14.5" cy="12" r="6" />
+						</svg>
+					{/if}
 					{#if partners.selected !== null}
 						<span class="filter-dot" aria-hidden="true"></span>
 					{/if}
@@ -830,7 +834,11 @@
 					aria-checked={partners.selected?.ring.id === entry.ring.id}
 					onclick={() => chooseRing(entry.ring.id)}
 				>
-					<span class="sheet-dot" aria-hidden="true"></span>
+					{#if entry.ring.iconUrl}
+						<img class="sheet-icon" src={entry.ring.iconUrl} alt="" />
+					{:else}
+						<span class="sheet-dot" aria-hidden="true"></span>
+					{/if}
 					{entry.ring.name}
 					<small class="sheet-hint">Partner ring</small>
 				</button>
@@ -1318,6 +1326,21 @@
 		color: var(--muted);
 		font-size: 12px;
 		font-weight: 400;
+	}
+
+	.ring-mark {
+		width: 22px;
+		height: 22px;
+		border-radius: 5px;
+		object-fit: cover;
+	}
+
+	.sheet-icon {
+		width: 22px;
+		height: 22px;
+		flex: none;
+		border-radius: 5px;
+		object-fit: cover;
 	}
 
 	.sheet-row {

@@ -1910,3 +1910,34 @@ feeds, instead of waiting for Feeds to open, and `feeds.fetching` drives the spi
 **The Discover tab bar's `.dark` tint uses `rgba(var(--deep-rgb), .62)`** so it follows the skin.
 
 Folders were asked about and do not exist; they are on ROADMAP.md as an idea.
+
+## 2026-09-30 (night) — Liked / not for me, YouTube embeds, robots exemption, partner art
+
+**Robots exemption for YouTube's channel feed only.** `youtube.com/feeds/videos.xml` is listed in
+YouTube's robots.txt for every agent, yet it is the feed each channel page links for readers, so
+honoring it made every YouTube follow fail with status 999. `isPublishedFeedEndpoint` exempts that
+exact host and path; everything else, including YouTube pages, is still checked.
+
+**Verdicts are one record per creator, keyed by site (`verdictKey`), not per ring**, so a creator
+liked in a partner ring is also liked in IndieNodes. Stored in a new `verdicts` IDB store (DB
+version 3), merged not replaced on restore, and exported only in the backup, not OPML. Not for me
+filters `ring.visible` and partner member lists; like and hide are mutually exclusive.
+
+**YouTube embeds are built from a validated 11 character id** (`youtubeVideoId`) against
+`youtube-nocookie.com`, after a tap, in a sandboxed iframe, with `frame-src` narrowed from `'none'`
+to that one origin. Feed-supplied iframe markup is still stripped. On Android, YouTube can refuse
+an app origin (error 153); the card always offers Open on YouTube. Untested on a device.
+
+**Feeds stopped swiping sideways.** The pull-to-refresh handlers on each pane ran first and left
+`pulling` set (pointer capture stole the pointerup), which disabled the swipe. The pills make it
+redundant, so it was removed rather than patched.
+
+**Read on scroll** is a separate IntersectionObserver (`readOnScroll`), not part of the card stack,
+so it works under reduced motion, and it only counts a card that was seen before it left the top.
+
+**Partner ring art** is optional per ring (`iconUrl`, `badgeUrl`), https only, set by the adapter
+from the ring's own declared favicon. The backdrop is a blurred mosaic of the ring's member
+thumbnails rather than anything hotlinked from elsewhere.
+
+**Follow matches a ring member by any page on a bare-host site**, never on a shared host (a
+profile path), where a host match would pick the wrong person. Folders remain unbuilt.

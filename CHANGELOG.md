@@ -8,6 +8,16 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- Liked and Not for me, for the IndieNodes ring and partner rings: buttons on Discover and on each
+  partner member. Not for me hides a creator everywhere; both lists live in You, can be undone, and
+  are in the backup. Partner members also get Find feeds, which opens Follow with their address.
+- YouTube videos play inside the feed card (the privacy-enhanced player, loaded only when tapped).
+- Feeds: unread dots pulse with a ring that spreads outward, and a Settings switch marks a card
+  read once it scrolls off the top.
+- Partner rings show their own icon (and a badge when one is supplied), and a soft mosaic of their
+  members' pictures behind the member list.
+- Follow accepts `?url=` and recognizes any page on a ring member's own site.
+
 - A new follow's posts are fetched right away, with a spinner on Discover's Follow button, the
   Follow screen, the person's row in You, and a bar on Feeds while it refreshes.
 - Keep-posts-for limit: Settings has a slider (7 to 90 days, default 30) and each follow can
@@ -22,6 +32,9 @@ Every notable change to YipDen, newest first. The format follows
   jump straight to one instead of stepping through them. Replaces the node counter, which is gone.
 
 ### Changed
+
+- Feeds no longer pages between panes by swiping sideways; it stopped working after the first
+  swipe and fought the vertical scroll, and the pills are always visible.
 
 - Discover's tab bar takes the selected skin's deep colour (Blue Glass is blue-tinted, not brown).
 - Shuffle on Discover now toggles: tapping it again returns to the ring's own order.

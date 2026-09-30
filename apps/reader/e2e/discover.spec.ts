@@ -226,6 +226,34 @@ test.describe('Discover', () => {
 		expect(await pose()).not.toBe(first);
 	});
 
+	test('Not for me hides a creator, and You can bring them back', async ({ page }) => {
+		await page.goto('/');
+		const heading = page.getByRole('heading', { level: 1 });
+		const first = await heading.textContent();
+
+		await page.getByRole('button', { name: 'Not for me' }).click();
+		await expect(heading).not.toHaveText(first!);
+
+		await page.goto('/you');
+		const row = page.getByRole('button', { name: `Open ${first}` });
+		await expect(row).toBeVisible();
+		await page.getByRole('button', { name: 'Bring back' }).click();
+		await expect(row).toHaveCount(0);
+	});
+
+	test('Like is remembered and shows under Liked in You', async ({ page }) => {
+		await page.goto('/');
+		const first = await page.getByRole('heading', { level: 1 }).textContent();
+		await page.getByRole('button', { name: 'Like', exact: true }).click();
+		await expect(page.getByRole('button', { name: 'Liked', exact: true })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+
+		await page.goto('/you');
+		await expect(page.getByRole('button', { name: `Open ${first}` })).toBeVisible();
+	});
+
 	test('every control clears the 44px minimum', async ({ page }) => {
 		await page.goto('/');
 

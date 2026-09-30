@@ -34,6 +34,10 @@
 
 	/** Members the reader marked not for me are not shown again, here or in any other ring. */
 	let members = $derived(result.members.filter((member) => !verdicts.isHidden(member.url)));
+	/** A handful of member pictures for the background, not all of them. */
+	let backdrop = $derived(
+		result.members.flatMap((member) => (member.thumbUrl ? [member.thumbUrl] : [])).slice(0, 12)
+	);
 	let hiddenCount = $derived(result.members.length - members.length);
 
 	async function decide(member: (typeof result.members)[number], verdict: 'liked' | 'hidden') {
@@ -88,6 +92,15 @@
 </script>
 
 <section class="partner" data-noswipe aria-label={`${result.ring.name} members`}>
+	<!--
+		Background art: a soft mosaic of the ring's own members' pictures, dimmed under the ring's
+		mark, so each ring feels like its own place. Decorative, and absent when there is none.
+	-->
+	<div class="backdrop" aria-hidden="true">
+		{#each backdrop as src (src)}
+			<span style:background-image={`url(${CSS.escape(src)})`}></span>
+		{/each}
+	</div>
 	<header class="head">
 		<button bind:this={back} class="back" onclick={onback}>
 			<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
@@ -96,7 +109,15 @@
 		<p class="note">
 			Another ring. These members are not part of Discover’s rotation, and nothing here is ranked.
 		</p>
-		<h2>{result.ring.name}</h2>
+		<div class="ring-id">
+			{#if result.ring.iconUrl}
+				<img class="ring-icon" src={result.ring.iconUrl} alt="" />
+			{/if}
+			<h2>{result.ring.name}</h2>
+			{#if result.ring.badgeUrl}
+				<img class="ring-badge" src={result.ring.badgeUrl} alt={`${result.ring.name} badge`} />
+			{/if}
+		</div>
 	</header>
 
 	<div class="scroll" use:cardStack>
@@ -223,6 +244,46 @@
 		background: var(--deep);
 		color: #fff;
 		user-select: text;
+	}
+
+	.backdrop {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		grid-auto-rows: 1fr;
+		opacity: 0.16;
+		filter: blur(14px) saturate(1.2);
+		transform: scale(1.1);
+		pointer-events: none;
+	}
+
+	.backdrop span {
+		background-size: cover;
+		background-position: center;
+	}
+
+	.partner > :not(.backdrop) {
+		position: relative;
+	}
+
+	.ring-id {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.ring-icon {
+		width: 32px;
+		height: 32px;
+		border-radius: 8px;
+		object-fit: cover;
+	}
+
+	.ring-badge {
+		max-height: 31px;
+		margin-left: auto;
+		image-rendering: pixelated;
 	}
 
 	.head {
