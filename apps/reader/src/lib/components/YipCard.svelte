@@ -43,7 +43,8 @@
 	 * 153), and a frame cannot report that to us, so the reader would be left with a dead player.
 	 * There the card opens the video in YouTube, as it always did. The browser build embeds.
 	 */
-	let videoId = $derived(isVideo && !Capacitor.isNativePlatform() ? youtubeVideoId(yip.url) : null);
+	let youtubeId = $derived(isVideo ? youtubeVideoId(yip.url) : null);
+	let videoId = $derived(Capacitor.isNativePlatform() ? null : youtubeId);
 	let embedding = $state(false);
 	let isMedia = $derived(isAudio || isVideo || image !== null);
 	let authorName = $derived(displayAuthor(yip, feeds.personFor(yip)?.name));
@@ -105,7 +106,7 @@
 		onclick={open}
 		aria-label={concealed
 			? `Content warning: ${warning}. Show content.`
-			: `${yip.title} by ${authorName}${duration ? `, ${duration}` : ''}. ${isAudio ? 'Play audio.' : videoId ? 'Play video.' : `Opens on ${new URL(yip.url).hostname}.`}${imageAlt ? ` Image description: ${imageAlt}` : ''}`}
+			: `${yip.title} by ${authorName}${duration ? `, ${duration}` : ''}. ${isAudio ? 'Play audio.' : videoId ? 'Play video.' : youtubeId ? 'Plays on YouTube.' : `Opens on ${new URL(yip.url).hostname}.`}${imageAlt ? ` Image description: ${imageAlt}` : ''}`}
 	>
 		<span
 			class="art"
@@ -126,7 +127,7 @@
 			</span>
 			<span
 				class="go"
-				class:play={(isAudio || videoId !== null) && !concealed}
+				class:play={(isAudio || youtubeId !== null) && !concealed}
 				class:warning={concealed}
 				aria-hidden="true"
 			>
@@ -136,7 +137,7 @@
 							d="M12 9v4M12 17h.01M10.3 4.2 2.6 18a1.5 1.5 0 0 0 1.3 2.2h16.2a1.5 1.5 0 0 0 1.3-2.2L13.7 4.2a2 2 0 0 0-3.4 0Z"
 						/></svg
 					>
-				{:else if isAudio || videoId}
+				{:else if isAudio || youtubeId}
 					<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
 				{:else}
 					<svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8" /></svg>
