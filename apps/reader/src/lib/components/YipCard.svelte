@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Capacitor } from '@capacitor/core';
 	import { youtubeVideoId } from '@yipden/feeds';
 	import { player } from '$lib/player.svelte.js';
 	import { buildListenQueue } from '$lib/queue.js';
@@ -35,8 +36,14 @@
 	let imageAlt = $derived(imageAttachment?.alt ?? '');
 	let isAudio = $derived(yip.category === 'listen');
 	let isVideo = $derived(yip.category === 'watch');
-	/** A YouTube video plays in the card, in the privacy-enhanced player, after the reader taps. */
-	let videoId = $derived(isVideo ? youtubeVideoId(yip.url) : null);
+	/**
+	 * A YouTube video plays in the card, in the privacy-enhanced player, after the reader taps.
+	 *
+	 * Not inside the Android app: the WebView's own origin makes YouTube refuse the embed (error
+	 * 153), and a frame cannot report that to us, so the reader would be left with a dead player.
+	 * There the card opens the video in YouTube, as it always did. The browser build embeds.
+	 */
+	let videoId = $derived(isVideo && !Capacitor.isNativePlatform() ? youtubeVideoId(yip.url) : null);
 	let embedding = $state(false);
 	let isMedia = $derived(isAudio || isVideo || image !== null);
 	let authorName = $derived(displayAuthor(yip, feeds.personFor(yip)?.name));

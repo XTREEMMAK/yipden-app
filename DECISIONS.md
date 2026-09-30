@@ -1970,3 +1970,12 @@ considered and left out: the hero's canvas only draws during a swipe, so it woul
 render path for a few hundred milliseconds of decoration. Revisit if the CSS version feels flat.
 
 **The age limit debug switch is now in Settings** (`prefs.ageLimitEnabled`), still off by default.
+
+## 2026-10-01 (evening) — YouTube plays in the card on the web build only
+
+On a phone the embed tried to play inside the card and did not. The Android WebView's own origin
+is what YouTube refuses (error 153), and a cross-origin frame cannot tell the page it failed, so
+there is nothing to detect and fall back from. In the Android app a YouTube card therefore opens
+the video in YouTube again (the play triangle becomes the open arrow); the browser build still
+embeds. If a referrer/origin setup later makes the embed work in the app, drop the native check in
+`YipCard.svelte`. Untested against YouTube from a device: this is the safe default, not a proven cause.
