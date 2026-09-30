@@ -227,7 +227,7 @@
 			</div>
 
 			{#if player.ended}
-				{@const suggestion = ringPlayer.suggest(ring.all)}
+				{@const suggestion = ringPlayer.suggest(ring.shown)}
 				<div class="end-prompt" data-noswipe transition:fly={flyIn({ y: 12 })}>
 					{#if suggestion}
 						<p>Queue finished. Play more from <b>{suggestion.creator}</b> next?</p>

@@ -155,6 +155,25 @@
 	 * instead: the full list of whoever the current filter leaves visible, to jump straight to
 	 * one rather than stepping through them. See ROADMAP.md and DECISIONS.md.
 	 */
+	let actionsSheetOpen = $state(false);
+	let actionsButton = $state<HTMLButtonElement | undefined>(undefined);
+	let actionsSheetClose = $state<HTMLButtonElement | undefined>(undefined);
+
+	$effect(() => {
+		if (actionsSheetOpen) actionsSheetClose?.focus();
+	});
+
+	function closeActionsSheet() {
+		actionsSheetOpen = false;
+		actionsButton?.focus();
+	}
+
+	/** Run one of the secondary actions, closing the menu first so focus is not left behind it. */
+	function fromActions(run: () => void) {
+		actionsSheetOpen = false;
+		run();
+	}
+
 	let membersSheetOpen = $state(false);
 	let membersButton = $state<HTMLButtonElement | undefined>(undefined);
 	let membersSheetClose = $state<HTMLButtonElement | undefined>(undefined);
@@ -393,6 +412,7 @@
 	onkeydown={(event) => {
 		if (event.key === 'Escape') {
 			if (filterSheetOpen) closeFilterSheet();
+			else if (actionsSheetOpen) closeActionsSheet();
 			else if (ringSheetOpen) closeRingSheet();
 			else if (membersSheetOpen) closeMembersSheet();
 			return;
@@ -408,6 +428,7 @@
 		if (
 			filterSheetOpen ||
 			ringSheetOpen ||
+			actionsSheetOpen ||
 			membersSheetOpen ||
 			partners.selected ||
 			ring.visible.length <= 1
@@ -594,39 +615,12 @@
 					<div class="actions" in:fly|global={enter('actions')}>
 						{#if desktopFirst}
 							<button
-								class="btn-white compact"
+								class="btn-white"
 								class:is-on={onShelf}
 								onclick={saveForLater}
 								aria-pressed={onShelf}
 							>
 								{onShelf ? 'Saved' : 'Save for later'}
-							</button>
-							<button
-								class="btn-icon"
-								class:is-on={ring.isFollowing(ring.current)}
-								onclick={follow}
-								disabled={following || ring.isFollowing(ring.current)}
-								aria-pressed={ring.isFollowing(ring.current)}
-								aria-label={fetchingCurrent
-									? 'Fetching posts'
-									: ring.isFollowing(ring.current)
-										? 'Following'
-										: following
-											? 'Following…'
-											: 'Follow everything'}
-								title="Follow everything"
-							>
-								{#if fetchingCurrent}
-									<Spinner />
-								{:else}
-									<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
-										{#if ring.isFollowing(ring.current)}
-											<path d="M5 12.5l4.5 4.5L19 7.5" />
-										{:else}
-											<path d="M12 5v14M5 12h14" />
-										{/if}
-									</svg>
-								{/if}
 							</button>
 						{:else}
 							<button
@@ -673,39 +667,19 @@
 							</button>
 						{/if}
 						<button
+							bind:this={actionsButton}
 							class="btn-icon"
-							onclick={() => openExternal(ring.current!.source_url)}
-							aria-label="Visit site"
-							title="Visit site"
+							onclick={() => (actionsSheetOpen = true)}
+							aria-haspopup="dialog"
+							aria-expanded={actionsSheetOpen}
+							aria-label="More actions"
+							title="More actions"
 						>
-							<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"
-								><path
-									d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"
-								/></svg
-							>
-						</button>
-					</div>
-					<div class="verdicts" in:fly|global={enter('actions')}>
-						<button
-							class="chip-btn"
-							class:is-on={verdicts.verdictFor(ring.current.source_url) === 'liked'}
-							aria-pressed={verdicts.verdictFor(ring.current.source_url) === 'liked'}
-							onclick={() => decide('liked')}
-						>
-							<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"
-								><path
-									d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"
-								/></svg
-							>
-							{verdicts.verdictFor(ring.current.source_url) === 'liked' ? 'Liked' : 'Like'}
-						</button>
-						<button class="chip-btn" onclick={() => decide('hidden')}>
-							<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"
-								><path
-									d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"
-								/><path d="M9.6 8.6l4.8 4.8M14.4 8.6l-4.8 4.8" /></svg
-							>
-							Not for me
+							<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+								<circle cx="5.5" cy="12" r="1.6" />
+								<circle cx="12" cy="12" r="1.6" />
+								<circle cx="18.5" cy="12" r="1.6" />
+							</svg>
 						</button>
 					</div>
 				</div>
@@ -781,6 +755,87 @@
 					{chip.label}
 				</button>
 			{/each}
+		</div>
+	</div>
+{/if}
+
+{#if actionsSheetOpen && ring.current}
+	{@const entry = ring.current}
+	{@const verdict = verdicts.verdictFor(entry.source_url)}
+	<button
+		type="button"
+		class="sheet-backdrop"
+		data-noswipe
+		tabindex="-1"
+		aria-label="Close"
+		onclick={closeActionsSheet}
+		transition:fade={{ duration: prefersReducedMotion() ? 0 : duration.s }}
+	></button>
+	<div
+		class="filter-sheet"
+		data-noswipe
+		role="dialog"
+		aria-modal="true"
+		aria-label={`Actions for ${entry.creator}`}
+		in:fly={flyIn({ y: 40 })}
+		out:fly={flyIn({ y: 40 })}
+	>
+		<div class="sheet-head">
+			<h2>{entry.creator}</h2>
+			<button
+				bind:this={actionsSheetClose}
+				class="sheet-close"
+				onclick={closeActionsSheet}
+				aria-label="Close"
+			>
+				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+			</button>
+		</div>
+		<div class="sheet-list">
+			{#if desktopFirst}
+				<button
+					class="sheet-row"
+					disabled={following || ring.isFollowing(entry)}
+					onclick={() => fromActions(follow)}
+				>
+					<svg class="row-ic" viewBox="0 0 24 24" aria-hidden="true"
+						><path
+							d={ring.isFollowing(entry) ? 'M5 12.5l4.5 4.5L19 7.5' : 'M12 5v14M5 12h14'}
+						/></svg
+					>
+					{ring.isFollowing(entry) ? 'Following' : 'Follow everything'}
+				</button>
+			{/if}
+			<button
+				class="sheet-row"
+				aria-pressed={verdict === 'liked'}
+				onclick={() => fromActions(() => decide('liked'))}
+			>
+				<svg
+					class="row-ic"
+					class:filled={verdict === 'liked'}
+					viewBox="0 0 24 24"
+					aria-hidden="true"
+					><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" /></svg
+				>
+				{verdict === 'liked' ? 'Liked' : 'Like'}
+			</button>
+			<button class="sheet-row" onclick={() => fromActions(() => decide('hidden'))}>
+				<svg class="row-ic" viewBox="0 0 24 24" aria-hidden="true"
+					><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" /><path
+						d="M9.6 8.6l4.8 4.8M14.4 8.6l-4.8 4.8"
+					/></svg
+				>
+				Not for me
+			</button>
+			<button class="sheet-row" onclick={() => fromActions(() => openExternal(entry.source_url))}>
+				<svg class="row-ic" viewBox="0 0 24 24" aria-hidden="true"
+					><path
+						d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"
+					/></svg
+				>
+				Visit site
+			</button>
 		</div>
 	</div>
 {/if}
@@ -1148,11 +1203,6 @@
 		color: #1f1410;
 	}
 
-	/* Two more icon buttons share this row for a desktop first member, so the pill is tighter. */
-	.btn-white.compact {
-		padding: 0 16px;
-	}
-
 	.btn-white.is-on {
 		background: rgba(255, 255, 255, 0.22);
 		color: #fff;
@@ -1177,51 +1227,6 @@
 		color: #fff;
 		-webkit-backdrop-filter: blur(10px);
 		backdrop-filter: blur(10px);
-	}
-
-	.verdicts {
-		display: flex;
-		gap: 8px;
-		margin-top: 2px;
-	}
-
-	.chip-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		min-height: 44px;
-		padding: 0 14px;
-		border: 0;
-		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.12);
-		color: #fff;
-		font-family: var(--body);
-		font-size: 13.5px;
-		font-weight: 600;
-		-webkit-backdrop-filter: blur(10px);
-		backdrop-filter: blur(10px);
-	}
-
-	.chip-btn .ic {
-		width: 18px;
-		height: 18px;
-		fill: none;
-		stroke: currentColor;
-		stroke-width: 2;
-		stroke-linecap: round;
-		stroke-linejoin: round;
-	}
-
-	.chip-btn.is-on {
-		background: rgba(255, 255, 255, 0.28);
-	}
-
-	.chip-btn.is-on .ic {
-		fill: currentColor;
-	}
-
-	.btn-icon.is-on {
-		background: rgba(255, 255, 255, 0.28);
 	}
 
 	.bottom {
@@ -1332,6 +1337,25 @@
 		flex: none;
 		border-radius: 5px;
 		object-fit: cover;
+	}
+
+	.row-ic {
+		width: 22px;
+		height: 22px;
+		flex: none;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.9;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.row-ic.filled {
+		fill: currentColor;
+	}
+
+	.sheet-row:disabled {
+		opacity: 0.55;
 	}
 
 	.sheet-row {

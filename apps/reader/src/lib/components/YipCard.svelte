@@ -63,7 +63,7 @@
 			return;
 		}
 		if (isAudio) {
-			const queue = buildListenQueue(feeds.panes.listen, ring.all);
+			const queue = buildListenQueue(feeds.panes.listen, ring.shown);
 			const index = queue.findIndex((item) => item.id === yip.key);
 			if (index !== -1) {
 				player.play(queue, index, event.currentTarget as HTMLElement);

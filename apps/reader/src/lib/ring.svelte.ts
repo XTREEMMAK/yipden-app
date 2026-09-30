@@ -59,6 +59,13 @@ class RingState {
 
 	private shuffledOrder = $state<RingEntry[]>([]);
 
+	/** Every member the reader has not marked not for me, in the ring's own order. */
+	shown = $derived(
+		verdicts.hiddenKeys.size
+			? this.all.filter((entry) => !verdicts.isHidden(entry.source_url))
+			: this.all
+	);
+
 	visible = $derived.by(() => {
 		const ordered = this.shuffled ? this.shuffledOrder : this.all;
 		// Creators marked not for me never come back up, in any filter or order.

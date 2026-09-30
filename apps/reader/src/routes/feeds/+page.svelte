@@ -279,7 +279,7 @@
 					{/if}
 
 					{#if filter.key === 'listen' && ring.all.length}
-						{@const members = ring.all.filter((entry) => (entry.tracks?.length ?? 0) > 0)}
+						{@const members = ring.shown.filter((entry) => (entry.tracks?.length ?? 0) > 0)}
 						{#if members.length}
 							<div class="sec-h">
 								<h3>From the IndieNodes webring</h3>

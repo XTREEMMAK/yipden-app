@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ringNext, ringPrev } from './support.js';
+import { openActions, ringNext, ringPrev } from './support.js';
 
 /**
  * Discover, against a fixed ring.
@@ -77,7 +77,7 @@ test.describe('Discover', () => {
 
 		await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 		await expect(page.getByRole('button', { name: /Follow everything/ })).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Visit site' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'More actions' })).toBeVisible();
 	});
 
 	test('names the same member for everyone on the same day', async ({ page }) => {
@@ -141,7 +141,9 @@ test.describe('Discover', () => {
 		await chooseFilter(page, 'Music');
 		await page.getByRole('button', { name: /Follow everything/ }).click();
 
-		await expect(page.getByRole('status')).toContainText('Following Ada Reed in 2 places');
+		await expect(
+			page.getByRole('status').filter({ hasText: 'Following Ada Reed in 2 places' })
+		).toBeVisible();
 		await expect(page.getByRole('button', { name: /Following/ })).toHaveAttribute(
 			'aria-pressed',
 			'true'
@@ -231,7 +233,7 @@ test.describe('Discover', () => {
 		const heading = page.getByRole('heading', { level: 1 });
 		const first = await heading.textContent();
 
-		await page.getByRole('button', { name: 'Not for me' }).click();
+		await (await openActions(page)).getByRole('button', { name: 'Not for me' }).click();
 		await expect(heading).not.toHaveText(first!);
 
 		await page.goto('/you');
@@ -244,11 +246,9 @@ test.describe('Discover', () => {
 	test('Like is remembered and shows under Liked in You', async ({ page }) => {
 		await page.goto('/');
 		const first = await page.getByRole('heading', { level: 1 }).textContent();
-		await page.getByRole('button', { name: 'Like', exact: true }).click();
-		await expect(page.getByRole('button', { name: 'Liked', exact: true })).toHaveAttribute(
-			'aria-pressed',
-			'true'
-		);
+		await (await openActions(page)).getByRole('button', { name: 'Like', exact: true }).click();
+		await expect(await openActions(page)).toContainText('Liked');
+		await page.keyboard.press('Escape');
 
 		await page.goto('/you');
 		await expect(page.getByRole('button', { name: `Open ${first}` })).toBeVisible();

@@ -1,8 +1,9 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { FeedHttp, type FetchLike, type HttpResponse } from '@yipden/feeds';
 import { IdbStore } from './store/idb.js';
+import { setAgeLimitActive } from './age.js';
 import { categorize, pruneToMaxAge, refreshAll, toStoredYip } from './refresh.js';
 import type { Feed, Item, Person } from './store/types.js';
 
@@ -328,6 +329,10 @@ describe('refreshAll', () => {
 });
 
 describe('max age', () => {
+	// The limit is switched off app-wide while debugging (see age.ts); these tests turn it on.
+	beforeEach(() => setAgeLimitActive(true));
+	afterEach(() => setAgeLimitActive(false));
+
 	const NOW = new Date('2026-09-30T00:00:00.000Z');
 	const MIXED = RSS(`<item><title>Recent</title><link>https://lena.example.com/new</link>
 		<pubDate>Mon, 21 Sep 2026 14:02:00 GMT</pubDate></item>

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { ringNext } from './support.js';
+import { openActions, ringNext } from './support.js';
 
 /**
  * Layout awareness, the Shelf, and the partner ring surface.
@@ -101,8 +101,9 @@ test.describe('a desktop first member in Discover', () => {
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Wide Screen');
 		await expect(page.getByText('Best on desktop', { exact: true })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Save for later' })).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Follow everything' })).toBeVisible();
-		await page.getByRole('button', { name: 'Visit site' }).click();
+		const actions = await openActions(page);
+		await expect(actions.getByRole('button', { name: 'Follow everything' })).toBeVisible();
+		await actions.getByRole('button', { name: 'Visit site' }).click();
 		expect(await opened(page)).toEqual(['https://wide.example.com/']);
 	});
 
@@ -182,8 +183,7 @@ test.describe('a desktop first member in Discover', () => {
 		await page.getByRole('button', { name: 'Save for later' }).click();
 		await tall([
 			page.getByRole('button', { name: 'Saved' }),
-			page.getByRole('button', { name: 'Follow everything' }),
-			page.getByRole('button', { name: 'Visit site' })
+			page.getByRole('button', { name: 'More actions' })
 		]);
 
 		await page.goto('/you');

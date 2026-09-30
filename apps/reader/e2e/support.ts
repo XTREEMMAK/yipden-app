@@ -31,3 +31,14 @@ export async function ringPrev(page: Page): Promise<void> {
 async function settled(page: Page): Promise<void> {
 	await expect(page.locator('.body-inner[aria-hidden="true"]')).toHaveCount(0, { timeout: 2000 });
 }
+
+/**
+ * Opens Discover's More actions menu and returns its dialog, where Like, Not for me and Visit
+ * site live (plus Follow for a member built for desktop). The hero keeps only the main action.
+ */
+export async function openActions(page: Page) {
+	await page.getByRole('button', { name: 'More actions' }).click();
+	const dialog = page.getByRole('dialog', { name: /^Actions for / });
+	await expect(dialog).toBeVisible();
+	return dialog;
+}

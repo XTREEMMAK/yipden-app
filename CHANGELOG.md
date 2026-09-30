@@ -8,6 +8,14 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- Discover's secondary buttons (Like, Not for me, Visit site, and Follow for a desktop-first member)
+  moved into a More actions menu; the hero keeps only the main action, preview and the menu.
+- Partner cards: Visit and the other pills are round again (a stray CSS edit had squared them), and
+  Find feeds, Like and Not for me are icon-only.
+- Not for me now also hides a creator from Feeds' "From the IndieNodes webring" list, the Listen
+  queue and player suggestions, not only Discover.
+- Mark as read when scrolled past also marks the last card after a few seconds of being still on it.
+
 - Feeds: the last card now scrolls fully to the top instead of stopping with the previous card half
   hidden.
 - Mark as read when scrolled past now works with the card stack (it measured where a card was drawn,

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ringNext } from './support.js';
+import { openActions, ringNext } from './support.js';
 
 /**
  * Discover's per-type preview button: audio plays, comics, art and text open a viewer, a game
@@ -117,7 +117,7 @@ test.describe('Discover previews', () => {
 		await expect(page.getByRole('button', { name: 'Watch trailer' })).toBeVisible();
 
 		await showMember(page, 'Creator gm0');
-		await expect(page.getByRole('button', { name: 'Visit site' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'More actions' })).toBeVisible();
 		await expect(
 			page.getByRole('button', { name: /Play|Read a|View artwork|Watch trailer|^Preview/ })
 		).toHaveCount(0);
@@ -131,15 +131,15 @@ test.describe('Discover previews', () => {
 		await expect(page.getByText(/in the ring/)).toHaveCount(0);
 	});
 
-	test('the preview and visit buttons are icons, and every control clears 44px', async ({
+	test('the preview and more-actions buttons are icons, and every control clears 44px', async ({
 		page
 	}) => {
 		await seed(page);
 		await showMember(page, 'Creator cmc');
 		const button = page.getByRole('button', { name: 'Read a preview' });
 		await expect(button).toHaveText('');
-		await expect(page.getByRole('button', { name: 'Visit site' })).toHaveText('');
-		for (const name of ['Read a preview', 'Visit site']) {
+		await expect(page.getByRole('button', { name: 'More actions' })).toHaveText('');
+		for (const name of ['Read a preview', 'More actions']) {
 			const box = (await page.getByRole('button', { name }).boundingBox())!;
 			expect(box.width, name).toBeGreaterThanOrEqual(44);
 			expect(box.height, name).toBeGreaterThanOrEqual(44);

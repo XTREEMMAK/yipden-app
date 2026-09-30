@@ -2,7 +2,7 @@ import { FeedHttp, parseFeed, type FetchLike, type Item } from '@yipden/feeds';
 import { httpFetch } from './platform/http.js';
 import { store as defaultStore } from './store/index.js';
 import type { Feed, Store, StoredYip, YipCategory } from './store/types.js';
-import { ageCutoff, DEFAULT_MAX_AGE_DAYS, effectiveMaxAgeDays } from './age.js';
+import { ageCutoff, DEFAULT_MAX_AGE_DAYS, effectiveMaxAgeDays, isAgeLimitActive } from './age.js';
 
 /**
  * Turning what people publish into what Feeds shows.
@@ -124,7 +124,7 @@ export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshR
 			const cutoff = ageCutoff(effectiveMaxAgeDays(people.get(feed.personId), defaultDays), now());
 			prunable.set(feed.personId, cutoff);
 			const yips = parsed.items
-				.filter((item) => !item.publishedAt || item.publishedAt >= cutoff)
+				.filter((item) => !isAgeLimitActive() || !item.publishedAt || item.publishedAt >= cutoff)
 				.map((item) => toStoredYip(item, feed, feed.personId, fetchedAt));
 			const { added } = await store.putYips(yips);
 			totalAdded += added;
@@ -156,7 +156,9 @@ export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshR
 		}
 	}
 
-	for (const [personId, cutoff] of prunable) await store.pruneYips(personId, cutoff);
+	if (isAgeLimitActive()) {
+		for (const [personId, cutoff] of prunable) await store.pruneYips(personId, cutoff);
+	}
 
 	return { feeds: results, added: totalAdded };
 }
@@ -166,6 +168,7 @@ export async function pruneToMaxAge(
 	store: Store = defaultStore,
 	now: () => Date = () => new Date()
 ): Promise<void> {
+	if (!isAgeLimitActive()) return;
 	await store.init();
 	const saved = await store.getSetting<number>('maxAgeDays');
 	const defaultDays = typeof saved === 'number' ? saved : DEFAULT_MAX_AGE_DAYS;

@@ -1941,3 +1941,17 @@ thumbnails rather than anything hotlinked from elsewhere.
 
 **Follow matches a ring member by any page on a bare-host site**, never on a shared host (a
 profile path), where a host match would pick the wrong person. Folders remain unbuilt.
+
+## 2026-10-01 — More actions menu, idle read, age limit switched off for debugging
+
+**Discover's hero keeps three controls at most**: the main action (Follow, or Save for later for a
+desktop-first member), the member's preview, and a More actions button that opens a sheet with
+Like, Not for me, Visit site (and Follow for a desktop-first member). They had grown to six.
+
+**The last card is marked read after 4 seconds of stillness** (`IDLE_READ_MS`), because nothing
+scrolls past it. Needs it fully on screen, the tab visible and the pane active.
+
+**TEMPORARY: the post age limit is off.** `isAgeLimitActive()` in `age.ts` returns false, so
+`refreshAll` keeps every post and nothing is pruned, to let old saved data be used for testing. The
+settings and sliders still save. Flip it back (or delete the switch) before release; the age tests
+turn it on themselves.

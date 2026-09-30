@@ -204,17 +204,20 @@
 					</div>
 					<div class="acts">
 						<button
-							class="secondary"
+							class="secondary icon-only"
+							aria-label={`Find feeds for ${member.name}`}
+							title="Find feeds"
 							onclick={() => goto(`/follow?url=${encodeURIComponent(member.url)}`)}
 						>
 							<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
 								<circle cx="11" cy="11" r="6.5" />
 								<path d="M20 20l-4.4-4.4" />
 							</svg>
-							Find feeds
 						</button>
 						<button
-							class="secondary"
+							class="secondary icon-only"
+							aria-label={`Like ${member.name}`}
+							title="Like"
 							aria-pressed={verdicts.verdictFor(member.url) === 'liked'}
 							onclick={() => decide(member, 'liked')}
 						>
@@ -226,14 +229,17 @@
 							>
 								<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" />
 							</svg>
-							{verdicts.verdictFor(member.url) === 'liked' ? 'Liked' : 'Like'}
 						</button>
-						<button class="secondary" onclick={() => decide(member, 'hidden')}>
+						<button
+							class="secondary icon-only"
+							aria-label={`Not for me: ${member.name}`}
+							title="Not for me"
+							onclick={() => decide(member, 'hidden')}
+						>
 							<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
 								<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" />
 								<path d="M9.6 8.6l4.8 4.8M14.4 8.6l-4.8 4.8" />
 							</svg>
-							Not for me
 						</button>
 					</div>
 				</li>
@@ -480,7 +486,6 @@
 		margin-top: 4px;
 	}
 
-	.primary,
 	.hidden-note {
 		margin: 12px 16px 0;
 		color: rgba(255, 255, 255, 0.7);
@@ -491,6 +496,12 @@
 		background: rgba(255, 255, 255, 0.3);
 	}
 
+	.icon-only {
+		width: 48px;
+		padding: 0;
+	}
+
+	.primary,
 	.secondary {
 		display: inline-flex;
 		align-items: center;

@@ -12,6 +12,9 @@ export interface ReadOnScrollOptions {
 	onRead: (key: string) => void;
 }
 
+/** How long the reader must be still on the last card before it counts as read. */
+export const IDLE_READ_MS = 4000;
+
 export function readOnScroll(pane: HTMLElement, options: ReadOnScrollOptions) {
 	let current = options;
 	let last = pane.scrollTop;
@@ -37,11 +40,30 @@ export function readOnScroll(pane: HTMLElement, options: ReadOnScrollOptions) {
 	}
 	pane.addEventListener('scroll', onScroll, { passive: true });
 
+	/*
+	 * The last card has nothing below it to scroll past, so the crossing above can never mark it.
+	 * When the reader has been still for a few seconds with it fully on screen, that counts as
+	 * having read it. Checked on a slow timer rather than per frame: it costs nothing while the
+	 * pane is scrolling, and a pane that is not showing is skipped by `enabled`.
+	 */
+	let lastScrollAt = Date.now();
+	pane.addEventListener('scroll', () => (lastScrollAt = Date.now()), { passive: true });
+	const idle = setInterval(() => {
+		if (Date.now() - lastScrollAt < IDLE_READ_MS || document.hidden || !current.enabled()) return;
+		const cards = pane.querySelectorAll<HTMLElement>('.yip-stack[data-key]');
+		const card = cards[cards.length - 1];
+		if (!card) return;
+		const box = card.getBoundingClientRect();
+		const view = pane.getBoundingClientRect();
+		if (box.top >= view.top - 1 && box.bottom <= view.bottom) current.onRead(card.dataset.key!);
+	}, 1000);
+
 	return {
 		update(next: ReadOnScrollOptions) {
 			current = next;
 		},
 		destroy() {
+			clearInterval(idle);
 			pane.removeEventListener('scroll', onScroll);
 		}
 	};
