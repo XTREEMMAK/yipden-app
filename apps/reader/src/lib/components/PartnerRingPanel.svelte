@@ -6,6 +6,7 @@
 	import { shelf, toggleShelf } from '$lib/shelf.svelte.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import { verdicts } from '$lib/verdicts.svelte.js';
+	import { celebrateLike } from '$lib/sound.js';
 	import PlatformIcon from './PlatformIcon.svelte';
 	import PartnerThumb from './PartnerThumb.svelte';
 	import ImagePreview from './ImagePreview.svelte';
@@ -51,8 +52,10 @@
 			},
 			verdict
 		);
-		if (now === 'liked') toast.show(`Liked ${member.name}. Find them in You.`);
-		else if (now === 'hidden') toast.show(`${member.name} hidden. Bring them back from You.`);
+		if (now === 'liked') {
+			celebrateLike();
+			toast.show(`Liked ${member.name}. Find them in You.`);
+		} else if (now === 'hidden') toast.show(`${member.name} hidden. Bring them back from You.`);
 	}
 	let back = $state<HTMLButtonElement | undefined>(undefined);
 	/**
@@ -201,8 +204,6 @@
 								{previewLabel(member.previewUrl)}
 							</button>
 						{/if}
-					</div>
-					<div class="acts">
 						<button
 							class="secondary icon-only"
 							aria-label={`Find feeds for ${member.name}`}
@@ -499,6 +500,12 @@
 	.icon-only {
 		width: 48px;
 		padding: 0;
+	}
+
+	.icon-only .globe {
+		width: 25px;
+		height: 25px;
+		stroke-width: 1.9;
 	}
 
 	.primary,

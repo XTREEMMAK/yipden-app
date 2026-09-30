@@ -238,6 +238,18 @@
 			<div class="rows">
 				<div class="srow">
 					<span class="tt">
+						<b>Sounds</b>
+						<small>A little yip and buzz when you like someone</small>
+					</span>
+					<Switch
+						id="sounds"
+						label="Sounds"
+						checked={prefs.sounds}
+						onchange={(on) => prefs.setSounds(on)}
+					/>
+				</div>
+				<div class="srow">
+					<span class="tt">
 						<b>Shuffle music</b>
 						<small>Mix up a member{"'"}s tracks</small>
 					</span>
@@ -254,6 +266,18 @@
 		<section class="grp" in:fly={flyIn({ delay: staggerDelay(2) })}>
 			<h3 class="grp-h">Feeds</h3>
 			<div class="rows">
+				<div class="srow">
+					<span class="tt">
+						<b>Enforce the age limit (debug)</b>
+						<small>Off keeps every post, so old saved feeds can be used for testing</small>
+					</span>
+					<Switch
+						id="age-limit-enforced"
+						label="Enforce the age limit"
+						checked={prefs.ageLimitEnabled}
+						onchange={(on) => prefs.setAgeLimitEnabled(on)}
+					/>
+				</div>
 				<div class="srow">
 					<span class="tt">
 						<b>Mark as read when scrolled past</b>

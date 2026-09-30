@@ -20,6 +20,7 @@
 	import { partners } from '$lib/partnerRings.svelte.js';
 	import { shelf, toggleShelf } from '$lib/shelf.svelte.js';
 	import { verdicts } from '$lib/verdicts.svelte.js';
+	import { celebrateLike, tick } from '$lib/sound.js';
 	import PartnerRingPanel from '$components/PartnerRingPanel.svelte';
 
 	/**
@@ -247,19 +248,101 @@
 		}
 	}
 
-	/** Like a creator, or set them aside so they are not shown again. Both live in You. */
-	async function decide(verdict: 'liked' | 'hidden') {
-		const entry = ring.current;
-		if (!entry) return;
-		const draft = {
+	function draftFor(entry: NonNullable<typeof ring.current>) {
+		return {
 			url: entry.source_url,
 			name: entry.creator,
 			source: 'indienodes' as const,
 			...(heroImage(entry) ? { thumbUrl: heroImage(entry)! } : {})
 		};
-		const now = await verdicts.toggle(draft, verdict);
-		if (now === 'liked') toast.show(`Liked ${entry.creator}. Find them in You.`);
-		else if (now === 'hidden') toast.show(`${entry.creator} hidden. Bring them back from You.`);
+	}
+
+	/*
+	 * Double tap the creator to like them. The first tap answers at once, so the screen never feels
+	 * deaf while it waits to see whether a second is coming: the name hops and there is a buzz.
+	 * The second tap, close in time and place, is the like: hearts burst from the finger, a yip.
+	 * It only ever likes. Unliking is deliberate (More actions), so a hasty double tap cannot undo.
+	 */
+	const DOUBLE_TAP_MS = 320;
+	const DOUBLE_TAP_PX = 48;
+	let tapDown: { x: number; y: number } | null = null;
+	let lastTap = { at: 0, x: 0, y: 0 };
+	let hopping = $state(false);
+	let hopTimer: ReturnType<typeof setTimeout> | undefined;
+	let bursts = $state<Array<{ id: number; x: number; y: number }>>([]);
+	let burstId = 0;
+	/** Fixed spread for the small hearts: angle, distance, size and delay, so it reads as a shower. */
+	const PARTICLES = Array.from({ length: 9 }, (_, i) => {
+		const angle = (-90 + (i - 4) * 26) * (Math.PI / 180);
+		const reach = 70 + ((i * 37) % 50);
+		return {
+			dx: Math.round(Math.cos(angle) * reach),
+			dy: Math.round(Math.sin(angle) * reach) - 30,
+			size: 12 + ((i * 5) % 10),
+			delay: (i % 3) * 40
+		};
+	});
+
+	function onTapDown(event: PointerEvent) {
+		tapDown = { x: event.clientX, y: event.clientY };
+	}
+
+	function onTapUp(event: PointerEvent) {
+		const start = tapDown;
+		tapDown = null;
+		if (!start || !ring.current || partners.selected) return;
+		if (filterSheetOpen || ringSheetOpen || actionsSheetOpen || membersSheetOpen || previewOpen)
+			return;
+		if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10) return; // a drag
+		if ((event.target as Element).closest('button, a, input, header, [data-noswipe]')) return;
+
+		const now = performance.now();
+		const near = Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) < DOUBLE_TAP_PX;
+		if (now - lastTap.at < DOUBLE_TAP_MS && near) {
+			lastTap = { at: 0, x: 0, y: 0 };
+			void likeByTap(event.clientX, event.clientY);
+			return;
+		}
+		lastTap = { at: now, x: event.clientX, y: event.clientY };
+		hop();
+	}
+
+	function hop() {
+		if (prefersReducedMotion()) return;
+		tick(8);
+		hopping = false;
+		clearTimeout(hopTimer);
+		// One frame off, so a quick second hop restarts the animation instead of being ignored.
+		requestAnimationFrame(() => {
+			hopping = true;
+			hopTimer = setTimeout(() => (hopping = false), 520);
+		});
+	}
+
+	async function likeByTap(x: number, y: number) {
+		const entry = ring.current;
+		if (!entry) return;
+		const box = section?.getBoundingClientRect();
+		const id = (burstId += 1);
+		bursts = [...bursts, { id, x: x - (box?.left ?? 0), y: y - (box?.top ?? 0) }];
+		setTimeout(() => (bursts = bursts.filter((burst) => burst.id !== id)), 1100);
+
+		celebrateLike();
+		if (verdicts.verdictFor(entry.source_url) !== 'liked') {
+			await verdicts.toggle(draftFor(entry), 'liked');
+			toast.show(`Liked ${entry.creator}. Find them in You.`);
+		}
+	}
+
+	/** Like a creator, or set them aside so they are not shown again. Both live in You. */
+	async function decide(verdict: 'liked' | 'hidden') {
+		const entry = ring.current;
+		if (!entry) return;
+		const now = await verdicts.toggle(draftFor(entry), verdict);
+		if (now === 'liked') {
+			celebrateLike();
+			toast.show(`Liked ${entry.creator}. Find them in You.`);
+		} else if (now === 'hidden') toast.show(`${entry.creator} hidden. Bring them back from You.`);
 	}
 
 	async function follow() {
@@ -443,6 +526,8 @@
 	class="discover"
 	aria-label="Discover"
 	bind:this={section}
+	onpointerdown={onTapDown}
+	onpointerup={onTapUp}
 	use:swipe={{
 		axis: 'x',
 		exclude: '[data-noswipe]',
@@ -603,7 +688,16 @@
 					{#if ring.isNodeOfTheDay}
 						<span class="glass-chip" in:fly|global={enter('chip')}>Node of the day</span>
 					{/if}
-					<h1 class="hero-name" in:fly|global={enter('name')}>{ring.current.creator}</h1>
+					<h1 class="hero-name" class:hop={hopping} in:fly|global={enter('name')}>
+						{ring.current.creator}
+						{#if verdicts.verdictFor(ring.current.source_url) === 'liked'}
+							<svg class="name-heart" viewBox="0 0 24 24" aria-label="Liked" role="img"
+								><path
+									d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"
+								/></svg
+							>
+						{/if}
+					</h1>
 					{#if ring.current.why}
 						<p class="hero-why" in:fly|global={enter('why')}>{ring.current.why}</p>
 					{/if}
@@ -709,6 +803,28 @@
 	{#if partners.selected}
 		<PartnerRingPanel result={partners.selected} onback={() => partners.select(null)} />
 	{/if}
+
+	<div class="bursts" aria-hidden="true">
+		{#each bursts as burst (burst.id)}
+			<span class="burst" style:left="{burst.x}px" style:top="{burst.y}px">
+				<svg class="big-heart" viewBox="0 0 24 24"
+					><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" /></svg
+				>
+				{#each PARTICLES as particle, i (i)}
+					<svg
+						class="mini-heart"
+						viewBox="0 0 24 24"
+						style:--dx="{particle.dx}px"
+						style:--dy="{particle.dy}px"
+						style:width="{particle.size}px"
+						style:height="{particle.size}px"
+						style:animation-delay="{particle.delay}ms"
+						><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" /></svg
+					>
+				{/each}
+			</span>
+		{/each}
+	</div>
 
 	<Toast />
 </section>
@@ -1130,6 +1246,135 @@
 		backdrop-filter: blur(10px);
 	}
 
+	.hero-name.hop {
+		animation: name-hop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+	}
+
+	@keyframes name-hop {
+		0% {
+			transform: translateY(0) scale(1);
+		}
+		35% {
+			transform: translateY(-9px) scale(1.03);
+		}
+		100% {
+			transform: translateY(0) scale(1);
+		}
+	}
+
+	.name-heart {
+		display: inline-block;
+		width: 0.62em;
+		height: 0.62em;
+		margin-left: 0.18em;
+		vertical-align: 0.02em;
+		fill: var(--brand);
+		animation: heart-pop 0.45s cubic-bezier(0.3, 1.8, 0.5, 1);
+	}
+
+	@keyframes heart-pop {
+		from {
+			transform: scale(0);
+		}
+		to {
+			transform: scale(1);
+		}
+	}
+
+	.bursts {
+		position: absolute;
+		inset: 0;
+		z-index: 8;
+		overflow: hidden;
+		pointer-events: none;
+	}
+
+	.burst {
+		position: absolute;
+		width: 0;
+		height: 0;
+	}
+
+	.big-heart {
+		position: absolute;
+		left: -36px;
+		top: -36px;
+		width: 72px;
+		height: 72px;
+		fill: #fff;
+		filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.35));
+		animation: big-heart 0.9s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+	}
+
+	@keyframes big-heart {
+		0% {
+			transform: scale(0.2);
+			opacity: 0;
+		}
+		25% {
+			transform: scale(1.15);
+			opacity: 1;
+		}
+		60% {
+			transform: scale(1);
+			opacity: 1;
+		}
+		100% {
+			transform: scale(1) translateY(-18px);
+			opacity: 0;
+		}
+	}
+
+	.mini-heart {
+		position: absolute;
+		left: -8px;
+		top: -8px;
+		fill: var(--brand);
+		opacity: 0;
+		animation: mini-heart 0.95s ease-out both;
+	}
+
+	@keyframes mini-heart {
+		0% {
+			transform: translate(0, 0) scale(0.3);
+			opacity: 0;
+		}
+		20% {
+			opacity: 1;
+		}
+		100% {
+			transform: translate(var(--dx), var(--dy)) scale(1);
+			opacity: 0;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.hero-name.hop,
+		.mini-heart {
+			animation: none;
+			display: none;
+		}
+
+		.big-heart {
+			animation-duration: 0.6s;
+			animation-name: heart-fade;
+		}
+
+		.name-heart {
+			animation: none;
+		}
+	}
+
+	@keyframes heart-fade {
+		0%,
+		60% {
+			opacity: 1;
+		}
+		100% {
+			opacity: 0;
+		}
+	}
+
 	.hero-name {
 		margin: 0;
 		font-family: var(--display);
@@ -1340,8 +1585,8 @@
 	}
 
 	.row-ic {
-		width: 22px;
-		height: 22px;
+		width: 26px;
+		height: 26px;
 		flex: none;
 		fill: none;
 		stroke: currentColor;

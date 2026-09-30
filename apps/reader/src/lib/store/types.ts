@@ -145,7 +145,9 @@ export type SettingKey =
 	| 'ringQueue'
 	| 'shuffleMusic'
 	| 'maxAgeDays'
-	| 'markReadOnScroll';
+	| 'markReadOnScroll'
+	| 'ageLimitEnabled'
+	| 'sounds';
 
 /**
  * Cached waveform peaks, keyed by media URL and ETag so a track is decoded at most once.

@@ -1955,3 +1955,18 @@ scrolls past it. Needs it fully on screen, the tab visible and the pane active.
 `refreshAll` keeps every post and nothing is pruned, to let old saved data be used for testing. The
 settings and sliders still save. Flip it back (or delete the switch) before release; the age tests
 turn it on themselves.
+
+## 2026-10-01 (later) — Double tap to like, and what the tap does
+
+**Double tap likes; it never unlikes.** A hasty double tap cannot undo a like, so unliking stays a
+deliberate choice in More actions. **The first tap reacts at once** (the name hops, a short buzz),
+so the screen never feels deaf while it waits to see if a second tap is coming; the second is the
+like: a burst of hearts from the finger, a yip, a heart left beside the name.
+
+**The yip is synthesized** (Web Audio: two fast triangle chirps, the second higher), not an audio
+file, so there is nothing to ship, cache or license. It and the buzz share one Settings switch,
+Sounds. The hearts are CSS (transform and opacity only). A WebGL drop ripple from the tap point was
+considered and left out: the hero's canvas only draws during a swipe, so it would mean a second
+render path for a few hundred milliseconds of decoration. Revisit if the CSS version feels flat.
+
+**The age limit debug switch is now in Settings** (`prefs.ageLimitEnabled`), still off by default.

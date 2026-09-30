@@ -21,8 +21,8 @@ export function ageCutoff(days: number, now: Date = new Date()): string {
 }
 
 /*
- * TEMPORARY, for debugging: the age limit is switched off so old saved feeds can be used as test
- * data. While false, refreshAll keeps every post and nothing is pruned. The setting and its
+ * TEMPORARY, for debugging: the age limit is switched off by default so old saved feeds can be used
+ * as test data, and Settings has a switch (prefs.ageLimitEnabled) to turn it on. While false, refreshAll keeps every post and nothing is pruned. The setting and its
  * sliders still save; they just have no effect. Flip to true (or delete this) to restore it.
  */
 let ageLimitActive = false;

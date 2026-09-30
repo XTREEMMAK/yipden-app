@@ -1,5 +1,5 @@
 import { store } from './store/index.js';
-import { DEFAULT_MAX_AGE_DAYS } from './age.js';
+import { DEFAULT_MAX_AGE_DAYS, isAgeLimitActive, setAgeLimitActive } from './age.js';
 import { pruneToMaxAge } from './refresh.js';
 
 /**
@@ -17,12 +17,25 @@ class Prefs {
 	/** How many days back a followed person's posts are kept, unless a follow says otherwise. */
 	maxAgeDays = $state(DEFAULT_MAX_AGE_DAYS);
 
+	/** A little yip and a buzz when a creator is liked. On by default. */
+	sounds = $state(true);
+
+	/** TEMPORARY debug switch: whether the post age limit is enforced. See age.ts. */
+	ageLimitEnabled = $state(isAgeLimitActive());
+
 	async hydrate(): Promise<void> {
 		await store.init();
 		const saved = await store.getSetting<boolean>('shuffleMusic');
 		if (typeof saved === 'boolean') this.shuffleMusic = saved;
 		const scroll = await store.getSetting<boolean>('markReadOnScroll');
 		if (typeof scroll === 'boolean') this.markReadOnScroll = scroll;
+		const sounds = await store.getSetting<boolean>('sounds');
+		if (typeof sounds === 'boolean') this.sounds = sounds;
+		const enforce = await store.getSetting<boolean>('ageLimitEnabled');
+		if (typeof enforce === 'boolean') {
+			this.ageLimitEnabled = enforce;
+			setAgeLimitActive(enforce);
+		}
 		const days = await store.getSetting<number>('maxAgeDays');
 		if (typeof days === 'number') this.maxAgeDays = days;
 	}
@@ -35,6 +48,19 @@ class Prefs {
 	setMarkReadOnScroll(on: boolean): void {
 		this.markReadOnScroll = on;
 		void store.setSetting('markReadOnScroll', on);
+	}
+
+	setSounds(on: boolean): void {
+		this.sounds = on;
+		void store.setSetting('sounds', on);
+	}
+
+	/** TEMPORARY: turning it on prunes what is already saved, off keeps everything from now on. */
+	async setAgeLimitEnabled(on: boolean): Promise<void> {
+		this.ageLimitEnabled = on;
+		setAgeLimitActive(on);
+		await store.setSetting('ageLimitEnabled', on);
+		if (on) await pruneToMaxAge();
 	}
 
 	async setMaxAgeDays(days: number): Promise<void> {

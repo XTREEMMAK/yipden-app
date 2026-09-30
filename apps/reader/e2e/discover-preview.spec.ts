@@ -68,7 +68,7 @@ async function showMember(page: Page, creator: string) {
 		// next arrives, so a read mid change can see nothing or the old name.
 		await expect(heading).toHaveCount(1);
 		await page.waitForTimeout(700);
-		if ((await heading.textContent()) === creator) return;
+		if (((await heading.textContent()) ?? '').trim() === creator) return;
 		await ringNext(page);
 	}
 	await expect(heading).toHaveText(creator);

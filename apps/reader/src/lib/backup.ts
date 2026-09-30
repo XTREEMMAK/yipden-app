@@ -25,7 +25,8 @@ const SETTING_KEYS: SettingKey[] = [
 	'ringQueue',
 	'shuffleMusic',
 	'maxAgeDays',
-	'markReadOnScroll'
+	'markReadOnScroll',
+	'sounds'
 ];
 
 export interface YipDenBackup {

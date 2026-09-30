@@ -8,6 +8,11 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- Settings has a temporary "Enforce the age limit (debug)" switch under Feeds, off by default, so
+  old saved feeds can be used for testing on a phone.
+- Partner cards: Find feeds, Like and Not for me sit in the same row as Visit, with larger icons.
+  The More actions menu's icons are larger too.
+
 - Discover's secondary buttons (Like, Not for me, Visit site, and Follow for a desktop-first member)
   moved into a More actions menu; the hero keeps only the main action, preview and the menu.
 - Partner cards: Visit and the other pills are round again (a stray CSS edit had squared them), and
@@ -22,6 +27,10 @@ Every notable change to YipDen, newest first. The format follows
   which never leaves the pane).
 
 ### Added
+
+- Double tap a creator on Discover to like them: hearts burst from the finger, a synthesized yip
+  plays with a short buzz, and a heart stays next to their name. The first tap makes the name hop.
+  Sounds can be turned off in Settings. Double tap only likes; unliking is in More actions.
 
 - Liked and Not for me, for the IndieNodes ring and partner rings: buttons on Discover and on each
   partner member. Not for me hides a creator everywhere; both lists live in You, can be undone, and

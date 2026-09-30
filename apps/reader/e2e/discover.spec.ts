@@ -254,6 +254,39 @@ test.describe('Discover', () => {
 		await expect(page.getByRole('button', { name: `Open ${first}` })).toBeVisible();
 	});
 
+	test('double tapping the creator likes them, with a heart by the name', async ({ page }) => {
+		await page.goto('/');
+		const name = page.getByRole('heading', { level: 1 });
+		const first = (await name.textContent())!.trim();
+		await expect(name.getByRole('img', { name: 'Liked' })).toHaveCount(0);
+
+		const box = (await page.locator('.discover').boundingBox())!;
+		const at = { x: box.x + box.width / 2, y: box.y + box.height * 0.3 };
+		await page.mouse.click(at.x, at.y, { clickCount: 2, delay: 40 });
+
+		await expect(name.getByRole('img', { name: 'Liked' })).toBeVisible();
+		await page.goto('/you');
+		await expect(page.getByRole('button', { name: `Open ${first}` })).toBeVisible();
+	});
+
+	test('a single tap does not like, and a double tap never unlikes', async ({ page }) => {
+		await page.goto('/');
+		const name = page.getByRole('heading', { level: 1 });
+		const box = (await page.locator('.discover').boundingBox())!;
+		const x = box.x + box.width / 2;
+		const y = box.y + box.height * 0.3;
+
+		await page.mouse.click(x, y);
+		await page.waitForTimeout(500);
+		await expect(name.getByRole('img', { name: 'Liked' })).toHaveCount(0);
+
+		await page.mouse.click(x, y, { clickCount: 2, delay: 40 });
+		await expect(name.getByRole('img', { name: 'Liked' })).toBeVisible();
+		await page.waitForTimeout(500);
+		await page.mouse.click(x, y, { clickCount: 2, delay: 40 });
+		await expect(name.getByRole('img', { name: 'Liked' })).toBeVisible();
+	});
+
 	test('every control clears the 44px minimum', async ({ page }) => {
 		await page.goto('/');
 
