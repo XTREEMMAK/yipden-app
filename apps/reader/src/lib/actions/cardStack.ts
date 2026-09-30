@@ -140,9 +140,33 @@ export function cardStack(pane: HTMLElement) {
 		{ root: pane, rootMargin: '-4px 0px 0px 0px', threshold: [0, 0.25, 0.5, 0.75, 0.98, 1] }
 	);
 
+	/*
+	 * Room after the last card so it can scroll all the way to the top, leaving the card before it
+	 * fully tipped away instead of half hidden behind it. The height depends on the last card's own
+	 * height, which varies (media, text, grouped), so it is measured rather than guessed.
+	 */
+	const tailObserver = new ResizeObserver(sizeTail);
+	function sizeTail(): void {
+		const tail = pane.querySelector<HTMLElement>('.stack-tail');
+		const cards = pane.querySelectorAll<HTMLElement>('.yip-stack');
+		const last = cards[cards.length - 1];
+		if (!tail || !last) return;
+		const style = getComputedStyle(pane);
+		const content =
+			pane.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+		const gap = parseFloat(style.rowGap) || 0;
+		tail.style.height = `${Math.max(0, content - last.offsetHeight - gap)}px`;
+	}
+
 	function observeCards(): void {
 		observer.disconnect();
-		for (const card of pane.querySelectorAll('.yip-stack')) observer.observe(card);
+		tailObserver.disconnect();
+		const cards = pane.querySelectorAll<HTMLElement>('.yip-stack');
+		for (const card of cards) observer.observe(card);
+		const last = cards[cards.length - 1];
+		if (last) tailObserver.observe(last);
+		tailObserver.observe(pane);
+		sizeTail();
 	}
 	observeCards();
 
@@ -167,6 +191,7 @@ export function cardStack(pane: HTMLElement) {
 		destroy() {
 			observer.disconnect();
 			mutationObserver.disconnect();
+			tailObserver.disconnect();
 			pane.removeEventListener('scroll', onScroll);
 			pane.classList.remove('stack', 'stack-sda');
 			for (const card of pane.querySelectorAll<HTMLElement>('.yip-stack')) {

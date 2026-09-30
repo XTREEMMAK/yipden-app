@@ -207,6 +207,10 @@
 							class="secondary"
 							onclick={() => goto(`/follow?url=${encodeURIComponent(member.url)}`)}
 						>
+							<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
+								<circle cx="11" cy="11" r="6.5" />
+								<path d="M20 20l-4.4-4.4" />
+							</svg>
 							Find feeds
 						</button>
 						<button
@@ -214,9 +218,23 @@
 							aria-pressed={verdicts.verdictFor(member.url) === 'liked'}
 							onclick={() => decide(member, 'liked')}
 						>
+							<svg
+								class="globe"
+								class:filled={verdicts.verdictFor(member.url) === 'liked'}
+								viewBox="0 0 24 24"
+								aria-hidden="true"
+							>
+								<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" />
+							</svg>
 							{verdicts.verdictFor(member.url) === 'liked' ? 'Liked' : 'Like'}
 						</button>
-						<button class="secondary" onclick={() => decide(member, 'hidden')}>Not for me</button>
+						<button class="secondary" onclick={() => decide(member, 'hidden')}>
+							<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
+								<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" />
+								<path d="M9.6 8.6l4.8 4.8M14.4 8.6l-4.8 4.8" />
+							</svg>
+							Not for me
+						</button>
 					</div>
 				</li>
 			{/each}
@@ -509,6 +527,10 @@
 	 * crowding. A globe reads as "this leaves the app" on its own; the word stays only to name
 	 * the action, not the address.
 	 */
+	.globe.filled {
+		fill: currentColor;
+	}
+
 	.globe {
 		width: 18px;
 		height: 18px;

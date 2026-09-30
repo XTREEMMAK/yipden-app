@@ -1,8 +1,10 @@
 /**
- * Reports each card that has scrolled out of view past the top of its pane, once it had been seen.
+ * Reports each card that scrolls up past the top of its pane, once.
  *
- * "Seen first" matters: a card that starts above the viewport (a restored scroll position, a list
- * that re-rendered) was never read, and must not be counted as read because it is out of sight.
+ * It measures the cards' layout positions, not where they are drawn. The card stack tips a card
+ * back and pins it at the top while it fades, so on screen it never actually leaves the pane, and
+ * an observer of its drawn position never fires. Only a card that crosses the top edge during a
+ * scroll counts, so one already above a restored scroll position is not marked as read.
  * It does not depend on the card stack's motion, so it keeps working for reduced motion.
  */
 export interface ReadOnScrollOptions {
@@ -10,53 +12,37 @@ export interface ReadOnScrollOptions {
 	onRead: (key: string) => void;
 }
 
-const SELECTOR = '.yip-stack[data-key]';
-
 export function readOnScroll(pane: HTMLElement, options: ReadOnScrollOptions) {
 	let current = options;
-	const seen = new Set<string>();
-	const observed = new WeakSet<Element>();
+	let last = pane.scrollTop;
+	let pending = false;
 
-	const observer = new IntersectionObserver(
-		(entries) => {
-			for (const entry of entries) {
-				const key = (entry.target as HTMLElement).dataset.key;
-				if (!key) continue;
-				if (entry.isIntersecting) {
-					seen.add(key);
-					continue;
-				}
-				const top = entry.rootBounds?.top ?? 0;
-				if (seen.has(key) && entry.boundingClientRect.bottom <= top && current.enabled()) {
-					seen.delete(key);
-					current.onRead(key);
-				}
-			}
-		},
-		{ root: pane }
-	);
+	function check() {
+		pending = false;
+		const top = pane.scrollTop;
+		const from = last;
+		last = top;
+		if (top <= from || !current.enabled()) return;
 
-	const observeAll = () => {
-		for (const node of pane.querySelectorAll(SELECTOR)) {
-			if (observed.has(node)) continue;
-			observed.add(node);
-			observer.observe(node);
+		for (const card of pane.querySelectorAll<HTMLElement>('.yip-stack[data-key]')) {
+			const bottom = card.offsetTop + card.offsetHeight;
+			if (bottom > from && bottom <= top) current.onRead(card.dataset.key!);
 		}
-	};
-	observeAll();
+	}
 
-	// Cards arrive as panes load and refresh; only new ones are added, so a re-render never
-	// replays the ones already being watched.
-	const mutations = new MutationObserver(observeAll);
-	mutations.observe(pane, { childList: true, subtree: true });
+	function onScroll() {
+		if (pending) return;
+		pending = true;
+		requestAnimationFrame(check);
+	}
+	pane.addEventListener('scroll', onScroll, { passive: true });
 
 	return {
 		update(next: ReadOnScrollOptions) {
 			current = next;
 		},
 		destroy() {
-			observer.disconnect();
-			mutations.disconnect();
+			pane.removeEventListener('scroll', onScroll);
 		}
 	};
 }

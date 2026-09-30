@@ -172,6 +172,41 @@ test.describe('Feeds', () => {
 		await expect(page.getByRole('heading', { level: 2 })).toContainText('2 new');
 	});
 
+	test('scrolling a card off the top marks it read, when the setting is on', async ({ page }) => {
+		await seed(page);
+		await page.goto('/you/settings');
+		await page.getByRole('switch', { name: 'Mark as read when scrolled past' }).click();
+		await page.goto('/feeds');
+
+		const pane = page.locator('#pane-everything');
+		await expect(pane.getByText('A short film')).toBeVisible({ timeout: 10_000 });
+		const unread = () => pane.locator('.yip.unread').count();
+		const before = await unread();
+		expect(before).toBe(3);
+
+		// Scroll past the newest card (they are newest first): it is no longer unread.
+		await pane.evaluate((el) => el.scrollTo({ top: el.scrollHeight }));
+		await expect.poll(unread).toBeLessThan(before);
+	});
+
+	test('the last card can scroll fully into view, alone', async ({ page }) => {
+		await seed(page);
+		await page.goto('/feeds');
+		const pane = page.locator('#pane-everything');
+		await expect(pane.getByText('A plain post')).toBeVisible({ timeout: 10_000 });
+
+		await pane.evaluate((el) => el.scrollTo({ top: el.scrollHeight }));
+		await page.waitForTimeout(300);
+		const top = await pane.evaluate((el) => {
+			const cards = [...el.querySelectorAll('.yip-stack')];
+			const last = cards[cards.length - 1] as HTMLElement;
+			return last.getBoundingClientRect().top - el.getBoundingClientRect().top;
+		});
+		// The last card has reached the top of the pane rather than stopping low with the one
+		// before it still showing above it.
+		expect(top).toBeLessThan(24);
+	});
+
 	test('says so honestly when nobody is followed yet', async ({ page }) => {
 		await page.route('https://ring.indienodes.us/ring.json', (route) =>
 			route.fulfill({

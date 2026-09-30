@@ -507,14 +507,10 @@
 					aria-expanded={ringSheetOpen}
 					aria-label={`Switch ring: ${ringLabel}`}
 				>
-					{#if partners.selected?.ring.iconUrl}
-						<img class="ring-mark" src={partners.selected.ring.iconUrl} alt="" />
-					{:else}
-						<svg viewBox="0 0 24 24" aria-hidden="true">
-							<circle cx="9.5" cy="12" r="6" />
-							<circle cx="14.5" cy="12" r="6" />
-						</svg>
-					{/if}
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<circle cx="9.5" cy="12" r="6" />
+						<circle cx="14.5" cy="12" r="6" />
+					</svg>
 					{#if partners.selected !== null}
 						<span class="filter-dot" aria-hidden="true"></span>
 					{/if}
@@ -705,7 +701,9 @@
 						</button>
 						<button class="chip-btn" onclick={() => decide('hidden')}>
 							<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"
-								><path d="M6 6l12 12M18 6L6 18" /></svg
+								><path
+									d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"
+								/><path d="M9.6 8.6l4.8 4.8M14.4 8.6l-4.8 4.8" /></svg
 							>
 							Not for me
 						</button>
@@ -824,7 +822,7 @@
 				aria-checked={partners.selected === null}
 				onclick={() => chooseRing(null)}
 			>
-				<span class="sheet-dot" aria-hidden="true"></span>
+				<img class="sheet-icon" src="/ring-icons/indienodes.svg" alt="" />
 				IndieNodes
 			</button>
 			{#each partners.rings as entry (entry.ring.id)}
@@ -1326,13 +1324,6 @@
 		color: var(--muted);
 		font-size: 12px;
 		font-weight: 400;
-	}
-
-	.ring-mark {
-		width: 22px;
-		height: 22px;
-		border-radius: 5px;
-		object-fit: cover;
 	}
 
 	.sheet-icon {

@@ -6,6 +6,13 @@ Every notable change to YipDen, newest first. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Feeds: the last card now scrolls fully to the top instead of stopping with the previous card half
+  hidden.
+- Mark as read when scrolled past now works with the card stack (it measured where a card was drawn,
+  which never leaves the pane).
+
 ### Added
 
 - Liked and Not for me, for the IndieNodes ring and partner rings: buttons on Discover and on each
@@ -14,6 +21,8 @@ Every notable change to YipDen, newest first. The format follows
 - YouTube videos play inside the feed card (the privacy-enhanced player, loaded only when tapped).
 - Feeds: unread dots pulse with a ring that spreads outward, and a Settings switch marks a card
   read once it scrolls off the top.
+- Like and Not for me use heart and heart-cross icons, and Find feeds a magnifier. IndieNodes has its
+  own icon in the ring list, bundled locally.
 - Partner rings show their own icon (and a badge when one is supplied), and a soft mosaic of their
   members' pictures behind the member list.
 - Follow accepts `?url=` and recognizes any page on a ring member's own site.

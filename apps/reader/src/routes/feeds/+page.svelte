@@ -275,6 +275,7 @@
 								</div>
 							</div>
 						{/each}
+						<div class="stack-tail" aria-hidden="true"></div>
 					{/if}
 
 					{#if filter.key === 'listen' && ring.all.length}
@@ -477,6 +478,22 @@
 
 	.pane::-webkit-scrollbar {
 		display: none;
+	}
+
+	/*
+	 * Room after the last card for it to scroll all the way to the top. Without it the pane ends
+	 * with the last card low on the screen and the one before it still tipping back, half hidden.
+	 * Only under the card stack: a flat list (reduced motion) ends where its content ends.
+	 */
+	.stack-tail {
+		display: none;
+	}
+
+	:global(.pane.stack) .stack-tail {
+		display: block;
+		flex: 0 0 auto;
+		/* Sized by cardStack to the last card's own height; this is only a first guess. */
+		height: max(0px, calc(100% - 210px));
 	}
 
 	.yip-stack {
