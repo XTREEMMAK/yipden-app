@@ -205,6 +205,12 @@ export class IdbStore implements Store {
 		return done(transaction);
 	}
 
+	async updatePerson(person: Person): Promise<void> {
+		const transaction = await this.transaction([STORE.people], 'readwrite');
+		transaction.objectStore(STORE.people).put(person);
+		return done(transaction);
+	}
+
 	// ---------- yips ----------
 
 	/**
@@ -310,6 +316,20 @@ export class IdbStore implements Store {
 		const transaction = await this.transaction([STORE.yips], 'readwrite');
 		transaction.objectStore(STORE.yips).clear();
 		return done(transaction);
+	}
+
+	async pruneYips(personId: string, cutoff: string): Promise<number> {
+		const transaction = await this.transaction([STORE.yips], 'readwrite');
+		const yips = transaction.objectStore(STORE.yips);
+		let removed = 0;
+		for (const yip of (await promisify(yips.index('personId').getAll(personId))) as StoredYip[]) {
+			if (yip.publishedAt && yip.publishedAt < cutoff) {
+				yips.delete(yip.key);
+				removed += 1;
+			}
+		}
+		await done(transaction);
+		return removed;
 	}
 
 	// ---------- ring, peaks and settings ----------

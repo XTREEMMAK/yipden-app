@@ -189,7 +189,7 @@
 	 * scrolls. Anywhere else it costs frames on a mid range phone.
 	 */
 	.tabbar.dark {
-		background: rgba(26, 9, 3, 0.62);
+		background: rgba(var(--deep-rgb), 0.62);
 		border-color: rgba(255, 255, 255, 0.08);
 		-webkit-backdrop-filter: blur(18px);
 		backdrop-filter: blur(18px);

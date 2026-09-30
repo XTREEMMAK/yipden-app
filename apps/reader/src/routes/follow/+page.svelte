@@ -5,6 +5,8 @@
 	import { onMount } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import Switch from '$components/Switch.svelte';
+	import Spinner from '$components/Spinner.svelte';
+	import { feeds } from '$lib/feeds.svelte.js';
 	import { discoverWithDeadline, DiscoveryTimeoutError } from '$lib/discovery.js';
 	import { followDiscovered, followRingSelection } from '$lib/follow.js';
 	import { flyIn, staggerDelay } from '$lib/motion.js';
@@ -142,13 +144,22 @@
 		chosen = next;
 	}
 
+	let followedPersonId = $state<string | null>(null);
+	let fetchingPosts = $derived(followedPersonId !== null && feeds.fetching.has(followedPersonId));
+
 	async function confirm() {
 		if (!result || !chosenFeeds.length || busy) return;
 		busy = true;
 		try {
-			if (selectedRing) await followRingSelection(selectedRing, chosenFeeds);
-			else await followDiscovered(result, chosenFeeds);
+			const outcome = selectedRing
+				? await followRingSelection(selectedRing, chosenFeeds)
+				: await followDiscovered(result, chosenFeeds);
 			await ring.refreshFollowing();
+			followedPersonId = outcome.person.id;
+			void feeds.fetchNewFollow(
+				outcome.person.id,
+				outcome.feeds.map((feed) => feed.id)
+			);
 			phase = 'followed';
 		} catch {
 			error = 'Could not save that follow. There may be no room left on this phone.';
@@ -158,6 +169,7 @@
 	}
 
 	function again() {
+		followedPersonId = null;
 		phase = 'idle';
 		result = null;
 		selectedRing = null;
@@ -343,6 +355,9 @@
 						{chosenFeeds.length}
 						{chosenFeeds.length === 1 ? 'place' : 'places'}, saved on this phone
 					</small>
+					{#if fetchingPosts}
+						<small class="fetching"><Spinner size={12} label="Fetching posts" /> Fetching their posts…</small>
+					{/if}
 				</span>
 			</div>
 			<div class="row-btns" in:fly={flyIn({ delay: 40 })}>
@@ -581,6 +596,11 @@
 		margin-top: 2px;
 		font-size: 13px;
 		color: var(--muted);
+	}
+
+	.fetching {
+		display: block;
+		color: var(--brand-text);
 	}
 
 	.person.done b {

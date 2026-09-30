@@ -9,6 +9,8 @@
 	import { followRingEntry } from '$lib/follow.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import Toast from '$components/Toast.svelte';
+	import Spinner from '$components/Spinner.svelte';
+	import { feeds } from '$lib/feeds.svelte.js';
 	import HeroArt from '$components/HeroArt.svelte';
 	import RingLoader from '$components/RingLoader.svelte';
 	import PreviewSheet from '$components/PreviewSheet.svelte';
@@ -28,6 +30,9 @@
 	 */
 
 	let following = $state(false);
+	let fetchingCurrent = $derived(
+		ring.current ? feeds.fetching.has(`ring:${ring.current.id}`) : false
+	);
 	let dragX = $state(0);
 	let dragging = $state(false);
 	/** Set for the frame a committed swipe lands, so the text block snaps back to centre instead
@@ -230,6 +235,10 @@
 		try {
 			const outcome = await followRingEntry(entry);
 			await ring.refreshFollowing();
+			void feeds.fetchNewFollow(
+				outcome.person.id,
+				outcome.feeds.map((feed) => feed.id)
+			);
 			const count = outcome.feeds.length;
 			toast.show(
 				count === 0
@@ -528,8 +537,10 @@
 				class:is-active={ring.shuffled}
 				onclick={() => {
 					navDirection = 0;
-					ring.shuffle();
+					if (ring.shuffled) ring.unshuffle();
+					else ring.shuffle();
 				}}
+				aria-pressed={ring.shuffled}
 				aria-label="Shuffle the ring"
 			>
 				<svg viewBox="0 0 24 24" aria-hidden="true">
@@ -587,13 +598,17 @@
 										: 'Follow everything'}
 								title="Follow everything"
 							>
-								<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
-									{#if ring.isFollowing(ring.current)}
-										<path d="M5 12.5l4.5 4.5L19 7.5" />
-									{:else}
-										<path d="M12 5v14M5 12h14" />
-									{/if}
-								</svg>
+								{#if fetchingCurrent}
+									<Spinner label="Fetching posts" />
+								{:else}
+									<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+										{#if ring.isFollowing(ring.current)}
+											<path d="M5 12.5l4.5 4.5L19 7.5" />
+										{:else}
+											<path d="M12 5v14M5 12h14" />
+										{/if}
+									</svg>
+								{/if}
 							</button>
 						{:else}
 							<button
@@ -603,7 +618,10 @@
 								disabled={following || ring.isFollowing(ring.current)}
 								aria-pressed={ring.isFollowing(ring.current)}
 							>
-								{#if ring.isFollowing(ring.current)}
+								{#if fetchingCurrent}
+									<Spinner label="Fetching posts" />
+									Fetching posts{'…'}
+								{:else if ring.isFollowing(ring.current)}
 									<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"
 										><path d="M5 12.5l4.5 4.5L19 7.5" /></svg
 									>

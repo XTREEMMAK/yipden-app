@@ -5,7 +5,11 @@
 	import { flyIn, staggerDelay } from '$lib/motion.js';
 	import { pullToRefresh } from '$lib/actions/pullToRefresh.js';
 	import Switch from '$components/Switch.svelte';
+	import Spinner from '$components/Spinner.svelte';
+	import { feeds } from '$lib/feeds.svelte.js';
 	import { you } from '$lib/you.svelte.js';
+	import { prefs } from '$lib/prefs.svelte.js';
+	import { MAX_MAX_AGE_DAYS, MIN_MAX_AGE_DAYS } from '$lib/age.js';
 	import { shelf } from '$lib/shelf.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
 	import { toast } from '$lib/toast.svelte.js';
@@ -335,6 +339,11 @@
 											{'·'}
 											{new URL(row.person.siteUrl).hostname.replace(/^www\./, '')}
 										</small>
+										{#if feeds.fetching.has(row.person.id)}
+											<small class="fetching"
+												><Spinner size={11} label="Fetching posts" /> Fetching posts{'…'}</small
+											>
+										{/if}
 									</span>
 									<svg
 										class="chevron"
@@ -427,6 +436,27 @@
 										</div>
 									{/each}
 									<div class="source-manage">
+										<div class="age-limit">
+											<label for={`age-${personIndex}`}>
+												Keep posts from the last
+												<b>{row.person.maxAgeDays ?? prefs.maxAgeDays} days</b>
+												{#if row.person.maxAgeDays === undefined}<small>(default)</small>{/if}
+											</label>
+											<input
+												id={`age-${personIndex}`}
+												type="range"
+												min={MIN_MAX_AGE_DAYS}
+												max={MAX_MAX_AGE_DAYS}
+												value={row.person.maxAgeDays ?? prefs.maxAgeDays}
+												onchange={(event) =>
+													you.setPersonMaxAge(row.person.id, Number(event.currentTarget.value))}
+											/>
+											{#if row.person.maxAgeDays !== undefined}
+												<button class="source-btn" onclick={() => you.setPersonMaxAge(row.person.id, null)}
+													>Use default</button
+												>
+											{/if}
+										</div>
 										<div class="source-toolbar">
 											<button
 												class="source-btn"
@@ -866,6 +896,28 @@
 		align-items: flex-start;
 		gap: 10px;
 		padding: 10px 14px 12px 24px;
+	}
+
+	.fetching {
+		color: var(--brand-text);
+	}
+
+	.age-limit {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px 10px;
+		width: 100%;
+		font-size: 12.5px;
+	}
+
+	.age-limit label {
+		flex: 1 1 100%;
+	}
+
+	.age-limit input[type='range'] {
+		flex: 1;
+		accent-color: var(--brand);
 	}
 
 	.add-source {

@@ -26,6 +26,8 @@ export interface Person {
 	 */
 	layout?: SiteLayout;
 	followedAt: string;
+	/** Only keep posts newer than this many days. Absent uses the reader's default. */
+	maxAgeDays?: number;
 }
 
 /** How a source entered this reader; this is provenance, not an identity guarantee. */
@@ -115,7 +117,7 @@ export interface ShelfItem {
 }
 
 export type SettingKey =
-	'lastRefreshAt' | 'includeExplicit' | 'ringFilter' | 'ringQueue' | 'shuffleMusic';
+	'lastRefreshAt' | 'includeExplicit' | 'ringFilter' | 'ringQueue' | 'shuffleMusic' | 'maxAgeDays';
 
 /**
  * Cached waveform peaks, keyed by media URL and ETag so a track is decoded at most once.
@@ -146,6 +148,7 @@ export interface Store {
 	unfollow(personId: string): Promise<void>;
 	isFollowing(siteUrl: string): Promise<boolean>;
 	updateFeed(feed: Feed): Promise<void>;
+	updatePerson(person: Person): Promise<void>;
 
 	putYips(yips: StoredYip[]): Promise<{ added: number }>;
 	listYips(query?: YipQuery): Promise<StoredYip[]>;
@@ -155,6 +158,8 @@ export interface Store {
 	markRead(keys: string | string[]): Promise<void>;
 	markAllRead(): Promise<void>;
 	clearYips(): Promise<void>;
+	/** Drop a person's dated yips published before `cutoff` (ISO). Undated ones are kept. */
+	pruneYips(personId: string, cutoff: string): Promise<number>;
 
 	readRing(): Promise<RingCacheRecord | null>;
 	writeRing(record: RingCacheRecord): Promise<void>;

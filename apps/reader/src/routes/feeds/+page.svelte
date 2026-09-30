@@ -202,6 +202,11 @@
 			onEnd: ({ commit, direction }) => onFilterSwipeEnd(commit, direction)
 		}}
 	>
+		{#if feeds.status === 'refreshing' && !pulling && pullY === 0}
+			<div class="pull refreshing" role="status" aria-label="Refreshing your feeds">
+				<span class="spinner"></span>
+			</div>
+		{/if}
 		{#if pulling || pullY > 0}
 			<div class="pull" style:opacity={Math.min(1, pullY / PULL_THRESHOLD)} aria-hidden="true">
 				<span class="spinner" class:ready={pullY >= PULL_THRESHOLD}></span>
@@ -430,6 +435,16 @@
 		border: 2.5px solid var(--line);
 		border-top-color: var(--brand);
 		transition: border-color var(--dur-s) var(--ease);
+	}
+
+	.pull.refreshing .spinner {
+		animation: refresh-turn 0.8s linear infinite;
+	}
+
+	@keyframes refresh-turn {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 
 	.spinner.ready {

@@ -2,7 +2,7 @@ import type { DiscoveredFeed, DiscoveryResult } from '@yipden/feeds';
 import { discoverWithDeadline } from './discovery.js';
 import { exportOpml, parseOpml, parseOpmlShelf } from './opml.js';
 import { player } from './player.svelte.js';
-import { refreshAll, type FeedRefreshResult } from './refresh.js';
+import { pruneToMaxAge, refreshAll, type FeedRefreshResult } from './refresh.js';
 import { ringPlayer } from './ringPlayer.svelte.js';
 import { shelf, shelfItemFrom } from './shelf.svelte.js';
 import { store, type Feed, type Person } from './store/index.js';
@@ -50,6 +50,17 @@ class YouState {
 		// Do not leave this to the layout's fire-and-forget effect: the app may close now.
 		await store.setSetting('ringQueue', ringPlayer.snapshot());
 		this.rows = this.rows.filter((row) => row.person.id !== personId);
+	}
+
+	/** A person's own age limit, or `null` to go back to the reader's default. */
+	async setPersonMaxAge(personId: string, days: number | null): Promise<void> {
+		const row = this.rows.find((entry) => entry.person.id === personId);
+		if (!row) return;
+		const { maxAgeDays: _previous, ...rest } = row.person;
+		const person: Person = days === null ? rest : { ...rest, maxAgeDays: days };
+		await store.updatePerson(person);
+		this.rows = this.rows.map((entry) => (entry.person.id === personId ? { ...entry, person } : entry));
+		await pruneToMaxAge();
 	}
 
 	async clearCachedYips(): Promise<void> {

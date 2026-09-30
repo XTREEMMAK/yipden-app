@@ -214,6 +214,14 @@ class RingState {
 		this.shuffled = true;
 		this.index = 0;
 	}
+
+	/** Back to the ring's own order, staying on whoever is showing. */
+	unshuffle(): void {
+		const current = this.visible[this.index]?.id;
+		this.shuffled = false;
+		const at = current ? this.visible.findIndex((entry) => entry.id === current) : -1;
+		this.index = at >= 0 ? at : 0;
+	}
 }
 
 export const ring = new RingState();

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { FeedHttp, type FetchLike, type HttpResponse } from '@yipden/feeds';
 import { IdbStore } from './store/idb.js';
-import { categorize, refreshAll, toStoredYip } from './refresh.js';
+import { categorize, pruneToMaxAge, refreshAll, toStoredYip } from './refresh.js';
 import type { Feed, Item, Person } from './store/types.js';
 
 const PERSON: Person = {
@@ -100,6 +100,8 @@ beforeEach(async () => {
 	store = new IdbStore();
 	await store.init();
 	await store.follow(PERSON, [feed()]);
+	// Fixture dates are fixed; keep them from aging out as the real clock moves on.
+	await store.setSetting('maxAgeDays', 3650);
 });
 
 describe('categorize', () => {
@@ -322,5 +324,39 @@ describe('refreshAll', () => {
 		await refreshAll({ store, http: fastHttp(fakeFetch(() => response(200, ONE_VIDEO))) });
 		const [yip] = await store.listYips();
 		expect(yip?.category).toBe('watch');
+	});
+});
+
+describe('max age', () => {
+	const NOW = new Date('2026-09-30T00:00:00.000Z');
+	const MIXED = RSS(`<item><title>Recent</title><link>https://lena.example.com/new</link>
+		<pubDate>Mon, 21 Sep 2026 14:02:00 GMT</pubDate></item>
+		<item><title>Old</title><link>https://lena.example.com/old</link>
+		<pubDate>Mon, 01 Jun 2026 14:02:00 GMT</pubDate></item>`);
+
+	async function run() {
+		const http = fastHttp(fakeFetch(() => response(200, MIXED)));
+		await refreshAll({ store, http, now: () => NOW });
+		return (await store.listAllYips()).map((yip) => yip.title).sort();
+	}
+
+	it('does not store posts older than the default 30 days', async () => {
+		await store.setSetting('maxAgeDays', 30);
+		expect(await run()).toEqual(['Recent']);
+	});
+
+	it('uses the reader setting, and a person override beats it', async () => {
+		expect(await run()).toEqual(['Old', 'Recent']);
+
+		await store.updatePerson({ ...PERSON, maxAgeDays: 7 });
+		await store.clearYips();
+		expect(await run()).toEqual([]);
+	});
+
+	it('prunes what is already stored when the limit shrinks', async () => {
+		await run();
+		await store.setSetting('maxAgeDays', 30);
+		await pruneToMaxAge(store, () => NOW);
+		expect((await store.listAllYips()).map((yip) => yip.title)).toEqual(['Recent']);
 	});
 });

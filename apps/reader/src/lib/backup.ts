@@ -15,7 +15,8 @@ const SETTING_KEYS: SettingKey[] = [
 	'includeExplicit',
 	'ringFilter',
 	'ringQueue',
-	'shuffleMusic'
+	'shuffleMusic',
+	'maxAgeDays'
 ];
 
 export interface YipDenBackup {

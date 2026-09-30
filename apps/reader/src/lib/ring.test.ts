@@ -134,3 +134,19 @@ describe('washFor and washColorFor', () => {
 		expect(hueMatch).not.toBeNull();
 	});
 });
+
+describe('ring.unshuffle', () => {
+	beforeEach(reset);
+
+	it('turns shuffle off and stays on the member being shown', () => {
+		ring.all = ['a', 'b', 'c', 'd', 'e'].map(entry) as unknown as typeof ring.all;
+		ring.shuffle();
+		ring.index = 2;
+		const showing = ring.current?.id;
+
+		ring.unshuffle();
+
+		expect(ring.shuffled).toBe(false);
+		expect(ring.current?.id).toBe(showing);
+	});
+});

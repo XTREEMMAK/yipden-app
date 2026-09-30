@@ -2,6 +2,7 @@ import { FeedHttp, parseFeed, type FetchLike, type Item } from '@yipden/feeds';
 import { httpFetch } from './platform/http.js';
 import { store as defaultStore } from './store/index.js';
 import type { Feed, Store, StoredYip, YipCategory } from './store/types.js';
+import { ageCutoff, DEFAULT_MAX_AGE_DAYS, effectiveMaxAgeDays } from './age.js';
 
 /**
  * Turning what people publish into what Feeds shows.
@@ -86,6 +87,11 @@ export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshR
 		(feed) => feed.enabled && (!feedIds || feedIds.includes(feed.id))
 	);
 
+	const people = new Map((await store.listPeople()).map((person) => [person.id, person]));
+	const savedDefault = await store.getSetting<number>('maxAgeDays');
+	const defaultDays = typeof savedDefault === 'number' ? savedDefault : DEFAULT_MAX_AGE_DAYS;
+	const prunable = new Map<string, string>();
+
 	const results: FeedRefreshResult[] = [];
 	let totalAdded = 0;
 
@@ -114,7 +120,12 @@ export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshR
 				contentType: response.contentType
 			});
 
-			const yips = parsed.items.map((item) => toStoredYip(item, feed, feed.personId, fetchedAt));
+			// Posts older than the reader's limit are never stored. Undated ones are kept.
+			const cutoff = ageCutoff(effectiveMaxAgeDays(people.get(feed.personId), defaultDays), now());
+			prunable.set(feed.personId, cutoff);
+			const yips = parsed.items
+				.filter((item) => !item.publishedAt || item.publishedAt >= cutoff)
+				.map((item) => toStoredYip(item, feed, feed.personId, fetchedAt));
 			const { added } = await store.putYips(yips);
 			totalAdded += added;
 
@@ -145,5 +156,20 @@ export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshR
 		}
 	}
 
+	for (const [personId, cutoff] of prunable) await store.pruneYips(personId, cutoff);
+
 	return { feeds: results, added: totalAdded };
+}
+
+/** Apply the age limits to what is already stored, after the reader changes one. */
+export async function pruneToMaxAge(
+	store: Store = defaultStore,
+	now: () => Date = () => new Date()
+): Promise<void> {
+	await store.init();
+	const saved = await store.getSetting<number>('maxAgeDays');
+	const defaultDays = typeof saved === 'number' ? saved : DEFAULT_MAX_AGE_DAYS;
+	for (const person of await store.listPeople()) {
+		await store.pruneYips(person.id, ageCutoff(effectiveMaxAgeDays(person, defaultDays), now()));
+	}
 }

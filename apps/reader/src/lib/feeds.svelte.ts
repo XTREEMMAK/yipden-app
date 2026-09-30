@@ -40,6 +40,8 @@ class FeedsState {
 	people = $state<Map<string, Person>>(new Map());
 	separatedGroupIds = $state<Set<string>>(new Set());
 	status = $state<'idle' | 'loading' | 'refreshing'>('loading');
+	/** People whose first posts are being fetched right now, so every screen can say so. */
+	fetching = $state<Set<string>>(new Set());
 	refreshError = $state<string | null>(null);
 
 	unreadCount = $derived(
@@ -128,6 +130,26 @@ class FeedsState {
 			.filter((feed: Feed) => feed.enabled && !feed.lastFetchedAt)
 			.map((feed: Feed) => feed.id);
 		if (neverFetched.length) await this.refresh(neverFetched);
+	}
+
+	/**
+	 * Fetch a new follow's posts right away, rather than when Feeds is next opened.
+	 *
+	 * Scoped to that person's feeds only, and never throws: a dead feed is recorded by
+	 * `refreshAll` and shown on You, and a follow should not look like it failed because of it.
+	 */
+	async fetchNewFollow(personId: string, feedIds: string[]): Promise<void> {
+		if (!feedIds.length) return;
+		this.fetching = new Set(this.fetching).add(personId);
+		try {
+			await refreshAll({ feedIds });
+		} catch {
+			// Recorded per feed by refreshAll; the next pull to refresh retries.
+		} finally {
+			const next = new Set(this.fetching);
+			next.delete(personId);
+			this.fetching = next;
+		}
 	}
 
 	setFilter(key: FeedsFilterKey): void {

@@ -4,6 +4,7 @@
 	import { fly } from 'svelte/transition';
 	import { flyIn, staggerDelay } from '$lib/motion.js';
 	import { prefs } from '$lib/prefs.svelte.js';
+	import { MAX_MAX_AGE_DAYS, MIN_MAX_AGE_DAYS } from '$lib/age.js';
 	import { theme, type Skin, type Theme } from '$lib/theme.svelte.js';
 	import AboutSheet from '$components/AboutSheet.svelte';
 	import Switch from '$components/Switch.svelte';
@@ -251,6 +252,29 @@
 		</section>
 
 		<section class="grp" in:fly={flyIn({ delay: staggerDelay(2) })}>
+			<h3 class="grp-h">Feeds</h3>
+			<div class="rows">
+				<div class="srow slider-row">
+					<span class="tt">
+						<b>Keep posts from the last {prefs.maxAgeDays} days</b>
+						<small>Older posts are not saved. Each follow can override this.</small>
+					</span>
+					<input
+						class="age-slider"
+						type="range"
+						min={MIN_MAX_AGE_DAYS}
+						max={MAX_MAX_AGE_DAYS}
+						step="1"
+						value={prefs.maxAgeDays}
+						aria-label="Days of posts to keep"
+						oninput={(event) => (prefs.maxAgeDays = Number(event.currentTarget.value))}
+						onchange={(event) => prefs.setMaxAgeDays(Number(event.currentTarget.value))}
+					/>
+				</div>
+			</div>
+		</section>
+
+		<section class="grp" in:fly={flyIn({ delay: staggerDelay(3) })}>
 			<h3 class="grp-h">Your follows file</h3>
 			<div class="rows">
 				<button
@@ -569,6 +593,15 @@
 
 	.srow:disabled {
 		opacity: 0.5;
+	}
+
+	.srow.slider-row {
+		flex-wrap: wrap;
+	}
+
+	.age-slider {
+		flex: 1 1 100%;
+		accent-color: var(--brand);
 	}
 
 	.tt {
