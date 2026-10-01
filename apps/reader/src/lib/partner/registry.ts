@@ -1,4 +1,5 @@
 import type { PartnerAdapter } from '@yipden/ring-client';
+import type { PartnerFetch, PartnerValidators } from './fetchPage.js';
 
 /**
  * Which partner rings this build reads, and how it gets each one's document.
@@ -13,6 +14,12 @@ export interface PartnerSource {
 	adapter: PartnerAdapter;
 	/** Fetch the ring's own document. Whatever it returns is untrusted until `readPartnerRing`. */
 	load(): Promise<unknown>;
+	/**
+	 * A ring read live over the network implements this too, so its page can be kept on the phone
+	 * and asked "has this changed?" (ETag / Last-Modified) instead of downloaded on every launch.
+	 * A bundled source (the fixture) has nothing to revalidate and leaves it out.
+	 */
+	revalidate?(validators: PartnerValidators): Promise<PartnerFetch>;
 }
 
 /**
@@ -41,30 +48,55 @@ function localFlag(key: string): boolean {
 }
 
 /**
+ * The live, testing-only rings, switchable from Settings. The URL flag above only reaches the
+ * origin it was loaded from, and storage is per origin: a live-reload session
+ * (`http://<ip>:5173`) and the bundled APK (`https://localhost`) never see each other's flags, so
+ * an installed build needs its own way to turn these on.
+ */
+export const TESTING_RINGS = [
+	{ key: 'yipden:partnerMusiciansWebring', name: 'Musicians Webring' },
+	{ key: 'yipden:partnerKnifebeetle', name: 'Knifebeetle' }
+] as const;
+
+export function testingRingOn(key: string): boolean {
+	return localFlag(key);
+}
+
+export function setTestingRing(key: string, on: boolean): void {
+	try {
+		if (on) localStorage.setItem(key, '1');
+		else localStorage.removeItem(key);
+	} catch {
+		// No storage: nothing to remember the choice in.
+	}
+}
+
+/**
  * The fixture ring is compiled in only when a build sets `VITE_YIPDEN_PARTNER_FIXTURE=1`, which
  * the end to end suite does and a release build does not, and even then it stays off until a
  * test opts in. It needs no network: the fixture document is bundled with it.
  *
  * Musicians Webring (`yipden:partnerMusiciansWebring`) and Knifebeetle (`yipden:partnerKnifebeetle`)
- * are real rings, read live, for testing only, not yet approved by either maintainer. Neither
- * needs a build flag: nothing about them ships in the bundle either way, only a live fetch this
- * reader chooses to make. See DECISIONS.md and ROADMAP.md; **do not tag a v0.9.0 release with
- * either still able to turn on** until that changes.
+ * are real rings, read live, for testing only, not yet approved by either maintainer, so they exist
+ * only in a debug build (`__YIPDEN_DEBUG__`, see vite.config.ts). A release build never reads either flag and
+ * never fetches either ring, whatever this phone has stored. See DECISIONS.md and ROADMAP.md.
  */
 export async function partnerSources(): Promise<PartnerSource[]> {
 	adoptUrlFlag('yipden:partnerFixture');
-	adoptUrlFlag('yipden:partnerMusiciansWebring');
-	adoptUrlFlag('yipden:partnerKnifebeetle');
+	if (__YIPDEN_DEBUG__) {
+		adoptUrlFlag('yipden:partnerMusiciansWebring');
+		adoptUrlFlag('yipden:partnerKnifebeetle');
+	}
 
 	const sources: PartnerSource[] = [];
 
 	if (import.meta.env.VITE_YIPDEN_PARTNER_FIXTURE === '1' && localFlag('yipden:partnerFixture')) {
 		sources.push((await import('./fixture.js')).fixtureSource);
 	}
-	if (localFlag('yipden:partnerMusiciansWebring')) {
+	if (__YIPDEN_DEBUG__ && localFlag('yipden:partnerMusiciansWebring')) {
 		sources.push((await import('./musiciansWebring.js')).musiciansWebringSource);
 	}
-	if (localFlag('yipden:partnerKnifebeetle')) {
+	if (__YIPDEN_DEBUG__ && localFlag('yipden:partnerKnifebeetle')) {
 		sources.push((await import('./knifebeetleWebring.js')).knifebeetleSource);
 	}
 

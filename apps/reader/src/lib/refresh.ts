@@ -1,7 +1,14 @@
-import { FeedHttp, parseFeed, type FetchLike, type Item } from '@yipden/feeds';
+import {
+	FeedHttp,
+	FeedParseError,
+	HttpError,
+	parseFeed,
+	type FetchLike,
+	type Item
+} from '@yipden/feeds';
 import { httpFetch } from './platform/http.js';
 import { store as defaultStore } from './store/index.js';
-import type { Feed, Store, StoredYip, YipCategory } from './store/types.js';
+import type { Feed, FeedError, Store, StoredYip, YipCategory } from './store/types.js';
 import { ageCutoff, DEFAULT_MAX_AGE_DAYS, effectiveMaxAgeDays, isAgeLimitActive } from './age.js';
 
 /**
@@ -51,6 +58,34 @@ export interface FeedRefreshResult {
 	status: 'updated' | 'not-modified' | 'disabled' | 'failed';
 	added: number;
 	error?: string;
+	problem?: FeedError;
+}
+
+/** HttpError's own marker for a robots.txt refusal (see `FeedHttp.get`). */
+const ROBOTS_STATUS = 999;
+
+/** Sort a failed check into what a reader can act on. See `FeedProblem`. */
+export function classifyFailure(cause: unknown): FeedError {
+	if (cause instanceof FeedParseError) return { kind: 'not-a-feed' };
+	if (cause instanceof HttpError) {
+		const { status } = cause;
+		if (status === ROBOTS_STATUS) return { kind: 'blocked' };
+		if (status === 404 || status === 410) return { kind: 'gone', status };
+		if (status === 401 || status === 403 || status === 451) return { kind: 'refused', status };
+		if (status > 0) return { kind: 'server', status };
+		// No status: either the request never completed, or YipDen itself declined to make or
+		// finish it (an unsafe address, a redirect loop, a response over the size cap).
+		return { kind: /aborted/i.test(cause.message) ? 'offline' : 'unreadable' };
+	}
+	// What a platform fetch throws when nothing answered: no connection, DNS, a reset.
+	return { kind: 'offline' };
+}
+
+/** A feed record with its failure reason dropped, after a check that worked. */
+function healthy(feed: Feed): Feed {
+	const next: Feed = { ...feed, failures: 0 };
+	delete next.lastError;
+	return next;
 }
 
 export interface RefreshResult {
@@ -59,7 +94,7 @@ export interface RefreshResult {
 }
 
 /** Consecutive failures past this point stop being retried automatically. */
-const MAX_AUTO_FAILURES = 5;
+export const MAX_AUTO_FAILURES = 5;
 
 /**
  * Refresh every followed feed, one at a time.
@@ -110,7 +145,7 @@ export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshR
 			const fetchedAt = now().toISOString();
 
 			if (response.notModified) {
-				await store.updateFeed({ ...feed, lastFetchedAt: fetchedAt, failures: 0 });
+				await store.updateFeed({ ...healthy(feed), lastFetchedAt: fetchedAt });
 				results.push({ feedId: feed.id, status: 'not-modified', added: 0 });
 				continue;
 			}
@@ -130,28 +165,30 @@ export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshR
 			totalAdded += added;
 
 			await store.updateFeed({
-				...feed,
+				...healthy(feed),
 				url: response.url,
 				kind: parsed.kind,
 				...(parsed.title ? { title: parsed.title } : {}),
 				...(response.etag ? { etag: response.etag } : {}),
 				...(response.lastModified ? { lastModified: response.lastModified } : {}),
-				lastFetchedAt: fetchedAt,
-				failures: 0
+				lastFetchedAt: fetchedAt
 			});
 
 			results.push({ feedId: feed.id, status: 'updated', added });
 		} catch (cause) {
+			const problem = classifyFailure(cause);
 			await store.updateFeed({
 				...feed,
 				lastFetchedAt: now().toISOString(),
-				failures: feed.failures + 1
+				failures: feed.failures + 1,
+				lastError: problem
 			});
 			results.push({
 				feedId: feed.id,
 				status: 'failed',
 				added: 0,
-				error: cause instanceof Error ? cause.message : String(cause)
+				error: cause instanceof Error ? cause.message : String(cause),
+				problem
 			});
 		}
 	}

@@ -102,6 +102,162 @@ test.describe('You', () => {
 		).toBeVisible();
 	});
 
+	test('says why a source failed, and replaces a moved feed with where it went', async ({
+		page
+	}) => {
+		await followLena(page);
+		// The blog moves its feed: the old address now 404s, and the site points somewhere new.
+		await page.route('https://lenaofori.com/feed.xml', (route) =>
+			route.fulfill({ status: 404, body: 'gone' })
+		);
+		await page.route('https://lenaofori.com/', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'text/html',
+				body: LENA_PAGE.replace('/feed.xml', '/posts/feed.xml')
+			})
+		);
+		await page.route('https://lenaofori.com/posts/feed.xml', (route) =>
+			route.fulfill({ status: 200, contentType: 'application/rss+xml', body: FEED })
+		);
+
+		await page.goto('/you');
+		await page.getByRole('button', { name: /Lena Ofori.*sources active/ }).click();
+		await page.getByRole('button', { name: 'Check now' }).click();
+		await expect(
+			page.getByText('Not found (404); it may have moved · 1 failure in a row')
+		).toBeVisible();
+
+		await page.getByRole('button', { name: 'Replace the address for Website' }).click();
+		const field = page.getByLabel('Where it moved: a feed, website or profile link');
+		await expect(field).toHaveValue(/lenaofori\.com/);
+		await page.getByRole('button', { name: 'Find', exact: true }).click();
+		await page.getByRole('button', { name: 'Use this', exact: true }).click();
+
+		await expect(page.getByRole('status')).toContainText('Website now reads from lenaofori.com');
+		await expect(page.getByText(/Not found/)).toHaveCount(0);
+		await expect(page.getByText(/Added manually/)).toBeVisible();
+		await expect(
+			page.getByRole('button', { name: /Lena Ofori 1 of 1 sources active/ })
+		).toBeVisible();
+	});
+
+	test('a connection failure offers Retry, not Replace, until checks give up', async ({ page }) => {
+		await followLena(page);
+		await page.route('https://lenaofori.com/feed.xml', (route) =>
+			route.abort('internetdisconnected')
+		);
+
+		await page.goto('/you');
+		await page.getByRole('button', { name: /Lena Ofori.*sources active/ }).click();
+		await page.getByRole('button', { name: 'Check now' }).click();
+		await expect(page.getByText('Could not connect · 1 failure in a row')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
+		await expect(page.getByRole('button', { name: /^Replace the address/ })).toHaveCount(0);
+	});
+
+	test('Liked shows badges and the first 25, then more in place, with a filter', async ({
+		page
+	}) => {
+		const BADGE =
+			'data:image/svg+xml,' +
+			encodeURIComponent(
+				'<svg xmlns="http://www.w3.org/2000/svg" width="88" height="31"><rect width="88" height="31" fill="red"/></svg>'
+			);
+		await page.goto('/you');
+		await expect(page.getByRole('tab', { name: /^Liked/ })).toBeVisible();
+		await page.evaluate(async (badge) => {
+			const db = await new Promise<IDBDatabase>((resolve, reject) => {
+				const request = indexedDB.open('yipden');
+				request.onsuccess = () => resolve(request.result);
+				request.onerror = () => reject(request.error);
+			});
+			const tx = db.transaction('verdicts', 'readwrite');
+			const records = Array.from({ length: 30 }, (_, i) => ({
+				id: `creator${i}.example.com`,
+				url: `https://creator${i}.example.com/`,
+				name: `Creator ${i}`,
+				verdict: 'liked',
+				source: 'partner',
+				via: 'Musicians Webring',
+				...(i === 0 ? { thumbUrl: badge } : {}),
+				at: new Date(Date.UTC(2026, 8, 1, 0, 30 - i)).toISOString()
+			}));
+			records.push({
+				id: 'nope.example.com',
+				url: 'https://nope.example.com/',
+				name: 'Nope',
+				verdict: 'hidden',
+				source: 'indienodes',
+				at: '2026-09-01T00:00:00.000Z'
+			} as (typeof records)[number]);
+			for (const record of records) tx.objectStore('verdicts').put(record);
+			await new Promise((resolve) => (tx.oncomplete = resolve));
+			db.close();
+		}, BADGE);
+		await page.reload();
+
+		const panel = page.getByRole('tabpanel');
+		await page.getByRole('tab', { name: /^Liked/ }).click();
+		await expect(page.getByRole('tab', { name: /^Liked/ })).toHaveAttribute(
+			'aria-selected',
+			'true'
+		);
+		await expect(panel.getByRole('button', { name: /^Open Creator/ })).toHaveCount(25);
+		await expect(panel.locator('img.badge')).toHaveCount(1);
+
+		await panel.getByRole('button', { name: /^Show 5 more/ }).click();
+		await expect(panel.getByRole('button', { name: /^Open Creator/ })).toHaveCount(30);
+		await expect(panel.getByRole('button', { name: /more/ })).toHaveCount(0);
+
+		await panel.getByRole('searchbox', { name: 'Filter Liked' }).fill('creator 2');
+		// Creator 2, and 20 through 29.
+		await expect(panel.getByRole('button', { name: /^Open Creator/ })).toHaveCount(11);
+
+		await page.getByRole('tab', { name: /^Not for me/ }).click();
+		await expect(panel.getByRole('button', { name: 'Open Nope' })).toBeVisible();
+		await expect(panel.getByRole('searchbox')).toHaveCount(0);
+	});
+
+	test('Send hands a saved link on, copying it where there is no share sheet', async ({
+		page,
+		context
+	}) => {
+		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+		await page.goto('/you');
+		await expect(page.getByRole('tab', { name: /^Saved/ })).toBeVisible();
+		await page.evaluate(async () => {
+			// Headless Chromium has no share sheet; take it away explicitly so this tests the fallback.
+			Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
+			const db = await new Promise<IDBDatabase>((resolve, reject) => {
+				const request = indexedDB.open('yipden');
+				request.onsuccess = () => resolve(request.result);
+				request.onerror = () => reject(request.error);
+			});
+			const tx = db.transaction('shelf', 'readwrite');
+			tx.objectStore('shelf').put({
+				id: 'https://wide.example.com/',
+				url: 'https://wide.example.com/',
+				title: 'Wide Screen',
+				from: 'discover',
+				savedAt: '2026-10-01T00:00:00.000Z'
+			});
+			await new Promise((resolve) => (tx.oncomplete = resolve));
+			db.close();
+		});
+		await page.reload();
+		await page.evaluate(() =>
+			Object.defineProperty(navigator, 'share', { value: undefined, configurable: true })
+		);
+
+		const panel = page.getByRole('tabpanel', { name: /^Saved/ });
+		await panel.getByRole('button', { name: 'Send Wide Screen to another device or app' }).click();
+		await expect(page.getByRole('status')).toContainText('Link copied.');
+		expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+			'https://wide.example.com/'
+		);
+	});
+
 	test('pauses and resumes every source for one creator', async ({ page }) => {
 		await followLena(page);
 		await page.goto('/you');

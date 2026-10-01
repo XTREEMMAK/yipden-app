@@ -3,6 +3,7 @@ package com.yipden.app;
 import android.os.Bundle;
 import android.view.View;
 import androidx.activity.OnBackPressedCallback;
+import androidx.core.splashscreen.SplashScreen;
 import com.getcapacitor.BridgeActivity;
 
 /**
@@ -22,6 +23,10 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // BridgeActivity never installs the AndroidX splash screen; it only swaps the theme. Doing
+        // it here, before super, gives older Android versions the same branded splash the system
+        // draws on 12+ (see AppTheme.NoActionBarLaunch), instead of a stretched window background.
+        SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
 
         /*

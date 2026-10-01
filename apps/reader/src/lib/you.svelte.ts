@@ -5,7 +5,7 @@ import { player } from './player.svelte.js';
 import { pruneToMaxAge, refreshAll, type FeedRefreshResult } from './refresh.js';
 import { ringPlayer } from './ringPlayer.svelte.js';
 import { shelf, shelfItemFrom } from './shelf.svelte.js';
-import { store, type Feed, type Person } from './store/index.js';
+import { store, type Feed, type FeedError, type Person } from './store/index.js';
 
 /**
  * You's own state: the follow list grouped by person, and the actions the brief calls "your
@@ -22,6 +22,14 @@ export type AttachSourceResult =
 	| { status: 'already-attached' }
 	| { status: 'belongs-to-other'; personName: string }
 	| { status: 'missing-person' };
+
+export type ReplaceSourceResult =
+	| { status: 'replaced' }
+	| { status: 'same-address' }
+	| { status: 'failed'; problem?: FeedError }
+	| { status: 'already-attached' }
+	| { status: 'belongs-to-other'; personName: string }
+	| { status: 'missing' };
 
 class YouState {
 	rows = $state<FollowRow[]>([]);
@@ -152,6 +160,55 @@ class YouState {
 		const refresh = await refreshAll({ feedIds: [feed.id] });
 		await this.load();
 		return { status: 'added', refresh: refresh.feeds[0]?.status ?? 'missing' };
+	}
+
+	/**
+	 * Swap a dead source for a new address the reader found.
+	 *
+	 * Only commits when the new address actually checks out: it is added and checked first, and
+	 * only then is the old one removed. A replacement that fails is taken back out, so a reader
+	 * never ends up with two broken sources where they had one. Identity is the URL, so this is a
+	 * new record rather than an edited one, `manual` and unverified like any other reader-supplied
+	 * source; the old address's cached yips go with it, and the new one refills Feeds.
+	 */
+	async replaceSource(
+		personId: string,
+		oldFeedId: string,
+		source: DiscoveredFeed
+	): Promise<ReplaceSourceResult> {
+		const row = this.rows.find((entry) => entry.person.id === personId);
+		const old = row?.feeds.find((entry) => entry.id === oldFeedId);
+		if (!old) return { status: 'missing' };
+		if (source.url === old.url || source.url === old.id) return { status: 'same-address' };
+
+		const feed: Feed = {
+			id: source.url,
+			personId,
+			url: source.url,
+			kind: source.kind,
+			title: source.title,
+			verified: false,
+			provenance: 'manual',
+			failures: 0,
+			enabled: true
+		};
+		const added = await store.addFeed(feed);
+		if (added.status === 'belongs-to-other') {
+			const owner = this.rows.find((entry) => entry.person.id === added.personId);
+			return { status: 'belongs-to-other', personName: owner?.person.name ?? 'another creator' };
+		}
+		if (added.status === 'already-attached') return added;
+
+		const checked = (await refreshAll({ feedIds: [feed.id] })).feeds[0];
+		if (checked?.status !== 'updated' && checked?.status !== 'not-modified') {
+			await store.removeFeed(personId, feed.id);
+			await this.load();
+			return { status: 'failed', ...(checked?.problem ? { problem: checked.problem } : {}) };
+		}
+
+		await store.removeFeed(personId, oldFeedId);
+		await this.load();
+		return { status: 'replaced' };
 	}
 
 	async retryFeed(

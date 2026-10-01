@@ -237,6 +237,7 @@ test.describe('Discover', () => {
 		await expect(heading).not.toHaveText(first!);
 
 		await page.goto('/you');
+		await page.getByRole('tab', { name: /^Not for me/ }).click();
 		const row = page.getByRole('button', { name: `Open ${first}` });
 		await expect(row).toBeVisible();
 		await page.getByRole('button', { name: 'Bring back' }).click();
@@ -251,6 +252,7 @@ test.describe('Discover', () => {
 		await page.keyboard.press('Escape');
 
 		await page.goto('/you');
+		await page.getByRole('tab', { name: /^Liked/ }).click();
 		await expect(page.getByRole('button', { name: `Open ${first}` })).toBeVisible();
 	});
 
@@ -266,6 +268,7 @@ test.describe('Discover', () => {
 
 		await expect(name.getByRole('img', { name: 'Liked' })).toBeVisible();
 		await page.goto('/you');
+		await page.getByRole('tab', { name: /^Liked/ }).click();
 		await expect(page.getByRole('button', { name: `Open ${first}` })).toBeVisible();
 	});
 

@@ -72,8 +72,9 @@ Still open from this batch:
    A real adapter now exists (`apps/reader/src/lib/partner/musiciansWebring.ts`), scraping its
    hand-written HTML table, gated behind a local flag alone
    (`localStorage: yipden:partnerMusiciansWebring`). Its own maintainer has not been asked yet.
-   **Before `v0.9.0` is tagged: either that approval has happened, or this must be unable to turn
-   on.** Reads a member's own curated sample link too, folds/stands its cards the same way Feeds'
+   **Since 2026-10-01 both testing rings exist only in debug builds** (`__YIPDEN_DEBUG__`, see
+   `vite.config.ts`): a release build contains neither adapter and can never fetch them, so
+   `v0.9.0` is no longer blocked on this. Approval is still needed before either ships in a release. Reads a member's own curated sample link too, folds/stands its cards the same way Feeds'
    yips do, labels the sample honestly by what it actually is with that platform's own mark
    (SoundCloud, Bandcamp, Spotify, Apple Music, YouTube, or a real file, via Simple Icons, CC0),
    and shows a member's own thumbnail as a badge where the ring publishes one, sized to its own
@@ -230,10 +231,10 @@ Open questions DECISIONS.md already flags as unverified, all needing a phone:
   too. See DECISIONS.md and `brand/README.md`. The Play Store listing icon exists
   (`apps/reader/store/play-icon-512.png`); the rest of the listing (description, screenshots,
   privacy policy, data safety form) is still needed.
-- **Splash screen: still the Capacitor default, not yet updated to match.** Raised alongside the
-  launcher icon and deliberately not done in the same pass, to keep that change reviewable on its
-  own; the same source art (`brand/YipDen_Logo_Square.webp`) is the obvious starting point
-  whenever it is picked up.
+- **Splash screen: done (2026-10-01).** The AndroidX splash screen, now actually installed, shows
+  the same white mark as the launcher icon on the same day/night background, sized to fit Android
+  12's circular splash mask. Capacitor's stock `splash.png` files are gone. See DECISIONS.md and
+  `brand/README.md`. Still to see on a phone, on both Android 12+ and an older version.
 - Reconcile the package version (`0.0.1`) with a real release number.
 
 ### 7. Housekeeping
@@ -327,8 +328,12 @@ read alongside `rel=me`; YouTube legacy custom URLs and either canonical-link at
 accepted; the page's `externalId` wins over unrelated recommended `channelId` values; and ordinary
 links no longer consume the profile scan budget before a useful link is reached.
 
-Still in this item: offer a replacement-URL flow when a source stays dead, and distinguish a
-parse failure from a network failure in the health copy.
+**Second slice shipped 2026-10-01:** each failed check records why (could not connect, not found,
+refused, the site's own error, robots.txt, not a feed, or over YipDen's safety limits) and You says
+so, with the status code where there is one. A source that is gone, no longer a feed, or past the
+automatic-check limit offers Replace: find where it moved (starting from the creator's own site),
+and the new address only takes over once its first check succeeds. Item 9 is done; a device pass
+on real dead feeds is still worth doing.
 
 ### 10. Calm feed controls
 

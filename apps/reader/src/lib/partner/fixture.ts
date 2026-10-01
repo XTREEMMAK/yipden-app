@@ -15,6 +15,7 @@ const DOCUMENT = {
 			title: 'Ash & Ember',
 			href: 'https://ash.example.com/',
 			about: 'Zines about small fires.',
+			genre: 'Zines',
 			responsive: true
 		},
 		{
@@ -22,6 +23,7 @@ const DOCUMENT = {
 			title: 'Big Monitor Club',
 			href: 'https://bmc.example.org/',
 			about: 'Dense, wide, best on a big screen.',
+			genre: 'Art',
 			responsive: false,
 			// A platform link, not a file: exercises the honest "Open on X" labelling, not just
 			// the "Listen" default a direct file gets.
@@ -34,7 +36,7 @@ const DOCUMENT = {
 export const fixtureSource: PartnerSource = {
 	adapter: {
 		ring: { id: 'fixture-ring', name: 'Fixture Ring', hubUrl: 'https://fixture-ring.example/' },
-		capabilities: ['layout', 'preview'],
+		capabilities: ['layout', 'preview', 'tags'],
 		read(document): PartnerCandidate[] {
 			const sites = (document as { sites?: unknown }).sites;
 			if (!Array.isArray(sites)) return [];
@@ -44,7 +46,8 @@ export const fixtureSource: PartnerSource = {
 				url: site?.href,
 				blurb: site?.about,
 				layout: site?.responsive === false ? 'desktop-first' : 'mobile-friendly',
-				previewUrl: site?.sample
+				previewUrl: site?.sample,
+				tags: site?.genre ? [site.genre] : []
 			}));
 		}
 	},

@@ -20,7 +20,7 @@ class Prefs {
 	/** A little yip and a buzz when a creator is liked. On by default. */
 	sounds = $state(true);
 
-	/** TEMPORARY debug switch: whether the post age limit is enforced. See age.ts. */
+	/** Debug builds only: whether the post age limit is enforced. See age.ts and vite.config.ts. */
 	ageLimitEnabled = $state(isAgeLimitActive());
 
 	async hydrate(): Promise<void> {
@@ -32,7 +32,8 @@ class Prefs {
 		const sounds = await store.getSetting<boolean>('sounds');
 		if (typeof sounds === 'boolean') this.sounds = sounds;
 		const enforce = await store.getSetting<boolean>('ageLimitEnabled');
-		if (typeof enforce === 'boolean') {
+		// A release build always enforces it, whatever a debug build once saved on this phone.
+		if (__YIPDEN_DEBUG__ && typeof enforce === 'boolean') {
 			this.ageLimitEnabled = enforce;
 			setAgeLimitActive(enforce);
 		}
@@ -57,6 +58,7 @@ class Prefs {
 
 	/** TEMPORARY: turning it on prunes what is already saved, off keeps everything from now on. */
 	async setAgeLimitEnabled(on: boolean): Promise<void> {
+		if (!__YIPDEN_DEBUG__) return;
 		this.ageLimitEnabled = on;
 		setAgeLimitActive(on);
 		await store.setSetting('ageLimitEnabled', on);

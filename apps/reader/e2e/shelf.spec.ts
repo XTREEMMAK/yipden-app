@@ -125,14 +125,14 @@ test.describe('a desktop first member in Discover', () => {
 		await page.goto('/');
 		await chooseFilter(page, 'Comics');
 		await page.getByRole('button', { name: 'Save for later' }).click();
-		await expect(page.getByText('Saved to your Shelf.')).toBeVisible();
+		await expect(page.getByText('Saved for later. Find it under Saved in You.')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Saved' })).toHaveAttribute(
 			'aria-pressed',
 			'true'
 		);
 
 		await page.goto('/you');
-		const shelf = page.getByRole('region', { name: /^Shelf/ });
+		const shelf = page.getByRole('tabpanel', { name: /^Saved/ });
 		await expect(shelf.getByText('Wide Screen')).toBeVisible();
 		await expect(shelf.getByText('wide.example.com')).toBeVisible();
 
@@ -166,7 +166,7 @@ test.describe('a desktop first member in Discover', () => {
 		await expect(shelf.getByText(/Nothing saved yet/)).toBeVisible();
 		await page.reload();
 		await expect(
-			page.getByRole('region', { name: /^Shelf/ }).getByText(/Nothing saved yet/)
+			page.getByRole('tabpanel', { name: /^Saved/ }).getByText(/Nothing saved yet/)
 		).toBeVisible();
 	});
 
@@ -187,7 +187,7 @@ test.describe('a desktop first member in Discover', () => {
 		]);
 
 		await page.goto('/you');
-		const shelf = page.getByRole('region', { name: /^Shelf/ });
+		const shelf = page.getByRole('tabpanel', { name: /^Saved/ });
 		await tall([
 			shelf.getByRole('button', { name: /^Open / }),
 			shelf.getByRole('button', { name: /^Remove / })
@@ -209,7 +209,7 @@ test.describe('a desktop first member in Discover', () => {
 
 		await page.goto('/you');
 		await expect(
-			page.getByRole('region', { name: /^Shelf/ }).getByRole('button', { name: /^Open / })
+			page.getByRole('tabpanel', { name: /^Saved/ }).getByRole('button', { name: /^Open / })
 		).toHaveCount(1);
 	});
 });
@@ -263,10 +263,10 @@ test.describe('a followed site that looks built for desktop', () => {
 		const everything = page.getByRole('tabpanel', { name: 'Everything' });
 		await expect(everything.getByText('Best on desktop', { exact: true })).toBeVisible();
 		await everything.getByRole('button', { name: 'Save A long, wide post for later' }).click();
-		await expect(page.getByText('Saved to your Shelf.')).toBeVisible();
+		await expect(page.getByText('Saved for later. Find it under Saved in You.')).toBeVisible();
 
 		await page.goto('/you');
-		const shelf = page.getByRole('region', { name: /^Shelf/ });
+		const shelf = page.getByRole('tabpanel', { name: /^Saved/ });
 		await expect(shelf.getByText('A long, wide post')).toBeVisible();
 		await expect(shelf.getByText(/Wide Writer · wide-writer\.example/)).toBeVisible();
 	});
@@ -290,6 +290,32 @@ test.describe('partner rings in Discover', () => {
 		// Filtering by category still works and is unaffected: it never depended on a ring
 		// being registered, and the button that opens it says "Filter", not "Switch ring".
 		await expect(page.getByRole('button', { name: /^Filter the ring/ })).toBeVisible();
+	});
+
+	test('a testing ring switched on in Settings brings the switcher, in an installed build too', async ({
+		page
+	}) => {
+		await withRing(page);
+		const html = await readFile(
+			new URL('../src/lib/partner/test-fixtures/musicians-webring.html', import.meta.url),
+			'utf8'
+		);
+		await page.route('https://lydels.neocities.org/robots.txt', (route) =>
+			route.fulfill({ status: 404, body: '' })
+		);
+		await page.route('https://lydels.neocities.org/musicianswebring/webring', (route) =>
+			route.fulfill({ status: 200, contentType: 'text/html', body: html })
+		);
+		await page.route('https://lydels.neocities.org/musicianswebring/imagenes/**', (route) =>
+			route.abort()
+		);
+
+		await page.goto('/you/settings');
+		await page.getByRole('switch', { name: 'Show Musicians Webring in Discover' }).click();
+		await page.getByRole('link', { name: 'Discover' }).click();
+
+		await page.getByRole('button', { name: /^Switch ring/ }).click();
+		await expect(page.getByRole('radio', { name: /Musicians Webring/ })).toBeVisible();
 	});
 
 	test.describe('with the fixture ring', () => {
@@ -367,12 +393,12 @@ test.describe('partner rings in Discover', () => {
 
 			await expect(panel.getByRole('button', { name: /^Visit bmc/ })).toHaveCount(0);
 			await panel.getByRole('button', { name: 'Save for later' }).click();
-			await expect(panel.getByRole('button', { name: 'Saved to Shelf' })).toBeVisible();
+			await expect(panel.getByRole('button', { name: 'Saved', exact: true })).toBeVisible();
 
 			await page.goto('/you');
 			await expect(
 				page
-					.getByRole('region', { name: /^Shelf/ })
+					.getByRole('tabpanel', { name: /^Saved/ })
 					.getByText(/via Fixture Ring · bmc\.example\.org/)
 			).toBeVisible();
 		});
@@ -459,6 +485,67 @@ test.describe('partner rings in Discover', () => {
 				.locator('.scroll')
 				.evaluate((node) => getComputedStyle(node).overflowY);
 			expect(overflowY).toBe('auto');
+		});
+
+		test('Back returns to Discover instead of leaving the app', async ({ page }) => {
+			await page.goto('/');
+			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
+			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
+			await expect(panel).toBeVisible();
+
+			await page.goBack();
+			await expect(panel).toHaveCount(0);
+			await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+			expect(new URL(page.url()).pathname).toBe('/');
+
+			// The back bar pops the same entry, so a second Back has nothing of the panel's left.
+			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
+			await expect(panel).toBeVisible();
+			await page.getByRole('button', { name: /^IndieNodes/ }).click();
+			await expect(panel).toHaveCount(0);
+			expect(await page.evaluate(() => window.history.state?.yipdenRing ?? null)).toBeNull();
+		});
+
+		test('search and genre chips narrow the ring, generically', async ({ page }) => {
+			await page.goto('/');
+			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
+			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
+			const names = panel.getByRole('heading', { level: 3 });
+			await expect(names).toHaveText(['Ash & Ember', 'Big Monitor Club']);
+
+			await panel.getByRole('searchbox', { name: 'Search Fixture Ring members' }).fill('monitor');
+			await expect(names).toHaveText(['Big Monitor Club']);
+			await panel.getByRole('searchbox').fill('');
+
+			const genres = panel.getByRole('group', { name: 'Genre' });
+			await genres.getByRole('button', { name: /^Zines/ }).click();
+			await expect(names).toHaveText(['Ash & Ember']);
+			await panel.getByRole('searchbox').fill('monitor');
+			await expect(names).toHaveCount(0);
+			await expect(panel.getByText(/Nobody here matches “monitor” in Zines/)).toBeVisible();
+
+			await genres.getByRole('button', { name: 'All', exact: true }).click();
+			await expect(names).toHaveText(['Big Monitor Club']);
+		});
+
+		test('any member can be saved for later, not only a desktop-first one', async ({ page }) => {
+			await page.goto('/');
+			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
+			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
+			const save = panel.getByRole('button', { name: 'Save Ash & Ember for later' });
+			await save.click();
+			await expect(save).toHaveAttribute('aria-pressed', 'true');
+
+			await page.goto('/you');
+			await expect(
+				page
+					.getByRole('tabpanel', { name: /^Saved/ })
+					.getByText(/via Fixture Ring · ash\.example\.com/)
+			).toBeVisible();
 		});
 
 		test('never join the IndieNodes rotation', async ({ page }) => {

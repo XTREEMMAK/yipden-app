@@ -124,6 +124,7 @@ function validShelfItem(value: unknown): value is ShelfItem {
 		stringValue(value.title, 1_000) &&
 		optionalText(value.creator, 1_000) &&
 		optionalText(value.via, 1_000) &&
+		(value.thumbUrl === undefined || https(value.thumbUrl)) &&
 		['discover', 'feeds'].includes(String(value.from)) &&
 		text(value.savedAt, 100)
 	);
@@ -160,7 +161,27 @@ function validFeed(value: unknown): value is Feed {
 			['ring', 'discovered', 'manual', 'opml'].includes(String(value.provenance))) &&
 		optionalText(value.etag, 8_192) &&
 		optionalText(value.lastModified, 8_192) &&
-		optionalText(value.lastFetchedAt, 100)
+		optionalText(value.lastFetchedAt, 100) &&
+		(value.lastError === undefined || validFeedError(value.lastError))
+	);
+}
+
+const FEED_PROBLEMS = [
+	'offline',
+	'gone',
+	'refused',
+	'server',
+	'blocked',
+	'not-a-feed',
+	'unreadable'
+];
+
+function validFeedError(value: unknown): boolean {
+	return (
+		record(value) &&
+		FEED_PROBLEMS.includes(String(value.kind)) &&
+		(value.status === undefined ||
+			(typeof value.status === 'number' && Number.isInteger(value.status)))
 	);
 }
 

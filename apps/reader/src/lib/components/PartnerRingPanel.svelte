@@ -3,6 +3,7 @@
 	import { cardStack } from '$lib/actions/cardStack.js';
 	import { openExternal } from '$lib/platform/external.js';
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import { shelf, toggleShelf } from '$lib/shelf.svelte.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import { verdicts } from '$lib/verdicts.svelte.js';
@@ -41,6 +42,49 @@
 	);
 	let hiddenCount = $derived(result.members.length - members.length);
 
+	/**
+	 * Finding someone in a ring: a search over what every ring has (name, description, address)
+	 * and, for a ring that publishes categories (the `tags` capability), one chip per category.
+	 * Generic over rings: nothing here knows which ring it is showing.
+	 */
+	let query = $state('');
+	let genre = $state<string | null>(null);
+	let scroller = $state<HTMLDivElement | undefined>(undefined);
+
+	let genres = $derived.by(() => {
+		const counts = new Map<string, number>();
+		for (const member of members) {
+			for (const tag of member.tags ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+		}
+		return [...counts]
+			.map(([tag, count]) => ({ tag, count }))
+			.sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+	});
+
+	let shown = $derived.by(() => {
+		const needle = query.trim().toLowerCase();
+		return members.filter(
+			(member) =>
+				(!genre || member.tags?.includes(genre)) &&
+				(!needle ||
+					[member.name, member.blurb, hostOf(member.url), ...(member.tags ?? [])].some((field) =>
+						field?.toLowerCase().includes(needle)
+					))
+		);
+	});
+
+	/** "sci-fi" reads as "Sci-fi": tags arrive lowercased from the ring boundary. */
+	function genreLabel(tag: string): string {
+		return tag.charAt(0).toUpperCase() + tag.slice(1);
+	}
+
+	// A new search or genre starts the list from the top, not wherever the last one was scrolled.
+	$effect(() => {
+		void query;
+		void genre;
+		if (scroller) scroller.scrollTop = 0;
+	});
+
 	async function decide(member: (typeof result.members)[number], verdict: 'liked' | 'hidden') {
 		const now = await verdicts.toggle(
 			{
@@ -57,6 +101,17 @@
 			toast.show(`Liked ${member.name}. Find them in You.`);
 		} else if (now === 'hidden') toast.show(`${member.name} hidden. Bring them back from You.`);
 	}
+	/** Saved for later, from either the desktop-first main button or any card's bookmark. */
+	function shelfDraft(member: (typeof result.members)[number]) {
+		return {
+			url: member.url,
+			title: member.name,
+			via: result.ring.name,
+			from: 'discover' as const,
+			...(member.thumbUrl ? { thumbUrl: member.thumbUrl } : {})
+		};
+	}
+
 	let back = $state<HTMLButtonElement | undefined>(undefined);
 	/**
 	 * Rendered at this component's own root, outside `.scroll`'s stacked cards: see
@@ -67,6 +122,40 @@
 	$effect(() => {
 		back?.focus();
 	});
+
+	/**
+	 * A real history entry lets Android Back (and the browser's) return to Discover instead of
+	 * leaving the app, the same way AboutSheet and the full player do. Closing from inside the
+	 * panel pops that entry; closing from elsewhere (the ring menu) drops it on unmount, unless a
+	 * route change already moved past it.
+	 */
+	let historyOpen = false;
+
+	onMount(() => {
+		window.history.pushState(
+			{ ...window.history.state, yipdenRing: true },
+			'',
+			window.location.href
+		);
+		historyOpen = true;
+
+		const onPopState = () => {
+			if (!historyOpen) return;
+			historyOpen = false;
+			onback();
+		};
+		window.addEventListener('popstate', onPopState);
+		return () => {
+			window.removeEventListener('popstate', onPopState);
+			if (historyOpen && window.history.state?.yipdenRing) window.history.back();
+			historyOpen = false;
+		};
+	});
+
+	function close() {
+		if (historyOpen) window.history.back();
+		else onback();
+	}
 
 	function hostOf(url: string): string {
 		return new URL(url).hostname.replace(/^www\./, '');
@@ -105,7 +194,7 @@
 		{/each}
 	</div>
 	<header class="head">
-		<button bind:this={back} class="back" onclick={onback}>
+		<button bind:this={back} class="back" onclick={close}>
 			<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
 			IndieNodes
 		</button>
@@ -121,11 +210,37 @@
 				<img class="ring-badge" src={result.ring.badgeUrl} alt={`${result.ring.name} badge`} />
 			{/if}
 		</div>
+		<input
+			class="search"
+			type="search"
+			placeholder={`Search ${members.length} members`}
+			aria-label={`Search ${result.ring.name} members`}
+			autocomplete="off"
+			spellcheck="false"
+			bind:value={query}
+		/>
+		{#if genres.length > 1}
+			<div class="genres" role="group" aria-label="Genre">
+				<button class="genre" aria-pressed={genre === null} onclick={() => (genre = null)}>
+					All
+				</button>
+				{#each genres as entry (entry.tag)}
+					<button
+						class="genre"
+						aria-pressed={genre === entry.tag}
+						onclick={() => (genre = genre === entry.tag ? null : entry.tag)}
+					>
+						{genreLabel(entry.tag)}
+						<span>{entry.count}</span>
+					</button>
+				{/each}
+			</div>
+		{/if}
 	</header>
 
-	<div class="scroll" use:cardStack>
+	<div class="scroll" bind:this={scroller} use:cardStack>
 		<ul class="cards">
-			{#each members as member (member.id)}
+			{#each shown as member (member.id)}
 				{@const desktopFirst = member.layout === 'desktop-first'}
 				{@const saved = shelf.has(member.url)}
 				<li class="card yip-stack">
@@ -160,15 +275,9 @@
 							<button
 								class="primary"
 								aria-pressed={saved}
-								onclick={() =>
-									toggleShelf({
-										url: member.url,
-										title: member.name,
-										via: result.ring.name,
-										from: 'discover'
-									})}
+								onclick={() => toggleShelf(shelfDraft(member))}
 							>
-								{saved ? 'Saved to Shelf' : 'Save for later'}
+								{saved ? 'Saved' : 'Save for later'}
 							</button>
 							<button
 								class="secondary"
@@ -217,6 +326,19 @@
 								<path d="M20 20l-4.4-4.4" />
 							</svg>
 						</button>
+						{#if !desktopFirst}
+							<button
+								class="secondary icon-only"
+								aria-label={`Save ${member.name} for later`}
+								title={saved ? 'Saved' : 'Save for later'}
+								aria-pressed={saved}
+								onclick={() => toggleShelf(shelfDraft(member))}
+							>
+								<svg class="globe" class:filled={saved} viewBox="0 0 24 24" aria-hidden="true">
+									<path d="M6 4h12v16l-6-4-6 4z" />
+								</svg>
+							</button>
+						{/if}
 						<button
 							class="secondary icon-only"
 							aria-label={`Like ${member.name}`}
@@ -248,6 +370,13 @@
 				</li>
 			{/each}
 		</ul>
+		{#if !shown.length && members.length}
+			<p class="hidden-note">
+				Nobody here matches{query.trim() ? ` “${query.trim()}”` : ''}{genre
+					? ` in ${genreLabel(genre)}`
+					: ''}.
+			</p>
+		{/if}
 		{#if hiddenCount}
 			<p class="hidden-note">
 				{hiddenCount} hidden as not for me. You can bring {hiddenCount === 1 ? 'them' : 'them'} back in
@@ -298,6 +427,66 @@
 		display: flex;
 		align-items: center;
 		gap: 10px;
+	}
+
+	.search {
+		width: 100%;
+		box-sizing: border-box;
+		height: 44px;
+		padding: 0 16px;
+		border: 1px solid rgba(255, 255, 255, 0.28);
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.14);
+		color: #fff;
+		font: inherit;
+		font-size: 15px;
+	}
+
+	.search::placeholder {
+		color: rgba(255, 255, 255, 0.7);
+	}
+
+	/* One scrolling row, so ten genres never push the cards off a phone screen. */
+	.genres {
+		display: flex;
+		gap: 6px;
+		margin: 0 -20px;
+		padding: 0 20px 2px;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+
+	.genres::-webkit-scrollbar {
+		display: none;
+	}
+
+	.genre {
+		flex: 0 0 auto;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		min-height: 44px;
+		padding: 0 14px;
+		border: 1px solid rgba(255, 255, 255, 0.28);
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.1);
+		color: #fff;
+		font: inherit;
+		font-size: 13.5px;
+		font-weight: 600;
+		white-space: nowrap;
+	}
+
+	.genre[aria-pressed='true'] {
+		background: #fff;
+		color: var(--deep);
+	}
+
+	.genre span {
+		font-family: var(--mono);
+		font-size: 11px;
+		font-weight: 400;
+		opacity: 0.75;
 	}
 
 	.ring-icon {

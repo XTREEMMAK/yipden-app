@@ -3,6 +3,7 @@ import type { RingCacheRecord } from '@yipden/ring-client';
 
 const saved = vi.hoisted(() => ({ record: null as RingCacheRecord | null }));
 const net = vi.hoisted(() => ({ fetch: vi.fn() }));
+const settings = vi.hoisted(() => new Map<string, unknown>());
 
 vi.mock('./store/index.js', () => ({
 	store: {
@@ -11,7 +12,9 @@ vi.mock('./store/index.js', () => ({
 		writeRing: async (record: RingCacheRecord) => {
 			saved.record = record;
 		},
-		listPeople: async () => []
+		listPeople: async () => [],
+		getSetting: async (key: string) => settings.get(key) ?? null,
+		setSetting: async (key: string, value: unknown) => void settings.set(key, value)
 	}
 }));
 vi.mock('./platform/http.js', () => ({ httpFetch: net.fetch }));
@@ -45,6 +48,7 @@ function reset() {
 	(ring as unknown as { checkedAt: number }).checkedAt = 0;
 	(ring as unknown as { inFlight: null }).inFlight = null;
 	saved.record = null;
+	settings.clear();
 	net.fetch.mockReset();
 }
 
@@ -80,6 +84,22 @@ describe('ring.load', () => {
 
 		(ring as unknown as { checkedAt: number }).checkedAt = Date.now() - RING_FRESH_MS - 1;
 		await ring.load();
+		expect(net.fetch).toHaveBeenCalledTimes(2);
+	});
+
+	it('remembers the last check across a relaunch, so a launch inside the window costs nothing', async () => {
+		net.fetch.mockResolvedValue(ok(['a', 'b']));
+		await ring.load();
+		expect(net.fetch).toHaveBeenCalledTimes(1);
+
+		// A relaunch: nothing in memory, the saved ring and the saved check time on disk.
+		ring.all = [];
+		(ring as unknown as { checkedAt: number }).checkedAt = 0;
+		await ring.load();
+		expect(net.fetch).toHaveBeenCalledTimes(1);
+		expect(ring.all).toHaveLength(2);
+
+		await ring.load(true);
 		expect(net.fetch).toHaveBeenCalledTimes(2);
 	});
 

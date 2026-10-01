@@ -12,6 +12,8 @@ export const store: Store = new IdbStore();
 export type {
 	AddFeedResult,
 	Feed,
+	FeedError,
+	FeedProblem,
 	FeedProvenance,
 	PeaksRecord,
 	Person,

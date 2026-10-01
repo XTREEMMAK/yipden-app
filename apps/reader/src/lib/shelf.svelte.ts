@@ -3,7 +3,8 @@ import { store, type ShelfItem } from './store/index.js';
 import { toast } from './toast.svelte.js';
 
 /**
- * The Shelf: links a reader set aside to open on a bigger screen.
+ * The Shelf: links a reader set aside for later, on any member (Saved in You). Built first for
+ * sites made for a bigger screen, now offered everywhere; Send hands one to another device.
  *
  * Local to this device, like follows and preferences, and only a list of addresses: nothing here
  * is fetched, mirrored or shared. It leaves the phone only when the reader exports it (see
@@ -15,6 +16,7 @@ export interface ShelfDraft {
 	title: string;
 	creator?: string;
 	via?: string;
+	thumbUrl?: string;
 	from: ShelfItem['from'];
 }
 
@@ -42,6 +44,8 @@ export function shelfItemFrom(draft: ShelfDraft, now: Date = new Date()): ShelfI
 	if (creator) item.creator = creator;
 	const via = draft.via?.trim().slice(0, MAX_CREATOR);
 	if (via) item.via = via;
+	const thumb = draft.thumbUrl ? safeUrl(draft.thumbUrl) : null;
+	if (thumb) item.thumbUrl = thumb.toString();
 	return item;
 }
 
@@ -88,7 +92,7 @@ export const shelf = new ShelfState();
 export async function toggleShelf(draft: ShelfDraft): Promise<void> {
 	try {
 		const saved = await shelf.toggle(draft);
-		toast.show(saved ? 'Saved to your Shelf.' : 'Removed from your Shelf.');
+		toast.show(saved ? 'Saved for later. Find it under Saved in You.' : 'Removed from Saved.');
 	} catch {
 		toast.show('Could not save that on this phone.');
 	}

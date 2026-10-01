@@ -38,7 +38,7 @@ export default defineConfig({
 		// The flag compiles in the made-up partner ring (a bundled fixture, no network) so the tab
 		// and its "via" label can be tested. A release build never sets it, and even here a test
 		// has to opt in. Reusing a preview server built without it will fail shelf.spec.ts.
-		command: `VITE_YIPDEN_PARTNER_FIXTURE=1 pnpm build && pnpm preview --port ${PORT}`,
+		command: `VITE_YIPDEN_PARTNER_FIXTURE=1 VITE_YIPDEN_DEBUG=1 pnpm build && pnpm preview --port ${PORT}`,
 		port: PORT,
 		reuseExistingServer: !process.env.CI,
 		timeout: 120_000

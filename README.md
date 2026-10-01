@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="apps/reader/store/play-icon-512.png" alt="YipDen logo: a white fox howling inside an arch, on orange" width="128" height="128">
+</p>
+
 <h1 align="center">YipDen</h1>
 
 <p align="center">

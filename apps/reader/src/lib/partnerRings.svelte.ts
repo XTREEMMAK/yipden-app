@@ -1,5 +1,5 @@
 import { readPartnerRing, type PartnerRingResult } from '@yipden/ring-client';
-import { partnerSources } from './partner/registry.js';
+import { partnerSources, type PartnerSource } from './partner/registry.js';
 import { store } from './store/index.js';
 
 /**
@@ -10,6 +10,42 @@ import { store } from './store/index.js';
  * ring's name. Choosing a ring here changes what Discover shows; it never changes what Discover's
  * rotation contains.
  */
+
+/**
+ * How long a partner ring's page is trusted before it is asked about again. Rings are edited by
+ * hand, a few times a month at most; a day keeps a new member from waiting long without spending a
+ * request on every launch. Pull to refresh asks at once regardless.
+ */
+export const PARTNER_FRESH_MS = 24 * 60 * 60 * 1000;
+
+/** A live ring's last page, kept per ring id with what is needed to ask whether it changed. */
+interface CachedPartnerPage {
+	document: string;
+	etag?: string;
+	lastModified?: string;
+	checkedAt: string;
+}
+type PartnerCache = Record<string, CachedPartnerPage>;
+
+/** Read each source's document through its adapter, keeping rings with a usable member. */
+function readAll(
+	documents: Array<{ source: PartnerSource; document: unknown }>,
+	includeSensitive: boolean
+): PartnerRingResult[] {
+	const results: PartnerRingResult[] = [];
+	for (const { source, document } of documents) {
+		try {
+			const result = readPartnerRing(source.adapter, document);
+			const members = includeSensitive
+				? result.members
+				: result.members.filter((member) => member.sensitive !== true);
+			if (members.length) results.push({ ...result, members });
+		} catch {
+			// Read as a stranger's page, not a schema: a malformed one must never break Discover.
+		}
+	}
+	return results;
+}
 
 class PartnerRingsState {
 	/** Only rings that were read and have at least one usable member. */
@@ -34,43 +70,89 @@ class PartnerRingsState {
 		return this.started;
 	}
 
-	/** Pull to refresh: read every registered ring again, ignoring what `load()` already cached. */
+	/** Pull to refresh: ask every registered ring again, however recently it was checked. */
 	reload(): Promise<void> {
-		this.started = this.run();
+		this.started = this.run(true);
 		return this.started;
 	}
 
-	private async run(): Promise<void> {
-		this.status = 'loading';
+	private async run(force = false): Promise<void> {
+		if (!this.rings.length) this.status = 'loading';
 		await store.init();
 		// The same reader preference IndieNodes' own `explicit` field already answers to: hidden
 		// unless a reader opts in, since this app does not vet a partner ring's members itself.
 		const includeSensitive = (await store.getSetting<boolean>('includeExplicit')) === true;
 
-		// In parallel, not one ring at a time: these are independent fetches to unrelated hosts,
-		// and reading them serially meant every ring after the first sat waiting for no reason,
-		// stretching how long the switch-ring button took to even appear.
 		const sources = await partnerSources();
-		const outcomes = await Promise.allSettled(
-			sources.map((source) => source.load().then((document) => ({ source, document })))
-		);
+		const cache = (await store.getSetting<PartnerCache>('partnerCache')) ?? {};
 
-		const results: PartnerRingResult[] = [];
-		for (const outcome of outcomes) {
-			if (outcome.status === 'rejected') continue; // A ring that cannot be read is simply absent.
-			try {
-				const { source, document } = outcome.value;
-				const result = readPartnerRing(source.adapter, document);
-				const members = includeSensitive
-					? result.members
-					: result.members.filter((member) => member.sensitive !== true);
-				if (members.length) results.push({ ...result, members });
-			} catch {
-				// Read as a stranger's page, not a schema: a malformed one must never break Discover.
+		// The copies already on this phone go on screen first, so the ring switcher is there at
+		// once on a launch rather than after a round trip to a stranger's host.
+		if (!this.rings.length) {
+			const saved = sources.flatMap((source) => {
+				const page = cache[source.adapter.ring.id];
+				return source.revalidate && page ? [{ source, document: page.document }] : [];
+			});
+			const early = readAll(saved, includeSensitive);
+			if (early.length) {
+				this.rings = early;
+				this.status = 'ready';
 			}
 		}
-		this.rings = results;
+
+		// In parallel, not one ring at a time: these are independent fetches to unrelated hosts.
+		// A ring checked within `PARTNER_FRESH_MS` is not asked about at all; an older one is asked
+		// whether it changed, and an unchanged page costs a 304, not a download.
+		const now = Date.now();
+		const next: PartnerCache = {};
+		const outcomes = await Promise.allSettled(
+			sources.map(async (source) => {
+				const id = source.adapter.ring.id;
+				if (!source.revalidate) return { source, document: await source.load() };
+
+				const saved = cache[id];
+				if (saved && !force && now - Date.parse(saved.checkedAt) < PARTNER_FRESH_MS) {
+					next[id] = saved;
+					return { source, document: saved.document };
+				}
+				const checkedAt = new Date(now).toISOString();
+				try {
+					const fetched = await source.revalidate(
+						saved
+							? {
+									...(saved.etag ? { etag: saved.etag } : {}),
+									...(saved.lastModified ? { lastModified: saved.lastModified } : {})
+								}
+							: {}
+					);
+					if (!fetched.notModified) {
+						next[id] = {
+							document: fetched.document,
+							...(fetched.etag ? { etag: fetched.etag } : {}),
+							...(fetched.lastModified ? { lastModified: fetched.lastModified } : {}),
+							checkedAt
+						};
+						return { source, document: fetched.document };
+					}
+					if (!saved) throw new Error('not modified, with no copy to keep');
+					next[id] = { ...saved, checkedAt };
+					return { source, document: saved.document };
+				} catch (cause) {
+					// Unreachable for now: the last good copy stands, and the next launch asks again.
+					if (!saved) throw cause;
+					next[id] = saved;
+					return { source, document: saved.document };
+				}
+			})
+		);
+
+		this.rings = readAll(
+			outcomes.flatMap((outcome) => (outcome.status === 'fulfilled' ? [outcome.value] : [])),
+			includeSensitive
+		);
 		this.status = 'ready';
+		// Rebuilt from this build's sources alone, so a ring switched off stops taking up space.
+		await store.setSetting('partnerCache', next);
 	}
 
 	select(id: string | null): void {

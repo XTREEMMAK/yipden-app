@@ -11,11 +11,11 @@
 	import { prefs } from '$lib/prefs.svelte.js';
 	import { MAX_MAX_AGE_DAYS, MIN_MAX_AGE_DAYS } from '$lib/age.js';
 	import { shelf } from '$lib/shelf.svelte.js';
-	import { goto } from '$app/navigation';
-	import { verdicts } from '$lib/verdicts.svelte.js';
-	import { openExternal } from '$lib/platform/external.js';
 	import { toast } from '$lib/toast.svelte.js';
+	import { MAX_AUTO_FAILURES } from '$lib/refresh.js';
+	import type { Feed, FeedError } from '$lib/store/index.js';
 	import Toast from '$components/Toast.svelte';
+	import YouLists from '$components/YouLists.svelte';
 
 	/**
 	 * You: who you follow and what you have saved. The reader's own data, not the app's
@@ -34,6 +34,8 @@
 	let sourceBusy = $state(false);
 	let busySourceUrl = $state<string | null>(null);
 	let confirmingSourceId = $state<string | null>(null);
+	/** The dead source whose replacement form is open, if any; it shares the add form's fields. */
+	let replacingFeedId = $state<string | null>(null);
 
 	let scroll: HTMLDivElement | undefined;
 	let pullY = $state(0);
@@ -105,11 +107,37 @@
 		}
 	}
 
-	function sourceStatus(feed: (typeof you.rows)[number]['feeds'][number]): string {
+	/** What went wrong, in words, with the status code when the site gave one. */
+	function problemLabel(problem: FeedError | undefined): string {
+		const code = problem?.status ? ` (${problem.status})` : '';
+		switch (problem?.kind) {
+			case 'offline':
+				return 'Could not connect';
+			case 'gone':
+				return `Not found${code}; it may have moved`;
+			case 'refused':
+				return `The site refused access${code}`;
+			case 'server':
+				return `The site had a problem${code}`;
+			case 'blocked':
+				return "The site's robots.txt asks readers not to fetch it";
+			case 'not-a-feed':
+				return 'Reached, but it is not a readable feed';
+			case 'unreadable':
+				return 'Not read: unsafe address or too large';
+			default:
+				return 'Last check failed';
+		}
+	}
+
+	function sourceStatus(feed: Feed): string {
 		if (!feed.enabled) return 'Paused · cached yips hidden';
-		if (feed.failures >= 5) return 'Needs attention · automatic checks stopped';
 		if (feed.failures > 0) {
-			return `Last check failed · ${feed.failures} ${feed.failures === 1 ? 'failure' : 'failures'} in a row`;
+			const streak =
+				feed.failures >= MAX_AUTO_FAILURES
+					? 'automatic checks stopped'
+					: `${feed.failures} ${feed.failures === 1 ? 'failure' : 'failures'} in a row`;
+			return `${problemLabel(feed.lastError)} · ${streak}`;
 		}
 		if (feed.lastFetchedAt) {
 			return `Checked ${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(feed.lastFetchedAt))}`;
@@ -117,11 +145,61 @@
 		return 'Not checked yet';
 	}
 
-	function beginAddSource(personId: string) {
-		addingForId = addingForId === personId ? null : personId;
-		sourceInput = '';
+	/**
+	 * Replace is offered once waiting is unlikely to help: the address is gone or no longer a
+	 * feed, or automatic checks have given up. A connection blip or a busy server is not a reason
+	 * to change anything, so those only get Retry until the backoff limit.
+	 */
+	function suggestReplace(feed: Feed): boolean {
+		if (!feed.enabled || feed.failures === 0) return false;
+		const kind = feed.lastError?.kind;
+		return kind === 'gone' || kind === 'not-a-feed' || feed.failures >= MAX_AUTO_FAILURES;
+	}
+
+	function resetSourceForm(input = '') {
+		sourceInput = input;
 		sourceMatches = [];
 		sourceError = null;
+	}
+
+	function beginAddSource(personId: string) {
+		addingForId = addingForId === personId ? null : personId;
+		replacingFeedId = null;
+		resetSourceForm();
+	}
+
+	/** Starts from the creator's own site, the likeliest place to find where the feed went. */
+	function beginReplace(feedId: string, siteUrl: string) {
+		replacingFeedId = replacingFeedId === feedId ? null : feedId;
+		addingForId = null;
+		resetSourceForm(siteUrl);
+	}
+
+	async function replaceSource(personId: string, feed: Feed, source: DiscoveredFeed) {
+		const label = feedKindLabel(feed.kind);
+		busySourceUrl = source.url;
+		try {
+			const result = await you.replaceSource(personId, feed.id, source);
+			if (result.status === 'replaced') {
+				toast.show(`${label} now reads from ${hostOf(source.url)}.`);
+				replacingFeedId = null;
+				resetSourceForm();
+			} else if (result.status === 'failed') {
+				sourceError = `${hostOf(source.url)} did not work either: ${problemLabel(result.problem).toLowerCase()}. The old address is kept.`;
+			} else if (result.status === 'same-address') {
+				sourceError = 'That is the address already failing. Look for where it moved to.';
+			} else if (result.status === 'already-attached') {
+				toast.show('That source is already attached; pause or remove the old one instead.');
+			} else if (result.status === 'belongs-to-other') {
+				toast.show(`That source is already attached to ${result.personName}.`);
+			} else {
+				toast.show('That source is no longer in your follows.');
+			}
+		} catch {
+			toast.show('Could not replace that source.');
+		} finally {
+			busySourceUrl = null;
+		}
 	}
 
 	async function findSources(event: SubmitEvent) {
@@ -181,7 +259,7 @@
 			const status = await you.retryFeed(personId, feedId);
 			toast.show(
 				status === 'failed' || status === 'missing'
-					? `${label} still could not be reached.`
+					? `${label} still failed: ${problemLabel(you.rows.flatMap((row) => row.feeds).find((feed) => feed.id === feedId)?.lastError).toLowerCase()}.`
 					: `${label} is healthy again.`
 			);
 		} catch {
@@ -262,6 +340,51 @@
 		}
 	}
 </script>
+
+{#snippet sourceForm(
+	inputId: string,
+	label: string,
+	pickLabel: string,
+	onpick: (source: DiscoveredFeed) => void
+)}
+	<form class="source-form" onsubmit={findSources} novalidate>
+		<label for={inputId}>{label}</label>
+		<div class="source-field">
+			<input
+				id={inputId}
+				type="text"
+				inputmode="url"
+				autocomplete="off"
+				autocapitalize="off"
+				spellcheck="false"
+				placeholder="youtube.com/@creator"
+				bind:value={sourceInput}
+			/>
+			<button class="source-find" type="submit" disabled={sourceBusy}>
+				{sourceBusy ? 'Looking…' : 'Find'}
+			</button>
+		</div>
+		<p class="source-note">
+			Manual sources stay unverified; YipDen still checks that they are safe and readable.
+		</p>
+		{#if sourceError}<p class="source-error">{sourceError}</p>{/if}
+		{#each sourceMatches as source (source.url)}
+			<div class="source-result">
+				<span>
+					<b>{feedKindLabel(source.kind)}</b>
+					<small>{source.title} · {hostOf(source.url)}</small>
+				</span>
+				<button
+					class="source-find"
+					type="button"
+					disabled={busySourceUrl !== null}
+					onclick={() => onpick(source)}
+					>{busySourceUrl === source.url ? 'Checking…' : pickLabel}</button
+				>
+			</div>
+		{/each}
+	</form>
+{/snippet}
 
 <svelte:head><title>You</title></svelte:head>
 
@@ -398,6 +521,15 @@
 														>Retry</button
 													>
 												{/if}
+												{#if suggestReplace(feed)}
+													<button
+														class="source-btn"
+														aria-expanded={replacingFeedId === feed.id}
+														aria-label={`Replace the address for ${feedKindLabel(feed.kind)}`}
+														onclick={() => beginReplace(feed.id, row.person.siteUrl)}
+														>{replacingFeedId === feed.id ? 'Cancel' : 'Replace'}</button
+													>
+												{/if}
 												{#if feed.provenance === 'manual'}
 													{#if confirmingSourceId === feed.id}
 														<button
@@ -434,6 +566,14 @@
 												/>
 											</span>
 										</div>
+										{#if replacingFeedId === feed.id}
+											{@render sourceForm(
+												`replace-${personIndex}-${feedIndex}`,
+												'Where it moved: a feed, website or profile link',
+												'Use this',
+												(source) => replaceSource(row.person.id, feed, source)
+											)}
+										{/if}
 									{/each}
 									<div class="source-manage">
 										<div class="age-limit">
@@ -484,44 +624,12 @@
 											{addingForId === row.person.id ? 'Cancel' : '+ Add source'}
 										</button>
 										{#if addingForId === row.person.id}
-											<form class="source-form" onsubmit={findSources} novalidate>
-												<label for={`source-${personIndex}`}>Feed, website, or profile link</label>
-												<div class="source-field">
-													<input
-														id={`source-${personIndex}`}
-														type="text"
-														inputmode="url"
-														autocomplete="off"
-														autocapitalize="off"
-														spellcheck="false"
-														placeholder="youtube.com/@creator"
-														bind:value={sourceInput}
-													/>
-													<button class="source-find" type="submit" disabled={sourceBusy}>
-														{sourceBusy ? 'Looking…' : 'Find'}
-													</button>
-												</div>
-												<p class="source-note">
-													Manual sources stay unverified; YipDen still checks that they are safe and
-													readable.
-												</p>
-												{#if sourceError}<p class="source-error">{sourceError}</p>{/if}
-												{#each sourceMatches as source (source.url)}
-													<div class="source-result">
-														<span>
-															<b>{feedKindLabel(source.kind)}</b>
-															<small>{source.title} · {hostOf(source.url)}</small>
-														</span>
-														<button
-															class="source-find"
-															type="button"
-															disabled={busySourceUrl !== null}
-															onclick={() => attachSource(row.person.id, source)}
-															>{busySourceUrl === source.url ? 'Adding…' : 'Add'}</button
-														>
-													</div>
-												{/each}
-											</form>
+											{@render sourceForm(
+												`source-${personIndex}`,
+												'Feed, website, or profile link',
+												'Add',
+												(source) => attachSource(row.person.id, source)
+											)}
 										{/if}
 									</div>
 								</div>
@@ -532,100 +640,7 @@
 			</div>
 		</section>
 
-		<section class="grp" in:fly={flyIn({ delay: staggerDelay(1) })} aria-labelledby="shelf-h">
-			<h3 class="grp-h" id="shelf-h">
-				Shelf
-				<span>{shelf.items.length} {shelf.items.length === 1 ? 'link' : 'links'}</span>
-			</h3>
-			<div class="rows">
-				{#if !shelf.loaded}
-					<p class="empty">Loading{'…'}</p>
-				{:else if shelf.items.length === 0}
-					<p class="empty">
-						Nothing saved yet. Sites built for a bigger screen offer Save for later, so you can open
-						them at a desk.
-					</p>
-				{:else}
-					{#each shelf.items as item (item.id)}
-						<div class="srow shelf-row">
-							<button
-								class="shelf-open"
-								onclick={() => openExternal(item.url)}
-								aria-label={`Open ${item.title} on ${new URL(item.url).hostname.replace(/^www\./, '')}`}
-							>
-								<span class="tt">
-									<b>{item.title}</b>
-									<small>
-										{item.creator ? `${item.creator} · ` : ''}{item.via
-											? `via ${item.via} · `
-											: ''}{new URL(item.url).hostname.replace(/^www\./, '')}
-									</small>
-								</span>
-								<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
-							</button>
-							<button
-								class="mini-btn"
-								aria-label={`Remove ${item.title} from your Shelf`}
-								onclick={() => {
-									void shelf.remove(item.id);
-									toast.show('Removed from your Shelf.');
-								}}
-							>
-								Remove
-							</button>
-						</div>
-					{/each}
-				{/if}
-			</div>
-			<p class="grp-note">
-				Saved links stay on this phone until you export them, in your follows file or a full backup.
-			</p>
-		</section>
-
-		{#each [{ key: 'liked', title: 'Liked', list: verdicts.liked, empty: 'Nothing liked yet. Tap Like on a creator in Discover or a partner ring.' }, { key: 'hidden', title: 'Not for me', list: verdicts.hidden, empty: 'Nobody hidden. Creators you mark Not for me stop appearing in Discover and partner rings.' }] as group (group.key)}
-			<section class="grp" aria-labelledby={`${group.key}-h`}>
-				<h3 class="grp-h" id={`${group.key}-h`}>
-					{group.title}
-					<span>{group.list.length}</span>
-				</h3>
-				<div class="rows">
-					{#if group.list.length === 0}
-						<p class="empty">{group.empty}</p>
-					{:else}
-						{#each group.list as item (item.id)}
-							<div class="srow shelf-row">
-								<button
-									class="shelf-open"
-									onclick={() => openExternal(item.url)}
-									aria-label={`Open ${item.name}`}
-								>
-									<span class="tt">
-										<b>{item.name}</b>
-										<small>
-											{item.via ? `via ${item.via} · ` : ''}{new URL(item.url).hostname.replace(
-												/^www\./,
-												''
-											)}
-										</small>
-									</span>
-								</button>
-								{#if group.key === 'liked'}
-									<button
-										class="mini-btn"
-										onclick={() => goto(`/follow?url=${encodeURIComponent(item.url)}`)}
-									>
-										Follow
-									</button>
-								{/if}
-								<button class="mini-btn" onclick={() => verdicts.clear(item.url)}>
-									{group.key === 'liked' ? 'Remove' : 'Bring back'}
-								</button>
-							</div>
-						{/each}
-					{/if}
-				</div>
-			</section>
-		{/each}
+		<YouLists />
 	</div>
 
 	<Toast />
@@ -1106,44 +1121,6 @@
 		font-size: 12.5px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-	}
-
-	.shelf-row {
-		gap: 8px;
-	}
-
-	.shelf-open {
-		display: flex;
-		flex: 1;
-		align-items: center;
-		gap: 12px;
-		min-width: 0;
-		min-height: 44px;
-		padding: 0;
-		border: 0;
-		background: none;
-		color: inherit;
-		text-align: left;
-		font: inherit;
-	}
-
-	.shelf-open svg {
-		flex: 0 0 auto;
-		width: 16px;
-		height: 16px;
-		color: var(--muted);
-		fill: none;
-		stroke: currentColor;
-		stroke-width: 2;
-		stroke-linecap: round;
-		stroke-linejoin: round;
-	}
-
-	.grp-note {
-		margin: 8px 4px 0;
-		color: var(--muted);
-		font-size: 12.5px;
-		line-height: 1.4;
 	}
 
 	.mini-btn {

@@ -25,6 +25,12 @@ occasional step, not a build step.
   which do not understand adaptive icons at all) use the day color only.
   `apps/reader/store/play-icon-512.png` is the same day composition at Play Store listing size —
   not part of the APK.
+- **Launch splash screen** (`apps/reader/android/app/src/main/res/`): `drawable/splash_icon.xml`
+  is the same mark as the launcher foreground, smaller (48 of 108 units rather than 72), because
+  the splash masks its icon to a circle 72 units across and the square mark's corners would
+  otherwise be clipped. The background is `@color/splash_background` in `values/colors.xml` (brand
+  orange) and `values-night/colors.xml` (the dark ground), the launcher icon's own day/night pair.
+  Wired up by `AppTheme.NoActionBarLaunch` in `values/styles.xml`.
 - **Discover's header mark and the About sheet's mark** (`apps/reader/src/routes/+page.svelte`,
   `apps/reader/src/lib/components/AboutSheet.svelte`): the whole mark (arch, fox, howl), as
   a single inline SVG path with `fill="currentColor"`, the same pattern the mark it replaced
@@ -49,6 +55,6 @@ node generate-icons.cjs
 
 It reads `YipDen_Logo.webp`, traces the mark to a vector path, writes the Android vector drawables
 and legacy PNGs directly into `apps/reader/android/app/src/main/res/`, and writes
-`apps/reader/store/play-icon-512.png`. It does not touch the in-app SVG marks (Discover header,
+`apps/reader/store/play-icon-512.png`, plus the splash icon. It does not touch the in-app SVG marks (Discover header,
 About sheet) — copy the path it prints out into those by hand, the same way it was done the first
 time, since they are ordinary Svelte markup, not generated files.

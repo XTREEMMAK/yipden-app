@@ -243,3 +243,73 @@ describe('the registry', () => {
 		}
 	});
 });
+
+describe('partner ring cache', () => {
+	/** A live-style ring: a page of `name|url` lines, fetched through `revalidate`. */
+	function liveSource(page: { body: string; etag: string }, log: Array<string | undefined>) {
+		const adapter: PartnerAdapter = {
+			ring: { id: 'live-ring', name: 'Live Ring', hubUrl: 'https://live.example.com/' },
+			capabilities: [],
+			read: (document) =>
+				typeof document === 'string'
+					? document.split('\n').map((line) => {
+							const [name, url] = line.split('|');
+							return { name, url };
+						})
+					: []
+		};
+		return {
+			adapter,
+			load: async () => page.body,
+			revalidate: async (validators: { etag?: string }) => {
+				log.push(validators.etag);
+				if (validators.etag === page.etag) return { notModified: true as const };
+				return { notModified: false as const, document: page.body, etag: page.etag };
+			}
+		};
+	}
+
+	it('keeps the page and does not ask again on a launch within a day', async () => {
+		const log: Array<string | undefined> = [];
+		const page = { body: 'Ada|https://ada.example.com/', etag: '"v1"' };
+		let partners = await freshState([liveSource(page, log)]);
+		await partners.load();
+		expect(log).toEqual([undefined]);
+
+		// A relaunch: a fresh module graph over the same database.
+		partners = await freshState([liveSource(page, log)]);
+		await partners.load();
+		expect(log).toEqual([undefined]);
+		expect(partners.rings[0]?.members.map((member) => member.name)).toEqual(['Ada']);
+	});
+
+	it('asks whether it changed once stale, and on pull to refresh', async () => {
+		const log: Array<string | undefined> = [];
+		const page = { body: 'Ada|https://ada.example.com/', etag: '"v1"' };
+		const partners = await freshState([liveSource(page, log)]);
+		await partners.load();
+
+		page.body = 'Ada|https://ada.example.com/\nBo|https://bo.example.com/';
+		page.etag = '"v2"';
+		await partners.reload();
+		expect(log).toEqual([undefined, '"v1"']);
+		expect(partners.rings[0]?.members.map((member) => member.name)).toEqual(['Ada', 'Bo']);
+
+		await partners.reload();
+		expect(log).toEqual([undefined, '"v1"', '"v2"']);
+		expect(partners.rings[0]?.members).toHaveLength(2);
+	});
+
+	it('keeps the last good copy when the ring cannot be reached', async () => {
+		const log: Array<string | undefined> = [];
+		const source = liveSource({ body: 'Ada|https://ada.example.com/', etag: '"v1"' }, log);
+		const partners = await freshState([source]);
+		await partners.load();
+
+		source.revalidate = async () => {
+			throw new Error('offline');
+		};
+		await partners.reload();
+		expect(partners.rings[0]?.members.map((member) => member.name)).toEqual(['Ada']);
+	});
+});

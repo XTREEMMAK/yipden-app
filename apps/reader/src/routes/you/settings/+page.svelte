@@ -93,7 +93,7 @@
 				people === 0 && !saved
 					? 'Nothing new to import from that file.'
 					: people === 0
-						? `Added ${shelved} to your Shelf.`
+						? `Added ${shelved} to Saved.`
 						: `Imported ${people} ${people === 1 ? 'person' : 'people'}, ${feeds} ${feeds === 1 ? 'feed' : 'feeds'}${shelved ? `, ${shelved}` : ''}.`
 			);
 		} catch {
@@ -268,18 +268,6 @@
 			<div class="rows">
 				<div class="srow">
 					<span class="tt">
-						<b>Enforce the age limit (debug)</b>
-						<small>Off keeps every post, so old saved feeds can be used for testing</small>
-					</span>
-					<Switch
-						id="age-limit-enforced"
-						label="Enforce the age limit"
-						checked={prefs.ageLimitEnabled}
-						onchange={(on) => prefs.setAgeLimitEnabled(on)}
-					/>
-				</div>
-				<div class="srow">
-					<span class="tt">
 						<b>Mark as read when scrolled past</b>
 						<small>A card counts as read once it leaves the top of the screen</small>
 					</span>
@@ -310,6 +298,12 @@
 			</div>
 		</section>
 
+		{#if __YIPDEN_DEBUG__}
+			{#await import('$components/DebugSettings.svelte') then { default: DebugSettings }}
+				<DebugSettings />
+			{/await}
+		{/if}
+
 		<section class="grp" in:fly={flyIn({ delay: staggerDelay(3) })}>
 			<h3 class="grp-h">Your follows file</h3>
 			<div class="rows">
@@ -320,7 +314,7 @@
 				>
 					<span class="tt">
 						<b>Export as OPML</b>
-						<small>Your follows, and your Shelf, for any other reader</small>
+						<small>Your follows, and your Saved links, for any other reader</small>
 					</span>
 					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
 				</button>

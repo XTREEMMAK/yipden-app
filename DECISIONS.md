@@ -1979,3 +1979,89 @@ there is nothing to detect and fall back from. In the Android app a YouTube card
 the video in YouTube again (the play triangle becomes the open arrow); the browser build still
 embeds. If a referrer/origin setup later makes the embed work in the app, drop the native check in
 `YipCard.svelte`. Untested against YouTube from a device: this is the safe default, not a proven cause.
+
+## 2026-10-01 (night) — A branded splash screen, and Back out of a partner ring
+
+**The splash is the launcher mark, installed properly.** Capacitor's template set the launch theme's
+`android:background` to a stock `splash.png`, and `BridgeActivity` never calls
+`installSplashScreen()`, so Android 12+ showed its own default splash and older versions a stretched
+image. `MainActivity` now installs the AndroidX splash screen before `super.onCreate`, and
+`AppTheme.NoActionBarLaunch` gives it the white mark (`drawable/splash_icon.xml`) on the same
+day/night background as the launcher icon: brand orange by day, the dark ground by night, which is
+also Capacitor's `backgroundColor`, so a night launch hands off to the WebView without a flash. The
+mark is 48 of 108 units, not the launcher's 72, so it fits inside the splash's circular mask. No
+`@capacitor/splash-screen` plugin: nothing needs to hold the splash past first paint.
+
+**A partner ring is a history entry.** Opening one pushes a state, the same pattern as the About
+sheet and the full player, so Android Back (which goes back in WebView history when it can) returns
+to Discover instead of leaving the app. The back bar pops that entry; closing from the ring menu
+drops it on unmount, unless a route change (Follow from a member card) already moved past it.
+
+## 2026-10-01 (night) — Why a source failed, and replacing one that moved
+
+**Failures are sorted by what a reader can do about them**, not by HTTP detail: `classifyFailure`
+in `refresh.ts` turns a thrown error into a `FeedProblem` stored on the feed as `lastError` and
+cleared by the next good check. A parse failure (`FeedParseError`) and a missing feed (404/410) are
+the ones waiting will not fix; a connection failure, 5xx or 429 usually will. So **Replace is only
+offered for gone or not-a-feed**, or once automatic checks have stopped (five failures); a blip
+gets Retry alone, so nobody rewires a working feed during an outage.
+
+**A replacement commits only after it checks out.** Identity is the URL, so replacing adds a new
+`manual`, unverified record, checks it, and only then removes the old one (and its cached yips,
+which the new address refills; keeping them would duplicate posts under two feed keys). A
+replacement that also fails is removed again and the old one kept, so a reader never trades one
+broken source for two. The form starts from the creator's site URL, where a moved feed is most
+likely announced.
+
+## 2026-10-01 (late) — Debug tools exist only in debug builds; Liked lists page at 25
+
+**One build-time constant, `__YIPDEN_DEBUG__`** (a Vite `define`, next to `__APP_VERSION__`), is
+true for the dev server, Vitest, and any build with `VITE_YIPDEN_DEBUG=1` (`android:apk`,
+`android:install`, the e2e suite), and false for a plain `pnpm build`. Being a literal at every use,
+the bundler removes what it guards in a release, which was checked against the built output: no
+Debug build section, no Musicians Webring or Knifebeetle adapter, no flag reads. A runtime flag was
+rejected because it would still ship the code and the rings' URLs. Settings' debug rows are their
+own component, imported dynamically behind the constant, because a Svelte `{#if false}` still
+compiles its markup into the page. A release build always enforces the age limit and ignores any
+`ageLimitEnabled` a debug build saved on the same phone.
+
+**Why the testing rings needed a Settings switch at all:** their flags were only settable through a
+`?flag=1` on the live-reload URL, and storage is per origin, so a flag set at `http://<ip>:5173`
+never reaches the installed APK at `https://localhost`. That is why the ring switcher vanished on
+an installed build.
+
+**Liked and Not for me show 25 on You**, newest first, then "See all N" to `/you/liked` or
+`/you/not-for-me`, which list everything through the same `VerdictList` component. Each row shows the
+badge saved with the verdict (`thumbUrl`: a partner member's button or art, or an IndieNodes member's
+picture), capped at button size and never stretched; a badge that fails to load simply disappears.
+
+## 2026-10-02 — Rings rechecked by age, You's lists as tabs, Save for later everywhere, Send
+
+**Ring freshness.** IndieNodes was rechecked on every launch, because the time of its last check
+lived only in memory; it is now saved (`ringCheckedAt`) and the window is six hours, not fifteen
+minutes. Partner rings had no cache at all and were downloaded whole on every launch before the
+switcher could appear. Their pages are now kept (`partnerCache`, per ring id, with ETag and
+Last-Modified), drawn at once on launch, and revalidated after a day; an unreachable ring keeps its
+last good copy. Pull to refresh forces both. Rings are hand-edited a few times a month, so a day
+costs nothing a reader would notice. The cache is not part of backups.
+
+**Kagi Small Web was evaluated and declined** (41k feeds, no names or categories, too large for the
+current panel and member cap).
+
+**You's lists are one tabbed section** (Saved, Liked, Not for me) rather than three sections plus
+separate full-list pages: newest 25, "Show more" in place, a filter past 25. Everything stays on
+You; the `/you/liked` and `/you/not-for-me` pages from the day before are gone.
+
+**Save for later is offered on every creator**, not only desktop-first ones, and the Shelf is
+called Saved in the interface. A Queue tab was considered and rejected: "Queue" already means the
+player's queue, and Saved already is "find them later". Saved and Liked stay distinct: Liked is
+taste and permanent, Saved is undecided and meant to be cleared.
+
+**Send uses the system share sheet (`@capacitor/share`), not a browser extension.** The sheet
+already reaches desktop browsers through Chrome's and Firefox's own device sync, as well as notes,
+mail and messages, with no server, pairing, or extension to build and keep in three stores. An
+extension needs a relay server to receive anything from a phone, so it waits for v2.0 if ever.
+
+**Partner search and genres are generic**: search covers name, description, address and tags for
+any ring; chips appear for any ring whose adapter declares `tags`. Knifebeetle's genre is now its
+section heading ("Sci-Fi") rather than the anchor ("scifi").

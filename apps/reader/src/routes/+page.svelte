@@ -91,7 +91,8 @@
 
 	/**
 	 * A member built for a big screen is not opened inline on a phone: Save for later is the main
-	 * action and following steps back to an icon. The site is still one tap away, since every yip
+	 * action and following steps back to an icon. Every other member offers Save for later too,
+	 * from More actions, as the "not sure yet, find them later" that a Like is not. The site is still one tap away, since every yip
 	 * links out, and the reader is told why the buttons are arranged this way.
 	 */
 	let desktopFirst = $derived(layoutOf(ring.current?.layout) === 'desktop-first');
@@ -100,7 +101,13 @@
 	function saveForLater() {
 		const entry = ring.current;
 		if (!entry) return;
-		void toggleShelf({ url: entry.source_url, title: entry.creator, from: 'discover' });
+		const thumbUrl = heroImage(entry);
+		void toggleShelf({
+			url: entry.source_url,
+			title: entry.creator,
+			from: 'discover',
+			...(thumbUrl ? { thumbUrl } : {})
+		});
 	}
 
 	let filterSheetOpen = $state(false);
@@ -135,6 +142,11 @@
 	let ringButton = $state<HTMLButtonElement | undefined>(undefined);
 	let ringSheetClose = $state<HTMLButtonElement | undefined>(undefined);
 	let ringLabel = $derived(partners.selected?.ring.name ?? 'IndieNodes');
+
+	/** The ring picker names every ring as a webring, without doubling a name that already says so. */
+	function webringName(name: string): string {
+		return /webring$/i.test(name.trim()) ? name : `${name} Webring`;
+	}
 
 	$effect(() => {
 		if (ringSheetOpen) ringSheetClose?.focus();
@@ -944,6 +956,14 @@
 				>
 				Not for me
 			</button>
+			{#if !desktopFirst}
+				<button class="sheet-row" aria-pressed={onShelf} onclick={() => fromActions(saveForLater)}>
+					<svg class="row-ic" class:filled={onShelf} viewBox="0 0 24 24" aria-hidden="true"
+						><path d="M6 4h12v16l-6-4-6 4z" /></svg
+					>
+					{onShelf ? 'Saved for later' : 'Save for later'}
+				</button>
+			{/if}
 			<button class="sheet-row" onclick={() => fromActions(() => openExternal(entry.source_url))}>
 				<svg class="row-ic" viewBox="0 0 24 24" aria-hidden="true"
 					><path
@@ -994,7 +1014,7 @@
 				onclick={() => chooseRing(null)}
 			>
 				<img class="sheet-icon" src="/ring-icons/indienodes.svg" alt="" />
-				IndieNodes
+				IndieNodes Webring
 			</button>
 			{#each partners.rings as entry (entry.ring.id)}
 				<button
@@ -1008,7 +1028,7 @@
 					{:else}
 						<span class="sheet-dot" aria-hidden="true"></span>
 					{/if}
-					{entry.ring.name}
+					{webringName(entry.ring.name)}
 					<small class="sheet-hint">Partner ring</small>
 				</button>
 			{/each}

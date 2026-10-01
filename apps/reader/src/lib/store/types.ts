@@ -38,6 +38,27 @@ export type AddFeedResult =
 	| { status: 'already-attached' }
 	| { status: 'belongs-to-other'; personId: string };
 
+/**
+ * What kind of failure a check hit, so You can say whether to wait, retry or replace the address
+ * rather than one undifferentiated "failed".
+ *
+ * - `offline`: no answer at all (no connection, DNS, timeout). Usually temporary.
+ * - `gone`: 404 or 410. The feed most likely moved.
+ * - `refused`: 401, 403 or 451. The site answered and said no.
+ * - `server`: any other HTTP error, 5xx and 429 included. Usually temporary.
+ * - `blocked`: the site's robots.txt disallows the path, and YipDen honors that.
+ * - `not-a-feed`: the address answered, but with something that does not parse as a feed.
+ * - `unreadable`: YipDen's own safety limits refused it (unsafe address, redirect loop, too big).
+ */
+export type FeedProblem =
+	'offline' | 'gone' | 'refused' | 'server' | 'blocked' | 'not-a-feed' | 'unreadable';
+
+export interface FeedError {
+	kind: FeedProblem;
+	/** The HTTP status, when the site answered with one. */
+	status?: number;
+}
+
 /** One feed belonging to a person. Following a person follows all of theirs. */
 export interface Feed {
 	/** The feed's canonical URL, which is also its identity. */
@@ -61,6 +82,8 @@ export interface Feed {
 	lastFetchedAt?: string;
 	/** Consecutive failures, so a dead feed can be backed off rather than retried forever. */
 	failures: number;
+	/** Why the most recent check failed. Cleared by the next successful one. */
+	lastError?: FeedError;
 	/** False keeps the feed but stops fetching it. */
 	enabled: boolean;
 }
@@ -111,6 +134,8 @@ export interface ShelfItem {
 	creator?: string;
 	/** A partner ring's name, when the link came to the reader through one. */
 	via?: string;
+	/** The member's badge or picture, when the ring had one, shown beside it in You. */
+	thumbUrl?: string;
 	/** Which screen it was saved from. */
 	from: 'discover' | 'feeds';
 	savedAt: string;
@@ -147,7 +172,9 @@ export type SettingKey =
 	| 'maxAgeDays'
 	| 'markReadOnScroll'
 	| 'ageLimitEnabled'
-	| 'sounds';
+	| 'sounds'
+	| 'partnerCache'
+	| 'ringCheckedAt';
 
 /**
  * Cached waveform peaks, keyed by media URL and ETag so a track is decoded at most once.

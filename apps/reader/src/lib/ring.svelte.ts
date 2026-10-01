@@ -38,8 +38,13 @@ export const RING_FILTERS = [
 
 export type RingFilterKey = (typeof RING_FILTERS)[number]['key'];
 
-/** How long a checked ring is trusted before Discover asks again. */
-export const RING_FRESH_MS = 15 * 60 * 1000;
+/**
+ * How long a checked ring is trusted before Discover asks again, across launches too (the time of
+ * the last check is saved). The ring changes when a member joins or edits their entry, a few times
+ * a week at most; six hours keeps that prompt without a request on every launch or resume. Pull to
+ * refresh asks at once regardless.
+ */
+export const RING_FRESH_MS = 6 * 60 * 60 * 1000;
 
 class RingState {
 	/** Every discoverable member, in the order every client agrees on. */
@@ -103,7 +108,7 @@ class RingState {
 		return RING_FILTERS.filter((chip) => chip.key === 'all' || (counts.get(chip.type) ?? 0) > 0);
 	});
 
-	/** When the network last answered, or the ring was last confirmed current. Not persisted. */
+	/** When the network last answered, or the ring was last confirmed current. Saved as `ringCheckedAt`. */
 	private checkedAt = 0;
 	private inFlight: Promise<void> | null = null;
 
@@ -128,6 +133,11 @@ class RingState {
 			if (saved) this.apply(saved);
 		}
 
+		if (!this.checkedAt) {
+			const saved = await store.getSetting<string>('ringCheckedAt');
+			this.checkedAt = (saved && Date.parse(saved)) || 0;
+		}
+
 		if (!force && this.all.length && Date.now() - this.checkedAt < RING_FRESH_MS) {
 			await this.refreshFollowing();
 			return;
@@ -150,7 +160,10 @@ class RingState {
 		}
 		this.error = result.error?.message ?? null;
 		// A failed check is not recorded, so the next visit or resume tries again.
-		if (!result.error) this.checkedAt = Date.now();
+		if (!result.error) {
+			this.checkedAt = Date.now();
+			await store.setSetting('ringCheckedAt', new Date(this.checkedAt).toISOString());
+		}
 
 		await this.refreshFollowing();
 	}

@@ -1,6 +1,7 @@
 import { FeedHttp, absoluteUrl, tokenize } from '@yipden/feeds';
 import { safeUrl, type PartnerCandidate } from '@yipden/ring-client';
 import { httpFetch } from '../platform/http.js';
+import { fetchPartnerPage } from './fetchPage.js';
 import type { PartnerSource } from './registry.js';
 
 /**
@@ -146,5 +147,6 @@ export const musiciansWebringSource: PartnerSource = {
 		capabilities: ['sensitive', 'preview', 'thumbnails'],
 		read: scrapeMusiciansWebring
 	},
-	load: async () => (await http.get(MUSICIANS_WEBRING_URL, { accept: 'text/html' })).body
+	load: async () => (await http.get(MUSICIANS_WEBRING_URL, { accept: 'text/html' })).body,
+	revalidate: (validators) => fetchPartnerPage(http, MUSICIANS_WEBRING_URL, validators)
 };

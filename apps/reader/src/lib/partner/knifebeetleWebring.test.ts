@@ -49,7 +49,7 @@ describe('scrapeKnifebeetleWebring, against the real live page', () => {
 			blurb:
 				'In the futuristic city of New Mahtlaw, technology has made the supernatural hard to hide. The world knows werewolves are real but their rarity makes them an oddity not a threat. But more lies out there trying to stay in the shadows.',
 			thumbUrl: 'https://knifebeetle.neocities.org/images/comics/thecitybetween.png',
-			tags: ['supernatural']
+			tags: ['Supernatural']
 		});
 	});
 
@@ -77,16 +77,16 @@ describe('scrapeKnifebeetleWebring, against the real live page', () => {
 		const genres = new Set(candidates.flatMap((c) => c.tags as string[]));
 		expect(genres).toEqual(
 			new Set([
-				'adventure',
-				'drama',
-				'fantasy',
-				'historical',
-				'horror',
-				'mystery',
-				'romance',
-				'scifi',
-				'slice',
-				'supernatural'
+				'Adventure',
+				'Drama',
+				'Fantasy',
+				'Historical',
+				'Horror',
+				'Mystery',
+				'Romance',
+				'Sci-Fi',
+				'Slice of Life',
+				'Supernatural'
 			])
 		);
 	});

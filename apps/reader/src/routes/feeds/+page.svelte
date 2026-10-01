@@ -241,11 +241,11 @@
 												class="shelf-btn"
 												aria-pressed={saved}
 												aria-label={saved
-													? `Remove ${yip.title || 'this yip'} from your Shelf`
+													? `Remove ${yip.title || 'this yip'} from Saved`
 													: `Save ${yip.title || 'this yip'} for later`}
 												onclick={() => saveForLater(yip)}
 											>
-												{saved ? 'Saved to Shelf' : 'Save for later'}
+												{saved ? 'Saved' : 'Save for later'}
 											</button>
 										</div>
 									{/if}

@@ -20,11 +20,28 @@ function buildCommit(): string {
 	}
 }
 
-export default defineConfig({
+/**
+ * Whether this build carries the debugging tools: the age limit switch and the testing-only
+ * partner rings in Settings (and the age limit starting off).
+ *
+ * On for the dev server (live reload included), for Vitest, and for any build made with
+ * `VITE_YIPDEN_DEBUG=1`, which `android:apk`/`android:install` and the end to end suite set. Off for
+ * a plain `pnpm build`, which is what a release is made from. It is a `define`, replaced by a
+ * literal at every use, so in a release every branch behind it is dead code that the bundler
+ * removes: the tools are absent from the build, not just hidden.
+ */
+function debugTools(command: string): boolean {
+	return (
+		command === 'serve' || Boolean(process.env.VITEST) || process.env.VITE_YIPDEN_DEBUG === '1'
+	);
+}
+
+export default defineConfig(({ command }) => ({
 	plugins: [sveltekit(), devFetchProxy()],
 	define: {
 		__APP_VERSION__: JSON.stringify(packageJson.version),
-		__BUILD_COMMIT__: JSON.stringify(buildCommit())
+		__BUILD_COMMIT__: JSON.stringify(buildCommit()),
+		__YIPDEN_DEBUG__: JSON.stringify(debugTools(command))
 	},
 	server: {
 		// The viewport every screen is designed and compared against.
@@ -40,4 +57,4 @@ export default defineConfig({
 		environment: 'jsdom',
 		setupFiles: ['./src/test-setup.ts']
 	}
-});
+}));

@@ -1,6 +1,7 @@
 import { absoluteUrl, FeedHttp, tokenize } from '@yipden/feeds';
 import { safeUrl, type PartnerCandidate } from '@yipden/ring-client';
 import { httpFetch } from '../platform/http.js';
+import { fetchPartnerPage } from './fetchPage.js';
 import type { PartnerSource } from './registry.js';
 
 /**
@@ -27,7 +28,8 @@ const http = new FeedHttp({ fetch: httpFetch });
  * link is taken as the comic's own address: every example checked has its "Read: website" or
  * "Links: website" as the same first link, so the second scan is not needed), a cover image, a
  * first paragraph as the description, and an optional collapsible content-warning block. The
- * nearest preceding `<a name="...">` names which of the ten genre sections a comic is in.
+ * nearest preceding `<a name="...">` marks which of the ten genre sections a comic is in, and the
+ * `<h3>` right after it gives that genre's display name.
  *
  * Content warnings are not treated as `sensitive`: 57 of 68 comics carry one, for ordinary
  * things like "mild violence", nothing like the 18+ flag IndieNodes' own `explicit` or Musicians
@@ -41,6 +43,10 @@ export function scrapeKnifebeetleWebring(document: unknown): PartnerCandidate[] 
 
 	const candidates: PartnerCandidate[] = [];
 	let genre: string | undefined;
+	/** Right after a section anchor: its `<h3>` gives the genre's display name ("Sci-Fi"). */
+	let awaitingHeading = false;
+	let inHeading = false;
+	let heading = '';
 
 	let inDesc = false;
 	let divDepth = 0;
@@ -90,8 +96,29 @@ export function scrapeKnifebeetleWebring(document: unknown): PartnerCandidate[] 
 
 	for (const token of tokenize(document)) {
 		if (token.type === 'start' && token.name === 'a' && 'name' in token.attributes) {
+			// The anchor's own name is the fallback ("scifi", "slice"); the heading that follows is
+			// what the ring shows readers, and so what a genre chip should say.
 			genre = token.attributes.name.toLowerCase();
+			awaitingHeading = true;
 			continue;
+		}
+		if (awaitingHeading && !inDesc) {
+			if (token.type === 'start' && token.name === 'h3') {
+				inHeading = true;
+				heading = '';
+				continue;
+			}
+			if (inHeading && token.type === 'text') {
+				heading += token.value;
+				continue;
+			}
+			if (inHeading && token.type === 'end' && token.name === 'h3') {
+				const named = heading.replace(/\s+/g, ' ').trim();
+				if (named) genre = named;
+				inHeading = false;
+				awaitingHeading = false;
+				continue;
+			}
 		}
 
 		if (!inDesc) {
@@ -175,5 +202,6 @@ export const knifebeetleSource: PartnerSource = {
 		capabilities: ['thumbnails', 'tags'],
 		read: scrapeKnifebeetleWebring
 	},
-	load: async () => (await http.get(KNIFEBEETLE_URL, { accept: 'text/html' })).body
+	load: async () => (await http.get(KNIFEBEETLE_URL, { accept: 'text/html' })).body,
+	revalidate: (validators) => fetchPartnerPage(http, KNIFEBEETLE_URL, validators)
 };

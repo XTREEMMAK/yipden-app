@@ -8,8 +8,31 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
-- Settings has a temporary "Enforce the age limit (debug)" switch under Feeds, off by default, so
-  old saved feeds can be used for testing on a phone.
+- Android: the launch splash is the YipDen fox on brand orange (dark ground at night) instead of
+  Capacitor's stock image.
+- Android Back from a partner ring returns to Discover instead of closing the app.
+- Rings are no longer fetched on every launch. Partner ring pages are kept on the phone and
+  rechecked once a day; IndieNodes is rechecked every six hours, across launches. Both ask "has
+  this changed?" first, and pull to refresh still checks at once.
+
+### Added
+
+- You has one tabbed section for Saved, Liked and Not for me, each with badges where saved, the
+  newest 25 first, "Show more" in place, and a filter box once a list passes 25.
+- Save for later on every creator, in Discover's More actions and on partner ring cards, not only
+  sites built for desktop. The Shelf is now called Saved.
+- Send on a saved link opens the phone's share sheet (Chrome "Send to your devices", Firefox "Send
+  to device", or any app); the web build copies the link instead.
+- Partner rings have a search box, and genre chips for rings that publish genres (Knifebeetle).
+- The ring picker names rings as webrings: IndieNodes Webring, Knifebeetle Webring.
+- You says why a source failed (could not connect, not found, refused, the site's own error,
+  robots.txt, not a feed, too large or unsafe) instead of only counting failures.
+- Replace for a source that has moved or stopped being a feed: find the new address, and it takes
+  over only once it checks out.
+- Debug builds have a "Debug build" section in Settings: the age limit switch (off by default, so
+  old saved feeds can be used for testing) and switches for the testing-only partner rings,
+  Musicians Webring and Knifebeetle, so an installed APK can turn them on. Release builds have
+  none of it, and always enforce the age limit.
 - Partner cards: Find feeds, Like and Not for me sit in the same row as Visit, with larger icons.
   The More actions menu's icons are larger too.
 

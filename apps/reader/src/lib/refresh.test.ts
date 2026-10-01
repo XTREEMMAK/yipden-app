@@ -1,10 +1,16 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
-import { FeedHttp, type FetchLike, type HttpResponse } from '@yipden/feeds';
+import {
+	FeedHttp,
+	FeedParseError,
+	HttpError,
+	type FetchLike,
+	type HttpResponse
+} from '@yipden/feeds';
 import { IdbStore } from './store/idb.js';
 import { setAgeLimitActive } from './age.js';
-import { categorize, pruneToMaxAge, refreshAll, toStoredYip } from './refresh.js';
+import { categorize, classifyFailure, pruneToMaxAge, refreshAll, toStoredYip } from './refresh.js';
 import type { Feed, Item, Person } from './store/types.js';
 
 const PERSON: Person = {
@@ -284,6 +290,22 @@ describe('refreshAll', () => {
 		expect(after?.failures).toBe(0);
 	});
 
+	it('records why a check failed, and clears it once the feed recovers', async () => {
+		await refreshAll({ store, http: fastHttp(fakeFetch(() => response(404, 'gone'))) });
+		let [after] = await store.listFeeds();
+		expect(after?.lastError).toEqual({ kind: 'gone', status: 404 });
+
+		await refreshAll({ store, http: fastHttp(fakeFetch(() => response(200, '<html></html>'))) });
+		[after] = await store.listFeeds();
+		expect(after?.lastError).toEqual({ kind: 'not-a-feed' });
+		expect(after?.failures).toBe(2);
+
+		await refreshAll({ store, http: fastHttp(fakeFetch(() => response(200, ONE_POST))) });
+		[after] = await store.listFeeds();
+		expect(after?.lastError).toBeUndefined();
+		expect(after?.failures).toBe(0);
+	});
+
 	it('stops retrying a feed that has failed past the limit, without being asked to', async () => {
 		await store.updateFeed({ ...feed(), failures: 5 });
 		let calls = 0;
@@ -363,5 +385,27 @@ describe('max age', () => {
 		await store.setSetting('maxAgeDays', 30);
 		await pruneToMaxAge(store, () => NOW);
 		expect((await store.listAllYips()).map((yip) => yip.title)).toEqual(['Recent']);
+	});
+});
+
+describe('classifyFailure', () => {
+	it('tells a broken feed apart from a site that could not be reached', () => {
+		expect(classifyFailure(new FeedParseError('not a feed'))).toEqual({ kind: 'not-a-feed' });
+		expect(classifyFailure(new TypeError('Failed to fetch'))).toEqual({ kind: 'offline' });
+		expect(classifyFailure(new HttpError('request aborted'))).toEqual({ kind: 'offline' });
+	});
+
+	it('sorts HTTP answers by what a reader can do about them', () => {
+		expect(classifyFailure(new HttpError('x', 404))).toEqual({ kind: 'gone', status: 404 });
+		expect(classifyFailure(new HttpError('x', 410))).toEqual({ kind: 'gone', status: 410 });
+		expect(classifyFailure(new HttpError('x', 403))).toEqual({ kind: 'refused', status: 403 });
+		expect(classifyFailure(new HttpError('x', 503))).toEqual({ kind: 'server', status: 503 });
+		expect(classifyFailure(new HttpError('x', 429))).toEqual({ kind: 'server', status: 429 });
+		expect(classifyFailure(new HttpError('robots.txt disallows /feed', 999))).toEqual({
+			kind: 'blocked'
+		});
+		expect(classifyFailure(new HttpError('response exceeded the size cap'))).toEqual({
+			kind: 'unreadable'
+		});
 	});
 });
