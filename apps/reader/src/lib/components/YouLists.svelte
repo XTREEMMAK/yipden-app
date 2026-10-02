@@ -157,6 +157,7 @@
 								alt=""
 								aria-hidden="true"
 								loading="lazy"
+								decoding="async"
 								referrerpolicy="no-referrer"
 								onerror={() => (broken = new Set(broken).add(item.id))}
 							/>

@@ -2065,3 +2065,41 @@ extension needs a relay server to receive anything from a phone, so it waits for
 **Partner search and genres are generic**: search covers name, description, address and tags for
 any ring; chips appear for any ring whose adapter declares `tags`. Knifebeetle's genre is now its
 section heading ("Sci-Fi") rather than the anchor ("scifi").
+
+## 2026-10-02 (later) — The stack judder: what it was, and what it was not
+
+Reported on a phone as a judder in partner rings, then found in Feeds too. Debug-build switches
+(frame meter; stack, backdrop and thumbnails each switchable) showed it followed the 3D stack alone.
+
+- **Cause one: `SplashScreen.installSplashScreen()`** in `MainActivity`, added that morning for the
+  branded splash. Feeds' web code had not changed since the last smooth build, so the only new thing
+  in the rendering path was native. Removed; the branded splash still shows from the launch theme
+  alone (Android 12+ reads its `windowSplashScreen*` attributes, older versions show it as the
+  starting window). Confirmed better on the phone.
+- **Cause two: `transform-origin` inside the stack's keyframes.** Not animatable on the compositor,
+  so the whole animation ran on the main thread a frame behind the scroll; the exit pins a card by
+  moving it down as far as the scroll lifts it, so the lag showed as a shake right where it folds.
+  The pivot is now folded into the transform (`translateY(±50%)` around the rotation), which is
+  the same motion at both ends and within a few pixels between.
+- **Cause three, partner rings only: the intro note folding out of the header on scroll**, added
+  the same day. Resizing the scroller mid-fling re-laid the list out every frame and cut the fling
+  short. The note now sits inside the scroll content and simply scrolls away.
+- **The fold's drift up (found after the first two):** the exit's pin, a `translateY` moving the
+  card down as far as the scroll lifts it, sat inside the `perspective()`, so it shrank with the
+  card as it receded and the card crept up about 58px over the fold, into the header. The pin now
+  sits outside the perspective, both ends of the exit share one function list so its pivot stays
+  on the top edge, and the card sinks a further 32px as it fades. Measured: the top edge holds,
+  then moves down steadily to 32px; it no longer rises at any point. All three confirmed smooth on
+  the phone.
+- **Also fixed on the way:** a partner thumbnail had no reserved size, so each card grew 39px as its
+  picture arrived; it now has a fixed 96x64 slot.
+- **Changed, but not the cause:** the hidden Discover hero now pauses under a partner ring, and the
+  tab bar drops its backdrop blur there. Both remove work nobody can see, so they stay.
+- **Tried and dropped:** shrinking thumbnails into a canvas (much worse), and redrawing the
+  backdrop mosaic into a canvas (no measurable gain).
+
+**Keyboard:** the activity is `adjustPan`, so the keyboard slides over the app and the tab bar
+instead of resizing the WebView and lifting the bar above it.
+
+**App icon:** fox and howl without the arch (`brand/YipDen_Fox.png`, cut by `fox-only.cjs`), at 54 of
+108 units so a circular mask never clips the tail or the howl. The in-app marks keep the arch.

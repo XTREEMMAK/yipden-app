@@ -5,6 +5,14 @@
 	import { partners } from '$lib/partnerRings.svelte.js';
 	import { setTestingRing, TESTING_RINGS, testingRingOn } from '$lib/partner/registry.js';
 	import Switch from './Switch.svelte';
+	import { diagnostics, type DiagKey } from '$lib/diagnostics.svelte.js';
+
+	const DIAG: Array<{ key: DiagKey; title: string; note: string }> = [
+		{ key: 'meter', title: 'Frame meter', note: 'Slow frames after each partner ring scroll' },
+		{ key: 'noStack', title: 'Partner cards flat', note: 'No 3D stack; reopen the ring to apply' },
+		{ key: 'noBackdrop', title: 'No partner backdrop', note: 'Hides the blurred member mosaic' },
+		{ key: 'noThumbs', title: 'No partner thumbnails', note: 'Hides member pictures on cards' }
+	];
 
 	/**
 	 * Settings' debug-build section: the age limit switch and the testing-only partner rings.
@@ -51,6 +59,20 @@
 					label={`Show ${ring.name} in Discover`}
 					checked={testingRings[ring.key] ?? false}
 					onchange={(on) => setTestingRingOn(ring.key, on)}
+				/>
+			</div>
+		{/each}
+		{#each DIAG as entry (entry.key)}
+			<div class="srow">
+				<span class="tt">
+					<b>{entry.title}</b>
+					<small>{entry.note}</small>
+				</span>
+				<Switch
+					id={`diag-${entry.key}`}
+					label={entry.title}
+					checked={diagnostics?.[entry.key] ?? false}
+					onchange={(on) => diagnostics?.set(entry.key, on)}
 				/>
 			</div>
 		{/each}

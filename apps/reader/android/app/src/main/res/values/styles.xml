@@ -17,9 +17,10 @@
 
 
     <!--
-        The launch theme, read by Android 12+'s system splash directly and by core-splashscreen's
-        backport on older versions (MainActivity installs it). The fox mark from brand/, white on
-        the launcher icon's own day/night background, replacing Capacitor's stock splash image.
+        The launch theme: Android 12+'s system splash reads it directly, and older versions show it
+        as the starting window. The fox mark from brand/, white on the launcher icon's own day/night
+        background, replacing Capacitor's stock splash image. MainActivity deliberately does not
+        call installSplashScreen(); see the note there.
     -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>

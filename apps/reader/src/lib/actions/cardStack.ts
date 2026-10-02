@@ -19,6 +19,8 @@ import { prefersReducedMotion } from '../motion.js';
  */
 
 const DIM_PEAK = 0.6;
+/** How far a folding card sinks below its pinned spot by the time it has faded, in px. */
+const EXIT_SINK = 32;
 
 function supportsScrollDrivenAnimation(): boolean {
 	if (typeof CSS === 'undefined' || !CSS.supports) return false;
@@ -69,7 +71,8 @@ export function cardPlacement(relative: number, height: number, viewport: number
 		const exit = Math.min(1, -relative / height);
 		return {
 			transformOrigin: '50% 0%',
-			transform: `perspective(1000px) translateY(${exit * 100}%) translateZ(${-180 * exit}px) rotateX(${-10 * exit}deg)`,
+			// The pin is outside the perspective, so it is not shrunk with the card (see the CSS).
+			transform: `translateY(calc(${exit * 100}% + ${EXIT_SINK * exit}px)) perspective(1000px) translateZ(${-180 * exit}px) rotateX(${-10 * exit}deg)`,
 			opacity: 1 - exit,
 			dim: DIM_PEAK * exit
 		};

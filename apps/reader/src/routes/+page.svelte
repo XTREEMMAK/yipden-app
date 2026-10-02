@@ -583,6 +583,7 @@
 
 	<HeroArt
 		bind:this={heroArt}
+		covered={partners.selected !== null}
 		src={ring.heroImage}
 		wash={washFor(ring.current?.id ?? 'yipden')}
 		washColor={washColorFor(ring.current?.id ?? 'yipden')}

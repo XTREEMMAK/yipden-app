@@ -704,28 +704,42 @@
 		animation-range: exit 0% exit 100%;
 	}
 
+	/*
+	 * No `transform-origin` in these keyframes: it cannot be animated on the compositor, and one
+	 * such property drags the whole animation onto the main thread, a frame behind the scroll. The
+	 * exit keeps a card pinned at the top by moving it down exactly as far as the scroll lifts it,
+	 * so a frame behind showed as a shake right where it starts to fold. The pivot is folded into
+	 * the transform instead: translateY(±50%) around a rotation is the same as rotating about the
+	 * bottom or top edge, since a translate percentage is of the card's own height.
+	 */
 	@keyframes yip-in {
 		from {
-			transform-origin: 50% 100%;
-			transform: perspective(1000px) translateY(24px) rotateX(14deg) scale(0.94);
+			transform: translateY(50%) perspective(1000px) translateY(24px) rotateX(14deg) scale(0.94)
+				translateY(-50%);
 			opacity: 0.5;
 		}
 		to {
-			transform-origin: 50% 100%;
 			transform: none;
 			opacity: 1;
 		}
 	}
 
+	/*
+	 * The exit keeps the same function list at both ends, so the pivot stays on the card's top
+	 * edge for the whole fold (a `none` start let it slide from the centre up to the top). The pin,
+	 * moving down exactly as far as the scroll lifts it, sits outside the perspective: inside it,
+	 * the pin shrank along with the card as it receded and the card crept up into the header. A
+	 * further 32px sink as it fades moves its top edge away from the header instead.
+	 */
 	@keyframes yip-out {
 		from {
-			transform-origin: 50% 0%;
-			transform: none;
+			transform: translateY(-50%) translateY(0) perspective(1000px) translateZ(0) rotateX(0deg)
+				translateY(50%);
 			opacity: 1;
 		}
 		to {
-			transform-origin: 50% 0%;
-			transform: perspective(1000px) translateY(100%) translateZ(-180px) rotateX(-10deg);
+			transform: translateY(-50%) translateY(calc(100% + 32px)) perspective(1000px)
+				translateZ(-180px) rotateX(-10deg) translateY(50%);
 			opacity: 0;
 		}
 	}

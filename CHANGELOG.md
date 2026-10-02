@@ -8,6 +8,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- The 3D card stack in Feeds and partner rings no longer judders or shakes as a card folds at the
+  top, and a partner ring's scroll keeps its fling.
+- The phone keyboard now opens over the tab bar instead of pushing it up.
+- Partner ring cards no longer jump when their picture loads.
 - Android: the launch splash is the YipDen fox on brand orange (dark ground at night) instead of
   Capacitor's stock image.
 - Android Back from a partner ring returns to Discover instead of closing the app.
@@ -17,6 +21,11 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- A new app icon: the fox and its howl on brand orange, without the arch. The splash matches.
+- Partner rings: an icon-only back arrow with search beside it at the top; the intro note scrolls
+  away with the cards.
+- Debug builds: a frame meter and switches to turn off the card stack, partner backdrop or
+  thumbnails, for finding scroll problems on a phone.
 - You has one tabbed section for Saved, Liked and Not for me, each with badges where saved, the
   newest 25 first, "Show more" in place, and a filter box once a list passes 25.
 - Save for later on every creator, in Discover's More actions and on partner ring cards, not only

@@ -9,26 +9,33 @@ for the original if it ever needs to change (a different crop, a color tweak, hi
 source art). Nothing under `apps/reader/` reads this file directly; regeneration is a manual,
 occasional step, not a build step.
 
+## The fox-only cut (2026-10-02)
+
+The app icon and splash use `YipDen_Fox.png`: the same fox and howl with the arch taken off, white
+on transparent, made from `YipDen_Logo.webp` by `fox-only.cjs`. The howl marks are fused into the
+arch where they cross its stroke, so that script removes the arch band (its mark-free left side,
+mirrored) and bridges each mark back across the gap. The in-app marks (Discover header, About)
+keep the arched version, `mark.path.txt`; the fox-only trace is `fox.path.txt`.
+
 ## What was derived from it, and where
 
 - **Android launcher icon** (`apps/reader/android/app/src/main/res/`): an adaptive icon, not a
-  flat image. The mark (arch, fox, howl) is a single white vector foreground
-  (`drawable/ic_launcher_foreground.xml`), scaled and centered inside Android's adaptive icon safe
-  zone (roughly a 72dp span inside the 108dp canvas) so it is never clipped by a launcher's own
-  mask shape. The background is a plain full-bleed color that switches with the system's day/night
+  flat image. The fox-only mark (fox and howl, no arch) is a single white vector foreground
+  (`drawable/ic_launcher_foreground.xml`), 54 of the 108dp canvas: a launcher shows the middle 72
+  through its mask, a circle at worst, and the fox's tail and howl reach toward two corners, so at
+  54 neither is ever clipped. The background is a plain full-bleed color that switches with the system's day/night
   mode — `drawable/ic_launcher_background.xml` (brand orange, `#C2410C`) by day,
   `drawable-night/ic_launcher_background.xml` (this app's own dark `--ground`, `#120B08`) by
   night — since the mark itself has no color of its own left to switch, unlike the mountain the
   previous art had. A third layer, `drawable/ic_launcher_monochrome.xml` (the same mark), supports
   Android 13+ themed icons, where the OS re-tints it to match the device's Material You theme.
   Legacy flat `ic_launcher.png`/`ic_launcher_round.png` per density (for pre-Android-8 devices,
-  which do not understand adaptive icons at all) use the day color only.
-  `apps/reader/store/play-icon-512.png` is the same day composition at Play Store listing size —
-  not part of the APK.
+  which do not understand adaptive icons at all) use the day color only, framed to the middle 72
+  units the way a launcher shows it. `apps/reader/store/play-icon-512.png` is the same day
+  composition at Play Store listing size (and what the repo README shows) — not part of the APK.
 - **Launch splash screen** (`apps/reader/android/app/src/main/res/`): `drawable/splash_icon.xml`
-  is the same mark as the launcher foreground, smaller (48 of 108 units rather than 72), because
-  the splash masks its icon to a circle 72 units across and the square mark's corners would
-  otherwise be clipped. The background is `@color/splash_background` in `values/colors.xml` (brand
+  is the same mark as the launcher foreground at the same size (54 of 108 units): the splash masks
+  its icon to the same 72-unit circle a round launcher does, so what fits one fits the other. The background is `@color/splash_background` in `values/colors.xml` (brand
   orange) and `values-night/colors.xml` (the dark ground), the launcher icon's own day/night pair.
   Wired up by `AppTheme.NoActionBarLaunch` in `values/styles.xml`.
 - **Discover's header mark and the About sheet's mark** (`apps/reader/src/routes/+page.svelte`,
@@ -50,10 +57,11 @@ deliberately **not** project dependencies, since nothing else ever needs them:
 cd brand
 npm init -y                      # if package.json doesn't exist yet
 npm install sharp potrace svgo
+node fox-only.cjs                # only when YipDen_Logo.webp itself changes
 node generate-icons.cjs
 ```
 
-It reads `YipDen_Logo.webp`, traces the mark to a vector path, writes the Android vector drawables
+It reads `YipDen_Fox.png`, traces the mark to a vector path, writes the Android vector drawables
 and legacy PNGs directly into `apps/reader/android/app/src/main/res/`, and writes
 `apps/reader/store/play-icon-512.png`, plus the splash icon. It does not touch the in-app SVG marks (Discover header,
 About sheet) — copy the path it prints out into those by hand, the same way it was done the first

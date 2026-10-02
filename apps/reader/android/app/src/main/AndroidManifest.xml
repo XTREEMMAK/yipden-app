@@ -27,7 +27,13 @@
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustPan"
             android:exported="true">
+            <!--
+                adjustPan: the keyboard slides over the app (and the tab bar) instead of resizing
+                the WebView, which used to lift the tab bar on top of the keyboard. A focused field
+                that would be covered is still panned into view.
+            -->
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

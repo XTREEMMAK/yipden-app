@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { previewKindOf, type PartnerRingResult, type PreviewKind } from '@yipden/ring-client';
 	import { cardStack } from '$lib/actions/cardStack.js';
+	import { diagnostics, frameMeter, type ScrollReport } from '$lib/diagnostics.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
@@ -41,6 +42,21 @@
 		result.members.flatMap((member) => (member.thumbUrl ? [member.thumbUrl] : [])).slice(0, 12)
 	);
 	let hiddenCount = $derived(result.members.length - members.length);
+
+	/*
+	 * Debug builds only (see diagnostics.svelte.ts): suspects that can be switched off one at a
+	 * time, and a frame meter, to find a judder on the phone that desktop profiling cannot show.
+	 */
+	const diag = (key: 'noStack' | 'noBackdrop' | 'noThumbs') =>
+		__YIPDEN_DEBUG__ && diagnostics?.[key] === true;
+	function stack(node: HTMLElement) {
+		return diag('noStack') ? {} : cardStack(node);
+	}
+	let report = $state<ScrollReport | null>(null);
+	$effect(() => {
+		if (!__YIPDEN_DEBUG__ || !diagnostics?.meter || !scroller) return;
+		return frameMeter(scroller, (next) => (report = next));
+	});
 
 	/**
 	 * Finding someone in a ring: a search over what every ring has (name, description, address)
@@ -188,19 +204,35 @@
 		Background art: a soft mosaic of the ring's own members' pictures, dimmed under the ring's
 		mark, so each ring feels like its own place. Decorative, and absent when there is none.
 	-->
-	<div class="backdrop" aria-hidden="true">
-		{#each backdrop as src (src)}
-			<span style:background-image={`url(${CSS.escape(src)})`}></span>
-		{/each}
-	</div>
+	{#if !diag('noBackdrop')}
+		<div class="backdrop" aria-hidden="true">
+			{#each backdrop as src (src)}
+				<span style:background-image={`url(${CSS.escape(src)})`}></span>
+			{/each}
+		</div>
+	{/if}
 	<header class="head">
-		<button bind:this={back} class="back" onclick={close}>
-			<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
-			IndieNodes
-		</button>
-		<p class="note">
-			Another ring. These members are not part of Discover’s rotation, and nothing here is ranked.
-		</p>
+		<!-- One row: an arrow back to Discover, and the search beside it, to leave room for cards. -->
+		<div class="top-row">
+			<button
+				bind:this={back}
+				class="back"
+				onclick={close}
+				aria-label="Back to IndieNodes Webring"
+				title="Back to IndieNodes Webring"
+			>
+				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+			</button>
+			<input
+				class="search"
+				type="search"
+				placeholder={`Search ${members.length} members`}
+				aria-label={`Search ${result.ring.name} members`}
+				autocomplete="off"
+				spellcheck="false"
+				bind:value={query}
+			/>
+		</div>
 		<div class="ring-id">
 			{#if result.ring.iconUrl}
 				<img class="ring-icon" src={result.ring.iconUrl} alt="" />
@@ -210,15 +242,6 @@
 				<img class="ring-badge" src={result.ring.badgeUrl} alt={`${result.ring.name} badge`} />
 			{/if}
 		</div>
-		<input
-			class="search"
-			type="search"
-			placeholder={`Search ${members.length} members`}
-			aria-label={`Search ${result.ring.name} members`}
-			autocomplete="off"
-			spellcheck="false"
-			bind:value={query}
-		/>
 		{#if genres.length > 1}
 			<div class="genres" role="group" aria-label="Genre">
 				<button class="genre" aria-pressed={genre === null} onclick={() => (genre = null)}>
@@ -238,7 +261,14 @@
 		{/if}
 	</header>
 
-	<div class="scroll" bind:this={scroller} use:cardStack>
+	<div class="scroll" bind:this={scroller} use:stack>
+		<!--
+			The intro scrolls away with the cards rather than folding out of the head: anything that
+			resizes the scroller mid-fling re-lays the whole list out every frame and cuts the fling.
+		-->
+		<p class="note intro">
+			Another ring. These members are not part of Discover’s rotation, and nothing here is ranked.
+		</p>
 		<ul class="cards">
 			{#each shown as member (member.id)}
 				{@const desktopFirst = member.layout === 'desktop-first'}
@@ -257,7 +287,7 @@
 						>
 					</p>
 					<div class="title-row">
-						{#if member.thumbUrl}
+						{#if member.thumbUrl && !diag('noThumbs')}
 							<PartnerThumb
 								src={member.thumbUrl}
 								alt={member.name}
@@ -386,11 +416,32 @@
 	</div>
 </section>
 
+{#if __YIPDEN_DEBUG__ && report}
+	<p class="meter" aria-live="polite">
+		{report.slow}/{report.frames} slow · worst {report.worst}ms · stack {report.stack}
+	</p>
+{/if}
+
 {#if preview}
 	<ImagePreview src={preview.src} alt={preview.alt} onclose={() => (preview = null)} />
 {/if}
 
 <style>
+	.meter {
+		position: fixed;
+		top: calc(8px + env(safe-area-inset-top, 0px));
+		right: 8px;
+		z-index: 50;
+		margin: 0;
+		padding: 6px 10px;
+		border-radius: 8px;
+		background: rgba(0, 0, 0, 0.8);
+		color: #7cff9a;
+		font-family: var(--mono);
+		font-size: 12px;
+		pointer-events: none;
+	}
+
 	.partner {
 		position: absolute;
 		inset: 0;
@@ -430,6 +481,8 @@
 	}
 
 	.search {
+		flex: 1;
+		min-width: 0;
 		width: 100%;
 		box-sizing: border-box;
 		height: 44px;
@@ -510,30 +563,37 @@
 		padding: calc(22px + env(safe-area-inset-top, 0px)) 20px 16px;
 	}
 
-	.back {
-		display: inline-flex;
+	.top-row {
+		display: flex;
 		align-items: center;
-		align-self: flex-start;
-		gap: 6px;
-		min-height: 44px;
-		padding: 0 16px 0 10px;
+		gap: 10px;
+	}
+
+	.back {
+		display: grid;
+		place-items: center;
+		flex: 0 0 auto;
+		width: 44px;
+		height: 44px;
+		padding: 0;
 		border: 0;
 		border-radius: 999px;
 		background: rgba(255, 255, 255, 0.16);
 		color: #fff;
-		font-family: var(--body);
-		font-size: 14px;
-		font-weight: 600;
 	}
 
 	.back svg {
-		width: 18px;
-		height: 18px;
+		width: 20px;
+		height: 20px;
 		fill: none;
 		stroke: currentColor;
 		stroke-width: 2;
 		stroke-linecap: round;
 		stroke-linejoin: round;
+	}
+
+	.note.intro {
+		margin: 0 20px 14px;
 	}
 
 	.note {
@@ -796,28 +856,42 @@
 		animation-range: exit 0% exit 100%;
 	}
 
+	/*
+	 * No `transform-origin` in these keyframes: it cannot be animated on the compositor, and one
+	 * such property drags the whole animation onto the main thread, a frame behind the scroll. The
+	 * exit keeps a card pinned at the top by moving it down exactly as far as the scroll lifts it,
+	 * so a frame behind showed as a shake right where it starts to fold. The pivot is folded into
+	 * the transform instead: translateY(±50%) around a rotation is the same as rotating about the
+	 * bottom or top edge, since a translate percentage is of the card's own height.
+	 */
 	@keyframes yip-in {
 		from {
-			transform-origin: 50% 100%;
-			transform: perspective(1000px) translateY(24px) rotateX(14deg) scale(0.94);
+			transform: translateY(50%) perspective(1000px) translateY(24px) rotateX(14deg) scale(0.94)
+				translateY(-50%);
 			opacity: 0.5;
 		}
 		to {
-			transform-origin: 50% 100%;
 			transform: none;
 			opacity: 1;
 		}
 	}
 
+	/*
+	 * The exit keeps the same function list at both ends, so the pivot stays on the card's top
+	 * edge for the whole fold (a `none` start let it slide from the centre up to the top). The pin,
+	 * moving down exactly as far as the scroll lifts it, sits outside the perspective: inside it,
+	 * the pin shrank along with the card as it receded and the card crept up into the header. A
+	 * further 32px sink as it fades moves its top edge away from the header instead.
+	 */
 	@keyframes yip-out {
 		from {
-			transform-origin: 50% 0%;
-			transform: none;
+			transform: translateY(-50%) translateY(0) perspective(1000px) translateZ(0) rotateX(0deg)
+				translateY(50%);
 			opacity: 1;
 		}
 		to {
-			transform-origin: 50% 0%;
-			transform: perspective(1000px) translateY(100%) translateZ(-180px) rotateX(-10deg);
+			transform: translateY(-50%) translateY(calc(100% + 32px)) perspective(1000px)
+				translateZ(-180px) rotateX(-10deg) translateY(50%);
 			opacity: 0;
 		}
 	}

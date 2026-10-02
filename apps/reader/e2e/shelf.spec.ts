@@ -503,7 +503,7 @@ test.describe('partner rings in Discover', () => {
 			await page.getByRole('button', { name: /^Switch ring/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			await expect(panel).toBeVisible();
-			await page.getByRole('button', { name: /^IndieNodes/ }).click();
+			await page.getByRole('button', { name: 'Back to IndieNodes Webring' }).click();
 			await expect(panel).toHaveCount(0);
 			expect(await page.evaluate(() => window.history.state?.yipdenRing ?? null)).toBeNull();
 		});
@@ -548,12 +548,45 @@ test.describe('partner rings in Discover', () => {
 			).toBeVisible();
 		});
 
+		test('the hidden hero stops drifting and the tab bar stops blurring while a ring is open', async ({
+			page
+		}) => {
+			await page.goto('/');
+			const drift = page.locator('.drift');
+			const bar = page.getByRole('navigation', { name: 'Main' });
+			await expect(drift).not.toHaveClass(/paused/);
+			await expect(bar).not.toHaveClass(/solid/);
+
+			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
+			await expect(drift).toHaveClass(/paused/);
+			await expect(bar).toHaveClass(/solid/);
+			expect(await bar.evaluate((node) => getComputedStyle(node).backdropFilter)).toBe('none');
+
+			await page.getByRole('button', { name: 'Back to IndieNodes Webring' }).click();
+			await expect(drift).not.toHaveClass(/paused/);
+			await expect(bar).not.toHaveClass(/solid/);
+		});
+
+		test('the intro note scrolls away with the cards, and the title stays pinned', async ({
+			page
+		}) => {
+			await page.goto('/');
+			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
+			const pane = page.locator('.partner .scroll');
+			// Inside the scroller, so it costs nothing per frame and never resizes it mid-fling.
+			await expect(pane.locator('.note.intro')).toContainText('Another ring');
+			await expect(page.locator('.partner .head .note')).toHaveCount(0);
+			await expect(page.locator('.partner .head h2')).toHaveText('Fixture Ring');
+		});
+
 		test('never join the IndieNodes rotation', async ({ page }) => {
 			await page.goto('/');
 			await expectMemberCount(page, 3);
 			await page.getByRole('button', { name: /^Switch ring/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
-			await page.getByRole('button', { name: /^IndieNodes/ }).click();
+			await page.getByRole('button', { name: 'Back to IndieNodes Webring' }).click();
 
 			// Back on the hero, in a ring of three, with the shuffle and swipe untouched.
 			await expect(page.getByRole('heading', { level: 1 })).toBeVisible();

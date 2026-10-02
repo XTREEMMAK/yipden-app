@@ -3,7 +3,6 @@ package com.yipden.app;
 import android.os.Bundle;
 import android.view.View;
 import androidx.activity.OnBackPressedCallback;
-import androidx.core.splashscreen.SplashScreen;
 import com.getcapacitor.BridgeActivity;
 
 /**
@@ -23,10 +22,14 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // BridgeActivity never installs the AndroidX splash screen; it only swaps the theme. Doing
-        // it here, before super, gives older Android versions the same branded splash the system
-        // draws on 12+ (see AppTheme.NoActionBarLaunch), instead of a stretched window background.
-        SplashScreen.installSplashScreen(this);
+        /*
+         * No SplashScreen.installSplashScreen() here, on purpose. The branded splash comes from the
+         * launch theme alone (AppTheme.NoActionBarLaunch): Android 12+ draws it from the theme's
+         * windowSplashScreen* attributes, and older versions show the same theme as the starting
+         * window. Installing the AndroidX controller as well was the only native change in the
+         * build where the card stack in Feeds and partner rings started to judder on a phone, with
+         * Feeds' own web code unchanged, so it is out until that is proven innocent (2026-10-02).
+         */
         super.onCreate(savedInstanceState);
 
         /*

@@ -24,9 +24,6 @@
 	 * through the native HTTP client (see platform/image.ts), which is why the wipe works there.
 	 */
 
-	/** No drift under the full screen player: Discover sits behind it and nobody can see it. */
-	let paused = $derived(player.sheet === 'full');
-
 	interface Props {
 		src: string | null;
 		/** Drawn when a member has no image at all, derived from their id so it is stable. */
@@ -44,6 +41,8 @@
 		/** Photos likely to be wiped to next (the neighbours), fetched ahead so the wipe has real
 		 *  pixels to draw instead of finishing before the photo arrives. */
 		preload?: Array<{ url: string; focal?: RingFocalPoint | undefined }>;
+		/** Something opaque covers the hero (a partner ring's panel), so nothing here is visible. */
+		covered?: boolean;
 	}
 
 	let {
@@ -53,8 +52,16 @@
 		focal,
 		direction = 0,
 		dragFraction = 0,
-		preload = []
+		preload = [],
+		covered = false
 	}: Props = $props();
+
+	/**
+	 * No drift while nobody can see it: under the full screen player, or under a partner ring's
+	 * panel. Under the panel it was worse than wasted: a full-screen photo layer animating every
+	 * frame beneath cards that tilt and fade as they scroll made that scroll judder on a phone.
+	 */
+	let paused = $derived(player.sheet === 'full' || covered);
 
 	/** The layer currently on top, and the one underneath it fading out. */
 	let layers = $state<
@@ -134,7 +141,7 @@
 		);
 		glActive = gl !== null;
 		if (!gl) return;
-		gl.setLive(player.sheet !== 'full' && !document.hidden);
+		gl.setLive(!paused && !document.hidden);
 		if (src) gl.set(src, washColor);
 		if (src && focal) gl.setFocal(src, focal.x, focal.y);
 		for (const item of preload) preloadOne(item);
@@ -166,7 +173,7 @@
 		};
 		const frame = requestAnimationFrame(whenSettled);
 
-		const onVisibility = () => gl?.setLive(!document.hidden);
+		const onVisibility = () => gl?.setLive(!document.hidden && !paused);
 		document.addEventListener('visibilitychange', onVisibility);
 		return () => {
 			cancelAnimationFrame(frame);
@@ -189,7 +196,7 @@
 	$effect(() => {
 		// Read first, for the same reason as the preload effect below: `gl?.` would skip evaluating
 		// its argument while the canvas is not up yet, leaving this effect subscribed to nothing.
-		const live = player.sheet !== 'full';
+		const live = !paused;
 		gl?.setLive(live);
 	});
 

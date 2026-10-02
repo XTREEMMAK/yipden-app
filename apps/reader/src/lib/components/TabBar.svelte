@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
+	import { partners } from '$lib/partnerRings.svelte.js';
 
 	/**
 	 * The four tabs, as real links.
@@ -40,6 +41,11 @@
 
 	/** Discover is a full bleed dark hero, so the bar goes translucent dark over it. */
 	let onDark = $derived(pathname === '/');
+	/**
+	 * Over a partner ring the bar sits on cards that scroll and tilt under it, not a still photo,
+	 * and a backdrop blur over moving content is recomputed every frame: solid there instead.
+	 */
+	let solid = $derived(onDark && partners.selected !== null);
 
 	function isCurrent(href: string): boolean {
 		return href === '/' ? pathname === '/' : pathname.startsWith(href);
@@ -84,7 +90,7 @@
 	});
 </script>
 
-<nav class="tabbar" class:dark={onDark} aria-label="Main">
+<nav class="tabbar" class:dark={onDark} class:solid aria-label="Main">
 	<span
 		class="ind"
 		class:animate
@@ -193,6 +199,12 @@
 		border-color: rgba(255, 255, 255, 0.08);
 		-webkit-backdrop-filter: blur(18px);
 		backdrop-filter: blur(18px);
+	}
+
+	.tabbar.dark.solid {
+		background: var(--deep);
+		-webkit-backdrop-filter: none;
+		backdrop-filter: none;
 	}
 
 	.tab {

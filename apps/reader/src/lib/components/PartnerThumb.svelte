@@ -53,6 +53,7 @@
 		alt=""
 		aria-hidden="true"
 		loading="lazy"
+		decoding="async"
 		referrerpolicy="no-referrer"
 		{onload}
 	/>
@@ -66,10 +67,18 @@
 </button>
 
 <style>
+	/*
+	 * A fixed slot, reserved before the image arrives. With the size left to the image, a card
+	 * grew from nothing to 64px tall the moment its picture loaded, mid-scroll, and the whole stack
+	 * jumped once per card. The picture now sits inside the slot at its own shape instead.
+	 */
 	.thumb-btn {
 		position: relative;
 		flex: 0 0 auto;
-		display: block;
+		display: flex;
+		align-items: center;
+		width: 96px;
+		height: 64px;
 		padding: 0;
 		border: 0;
 		background: none;
@@ -88,8 +97,8 @@
 	 */
 	.thumb {
 		display: block;
-		max-width: 96px;
-		max-height: 64px;
+		max-width: 100%;
+		max-height: 100%;
 		width: auto;
 		height: auto;
 		border-radius: 8px;
