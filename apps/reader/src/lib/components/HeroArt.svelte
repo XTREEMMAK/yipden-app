@@ -2,7 +2,7 @@
 	import type { RingFocalPoint } from '@yipden/ring-client';
 	import { onDestroy, onMount } from 'svelte';
 	import { player } from '$lib/player.svelte.js';
-	import { prefersReducedMotion } from '$lib/motion.js';
+	import { duration, prefersReducedMotion } from '$lib/motion.js';
 	import { loadDataUrlNative } from '$lib/platform/image.js';
 	import { createHeroGL, type HeroGLHandle } from '$lib/webgl/heroGL.js';
 
@@ -109,6 +109,22 @@
 	 *  needs no CORS, rather than the canvas painting a flat stand-in over it. */
 	let drawable = $state<Set<string>>(new Set());
 	let glShowing = $derived(glActive && src !== null && drawable.has(src));
+
+	/**
+	 * Once the canvas has finished fading in over the photo, the CSS copy underneath it is taken
+	 * out: it is fully covered, and left in place it keeps a second decoded copy of a full size
+	 * photo in memory for nothing. It comes straight back whenever the canvas is not what is
+	 * showing (a photo it cannot draw, a lost context), so the fallback is exactly what it was.
+	 */
+	let glSettled = $state(false);
+	$effect(() => {
+		if (!glShowing) {
+			glSettled = false;
+			return;
+		}
+		const timer = setTimeout(() => (glSettled = true), duration.m + 80);
+		return () => clearTimeout(timer);
+	});
 
 	/**
 	 * Standing up the canvas compiles a shader and creates a GL context, which is the heaviest
@@ -265,14 +281,16 @@
 
 <div class="drift" class:paused aria-hidden="true">
 	<div class="art" style:background-image={wash}>
-		{#each layers as layer (layer.id)}
-			<div
-				class="layer"
-				class:fade={layer.fade}
-				style:background-image={layer.src ? `url(${CSS.escape(layer.src)})` : 'none'}
-				style:background-position="{layer.focal.x}% {layer.focal.y}%"
-			></div>
-		{/each}
+		{#if !glSettled}
+			{#each layers as layer (layer.id)}
+				<div
+					class="layer"
+					class:fade={layer.fade}
+					style:background-image={layer.src ? `url(${CSS.escape(layer.src)})` : 'none'}
+					style:background-position="{layer.focal.x}% {layer.focal.y}%"
+				></div>
+			{/each}
+		{/if}
 	</div>
 	<canvas bind:this={canvas} class="gl" class:active={glShowing}></canvas>
 </div>

@@ -7,10 +7,9 @@ import { store, type PeaksRecord } from './store/index.js';
  * The player: one shared `HTMLAudioElement` for the whole app, a queue, and the state every
  * screen that shows playback reads from.
  *
- * Playback runs on this element alone. `wavesurfer.js` is handed it through its `media` option
- * elsewhere and only ever draws; it never gets to own play, pause or the current time. That
- * split is what keeps a decoding failure from ever becoming a playback failure, and it is why
- * this file has no dependency on wavesurfer at all.
+ * Playback runs on this element alone. The waveform reads the same file separately, only to
+ * draw it, and never gets to own play, pause or the current time. That split is what keeps a
+ * decoding failure from ever becoming a playback failure.
  */
 
 export interface QueueItem {
@@ -103,6 +102,9 @@ class PlayerState {
 
 	/** 'full' is the screen over every tab; 'mini' is the dock; 'hidden' is neither. */
 	sheet = $state<'hidden' | 'mini' | 'full'>('hidden');
+
+	/** The mini player shrunk to a small button while a list scrolls under it. See tuckMini. */
+	miniTucked = $state(false);
 
 	current = $derived(this.currentIndex >= 0 ? (this.queue[this.currentIndex] ?? null) : null);
 	/** `null` past the last track of a non-looping queue, matching what `advance()` will actually
@@ -449,6 +451,8 @@ class PlayerState {
 	}
 
 	expand(): void {
+		// Opening the full player is asking for the player: it collapses back to the bar, not the button.
+		this.miniTucked = false;
 		if (this.current) this.sheet = 'full';
 	}
 
@@ -478,6 +482,7 @@ class PlayerState {
 	stop(): void {
 		this.audio.pause();
 		this.sheet = 'hidden';
+		this.miniTucked = false;
 		void MediaSession.setPlaybackState({ playbackState: 'none' }).catch(() => {});
 	}
 

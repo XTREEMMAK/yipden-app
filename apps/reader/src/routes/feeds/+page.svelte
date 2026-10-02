@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { cardStack } from '$lib/actions/cardStack.js';
 	import { readOnScroll } from '$lib/actions/readOnScroll.js';
+	import { tuckMini } from '$lib/actions/tuckMini.js';
 	import { prefs } from '$lib/prefs.svelte.js';
 	import { fly } from 'svelte/transition';
 	import { flyIn, staggerDelay } from '$lib/motion.js';
@@ -210,7 +211,8 @@
 					id="pane-{filter.key}"
 					aria-labelledby="pill-{filter.key}"
 					inert={feeds.filter !== filter.key}
-					use:cardStack
+					use:cardStack={{ active: feeds.filter === filter.key }}
+					use:tuckMini
 					use:readOnScroll={{
 						enabled: () => prefs.markReadOnScroll && feeds.filter === filter.key,
 						onRead: markScrolledPast
@@ -229,53 +231,59 @@
 								: 'Nothing here yet.'}
 						</p>
 					{:else}
-						{#each feeds.panes[filter.key] as yip, index (yip.key)}
-							<div in:fly={flyIn({ delay: staggerDelay(index) })}>
-								<div class="yip-stack" data-key={yip.key}>
-									<YipCard {yip} />
-									{#if isDesktopFirst(yip)}
-										{@const saved = shelf.has(yip.url)}
-										<div class="shelf-bar">
-											<span class="shelf-label">Best on desktop</span>
-											<button
-												class="shelf-btn"
-												aria-pressed={saved}
-												aria-label={saved
-													? `Remove ${yip.title || 'this yip'} from Saved`
-													: `Save ${yip.title || 'this yip'} for later`}
-												onclick={() => saveForLater(yip)}
-											>
-												{saved ? 'Saved' : 'Save for later'}
-											</button>
-										</div>
-									{/if}
-									{#if yip.crosspostGroupId && yip.crossposts && yip.crossposts.length > 1}
-										<div class="crosspost-bar" aria-label="Copies of this post">
-											<span class="crosspost-label">Same post</span>
-											<div class="source-chips">
-												{#each yip.crossposts as copy (copy.key)}
-													<button
-														class="source-chip"
-														title={`Open on ${sourceHost(copy)}`}
-														aria-label={`Open ${sourceLabel(copy)} copy on ${sourceHost(copy)}`}
-														onclick={() => openCopy(yip, copy)}
-													>
-														{sourceLabel(copy)}
-													</button>
-												{/each}
+						<div class="stack-list">
+							{#each feeds.panes[filter.key] as yip, index (yip.key)}
+								<div in:fly={flyIn({ delay: staggerDelay(index) })}>
+									<div class="yip-stack" data-key={yip.key}>
+										<div class="yip-rail">
+											<div class="yip-fold">
+												<YipCard {yip} />
+												{#if isDesktopFirst(yip)}
+													{@const saved = shelf.has(yip.url)}
+													<div class="shelf-bar">
+														<span class="shelf-label">Best on desktop</span>
+														<button
+															class="shelf-btn"
+															aria-pressed={saved}
+															aria-label={saved
+																? `Remove ${yip.title || 'this yip'} from Saved`
+																: `Save ${yip.title || 'this yip'} for later`}
+															onclick={() => saveForLater(yip)}
+														>
+															{saved ? 'Saved' : 'Save for later'}
+														</button>
+													</div>
+												{/if}
+												{#if yip.crosspostGroupId && yip.crossposts && yip.crossposts.length > 1}
+													<div class="crosspost-bar" aria-label="Copies of this post">
+														<span class="crosspost-label">Same post</span>
+														<div class="source-chips">
+															{#each yip.crossposts as copy (copy.key)}
+																<button
+																	class="source-chip"
+																	title={`Open on ${sourceHost(copy)}`}
+																	aria-label={`Open ${sourceLabel(copy)} copy on ${sourceHost(copy)}`}
+																	onclick={() => openCopy(yip, copy)}
+																>
+																	{sourceLabel(copy)}
+																</button>
+															{/each}
+														</div>
+														<button
+															class="separate"
+															onclick={() => feeds.showSeparately(yip.crosspostGroupId!)}
+														>
+															Show separately
+														</button>
+													</div>
+												{/if}
 											</div>
-											<button
-												class="separate"
-												onclick={() => feeds.showSeparately(yip.crosspostGroupId!)}
-											>
-												Show separately
-											</button>
 										</div>
-									{/if}
+									</div>
 								</div>
-							</div>
-						{/each}
-						<div class="stack-tail" aria-hidden="true"></div>
+							{/each}
+							<div class="stack-tail" aria-hidden="true"></div>
+						</div>
 					{/if}
 
 					{#if filter.key === 'listen' && ring.all.length}
@@ -492,14 +500,20 @@
 	:global(.pane.stack) .stack-tail {
 		display: block;
 		flex: 0 0 auto;
-		/* Sized by cardStack to the last card's own height; this is only a first guess. */
-		height: max(0px, calc(100% - 210px));
+		/* Sized by cardStack to the last card's own height; until then, none. */
+		height: 0;
+	}
+
+	/* The cards and the tail after them, as one list: what the stack clips its rails to. */
+	.stack-list {
+		flex: 0 0 auto;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
 	}
 
 	.yip-stack {
 		position: relative;
-		flex: 0 0 auto;
-		border-radius: var(--r-card);
 	}
 
 	.crosspost-bar {
@@ -633,14 +647,11 @@
 	}
 
 	/*
-	 * The 3D card stack targets the wrapper around every YipCard. Keeping the transform on the
-	 * wrapper lets a grouped card include its source bar in the same physical stack layer.
-	 *
-	 * `.stack-sda` is the scroll-driven path: a named view-timeline per card animates on the
-	 * compositor with no JavaScript per frame. Plain `.stack` without it is what the rAF
-	 * fallback in cardStack.ts drives by hand, so the same visual target is reached either way.
+	 * The 3D card stack itself is styles/card-stack.css, shared with partner rings. What is here
+	 * is only Feeds' own: skipping the rendering of cards that are out of sight, on the box that is
+	 * drawn (`.yip-fold`), which carries a grouped card's source bar along with the card.
 	 */
-	:global(.pane.stack .yip-stack) {
+	:global(.pane.stack .yip-fold) {
 		content-visibility: auto;
 		contain-intrinsic-size: auto 200px;
 	}
@@ -653,30 +664,16 @@
 	 * wrong total is what made "From the ring," below the last card, feel unreachable or stuck:
 	 * the pane's real scrollable area was smaller than its content actually needed.
 	 */
-	:global(.pane.stack .yip-stack:has(.yip.listen)) {
+	:global(.pane.stack .yip-fold:has(.yip.listen)) {
 		contain-intrinsic-size: auto 172px;
 	}
 
-	:global(.pane.stack .yip-stack:has(.crosspost-bar)) {
+	:global(.pane.stack .yip-fold:has(.crosspost-bar)) {
 		contain-intrinsic-size: auto 260px;
 	}
 
-	:global(.pane.stack .yip-stack:has(.shelf-bar)) {
+	:global(.pane.stack .yip-fold:has(.shelf-bar)) {
 		contain-intrinsic-size: auto 252px;
-	}
-
-	:global(.pane.stack .yip-stack.behind) {
-		pointer-events: none;
-	}
-
-	:global(.pane.stack .yip-stack::after) {
-		content: '';
-		position: absolute;
-		inset: 0;
-		border-radius: inherit;
-		background: #120704;
-		opacity: var(--dim, 0);
-		pointer-events: none;
 	}
 
 	/* No backdrop-filter on anything inside a moving card: a solid tinted chip instead. */
@@ -684,72 +681,5 @@
 		background: rgba(18, 6, 2, 0.5) !important;
 		-webkit-backdrop-filter: none !important;
 		backdrop-filter: none !important;
-	}
-
-	:global(.pane.stack-sda .yip-stack) {
-		view-timeline: --yip block;
-		view-timeline-inset: 0px var(--dock);
-		animation:
-			yip-in linear both,
-			yip-out linear forwards;
-		animation-timeline: --yip, --yip;
-		animation-range:
-			entry 0% entry 100%,
-			exit 0% exit 100%;
-	}
-
-	:global(.pane.stack-sda .yip-stack::after) {
-		animation: yip-dim linear forwards;
-		animation-timeline: --yip;
-		animation-range: exit 0% exit 100%;
-	}
-
-	/*
-	 * No `transform-origin` in these keyframes: it cannot be animated on the compositor, and one
-	 * such property drags the whole animation onto the main thread, a frame behind the scroll. The
-	 * exit keeps a card pinned at the top by moving it down exactly as far as the scroll lifts it,
-	 * so a frame behind showed as a shake right where it starts to fold. The pivot is folded into
-	 * the transform instead: translateY(±50%) around a rotation is the same as rotating about the
-	 * bottom or top edge, since a translate percentage is of the card's own height.
-	 */
-	@keyframes yip-in {
-		from {
-			transform: translateY(50%) perspective(1000px) translateY(24px) rotateX(14deg) scale(0.94)
-				translateY(-50%);
-			opacity: 0.5;
-		}
-		to {
-			transform: none;
-			opacity: 1;
-		}
-	}
-
-	/*
-	 * The exit keeps the same function list at both ends, so the pivot stays on the card's top
-	 * edge for the whole fold (a `none` start let it slide from the centre up to the top). The pin,
-	 * moving down exactly as far as the scroll lifts it, sits outside the perspective: inside it,
-	 * the pin shrank along with the card as it receded and the card crept up into the header. A
-	 * further 32px sink as it fades moves its top edge away from the header instead.
-	 */
-	@keyframes yip-out {
-		from {
-			transform: translateY(-50%) translateY(0) perspective(1000px) translateZ(0) rotateX(0deg)
-				translateY(50%);
-			opacity: 1;
-		}
-		to {
-			transform: translateY(-50%) translateY(calc(100% + 32px)) perspective(1000px)
-				translateZ(-180px) rotateX(-10deg) translateY(50%);
-			opacity: 0;
-		}
-	}
-
-	@keyframes yip-dim {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 0.6;
-		}
 	}
 </style>

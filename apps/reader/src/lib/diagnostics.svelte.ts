@@ -8,6 +8,7 @@
 export const DIAG_KEYS = {
 	meter: 'yipden:diag:meter',
 	noStack: 'yipden:diag:noStack',
+	cssStack: 'yipden:diag:cssStack',
 	noBackdrop: 'yipden:diag:noBackdrop',
 	noThumbs: 'yipden:diag:noThumbs'
 } as const;
@@ -25,6 +26,8 @@ function read(key: DiagKey): boolean {
 class Diagnostics {
 	meter = $state(read('meter'));
 	noStack = $state(read('noStack'));
+	/** Fold the stack with scroll-driven CSS instead of from JavaScript each frame. */
+	cssStack = $state(read('cssStack'));
 	noBackdrop = $state(read('noBackdrop'));
 	noThumbs = $state(read('noThumbs'));
 

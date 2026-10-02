@@ -35,6 +35,12 @@ export function readOnScroll(pane: HTMLElement, options: ReadOnScrollOptions) {
 
 	function onScroll() {
 		if (pending) return;
+		// Switched off (the default), a scroll asks for nothing: a frame requested on every scroll
+		// event keeps the main thread producing frames the whole time the list is moving.
+		if (!current.enabled()) {
+			last = pane.scrollTop;
+			return;
+		}
 		pending = true;
 		requestAnimationFrame(check);
 	}

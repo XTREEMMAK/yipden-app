@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "cap:sync": "pnpm build && cap sync android",
-    "android:apk": "VITE_YIPDEN_DEBUG=1 pnpm cap:sync && cd android && ./gradlew assembleDebug",
+    "android:apk": "VITE_YIPDEN_DEBUG=1 YIPDEN_DEBUG_BUILD=$(node scripts/stamp-apk.mjs next) pnpm cap:sync && (cd android && ./gradlew assembleDebug) && node scripts/stamp-apk.mjs",
     "android:install": "pnpm android:apk && adb install -r android/app/build/outputs/apk/debug/app-debug.apk",
     "android:live": "cap sync android && cd android && ./gradlew installDebug"
   },
@@ -24,8 +24,7 @@
     "@capgo/capacitor-media-session": "^8.0.32",
     "@rgrove/parse-xml": "^5.0.0",
     "@yipden/feeds": "workspace:*",
-    "@yipden/ring-client": "workspace:*",
-    "wavesurfer.js": "^7.12.12"
+    "@yipden/ring-client": "workspace:*"
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.2",

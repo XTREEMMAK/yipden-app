@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 /**
  * The player, against a real (if silent) audio file, so duration and seeking are genuinely
  * exercised rather than assumed. Chromium decodes this fine for both the `<audio>` element and
- * wavesurfer's own WebAudio decode.
+ * the waveform's own WebAudio decode.
  */
 
 /** A few seconds of silence, PCM 16-bit mono WAV, built by hand: no fixture binary to commit. */
@@ -47,7 +47,7 @@ const FEED = `<?xml version="1.0"?><rss version="2.0"><channel>
 		<enclosure url="https://lenaofori.com/high-tide.mp3" type="audio/wav"/></item>
 </channel></rss>`;
 
-async function seed(page: Page) {
+async function seed(page: Page, feed: string = FEED) {
 	await page.route('https://**', (route) => route.fulfill({ status: 404, body: 'not mocked' }));
 	await page.route('**/robots.txt', (route) =>
 		route.fulfill({ status: 200, contentType: 'text/plain', body: 'User-agent: *\nAllow: /' })
@@ -56,7 +56,7 @@ async function seed(page: Page) {
 		route.fulfill({ status: 200, contentType: 'text/html', body: LENA_PAGE })
 	);
 	await page.route('https://lenaofori.com/feed.xml', (route) =>
-		route.fulfill({ status: 200, contentType: 'application/rss+xml', body: FEED })
+		route.fulfill({ status: 200, contentType: 'application/rss+xml', body: feed })
 	);
 	await page.route('https://lenaofori.com/low-tide.mp3', (route) =>
 		route.fulfill({ status: 200, contentType: 'audio/wav', body: TRACK })
@@ -367,7 +367,7 @@ test.describe('The player', () => {
 		page
 	}) => {
 		await seed(page);
-		// Block only the raw bytes wavesurfer fetches for decoding; playback itself goes through
+		// Block only the raw bytes the waveform fetches for decoding; playback itself goes through
 		// the <audio> element's own request, which this leaves untouched by not matching it
 		// twice -- Playwright's route order means the more specific route below wins.
 		await page.route('https://lenaofori.com/low-tide.mp3', (route) => {
@@ -385,7 +385,7 @@ test.describe('The player', () => {
 		// No error text anywhere: a failed decode is silent, per the brief.
 		await expect(page.getByText(/error/i)).toHaveCount(0);
 	});
-	test('draws the waveform, and does not mistake wavesurfer aborting its own first load for a failure', async ({
+	test('draws the waveform once the track has been measured, in place of the plain bar', async ({
 		page
 	}) => {
 		await seed(page);
@@ -405,19 +405,99 @@ test.describe('The player', () => {
 			.click();
 		await expect(page.getByRole('heading', { name: 'Low Tide' })).toBeVisible();
 
-		// wavesurfer renders into a shadow root, so its canvases are not reachable by a plain
-		// selector. It also starts loading the shared element's own source the moment it is
-		// created, then aborts that load when the real one begins; that abort used to hide the
-		// wave and show the plain bar for every track.
-		await expect
-			.poll(() =>
-				page.evaluate(
-					() =>
-						document.querySelector('.wave > div')?.shadowRoot?.querySelectorAll('canvas').length ??
-						0
-				)
-			)
-			.toBeGreaterThan(0);
+		// The plain bar stands in while the track is measured; the waveform then replaces it.
+		// Bars stand in, breathing, while the track is measured; then they take its real shape.
+		await expect(page.locator('.wave-wrap .wave:not(.working) i').nth(10)).toBeVisible();
+		await expect(page.locator('.wave-wrap .cursor')).toBeVisible();
 		await expect(page.locator('.wave-wrap .bar')).toHaveCount(0);
+	});
+
+	/** Enough tracks that Feeds actually scrolls under the mini player. */
+	const LONG_FEED = `<?xml version="1.0"?><rss version="2.0"><channel>
+		<title>Lena Ofori</title><link>https://lenaofori.com/</link><description>Sound.</description>
+		${Array.from(
+			{ length: 12 },
+			(_unused, i) => `<item><title>${i === 0 ? 'Low Tide' : `Tide ${i}`}</title>
+				<link>https://lenaofori.com/tide-${i}</link>
+				<pubDate>Mon, 21 Sep 2026 ${String(22 - i).padStart(2, '0')}:00:00 GMT</pubDate>
+				<description>A track.</description>
+				<enclosure url="https://lenaofori.com/low-tide.mp3" type="audio/wav"/></item>`
+		).join('')}
+	</channel></rss>`;
+
+	async function toMini(page: Page, feed?: string) {
+		await seed(page, feed);
+		await page
+			.locator('#pane-everything')
+			.getByRole('button', { name: /Low Tide/ })
+			.click();
+		await page.getByRole('button', { name: 'Collapse the player' }).click();
+		await expect(page.getByRole('button', { name: 'Open the player' })).toBeVisible();
+	}
+
+	/** Pick the mini player up by its title and carry it `dy` pixels (negative is up). */
+	async function carryMini(page: Page, dy: number) {
+		const box = (await page.locator('.mini').boundingBox())!;
+		const x = box.x + 120;
+		const y = box.y + box.height / 2;
+		await page.mouse.move(x, y);
+		await page.mouse.down();
+		await page.mouse.move(x, y + Math.sign(dy) * 12, { steps: 2 });
+		await page.mouse.move(x, y + dy, { steps: 6 });
+	}
+
+	test('scrolling Feeds tucks the mini player into a small button, and a tap brings it back', async ({
+		page
+	}) => {
+		await toMini(page, LONG_FEED);
+		await page.locator('#pane-everything').evaluate((el) => el.scrollTo({ top: 120 }));
+
+		const button = page.getByRole('button', { name: /^Show the player/ });
+		await expect(button).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Open the player' })).toHaveCount(0);
+
+		await button.click();
+		await expect(page.getByRole('button', { name: 'Open the player' })).toBeVisible();
+	});
+
+	test('dragging the mini player down minimizes it without stopping it', async ({ page }) => {
+		await toMini(page);
+		await carryMini(page, 50);
+		await expect(page.locator('.drop.over')).toHaveText(/Minimize/);
+		await page.mouse.up();
+
+		await expect(page.getByRole('button', { name: /^Show the player/ })).toBeVisible();
+		await expect(page.locator('.drops')).toHaveCount(0);
+		// Minimized takes no room: the dock is back to the tab bar alone.
+		await expect(page.locator('html')).toHaveAttribute('data-mini', 'false');
+		// Minimized, not dismissed: it is still there on another screen.
+		await page.getByRole('link', { name: 'You' }).click();
+		await expect(page.getByRole('button', { name: /^Show the player/ })).toBeVisible();
+	});
+
+	test('a short lift does not open the player; a long one does', async ({ page }) => {
+		await toMini(page);
+		await carryMini(page, -50);
+		await page.waitForTimeout(150);
+		await page.mouse.up();
+		await expect(page.getByRole('button', { name: 'Open the player' })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Low Tide' })).toBeHidden();
+
+		await carryMini(page, -130);
+		await page.waitForTimeout(150);
+		await page.mouse.up();
+		await expect(page.getByRole('heading', { name: 'Low Tide' })).toBeVisible();
+	});
+
+	test('the mini player does not follow a sideways drag', async ({ page }) => {
+		await toMini(page);
+		const box = (await page.locator('.mini').boundingBox())!;
+		await page.mouse.move(box.x + 120, box.y + 30);
+		await page.mouse.down();
+		await page.mouse.move(box.x + 220, box.y + 34, { steps: 5 });
+		expect((await page.locator('.mini').boundingBox())!.x).toBe(box.x);
+		await expect(page.locator('.drops')).toHaveCount(0);
+		await page.mouse.up();
+		await expect(page.getByRole('button', { name: 'Open the player' })).toBeVisible();
 	});
 });

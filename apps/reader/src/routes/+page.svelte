@@ -751,7 +751,7 @@
 									<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"
 										><path d="M12 5v14M5 12h14" /></svg
 									>
-									Follow everything
+									Follow all
 								{/if}
 							</button>
 						{/if}
@@ -932,7 +932,7 @@
 							d={ring.isFollowing(entry) ? 'M5 12.5l4.5 4.5L19 7.5' : 'M12 5v14M5 12h14'}
 						/></svg
 					>
-					{ring.isFollowing(entry) ? 'Following' : 'Follow everything'}
+					{ring.isFollowing(entry) ? 'Following' : 'Follow all'}
 				</button>
 			{/if}
 			<button
@@ -1436,6 +1436,15 @@
 		flex-wrap: wrap;
 		gap: 10px;
 		margin-top: 4px;
+	}
+
+	/*
+	 * A minimized mini player is a button at the right end of this row (MiniPlayer's `.mini-tucked`,
+	 * which belongs to no screen). The row keeps that place clear so it sits in line with these
+	 * buttons instead of on top of the last one.
+	 */
+	:global(:root[data-mini-tucked='true']) .actions {
+		padding-right: 62px;
 	}
 
 	.btn-white {

@@ -1,18 +1,22 @@
+import { diagnostics } from '../diagnostics.svelte.js';
 import { prefersReducedMotion } from '../motion.js';
+import '../styles/card-stack.css';
 
 /**
  * Feeds' 3D card stack: cards stand up as they rise from the bottom of a pane, pin at the
  * top, then tip back behind the next card and fade.
  *
- * Scroll-driven CSS animations do the whole thing on the compositor, with no JavaScript per
- * frame, where `animation-timeline: view()` exists. This action's job there is small: attach
- * the `stack` class that the matching global stylesheet targets, and mark whichever card is
- * pinned at the top as `behind` so it stops taking taps, via an `IntersectionObserver` rather
- * than a scroll handler either way.
+ * A card is held at the top by `position: sticky` (see styles/card-stack.css, which also says
+ * what the three boxes of a card are for), and this action sets its tip, sink and fade on its
+ * `.yip-fold` each frame: a passive scroll listener schedules one `requestAnimationFrame`, and
+ * only cards near the viewport are touched. Because the scroller does the pinning, a frame's lag
+ * here cannot make a card shake. It also marks whichever card is pinned as `behind`, so it stops
+ * taking taps, with an `IntersectionObserver`.
  *
- * Where scroll-driven animations do not exist, the same visual result is computed by hand: a
- * passive scroll listener schedules one `requestAnimationFrame` per frame, and only cards
- * within one card height of the viewport are touched, matching the brief's own cost bound.
+ * The same fold exists as scroll-driven CSS (`animation-timeline: view()`), which costs no
+ * JavaScript per frame. It is not what ships: on a phone (WebView 153) it juddered on every
+ * launch after the first, with main-thread frames on time, and this path did not. A debug build
+ * can switch it on to compare.
  *
  * Reduced motion disables the whole thing: the pane stays the flat list it already renders,
  * cards keep their normal inline layout, and this action does nothing at all.
@@ -37,6 +41,7 @@ function resetCard(card: HTMLElement): void {
 	card.style.transform = '';
 	card.style.transformOrigin = '';
 	card.style.opacity = '';
+	card.style.visibility = '';
 	card.style.removeProperty('--dim');
 }
 
@@ -71,8 +76,8 @@ export function cardPlacement(relative: number, height: number, viewport: number
 		const exit = Math.min(1, -relative / height);
 		return {
 			transformOrigin: '50% 0%',
-			// The pin is outside the perspective, so it is not shrunk with the card (see the CSS).
-			transform: `translateY(calc(${exit * 100}% + ${EXIT_SINK * exit}px)) perspective(1000px) translateZ(${-180 * exit}px) rotateX(${-10 * exit}deg)`,
+			// The sink is outside the perspective, so it is not shrunk with the card (see the CSS).
+			transform: `translateY(${EXIT_SINK * exit}px) perspective(1000px) translateZ(${-180 * exit}px) rotateX(${-10 * exit}deg)`,
 			opacity: 1 - exit,
 			dim: DIM_PEAK * exit
 		};
@@ -93,8 +98,13 @@ export function cardPlacement(relative: number, height: number, viewport: number
 	return { transformOrigin: '50% 0%', transform: 'none', opacity: 1, dim: 0 };
 }
 
+/** The box that is drawn and folded; the card's own place in the list is never moved. */
+function foldOf(card: HTMLElement): HTMLElement {
+	return card.querySelector<HTMLElement>('.yip-fold') ?? card;
+}
+
 /**
- * Position every card touching the viewport by hand, the rAF fallback's whole job.
+ * Fold every card touching the viewport by hand, the rAF fallback's whole job.
  *
  * Only cards within one card height of the pane's visible area are touched; everything else
  * either keeps its already-computed style (if still mid-transition) or is left alone.
@@ -104,33 +114,70 @@ function layoutFallback(pane: HTMLElement): void {
 	const viewport = pane.clientHeight - dockPx(pane);
 
 	for (const card of pane.querySelectorAll<HTMLElement>('.yip-stack')) {
+		const fold = foldOf(card);
 		const height = card.offsetHeight;
 		const relative = card.offsetTop - scrollTop;
 		const placement = cardPlacement(relative, height, viewport);
 
-		if (!placement) {
-			if (card.style.transform) resetCard(card);
-			continue;
-		}
-		if (placement.transform === 'none') {
-			if (card.style.transform) resetCard(card);
+		/*
+		 * Folded away. Its place has left the top of the pane, but the drawn card is still held
+		 * there by its rail for another screen of scrolling, so it has to stay gone: put back to
+		 * its resting style here, every folded card reappeared at the top as a ghost.
+		 */
+		if (relative <= -height) {
+			if (fold.style.visibility !== 'hidden') {
+				resetCard(fold);
+				fold.style.opacity = '0';
+				fold.style.visibility = 'hidden';
+			}
 			continue;
 		}
 
-		card.style.transformOrigin = placement.transformOrigin;
-		card.style.transform = placement.transform;
-		card.style.opacity = String(placement.opacity);
-		if (placement.dim > 0) card.style.setProperty('--dim', String(placement.dim));
-		else card.style.removeProperty('--dim');
+		if (!placement || placement.transform === 'none') {
+			if (fold.style.transform || fold.style.visibility) resetCard(fold);
+			continue;
+		}
+
+		fold.style.visibility = '';
+		fold.style.transformOrigin = placement.transformOrigin;
+		fold.style.transform = placement.transform;
+		fold.style.opacity = String(placement.opacity);
+		if (placement.dim > 0) fold.style.setProperty('--dim', String(placement.dim));
+		else fold.style.removeProperty('--dim');
 	}
 }
 
-export function cardStack(pane: HTMLElement) {
+export interface CardStackOptions {
+	/**
+	 * False for a pane that is mounted but not the one on screen (Feeds keeps all four). Its cards
+	 * then carry no scroll-driven animation, which is what gives each one, and its dim overlay, a
+	 * layer of its own on the compositor: three hidden panes were several hundred layers nobody
+	 * could see. Defaults to true.
+	 */
+	active?: boolean;
+}
+
+export function cardStack(pane: HTMLElement, options: CardStackOptions = {}) {
 	if (prefersReducedMotion()) return {};
 
-	const useScrollDriven = supportsScrollDrivenAnimation();
+	const useScrollDriven =
+		__YIPDEN_DEBUG__ && diagnostics?.cssStack === true && supportsScrollDrivenAnimation();
+	let active = options.active !== false;
 	pane.classList.add('stack');
-	pane.classList.toggle('stack-sda', useScrollDriven);
+
+	/*
+	 * Feeds changes pane in one frame, with no slide, so the classes change in that same frame: the
+	 * pane coming on screen is never seen flat, and the one leaving is already out of sight.
+	 */
+	function setActive(next: boolean): void {
+		active = next;
+		pane.classList.toggle('stack-pin', active);
+		pane.classList.toggle('stack-sda', active && useScrollDriven);
+		if (useScrollDriven) return;
+		if (active) layoutFallback(pane);
+		else
+			for (const card of pane.querySelectorAll<HTMLElement>('.yip-stack')) resetCard(foldOf(card));
+	}
 
 	// The front card takes taps; anything pinned at the top and tipping back does not.
 	const observer = new IntersectionObserver(
@@ -145,8 +192,9 @@ export function cardStack(pane: HTMLElement) {
 
 	/*
 	 * Room after the last card so it can scroll all the way to the top, leaving the card before it
-	 * fully tipped away instead of half hidden behind it. The height depends on the last card's own
-	 * height, which varies (media, text, grouped), so it is measured rather than guessed.
+	 * fully tipped away instead of half hidden behind it. How much depends on the last card's own
+	 * height, which varies (media, text, grouped), and on anything that follows it before the tail
+	 * (a ring's "hidden as not for me" note), so it is measured rather than guessed.
 	 */
 	const tailObserver = new ResizeObserver(sizeTail);
 	function sizeTail(): void {
@@ -157,19 +205,36 @@ export function cardStack(pane: HTMLElement) {
 		const style = getComputedStyle(pane);
 		const content =
 			pane.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-		const gap = parseFloat(style.rowGap) || 0;
-		tail.style.height = `${Math.max(0, content - last.offsetHeight - gap)}px`;
+		// From the last card's top edge to where the tail starts: the card, and whatever follows it.
+		const below =
+			tail.offsetParent === last.offsetParent
+				? tail.offsetTop - last.offsetTop
+				: last.offsetHeight + (parseFloat(style.rowGap) || 0);
+		tail.style.height = `${Math.max(0, content - below)}px`;
 	}
 
+	/*
+	 * Only when the cards themselves changed. The watcher below also hears every change inside a
+	 * card (a thumbnail's zoom badge arriving with its picture, a bar appearing), and starting over
+	 * for each of those re-observed every card and measured the pane again, in the middle of a
+	 * scroll, once per picture.
+	 */
+	let observed: HTMLElement[] | null = null;
 	function observeCards(): void {
+		const cards = [...pane.querySelectorAll<HTMLElement>('.yip-stack')];
+		if (observed?.length === cards.length && cards.every((card, at) => card === observed![at])) {
+			return;
+		}
+		observed = cards;
 		observer.disconnect();
 		tailObserver.disconnect();
-		const cards = pane.querySelectorAll<HTMLElement>('.yip-stack');
 		for (const card of cards) observer.observe(card);
 		const last = cards[cards.length - 1];
 		if (last) tailObserver.observe(last);
 		tailObserver.observe(pane);
 		sizeTail();
+		// New cards arrive at their resting style; fold whichever of them are already past the top.
+		if (active && !useScrollDriven) layoutFallback(pane);
 	}
 	observeCards();
 
@@ -180,7 +245,7 @@ export function cardStack(pane: HTMLElement) {
 
 	let pending = false;
 	function onScroll(): void {
-		if (useScrollDriven || pending) return;
+		if (useScrollDriven || !active || pending) return;
 		pending = true;
 		requestAnimationFrame(() => {
 			pending = false;
@@ -188,17 +253,20 @@ export function cardStack(pane: HTMLElement) {
 		});
 	}
 	pane.addEventListener('scroll', onScroll, { passive: true });
-	if (!useScrollDriven) layoutFallback(pane);
+	setActive(active);
 
 	return {
+		update(next: CardStackOptions = {}) {
+			setActive(next.active !== false);
+		},
 		destroy() {
 			observer.disconnect();
 			mutationObserver.disconnect();
 			tailObserver.disconnect();
 			pane.removeEventListener('scroll', onScroll);
-			pane.classList.remove('stack', 'stack-sda');
+			pane.classList.remove('stack', 'stack-pin', 'stack-sda');
 			for (const card of pane.querySelectorAll<HTMLElement>('.yip-stack')) {
-				resetCard(card);
+				resetCard(foldOf(card));
 				card.classList.remove('behind');
 			}
 		}

@@ -10,6 +10,11 @@
 	const DIAG: Array<{ key: DiagKey; title: string; note: string }> = [
 		{ key: 'meter', title: 'Frame meter', note: 'Slow frames after each partner ring scroll' },
 		{ key: 'noStack', title: 'Partner cards flat', note: 'No 3D stack; reopen the ring to apply' },
+		{
+			key: 'cssStack',
+			title: 'Fold cards with scroll-driven CSS',
+			note: 'The fold that juddered after a relaunch; restart the app to apply'
+		},
 		{ key: 'noBackdrop', title: 'No partner backdrop', note: 'Hides the blurred member mosaic' },
 		{ key: 'noThumbs', title: 'No partner thumbnails', note: 'Hides member pictures on cards' }
 	];

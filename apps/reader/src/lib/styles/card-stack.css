@@ -1,0 +1,143 @@
+/*
+ * The 3D card stack's own styles, shared by every pane that uses `cardStack` (Feeds' panes and a
+ * partner ring's member list). Imported by the action itself, so the two always travel together.
+ *
+ * A card is three boxes:
+ *
+ *   .yip-stack   its place in the list. Never moved, so it is what everything measures: the
+ *                view timeline, read-on-scroll, the "behind" observer.
+ *   .yip-rail    how far the card may stay pinned: its own height and one screen more.
+ *   .yip-fold    the card as drawn. Sticky, so the scroller itself holds it at the top while its
+ *                place scrolls away, and the only thing animated.
+ *
+ * The pin used to be part of the animation: a translate moving the card down exactly as far as
+ * the scroll lifted it. That is only still when the animation and the scroll agree to a fraction
+ * of a pixel on every frame, and on a phone they did not: the folding card trembled, visibly so
+ * in a slow scroll, and stuttered outright on some launches. A sticky box is positioned by the
+ * same code that scrolls, so there is nothing left to agree about; the animation now only tips,
+ * sinks and fades the card, and a frame's lag in that cannot be seen.
+ *
+ * Three classes on the pane, set by cardStack.ts: `.stack` whenever the stack is in use,
+ * `.stack-pin` while the pane is the one on screen (cards pin), and `.stack-sda` when the browser
+ * animates the fold from the scroll itself. Without `.stack-sda` the action sets the same tip,
+ * sink and fade on `.yip-fold` by hand each frame; the pin is the scroller's either way.
+ */
+
+.stack .yip-stack {
+	/* Its own formatting context, so the rail's negative margin below stays inside it. */
+	display: flow-root;
+}
+
+.stack .yip-fold {
+	position: relative;
+	border-radius: var(--r-card);
+}
+
+/* The front card takes taps; one pinned at the top and tipping back does not. */
+.stack .yip-stack.behind .yip-fold {
+	pointer-events: none;
+}
+
+.stack .yip-fold::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	background: #120704;
+	opacity: var(--dim, 0);
+	pointer-events: none;
+}
+
+/*
+ * The rails of the last few cards reach past the end of the list. Clipped here they add nothing
+ * to the scrollable height, so the list still ends with its last card at the top.
+ */
+.stack-pin .stack-list {
+	overflow-y: clip;
+}
+
+.stack-sda .yip-stack {
+	view-timeline: --yip block;
+	view-timeline-inset: 0px var(--dock);
+}
+
+/* Taller than the card by one screen, without taking any more room in the list. */
+.stack-pin .yip-rail {
+	margin-bottom: -100vh;
+	pointer-events: none;
+}
+
+.stack-pin .yip-rail::after {
+	content: '';
+	display: block;
+	height: 100vh;
+}
+
+/* `.yip-rail >` so this outranks a card's own component styles, whatever order they load in. */
+.stack-pin .yip-rail > .yip-fold {
+	position: sticky;
+	top: 0;
+	pointer-events: auto;
+}
+
+.stack-pin .yip-stack.behind .yip-rail > .yip-fold {
+	pointer-events: none;
+}
+
+.stack-sda .yip-fold {
+	animation: yip-fold linear both;
+	animation-timeline: --yip;
+}
+
+.stack-sda .yip-fold::after {
+	animation: yip-dim linear forwards;
+	animation-timeline: --yip;
+	animation-range: exit 0% exit 100%;
+}
+
+/*
+ * One animation for the whole life of a card, not one for standing up and another for folding
+ * away: two animations of the same properties on one element cannot run on the compositor
+ * (Chromium reports "target has incompatible animations").
+ *
+ * Every keyframe has the same list of functions, so each interpolates on its own and nothing
+ * falls back to a matrix. The pivot is folded into the transform (`transform-origin` cannot be
+ * animated on the compositor): translateY(±50%) around a rotation is the same as rotating about
+ * the bottom or top edge, since a translate percentage is of the card's own height. Between
+ * standing up and folding, the two halves cancel and `perspective(none)` leaves a resting card
+ * with no transform at all.
+ *
+ * The 32px sink as a card fades sits outside the perspective, so it is not shrunk with the card:
+ * it moves the card's top edge away from the header rather than letting it creep up into it.
+ */
+@keyframes yip-fold {
+	entry 0% {
+		transform: translateY(50%) translateY(0px) perspective(1000px) translateY(24px) translateZ(0px)
+			rotateX(14deg) scale(0.94) translateY(-50%);
+		opacity: 0.5;
+	}
+	entry 100% {
+		transform: translateY(50%) translateY(0px) perspective(none) translateY(0px) translateZ(0px)
+			rotateX(0deg) scale(1) translateY(-50%);
+		opacity: 1;
+	}
+	exit 0% {
+		transform: translateY(-50%) translateY(0px) perspective(none) translateY(0px) translateZ(0px)
+			rotateX(0deg) scale(1) translateY(50%);
+		opacity: 1;
+	}
+	exit 100% {
+		transform: translateY(-50%) translateY(32px) perspective(1000px) translateY(0px)
+			translateZ(-180px) rotateX(-10deg) scale(1) translateY(50%);
+		opacity: 0;
+	}
+}
+
+@keyframes yip-dim {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 0.6;
+	}
+}

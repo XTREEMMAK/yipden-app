@@ -102,7 +102,7 @@ test.describe('a desktop first member in Discover', () => {
 		await expect(page.getByText('Best on desktop', { exact: true })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Save for later' })).toBeVisible();
 		const actions = await openActions(page);
-		await expect(actions.getByRole('button', { name: 'Follow everything' })).toBeVisible();
+		await expect(actions.getByRole('button', { name: 'Follow all' })).toBeVisible();
 		await actions.getByRole('button', { name: 'Visit site' }).click();
 		expect(await opened(page)).toEqual(['https://wide.example.com/']);
 	});
@@ -113,7 +113,7 @@ test.describe('a desktop first member in Discover', () => {
 		await page.goto('/');
 		for (const label of ['Words', 'Art']) {
 			await chooseFilter(page, label);
-			await expect(page.getByRole('button', { name: /Follow everything/ })).toBeVisible();
+			await expect(page.getByRole('button', { name: /Follow all/ })).toBeVisible();
 			await expect(page.getByRole('button', { name: 'Save for later' })).toHaveCount(0);
 			await expect(page.getByText('Best on desktop', { exact: true })).toHaveCount(0);
 		}
@@ -414,8 +414,8 @@ test.describe('partner rings in Discover', () => {
 			// Not `.locator('..')`: the heading's immediate parent is `.title-row`, not the whole
 			// card, since the title sits beside an optional thumbnail. `has` finds the card itself
 			// regardless of how deep the heading sits inside it.
-			const ashCard = panel.locator('li.card', { has: page.getByText('Ash & Ember') });
-			const bmcCard = panel.locator('li.card', { has: page.getByText('Big Monitor Club') });
+			const ashCard = panel.locator('li.yip-stack', { has: page.getByText('Ash & Ember') });
+			const bmcCard = panel.locator('li.yip-stack', { has: page.getByText('Big Monitor Club') });
 			// Ash & Ember has no sample at all; Big Monitor Club's is a SoundCloud link, not a
 			// file, so the button says so rather than a bare, overpromising "Listen".
 			await expect(ashCard.getByRole('button', { name: /Listen|Open on/ })).toHaveCount(0);
@@ -444,9 +444,12 @@ test.describe('partner rings in Discover', () => {
 			// The stack lives on the scrolling half only, not the panel that also holds the pinned
 			// "back to IndieNodes" head.
 			await expect(panel.locator('.scroll')).toHaveClass(/\bstack\b/);
-			await expect(panel.locator('li.card', { has: page.getByText('Ash & Ember') })).toHaveClass(
-				/\byip-stack\b/
-			);
+			await expect(
+				panel.locator('li.yip-stack', { has: page.getByText('Ash & Ember') })
+			).toHaveClass(/\byip-stack\b/);
+			// The drawn card is held at the top by the scroller, as in Feeds. A card style of its own
+			// once overrode this, and a ring's cards scrolled away instead of folding in place.
+			await expect(panel.locator('.yip-fold').first()).toHaveCSS('position', 'sticky');
 		});
 
 		test('reduced motion leaves it a flat, untransformed list', async ({ page }) => {

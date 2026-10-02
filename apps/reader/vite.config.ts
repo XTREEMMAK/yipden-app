@@ -9,6 +9,13 @@ const packageJson = JSON.parse(
 ) as { version: string };
 
 function buildCommit(): string {
+	// A debug APK also carries its own build number (scripts/stamp-apk.mjs), since several are
+	// made from one commit and the phone has no other way to say which one is installed.
+	const debugBuild = process.env.YIPDEN_DEBUG_BUILD;
+	return debugBuild ? `${commit()} · debug build ${debugBuild}` : commit();
+}
+
+function commit(): string {
 	if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7);
 	try {
 		return execFileSync('git', ['rev-parse', '--short', 'HEAD'], {

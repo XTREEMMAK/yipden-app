@@ -23,8 +23,48 @@
 		void prefs.hydrate();
 		void verdicts.load();
 		void restoreRingQueue();
-		return watchResume();
+		const stopResume = watchResume();
+		const stopKeyboard = watchKeyboard();
+		return () => {
+			stopResume();
+			stopKeyboard();
+		};
 	});
+
+	/**
+	 * The phone keyboard goes over the tab bar, not under it.
+	 *
+	 * Capacitor's SystemBars plugin pads the window by the keyboard's height while it is open, so
+	 * the WebView shrinks to the space above it, and the tab bar, pinned to the WebView's bottom,
+	 * rode up on top of the keyboard. (`adjustPan` cannot help: that padding happens regardless.)
+	 * Turning that handling off would also lose its status-bar insets on older WebViews, so instead
+	 * the root is marked while the keyboard is open and the dock steps aside (app.css).
+	 *
+	 * Open means a text field has focus and the window is well short of its usual height. The usual
+	 * height is learned whenever nothing is being typed into, so rotating the phone keeps up.
+	 */
+	function watchKeyboard() {
+		const root = document.documentElement;
+		let usual = window.innerHeight;
+		const typing = () =>
+			document.activeElement instanceof HTMLElement &&
+			document.activeElement.matches('input:not([type="range"]):not([type="checkbox"]), textarea');
+		const update = () => {
+			if (!typing()) usual = window.innerHeight;
+			const open = typing() && window.innerHeight < usual - 120;
+			if (open) root.dataset.keyboard = 'open';
+			else delete root.dataset.keyboard;
+		};
+		window.addEventListener('resize', update);
+		document.addEventListener('focusin', update);
+		document.addEventListener('focusout', update);
+		return () => {
+			window.removeEventListener('resize', update);
+			document.removeEventListener('focusin', update);
+			document.removeEventListener('focusout', update);
+			delete root.dataset.keyboard;
+		};
+	}
 
 	/**
 	 * Coming back to the app asks the ring whether anything changed, once it has been a while.
@@ -66,9 +106,13 @@
 	/**
 	 * The dock grows to make room for the mini player, and every scroll area's bottom padding
 	 * and the toast position read this one token rather than each knowing about the player.
+	 * Minimized to its corner button it takes no room, so everything comes back down beside it.
 	 */
 	$effect(() => {
-		document.documentElement.dataset.mini = String(player.sheet === 'mini');
+		document.documentElement.dataset.mini = String(player.sheet === 'mini' && !player.miniTucked);
+		document.documentElement.dataset.miniTucked = String(
+			player.sheet === 'mini' && player.miniTucked
+		);
 	});
 
 	/**

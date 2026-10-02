@@ -2098,8 +2098,119 @@ Reported on a phone as a judder in partner rings, then found in Feeds too. Debug
 - **Tried and dropped:** shrinking thumbnails into a canvas (much worse), and redrawing the
   backdrop mosaic into a canvas (no measurable gain).
 
-**Keyboard:** the activity is `adjustPan`, so the keyboard slides over the app and the tab bar
-instead of resizing the WebView and lifting the bar above it.
+**Keyboard:** `adjustPan` did nothing here. Capacitor 8's SystemBars plugin pads the window by the
+keyboard's height whenever it is open, so the WebView shrinks above it and the tab bar rode up on
+top. Turning SystemBars' handling off would also drop its status-bar insets on older WebViews, so
+`+layout.svelte` marks the root while a text field has focus and the window has shrunk, and the
+tab bar and mini player step aside (`--dock: 0`). The keyboard now sits where the bar was.
 
 **App icon:** fox and howl without the arch (`brand/YipDen_Fox.png`, cut by `fox-only.cjs`), at 54 of
 108 units so a circular mask never clips the tail or the howl. The in-app marks keep the arch.
+
+## 2026-10-02 (evening) — Memory: work nobody can see
+
+None of this was measured on a phone; each removes something the code could be seen holding.
+
+- **The card stack runs on the pane on screen only.** Feeds keeps four panes mounted, and every
+  card's scroll-driven animation (and its dim overlay's) is a compositor layer: up to 400, three
+  quarters of them in panes out of sight. `cardStack` takes `active`; a hidden pane keeps its
+  layout (`stack`) and drops the animations (`stack-sda`). Feeds changes pane in one frame with no
+  slide, so the class changes in that frame and neither pane is seen flat.
+- **The stack starts over only when the cards change**, not on every change inside a card (a
+  thumbnail's zoom badge arriving re-observed every card and re-measured the pane, mid-scroll).
+- **The waveform lets go of the decoded track** (superseded the same night, below).
+- **The hero's CSS photo is removed once the canvas has faded in over it**, and returns whenever
+  the canvas is not what is showing. The photo is still downloaded twice on Android (once by the
+  WebView, once through native HTTP for the canvas): the two cannot share bytes without giving up
+  the CSS fallback, so that stays.
+
+## 2026-10-02 (night) — The folding card's shake, the waveform drawn here, the mini player tucked
+
+**The shake was two animations on one card.** Standing up (`yip-in`) and folding away (`yip-out`)
+both animated `transform` and `opacity` on the same element, and Chromium will not run two
+animations of the same property on one target on the compositor ("target has incompatible
+animations", read from a trace in Chromium 153, the phone's WebView version). Both ran on the main
+thread, behind the scroll. The fold pins a card by moving it down as far as the scroll lifts it, so
+only the folding card shook; the frame meter showed nothing because main-thread frames were on
+time. They are now one animation, `yip-fold`, keyed on `entry` and `exit` offsets, every keyframe
+with the same function list and `perspective(none)` at rest so a resting card has no transform. The
+trace no longer reports the failure. The fold's shrink now eases in slightly later than before,
+because the perspective itself is interpolated.
+
+**The last card reaches the top in partner rings too.** The tail that makes room for it existed
+only in Feeds. It is now measured from the last card's top to the tail itself, so anything between
+them (a ring's "hidden as not for me" note) is counted.
+
+**The waveform is drawn here, from saved peaks; wavesurfer.js is gone.** On the phone its waveform
+did not appear after a first decode until the player was reopened, and sometimes nothing showed at
+all. The track is fetched and decoded directly (8kHz, as wavesurfer did), reduced to 200 peaks,
+saved, and the decoded audio dropped. A plain seekable bar with a travelling light shows until the
+bars fade in; a track that cannot be read keeps the plain bar.
+
+**The mini player tucks into a small button while Feeds or a ring's members scroll**, since a
+scrolling thumb kept sliding it open or hitting its close button. A tap brings it back, as does
+leaving the screen. `--dock` does not change while it is tucked: changing it mid-scroll would
+re-lay the list out and move the stack's timeline, which is how the last judder was made.
+
+## 2026-10-03 — The stack pins with `position: sticky`; the mini player can be picked up
+
+**The fold no longer pins a card by animating against the scroll.** After the single-animation
+change the folding card still trembled in a slow scroll and stuttered after a relaunch, with the
+frame meter clean. The pin was a translate moving the card down exactly as far as the scroll
+lifted it, which is only still when animation and scroll agree to a fraction of a pixel every
+frame. A card is now three boxes (`styles/card-stack.css`, shared by Feeds and partner rings):
+`.yip-stack` is its place in the list and is never moved, so everything measures it; `.yip-rail`
+is one screen taller without taking more room; `.yip-fold` is the drawn card, `position: sticky`,
+so the scroller holds it at the top itself. The animation only tips, sinks and fades. The list is
+wrapped in `.stack-list` (`overflow-y: clip`) so the last rails add no scrollable height. The
+JavaScript fallback is unchanged and still moves `.yip-stack`.
+
+**Read on scroll asks for no frames while it is off** (the default). It requested an animation
+frame on every scroll event regardless.
+
+**The waveform is never an empty space.** While a track is measured its bars are already drawn at
+a low, even swell that breathes; each bar then grows to its real height and the playhead fades in.
+
+**The mini player can be picked up and dropped on Close or Minimize**, two places that appear
+along the bottom while it is carried (Close left, Minimize right, the one under the finger lit).
+Minimize is the small corner button the scroll-tuck already used; it now stays on every screen
+until tapped, rather than returning on leaving Feeds. No third button on the bar. Dragging up and
+letting go still opens the full player. The close button on the bar stays for now.
+
+## 2026-10-03 (later) — Numbered debug builds; the mini player moves one way; a ring's cards pin too
+
+**Every debug APK has its own number.** A morning of phone testing ran against an APK built before
+any of the day's changes: only the web bundle had been rebuilt, and the phone kept fetching the
+same `app-debug.apk` name. `android:apk` now takes the next number (`scripts/stamp-apk.mjs`), shows
+it in About after the commit ("debug build N"), and leaves `yipden-debug-NNN.apk` beside the
+original. The counter is per machine and not committed.
+
+**A partner ring's cards did not pin.** The card's own `position: relative` outranked the stack's
+`position: sticky`, so they scrolled away while tipping instead of folding in place as Feeds' do.
+The stack's rule now outranks a card's own styles, and a test holds it.
+
+**The fold can be driven from JavaScript, for comparison** (debug switch "Fold cards from
+JavaScript"). Both paths now pin with `position: sticky` and differ only in who sets the tip, sink
+and fade: scroll-driven CSS, or a frame callback. It exists to find out which one stutters on a
+relaunch on the phone, not as a setting.
+
+**The mini player moves up and down only.** Up, well past its own height (96px, or a flick past
+40px), opens the player: 19px was far too little. Down lights a Minimize strip and minimizes on
+release. The Close drop place is gone; the bar's own button closes. Minimized, the button pulses
+while playing and takes no room: the dock returns to the tab bar's height.
+
+## 2026-10-03 (afternoon) — The fold ships from JavaScript; the minimized player sits in Discover's row
+
+**The JavaScript fold is the default; scroll-driven CSS is behind a debug switch.** On the phone
+(debug build 1, WebView 153) the CSS fold juddered on every launch after the first and the
+JavaScript fold did not. Why the CSS one does is still not known; main-thread frames were on time
+throughout. Both pin with `position: sticky`, so the JavaScript fold cannot shake the card.
+
+**A folded card stays hidden while its rail still holds it.** The JavaScript fold put a card back
+to its resting style once it was past the top, but the card is held there for another screen of
+scrolling, so every folded card reappeared as a ghost. It is now `visibility: hidden` until its
+place comes back.
+
+**The minimized player sits at the end of Discover's action row**, in line with it (same margin,
+height and baseline), and the row keeps that place clear while it is minimized. "Follow
+everything" is "Follow all" to make the room.

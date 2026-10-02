@@ -76,7 +76,7 @@ test.describe('Discover', () => {
 		await page.goto('/');
 
 		await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-		await expect(page.getByRole('button', { name: /Follow everything/ })).toBeVisible();
+		await expect(page.getByRole('button', { name: /Follow all/ })).toBeVisible();
 		await expect(page.getByRole('button', { name: 'More actions' })).toBeVisible();
 	});
 
@@ -139,7 +139,7 @@ test.describe('Discover', () => {
 	test('follows a member and says so, then stays followed', async ({ page }) => {
 		await page.goto('/');
 		await chooseFilter(page, 'Music');
-		await page.getByRole('button', { name: /Follow everything/ }).click();
+		await page.getByRole('button', { name: /Follow all/ }).click();
 
 		await expect(
 			page.getByRole('status').filter({ hasText: 'Following Ada Reed in 2 places' })
@@ -307,7 +307,7 @@ test.describe('Discover', () => {
 
 			// The white pill is on a dark hero in both themes, so its label must stay dark.
 			const color = await page
-				.getByRole('button', { name: /Follow everything/ })
+				.getByRole('button', { name: /Follow all/ })
 				.evaluate((node) => getComputedStyle(node).color);
 			expect(color, scheme).toBe('rgb(31, 20, 16)');
 		}

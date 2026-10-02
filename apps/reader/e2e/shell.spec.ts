@@ -244,4 +244,29 @@ test.describe('the app shell', () => {
 		await page.waitForTimeout(800);
 		expect(await page.evaluate(() => history.length)).toBe(before + 1);
 	});
+
+	test('the keyboard goes over the tab bar: the dock steps aside while typing', async ({
+		page
+	}) => {
+		await page.route('https://ring.indienodes.us/ring.json', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: '{"version":"1.0","entries":[]}'
+			})
+		);
+		await page.goto('/follow');
+		const bar = page.getByRole('navigation', { name: 'Main' });
+		await expect(bar).toBeVisible();
+		const size = page.viewportSize()!;
+
+		// On the phone, Capacitor shrinks the WebView to the space above the keyboard.
+		await page.getByLabel('Creator, website, or profile').focus();
+		await page.setViewportSize({ width: size.width, height: size.height - 300 });
+		await expect(bar).toBeHidden();
+
+		await page.setViewportSize(size);
+		await page.getByLabel('Creator, website, or profile').blur();
+		await expect(bar).toBeVisible();
+	});
 });

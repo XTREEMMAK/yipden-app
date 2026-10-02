@@ -101,6 +101,18 @@ button {
 	backdrop-filter: blur(18px) saturate(140%);
 }
 
+/*
+ * While the phone keyboard is open the dock steps aside, so the keyboard sits where the tab bar
+ * was rather than underneath it (see +layout.svelte's watchKeyboard).
+ */
+:root:root[data-keyboard='open'] {
+	--dock: 0px;
+}
+
+:root[data-keyboard='open'] :is(.tabbar, .mini, .mini-tucked) {
+	display: none;
+}
+
 /* Except over a partner ring's scrolling cards: see TabBar.svelte's `solid`. */
 :root[data-skin] .tabbar.dark.solid {
 	-webkit-backdrop-filter: none;

@@ -65,7 +65,6 @@
 			name: 'Bricolage Grotesque, Instrument Sans, JetBrains Mono',
 			license: 'SIL Open Font License 1.1'
 		},
-		{ name: 'wavesurfer.js', license: 'BSD 3-Clause' },
 		{ name: 'Capacitor core, app and Android', license: 'MIT' },
 		{ name: '@capgo/capacitor-media-session', license: 'MPL 2.0' },
 		{ name: '@rgrove/parse-xml', license: 'ISC' },

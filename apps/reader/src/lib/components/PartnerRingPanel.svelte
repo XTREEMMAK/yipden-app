@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { previewKindOf, type PartnerRingResult, type PreviewKind } from '@yipden/ring-client';
 	import { cardStack } from '$lib/actions/cardStack.js';
+	import { tuckMini } from '$lib/actions/tuckMini.js';
 	import { diagnostics, frameMeter, type ScrollReport } from '$lib/diagnostics.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
 	import { goto } from '$app/navigation';
@@ -261,7 +262,7 @@
 		{/if}
 	</header>
 
-	<div class="scroll" bind:this={scroller} use:stack>
+	<div class="scroll" bind:this={scroller} use:stack use:tuckMini>
 		<!--
 			The intro scrolls away with the cards rather than folding out of the head: anything that
 			resizes the scroller mid-fling re-lays the whole list out every frame and cuts the fling.
@@ -269,150 +270,167 @@
 		<p class="note intro">
 			Another ring. These members are not part of Discover’s rotation, and nothing here is ranked.
 		</p>
-		<ul class="cards">
-			{#each shown as member (member.id)}
-				{@const desktopFirst = member.layout === 'desktop-first'}
-				{@const saved = shelf.has(member.url)}
-				<li class="card yip-stack">
-					<p class="via">
-						via
-						<a
-							href={result.ring.hubUrl}
-							target="_blank"
-							rel="noopener noreferrer"
-							onclick={(event) => {
-								event.preventDefault();
-								openExternal(result.ring.hubUrl);
-							}}>{result.ring.name}</a
-						>
-					</p>
-					<div class="title-row">
-						{#if member.thumbUrl && !diag('noThumbs')}
-							<PartnerThumb
-								src={member.thumbUrl}
-								alt={member.name}
-								onpreview={() => (preview = { src: member.thumbUrl!, alt: member.name })}
-							/>
-						{/if}
-						<h3>{member.name}</h3>
-					</div>
-					{#if member.blurb}<p class="blurb">{member.blurb}</p>{/if}
-					<p class="host">
-						{hostOf(member.url)}{#if desktopFirst}<span class="chip">Best on desktop</span>{/if}
-					</p>
-					<div class="acts">
-						{#if desktopFirst}
-							<button
-								class="primary"
-								aria-pressed={saved}
-								onclick={() => toggleShelf(shelfDraft(member))}
-							>
-								{saved ? 'Saved' : 'Save for later'}
-							</button>
-							<button
-								class="secondary"
-								onclick={() => openExternal(member.url)}
-								aria-label={`Open ${hostOf(member.url)}`}
-							>
-								<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
-									<circle cx="12" cy="12" r="9" />
-									<path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z" />
-								</svg>
-								Open
-							</button>
-						{:else}
-							<button
-								class="primary"
-								onclick={() => openExternal(member.url)}
-								aria-label={`Visit ${hostOf(member.url)}`}
-							>
-								<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
-									<circle cx="12" cy="12" r="9" />
-									<path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z" />
-								</svg>
-								Visit
-							</button>
-						{/if}
-						{#if member.previewUrl}
-							<button
-								class="secondary"
-								onclick={() => openExternal(member.previewUrl!)}
-								title="Their own chosen sample, opens on its own site"
-							>
-								<PlatformIcon kind={previewKindOf(member.previewUrl)} />
-								{previewLabel(member.previewUrl)}
-							</button>
-						{/if}
-					</div>
-					<div class="acts">
-						<button
-							class="secondary icon-only"
-							aria-label={`Find feeds for ${member.name}`}
-							title="Find feeds"
-							onclick={() => goto(`/follow?url=${encodeURIComponent(member.url)}`)}
-						>
-							<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
-								<circle cx="11" cy="11" r="6.5" />
-								<path d="M20 20l-4.4-4.4" />
-							</svg>
-						</button>
-						{#if !desktopFirst}
-							<button
-								class="secondary icon-only"
-								aria-label={`Save ${member.name} for later`}
-								title={saved ? 'Saved' : 'Save for later'}
-								aria-pressed={saved}
-								onclick={() => toggleShelf(shelfDraft(member))}
-							>
-								<svg class="globe" class:filled={saved} viewBox="0 0 24 24" aria-hidden="true">
-									<path d="M6 4h12v16l-6-4-6 4z" />
-								</svg>
-							</button>
-						{/if}
-						<button
-							class="secondary icon-only"
-							aria-label={`Like ${member.name}`}
-							title="Like"
-							aria-pressed={verdicts.verdictFor(member.url) === 'liked'}
-							onclick={() => decide(member, 'liked')}
-						>
-							<svg
-								class="globe"
-								class:filled={verdicts.verdictFor(member.url) === 'liked'}
-								viewBox="0 0 24 24"
-								aria-hidden="true"
-							>
-								<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" />
-							</svg>
-						</button>
-						<button
-							class="secondary icon-only"
-							aria-label={`Not for me: ${member.name}`}
-							title="Not for me"
-							onclick={() => decide(member, 'hidden')}
-						>
-							<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
-								<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" />
-								<path d="M9.6 8.6l4.8 4.8M14.4 8.6l-4.8 4.8" />
-							</svg>
-						</button>
-					</div>
-				</li>
-			{/each}
-		</ul>
-		{#if !shown.length && members.length}
-			<p class="hidden-note">
-				Nobody here matches{query.trim() ? ` “${query.trim()}”` : ''}{genre
-					? ` in ${genreLabel(genre)}`
-					: ''}.
-			</p>
-		{/if}
-		{#if hiddenCount}
-			<p class="hidden-note">
-				{hiddenCount} hidden as not for me. You can bring {hiddenCount === 1 ? 'them' : 'them'} back in
-				You.
-			</p>
-		{/if}
+		<div class="stack-list">
+			<ul class="cards">
+				{#each shown as member (member.id)}
+					{@const desktopFirst = member.layout === 'desktop-first'}
+					{@const saved = shelf.has(member.url)}
+					<li class="yip-stack">
+						<div class="yip-rail">
+							<div class="card yip-fold">
+								<p class="via">
+									via
+									<a
+										href={result.ring.hubUrl}
+										target="_blank"
+										rel="noopener noreferrer"
+										onclick={(event) => {
+											event.preventDefault();
+											openExternal(result.ring.hubUrl);
+										}}>{result.ring.name}</a
+									>
+								</p>
+								<div class="title-row">
+									{#if member.thumbUrl && !diag('noThumbs')}
+										<PartnerThumb
+											src={member.thumbUrl}
+											alt={member.name}
+											onpreview={() => (preview = { src: member.thumbUrl!, alt: member.name })}
+										/>
+									{/if}
+									<h3>{member.name}</h3>
+								</div>
+								{#if member.blurb}<p class="blurb">{member.blurb}</p>{/if}
+								<p class="host">
+									{hostOf(member.url)}{#if desktopFirst}<span class="chip">Best on desktop</span
+										>{/if}
+								</p>
+								<div class="acts">
+									{#if desktopFirst}
+										<button
+											class="primary"
+											aria-pressed={saved}
+											onclick={() => toggleShelf(shelfDraft(member))}
+										>
+											{saved ? 'Saved' : 'Save for later'}
+										</button>
+										<button
+											class="secondary"
+											onclick={() => openExternal(member.url)}
+											aria-label={`Open ${hostOf(member.url)}`}
+										>
+											<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
+												<circle cx="12" cy="12" r="9" />
+												<path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z" />
+											</svg>
+											Open
+										</button>
+									{:else}
+										<button
+											class="primary"
+											onclick={() => openExternal(member.url)}
+											aria-label={`Visit ${hostOf(member.url)}`}
+										>
+											<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
+												<circle cx="12" cy="12" r="9" />
+												<path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z" />
+											</svg>
+											Visit
+										</button>
+									{/if}
+									{#if member.previewUrl}
+										<button
+											class="secondary"
+											onclick={() => openExternal(member.previewUrl!)}
+											title="Their own chosen sample, opens on its own site"
+										>
+											<PlatformIcon kind={previewKindOf(member.previewUrl)} />
+											{previewLabel(member.previewUrl)}
+										</button>
+									{/if}
+								</div>
+								<div class="acts">
+									<button
+										class="secondary icon-only"
+										aria-label={`Find feeds for ${member.name}`}
+										title="Find feeds"
+										onclick={() => goto(`/follow?url=${encodeURIComponent(member.url)}`)}
+									>
+										<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
+											<circle cx="11" cy="11" r="6.5" />
+											<path d="M20 20l-4.4-4.4" />
+										</svg>
+									</button>
+									{#if !desktopFirst}
+										<button
+											class="secondary icon-only"
+											aria-label={`Save ${member.name} for later`}
+											title={saved ? 'Saved' : 'Save for later'}
+											aria-pressed={saved}
+											onclick={() => toggleShelf(shelfDraft(member))}
+										>
+											<svg
+												class="globe"
+												class:filled={saved}
+												viewBox="0 0 24 24"
+												aria-hidden="true"
+											>
+												<path d="M6 4h12v16l-6-4-6 4z" />
+											</svg>
+										</button>
+									{/if}
+									<button
+										class="secondary icon-only"
+										aria-label={`Like ${member.name}`}
+										title="Like"
+										aria-pressed={verdicts.verdictFor(member.url) === 'liked'}
+										onclick={() => decide(member, 'liked')}
+									>
+										<svg
+											class="globe"
+											class:filled={verdicts.verdictFor(member.url) === 'liked'}
+											viewBox="0 0 24 24"
+											aria-hidden="true"
+										>
+											<path
+												d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"
+											/>
+										</svg>
+									</button>
+									<button
+										class="secondary icon-only"
+										aria-label={`Not for me: ${member.name}`}
+										title="Not for me"
+										onclick={() => decide(member, 'hidden')}
+									>
+										<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
+											<path
+												d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"
+											/>
+											<path d="M9.6 8.6l4.8 4.8M14.4 8.6l-4.8 4.8" />
+										</svg>
+									</button>
+								</div>
+							</div>
+						</div>
+					</li>
+				{/each}
+			</ul>
+			{#if !shown.length && members.length}
+				<p class="hidden-note">
+					Nobody here matches{query.trim() ? ` “${query.trim()}”` : ''}{genre
+						? ` in ${genreLabel(genre)}`
+						: ''}.
+				</p>
+			{/if}
+			{#if hiddenCount}
+				<p class="hidden-note">
+					{hiddenCount} hidden as not for me. You can bring {hiddenCount === 1 ? 'them' : 'them'} back
+					in You.
+				</p>
+			{/if}
+			<div class="stack-tail" aria-hidden="true"></div>
+		</div>
 	</div>
 </section>
 
@@ -654,7 +672,7 @@
 	 * look the translucent version had at rest, just no longer literally see-through.
 	 */
 	.card {
-		position: relative;
+		/* No `position` here: under the stack this box is the sticky one (styles/card-stack.css). */
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
@@ -815,93 +833,24 @@
 	}
 
 	/*
-	 * The same fold and stand Feeds' own yips do, `cardStack.ts` unchanged: it only ever looks
-	 * for a `.yip-stack` class on a scrolling pane's children, so applying it here is only this
-	 * CSS, matching Feeds' own down to the keyframe names. Left out on purpose: Feeds' own
+	 * The same fold and stand Feeds' own yips do: `cardStack` and styles/card-stack.css, which only
+	 * ever look for `.yip-stack` inside a scrolling pane. Left out on purpose: Feeds' own
 	 * `content-visibility`/`contain-intrinsic-size` pair, tuned to its cards' known fixed
 	 * heights (200px, 172px for Listen, and so on). A member's card here varies with its own
 	 * blurb length and how many action buttons wrap, and guessing a size for that risks the
 	 * exact "stuck scrollable area" bug DECISIONS.md already records for Feeds' Listen pane, for
 	 * a ring of at most a few dozen cards rather than the hundreds that optimization exists for.
 	 */
-	:global(.scroll.stack .yip-stack.behind) {
-		pointer-events: none;
-	}
-
-	:global(.scroll.stack .yip-stack::after) {
-		content: '';
-		position: absolute;
-		inset: 0;
-		border-radius: inherit;
-		background: #120704;
-		opacity: var(--dim, 0);
-		pointer-events: none;
-	}
-
-	:global(.scroll.stack-sda .yip-stack) {
-		view-timeline: --yip block;
-		view-timeline-inset: 0px var(--dock);
-		animation:
-			yip-in linear both,
-			yip-out linear forwards;
-		animation-timeline: --yip, --yip;
-		animation-range:
-			entry 0% entry 100%,
-			exit 0% exit 100%;
-	}
-
-	:global(.scroll.stack-sda .yip-stack::after) {
-		animation: yip-dim linear forwards;
-		animation-timeline: --yip;
-		animation-range: exit 0% exit 100%;
-	}
-
 	/*
-	 * No `transform-origin` in these keyframes: it cannot be animated on the compositor, and one
-	 * such property drags the whole animation onto the main thread, a frame behind the scroll. The
-	 * exit keeps a card pinned at the top by moving it down exactly as far as the scroll lifts it,
-	 * so a frame behind showed as a shake right where it starts to fold. The pivot is folded into
-	 * the transform instead: translateY(±50%) around a rotation is the same as rotating about the
-	 * bottom or top edge, since a translate percentage is of the card's own height.
+	 * Room after the last card for it to scroll all the way to the top, as in Feeds: without it the
+	 * list ends with the last card low on the screen and the one before it still half folded behind.
+	 * Sized by cardStack; only under the stack, so a flat list (reduced motion) ends where it ends.
 	 */
-	@keyframes yip-in {
-		from {
-			transform: translateY(50%) perspective(1000px) translateY(24px) rotateX(14deg) scale(0.94)
-				translateY(-50%);
-			opacity: 0.5;
-		}
-		to {
-			transform: none;
-			opacity: 1;
-		}
+	.stack-tail {
+		display: none;
 	}
 
-	/*
-	 * The exit keeps the same function list at both ends, so the pivot stays on the card's top
-	 * edge for the whole fold (a `none` start let it slide from the centre up to the top). The pin,
-	 * moving down exactly as far as the scroll lifts it, sits outside the perspective: inside it,
-	 * the pin shrank along with the card as it receded and the card crept up into the header. A
-	 * further 32px sink as it fades moves its top edge away from the header instead.
-	 */
-	@keyframes yip-out {
-		from {
-			transform: translateY(-50%) translateY(0) perspective(1000px) translateZ(0) rotateX(0deg)
-				translateY(50%);
-			opacity: 1;
-		}
-		to {
-			transform: translateY(-50%) translateY(calc(100% + 32px)) perspective(1000px)
-				translateZ(-180px) rotateX(-10deg) translateY(50%);
-			opacity: 0;
-		}
-	}
-
-	@keyframes yip-dim {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 0.6;
-		}
+	:global(.scroll.stack) .stack-tail {
+		display: block;
 	}
 </style>

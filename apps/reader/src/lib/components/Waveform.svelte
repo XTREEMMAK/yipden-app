@@ -1,76 +1,76 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import WaveSurfer from 'wavesurfer.js';
 	import { player } from '$lib/player.svelte.js';
 	import { formatTime } from '$lib/player.svelte.js';
+	import { barsFrom, peaksFrom } from '$lib/waveform.js';
 
 	/**
 	 * The waveform, and only the waveform: it draws, and nothing about playback depends on it.
 	 *
-	 * wavesurfer is handed the player's own shared audio element through `media`, so it never
-	 * gets to call play or pause. Its separate job, decoding the file to compute peaks, is
-	 * exactly the expensive part the brief warns about: it downloads and decodes the whole
-	 * track. So nothing here happens until a track is actually loaded (which only occurs once
-	 * the reader has pressed play), cached peaks skip the decode entirely when they exist, and
-	 * a decode failure quietly falls back to a plain, still fully seekable progress bar.
+	 * Playback is the player's own shared audio element. This reads the same file a second time to
+	 * measure it, which is exactly the expensive part the brief warns about: the whole track is
+	 * downloaded and decoded. So nothing here happens until a track is actually loaded (which only
+	 * occurs once the reader has pressed play), the measurements are saved so a later play of the
+	 * same track draws at once without decoding anything, and the decoded audio is let go the
+	 * moment it has been measured.
+	 *
+	 * There is always something to seek on, and never an empty space. While the track is being
+	 * measured the bars are already there at a low, even swell, breathing to say work is going
+	 * on; when the real shape arrives each bar grows to its own height and the playhead fades in.
+	 * A track that cannot be measured (commonly a CORS refusal from a host that never expected
+	 * this) settles into a plain bar, with no error shown.
+	 *
+	 * The bars are drawn here from the saved numbers. wavesurfer.js used to do both the decoding
+	 * and the drawing; on a phone its waveform sometimes did not appear until the player was
+	 * reopened, and its drawing could not be faded in or replaced while it worked.
 	 */
 
-	let container: HTMLDivElement | undefined;
-	let ws: WaveSurfer | null = null;
-	let failed = $state(false);
-	let currentUrl: string | null = null;
+	/** What a first decode costs is bounded by decoding at a low rate: the shape is all that is kept. */
+	const DECODE_RATE = 8000;
+	const BAR_WIDTH = 3;
+	const BAR_GAP = 2;
 
-	const WAVE_COLOR = 'rgba(255, 255, 255, 0.36)';
-	const PROGRESS_COLOR = '#ffffff';
-	/** Not white and not the player's orange, so the playhead reads against both the played and unplayed bars. */
-	const CURSOR_COLOR = '#5fe3ff';
+	let peaks = $state<number[] | null>(null);
+	let status = $state<'working' | 'ready' | 'failed'>('working');
+	let width = $state(0);
+	let currentUrl: string | null = null;
+	let abort: AbortController | null = null;
+
+	async function measure(mediaUrl: string, signal: AbortSignal): Promise<number[]> {
+		const response = await fetch(mediaUrl, { signal });
+		if (!response.ok) throw new Error(`waveform: ${response.status}`);
+		const bytes = await response.arrayBuffer();
+		const context = new AudioContext({ sampleRate: DECODE_RATE });
+		try {
+			const audio = await context.decodeAudioData(bytes);
+			const measured = peaksFrom(audio.getChannelData(0));
+			await player.writePeaks(mediaUrl, measured, audio.duration);
+			return measured;
+		} finally {
+			void context.close();
+		}
+	}
 
 	async function loadTrack(mediaUrl: string): Promise<void> {
-		if (!container || currentUrl === mediaUrl) return;
+		if (currentUrl === mediaUrl) return;
 		currentUrl = mediaUrl;
-		failed = false;
-
-		ws?.destroy();
-		ws = WaveSurfer.create({
-			container,
-			media: player.audio,
-			height: 58,
-			waveColor: WAVE_COLOR,
-			progressColor: PROGRESS_COLOR,
-			barWidth: 3,
-			barGap: 2,
-			barRadius: 2,
-			cursorColor: CURSOR_COLOR,
-			cursorWidth: 3,
-			interact: true,
-			normalize: true
-		});
-
-		ws.on('error', (error) => {
-			// wavesurfer starts loading on its own when handed an element that already has a
-			// source, which is always the case here, and then aborts that load the moment ours
-			// begins. The abort is reported as an error, but it is only the superseded load.
-			if (error instanceof DOMException && error.name === 'AbortError') return;
-			if (import.meta.env.DEV) console.warn('waveform: wavesurfer error', mediaUrl, error);
-			failed = true;
-		});
+		abort?.abort();
+		const controller = (abort = new AbortController());
+		peaks = null;
+		status = 'working';
 
 		try {
 			const cached = await player.readPeaks(mediaUrl);
-			if (cached) {
-				await ws.load(mediaUrl, [cached.peaks], cached.duration);
-			} else {
-				await ws.load(mediaUrl);
-				// Only a track decoded here for the first time needs saving.
-				const peaks = ws.exportPeaks({ maxLength: 200 })[0];
-				if (peaks) await player.writePeaks(mediaUrl, peaks, ws.getDuration());
-			}
+			const next = cached?.peaks.length ? cached.peaks : await measure(mediaUrl, controller.signal);
+			if (currentUrl !== mediaUrl) return;
+			peaks = next;
+			status = next.length ? 'ready' : 'failed';
 		} catch (error) {
-			// Decoding failed, commonly a CORS refusal from a host that never expected this.
-			// The brief is explicit: no error shown, just the plain bar below. Development builds
-			// say why in the console, since the reader-facing silence otherwise hides it.
-			if (import.meta.env.DEV) console.warn('waveform: load failed', mediaUrl, error);
-			failed = true;
+			if (currentUrl !== mediaUrl) return;
+			// The brief is explicit: no error shown, just the plain bar. Development builds say why
+			// in the console, since the reader-facing silence otherwise hides it.
+			if (import.meta.env.DEV) console.warn('waveform: could not measure', mediaUrl, error);
+			status = 'failed';
 		}
 	}
 
@@ -80,8 +80,16 @@
 	});
 
 	onDestroy(() => {
-		ws?.destroy();
+		abort?.abort();
 	});
+
+	let barCount = $derived(Math.max(0, Math.floor((width + BAR_GAP) / (BAR_WIDTH + BAR_GAP))));
+	let bars = $derived(peaks && barCount ? barsFrom(peaks, barCount) : []);
+
+	/** The stand-in shape while a track is measured: a gentle swell, the same for every track. */
+	function waiting(at: number): number {
+		return 0.22 + 0.14 * Math.sin(at * 0.55) + 0.08 * Math.sin(at * 1.7);
+	}
 
 	function seekAt(clientX: number, rect: DOMRect): void {
 		const fraction = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
@@ -110,28 +118,32 @@
 	let progress = $derived(player.duration > 0 ? player.currentTime / player.duration : 0);
 </script>
 
-<div class="wave-wrap" data-noswipe>
-	<div
-		class="wave"
-		class:hidden={failed}
-		role="presentation"
-		bind:this={container}
-		onpointerdown={(e) => onPointerDown(e, e.currentTarget)}
-		onpointermove={(e) => onPointerMove(e, e.currentTarget)}
-		onpointerup={(e) => onPointerUp(e, e.currentTarget)}
-		onpointercancel={(e) => onPointerUp(e, e.currentTarget)}
-	></div>
-
-	{#if failed}
-		<div
-			class="bar"
-			role="presentation"
-			onpointerdown={(e) => onPointerDown(e, e.currentTarget)}
-			onpointermove={(e) => onPointerMove(e, e.currentTarget)}
-			onpointerup={(e) => onPointerUp(e, e.currentTarget)}
-			onpointercancel={(e) => onPointerUp(e, e.currentTarget)}
-		>
+<div
+	class="wave-wrap"
+	data-noswipe
+	role="presentation"
+	bind:clientWidth={width}
+	onpointerdown={(e) => onPointerDown(e, e.currentTarget)}
+	onpointermove={(e) => onPointerMove(e, e.currentTarget)}
+	onpointerup={(e) => onPointerUp(e, e.currentTarget)}
+	onpointercancel={(e) => onPointerUp(e, e.currentTarget)}
+>
+	{#if status === 'failed'}
+		<div class="bar" aria-hidden="true">
 			<div class="bar-fill" style:width={`${progress * 100}%`}></div>
+		</div>
+	{:else}
+		{@const ready = status === 'ready' && bars.length === barCount}
+		<div class="wave" class:working={!ready} aria-hidden="true">
+			{#each { length: barCount }, at (at)}
+				<i
+					class:played={ready && (at + 0.5) / barCount <= progress}
+					style:height={`${4 + (ready ? (bars[at] ?? 0) : waiting(at)) * 96}%`}
+				></i>
+			{/each}
+			{#if ready}
+				<span class="cursor" style:left={`${progress * 100}%`}></span>
+			{/if}
 		</div>
 	{/if}
 
@@ -160,13 +172,61 @@
 	}
 
 	.wave {
-		width: 100%;
-		height: 100%;
+		position: absolute;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		gap: 2px;
 	}
 
-	.wave.hidden {
-		visibility: hidden;
+	/* Each bar grows from the waiting swell to its own height when the real shape arrives. */
+	.wave i {
+		flex: 0 0 3px;
+		min-height: 3px;
+		border-radius: 2px;
+		background: rgba(255, 255, 255, 0.36);
+		transition:
+			height var(--dur-l) var(--ease),
+			background-color var(--dur-s) var(--ease);
+	}
+
+	.wave i.played {
+		background: #fff;
+	}
+
+	/* Being measured: the whole swell breathes, as one layer, until the waveform takes over. */
+	.wave.working {
+		animation: wave-working 0.9s ease-in-out infinite alternate;
+	}
+
+	@keyframes wave-working {
+		from {
+			opacity: 0.35;
+		}
+		to {
+			opacity: 0.9;
+		}
+	}
+
+	/* Not white and not the player's orange, so the playhead reads against played and unplayed bars. */
+	.cursor {
 		position: absolute;
+		top: 0;
+		bottom: 0;
+		width: 3px;
+		margin-left: -1.5px;
+		border-radius: 2px;
+		background: #5fe3ff;
+		animation: cursor-in var(--dur-l) var(--ease) both;
+	}
+
+	@keyframes cursor-in {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
 	}
 
 	.bar {
@@ -192,5 +252,16 @@
 		height: 4px;
 		border-radius: 4px;
 		background: #fff;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.wave.working {
+			animation: none;
+			opacity: 0.6;
+		}
+
+		.wave i {
+			transition-duration: var(--dur-s);
+		}
 	}
 </style>

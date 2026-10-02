@@ -74,9 +74,8 @@ test.describe('The card stack', () => {
 		const pane = page.locator('#pane-everything');
 		// The stack layer is the `.yip-stack` wrapper around a card (it also carries a grouped card's
 		// source bar), so `behind` lands there, not on the card's own button.
-		const firstCard = pane.locator('.yip-stack', {
-			has: page.getByRole('button', { name: /Post 0\b/ })
-		});
+		// By its key, not its button: once folded away the card's content is hidden, button included.
+		const firstCard = pane.locator('.yip-stack[data-key$="/post-0"]');
 
 		await pane.evaluate((el) => el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }));
 		// The IntersectionObserver reports asynchronously; give it a moment to settle.
@@ -119,14 +118,75 @@ test.describe('The card stack', () => {
 		const pane = page.locator('#pane-everything');
 		// The stack layer is the `.yip-stack` wrapper around a card (it also carries a grouped card's
 		// source bar), so `behind` lands there, not on the card's own button.
-		const firstCard = pane.locator('.yip-stack', {
-			has: page.getByRole('button', { name: /Post 0\b/ })
-		});
+		// By its key, not its button: once folded away the card's content is hidden, button included.
+		const firstCard = pane.locator('.yip-stack[data-key$="/post-0"]');
 
 		await pane.evaluate((el) => el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }));
 		await expect(firstCard).toHaveClass(/\bbehind\b/, { timeout: 5000 });
 
 		await pane.evaluate((el) => el.scrollTo({ top: 0, behavior: 'instant' }));
 		await expect(firstCard).not.toHaveClass(/\bbehind\b/, { timeout: 5000 });
+	});
+
+	test('the last card scrolls all the way to the top, with the one before it folded away', async ({
+		page
+	}) => {
+		await seed(page);
+		const pane = page.locator('#pane-everything');
+		await pane.evaluate((el) => el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }));
+
+		await expect
+			.poll(() =>
+				pane.evaluate((el) => {
+					const cards = el.querySelectorAll<HTMLElement>('.yip-stack');
+					const last = cards[cards.length - 1]!;
+					const before = cards[cards.length - 2]!;
+					return {
+						// Layout position, not the drawn one: the stack transforms a card as it moves.
+						lastFromTop: last.offsetTop - el.offsetTop - el.scrollTop,
+						// The drawn card is `.yip-fold`; `.yip-stack` is only its place in the list.
+						beforeOpacity: Number(getComputedStyle(before.querySelector('.yip-fold')!).opacity)
+					};
+				})
+			)
+			.toEqual({ lastFromTop: 6, beforeOpacity: 0 });
+	});
+
+	test('a card is pinned by the scroller and folded by hand, and stays gone once folded', async ({
+		page
+	}) => {
+		await seed(page);
+		const pane = page.locator('#pane-everything');
+		await expect(pane).toHaveClass(/\bstack-pin\b/);
+		await expect(pane).not.toHaveClass(/\bstack-sda\b/);
+
+		await pane.evaluate((el) => el.scrollTo({ top: 90, behavior: 'instant' }));
+		const fold = pane.locator('.yip-fold').first();
+		await expect(fold).toHaveCSS('position', 'sticky');
+		// Tipped back and fading: an inline transform, not an animation.
+		await expect
+			.poll(() => fold.evaluate((el) => (el as HTMLElement).style.transform))
+			.toContain('rotateX');
+		expect(await fold.evaluate((el) => el.getAnimations().length)).toBe(0);
+
+		// Several cards further on, every folded card is still held at the top by its rail. None
+		// may show: put back to their resting style, they stacked up there as ghosts.
+		await pane.evaluate((el) => el.scrollTo({ top: 700, behavior: 'instant' }));
+		await expect
+			.poll(() =>
+				pane.evaluate((el) => {
+					const top = el.getBoundingClientRect().top;
+					return [...el.querySelectorAll<HTMLElement>('.yip-stack')]
+						.filter((card) => card.getBoundingClientRect().bottom <= top)
+						.map((card) => getComputedStyle(card.querySelector('.yip-fold')!).visibility);
+				})
+			)
+			.toEqual(['hidden', 'hidden', 'hidden']);
+	});
+
+	test('the scroll-driven CSS fold is still there behind its debug switch', async ({ page }) => {
+		await page.addInitScript(() => localStorage.setItem('yipden:diag:cssStack', '1'));
+		await seed(page);
+		await expect(page.locator('#pane-everything')).toHaveClass(/\bstack-sda\b/);
 	});
 });

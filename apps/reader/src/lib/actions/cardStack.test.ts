@@ -51,8 +51,8 @@ describe('cardPlacement', () => {
 		it('sinks a little below its pinned spot as it folds, never rising into the edge above', () => {
 			const quarter = cardPlacement(-CARD_HEIGHT / 4, CARD_HEIGHT, VIEWPORT)!;
 			const half = cardPlacement(-CARD_HEIGHT / 2, CARD_HEIGHT, VIEWPORT)!;
-			expect(quarter.transform).toContain('translateY(calc(25% + 8px))');
-			expect(half.transform).toContain('translateY(calc(50% + 16px))');
+			expect(quarter.transform).toContain('translateY(8px)');
+			expect(half.transform).toContain('translateY(16px)');
 		});
 
 		it('clamps at fully tipped back and faded rather than continuing past it', () => {
@@ -64,7 +64,7 @@ describe('cardPlacement', () => {
 			const placement = cardPlacement(-CARD_HEIGHT, CARD_HEIGHT, VIEWPORT)!;
 			expect(placement.opacity).toBe(0);
 			expect(placement.dim).toBeCloseTo(0.6);
-			expect(placement.transform).toContain('translateY(calc(100% + 32px))');
+			expect(placement.transform).toContain('translateY(32px)');
 			expect(placement.transform).toContain('rotateX(-10deg)');
 		});
 	});
