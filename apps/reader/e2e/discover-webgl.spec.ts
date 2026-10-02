@@ -412,7 +412,8 @@ test.describe('Discover WebGL hero', () => {
 		const heading = page.getByRole('heading', { level: 1 });
 		await expect(heading).toBeVisible();
 		const first = await heading.textContent();
-		const firstIsAda = first === 'Ada Reed';
+		// Trimmed: the heading's text carries the whitespace around its own markup.
+		const firstIsAda = first?.trim() === 'Ada Reed';
 		const firstUrl = firstIsAda ? 'https://example.com/ada.jpg' : 'https://example.com/bo.jpg';
 		const secondUrl = firstIsAda ? 'https://example.com/bo.jpg' : 'https://example.com/ada.jpg';
 
@@ -420,13 +421,13 @@ test.describe('Discover WebGL hero', () => {
 		await expect.poll(() => canvasIsActive(page), { timeout: 5000 }).toBe(true);
 		await expect
 			.poll(() =>
-				page
-					.locator('.art .layer')
-					.evaluateAll(
-						(layers, url) =>
-							layers.some((layer) => (layer as HTMLElement).style.backgroundImage.includes(url)),
-						firstUrl
-					)
+				page.locator('.art .layer').evaluateAll(
+					(layers, url) =>
+						// The CSS copy is taken out once the canvas covers it, so none is as right as the
+						// creator's own; what must never be there is anyone else's.
+						layers.every((layer) => (layer as HTMLElement).style.backgroundImage.includes(url)),
+					firstUrl
+				)
 			)
 			.toBe(true);
 
@@ -441,15 +442,96 @@ test.describe('Discover WebGL hero', () => {
 		await expect.poll(() => canvasIsActive(page), { timeout: 5000 }).toBe(true);
 		await expect
 			.poll(() =>
-				page
-					.locator('.art .layer')
-					.evaluateAll(
-						(layers, url) =>
-							layers.some((layer) => (layer as HTMLElement).style.backgroundImage.includes(url)),
-						secondUrl
-					)
+				page.locator('.art .layer').evaluateAll(
+					(layers, url) =>
+						// The CSS copy is taken out once the canvas covers it, so none is as right as the
+						// creator's own; what must never be there is anyone else's.
+						layers.every((layer) => (layer as HTMLElement).style.backgroundImage.includes(url)),
+					secondUrl
+				)
 			)
 			.toBe(true);
+	});
+
+	test('keeps drawing past the texture limit, with a photo too large to upload whole', async ({
+		page
+	}) => {
+		const errors: string[] = [];
+		page.on('pageerror', (error) => errors.push(error.message));
+		page.on('console', (message) => {
+			if (message.type() === 'error') errors.push(message.text());
+		});
+
+		// More members than textures are kept, so walking the ring has to let some go and, coming
+		// back round, load them again.
+		const members = Array.from({ length: 9 }, (_unused, i) => ({
+			id: `member-${i}`,
+			creator: `Member ${i}`,
+			type: 'audio',
+			why: 'Someone in the ring.',
+			thumb_url: `https://example.com/member-${i}.png`,
+			source_url: `https://member-${i}.example.com/`,
+			verification_token: `t${i}`,
+			joined_at: '2026-01-01T00:00:00.000Z'
+		}));
+		await page.route('https://ring.indienodes.us/ring.json', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ version: '1.0', entries: members })
+			})
+		);
+		// 1800x1800 is over the pixel budget, so every one of these is drawn smaller before upload.
+		const large = pixelPng(1800, 1800, (x) => (x < 900 ? [200, 40, 40] : [40, 40, 200]));
+		await page.route('https://example.com/**', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'image/png',
+				headers: { 'access-control-allow-origin': '*' },
+				body: large
+			})
+		);
+
+		// What is handed to the canvas as a photo, by size (the placeholder colours pass bytes, not
+		// a picture, and are not counted).
+		await page.addInitScript(() => {
+			const uploads: Array<[number, number]> = [];
+			(window as unknown as { uploads: typeof uploads }).uploads = uploads;
+			const original = WebGLRenderingContext.prototype.texImage2D;
+			WebGLRenderingContext.prototype.texImage2D = function (
+				this: WebGLRenderingContext,
+				...args: unknown[]
+			) {
+				const source = args[5];
+				if (source instanceof HTMLCanvasElement || source instanceof HTMLImageElement) {
+					uploads.push([source.width, source.height]);
+				}
+				return (original as (...rest: unknown[]) => void).apply(this, args);
+			} as typeof original;
+		});
+
+		await page.goto('/');
+		await expect.poll(() => canvasIsActive(page)).toBe(true);
+		const heading = page.getByRole('heading', { level: 1 });
+
+		for (let step = 0; step < 11; step += 1) {
+			const before = await heading.textContent();
+			await ringNext(page);
+			await expect(heading).not.toHaveText(before ?? '');
+		}
+		// Round the ring and two further: on a member whose texture was let go and loaded again.
+		await expect.poll(() => canvasIsActive(page)).toBe(true);
+		// Every photo went up reduced, as a picture of its own shape, never at its full 3.2 million.
+		const uploads = await page.evaluate(
+			() => (window as unknown as { uploads: Array<[number, number]> }).uploads
+		);
+		expect(uploads.length).toBeGreaterThan(9);
+		for (const [width, height] of uploads) {
+			expect(width).toBe(height);
+			expect(width * height).toBeLessThanOrEqual(2_500_000);
+			expect(width).toBeGreaterThan(1500);
+		}
+		expect(errors).toEqual([]);
 	});
 
 	test('falls back to the CSS crossfade outright when the browser has no WebGL at all', async ({

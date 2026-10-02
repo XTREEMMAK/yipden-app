@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { closeOnBack } from '$lib/closeOnBack.js';
 	import { fade } from 'svelte/transition';
 	import { duration, prefersReducedMotion } from '$lib/motion.js';
 
@@ -22,6 +24,9 @@
 	$effect(() => {
 		closeButton?.focus();
 	});
+
+	// Phone Back closes this first, rather than leaving the screen underneath it.
+	onMount(() => closeOnBack('yipdenImage', () => onclose()));
 </script>
 
 <svelte:window onkeydown={(event) => (event.key === 'Escape' ? onclose() : null)} />

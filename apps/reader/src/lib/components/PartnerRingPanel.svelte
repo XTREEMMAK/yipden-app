@@ -157,7 +157,8 @@
 		historyOpen = true;
 
 		const onPopState = () => {
-			if (!historyOpen) return;
+			// Still on the ring's own entry: a picture opened above it was what Back closed.
+			if (!historyOpen || window.history.state?.yipdenRing) return;
 			historyOpen = false;
 			onback();
 		};

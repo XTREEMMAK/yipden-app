@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { swipe } from '$lib/actions/swipe.js';
+	import { tap } from '$lib/actions/tap.js';
 	import { pullToRefresh } from '$lib/actions/pullToRefresh.js';
 	import { duration, ease, flyIn, prefersReducedMotion, STAGGER_MS } from '$lib/motion.js';
 	import { fade, fly } from 'svelte/transition';
@@ -719,12 +720,13 @@
 							{#each where as place (place)}<span>{place}</span>{/each}
 						</div>
 					{/if}
+					<!-- `use:tap`, not `onclick`: these slide in, and must answer while they do. See tap.ts. -->
 					<div class="actions" in:fly|global={enter('actions')}>
 						{#if desktopFirst}
 							<button
 								class="btn-white"
 								class:is-on={onShelf}
-								onclick={saveForLater}
+								use:tap={saveForLater}
 								aria-pressed={onShelf}
 							>
 								{onShelf ? 'Saved' : 'Save for later'}
@@ -733,7 +735,7 @@
 							<button
 								class="btn-white"
 								class:is-on={ring.isFollowing(ring.current)}
-								onclick={follow}
+								use:tap={follow}
 								disabled={following || ring.isFollowing(ring.current)}
 								aria-pressed={ring.isFollowing(ring.current)}
 							>
@@ -758,7 +760,7 @@
 						{#if preview}
 							<button
 								class="btn-icon"
-								onclick={runPreview}
+								use:tap={runPreview}
 								aria-label={preview.label}
 								title={preview.label}
 							>
@@ -776,7 +778,7 @@
 						<button
 							bind:this={actionsButton}
 							class="btn-icon"
-							onclick={() => (actionsSheetOpen = true)}
+							use:tap={() => (actionsSheetOpen = true)}
 							aria-haspopup="dialog"
 							aria-expanded={actionsSheetOpen}
 							aria-label="More actions"

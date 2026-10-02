@@ -1,6 +1,9 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { closeOnBack } from '$lib/closeOnBack.js';
 	import { fade, fly } from 'svelte/transition';
 	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
+	import { keepImage } from '$lib/keptImages.js';
 	import type { Slide } from '$lib/preview.js';
 
 	/**
@@ -28,6 +31,9 @@
 	$effect(() => {
 		closeButton?.focus();
 	});
+
+	// Phone Back closes this first, rather than leaving the screen underneath it.
+	onMount(() => closeOnBack('yipdenPreview', () => onclose()));
 
 	function onScroll() {
 		if (strip) at = Math.round(strip.scrollLeft / Math.max(1, strip.clientWidth));
@@ -86,6 +92,7 @@
 						alt={slide.alt ?? ''}
 						loading="lazy"
 						referrerpolicy="no-referrer"
+						onload={() => keepImage(slide.image!)}
 					/>
 				{:else}
 					<div class="text">

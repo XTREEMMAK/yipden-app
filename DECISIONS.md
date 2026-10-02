@@ -2214,3 +2214,42 @@ place comes back.
 **The minimized player sits at the end of Discover's action row**, in line with it (same margin,
 height and baseline), and the row keeps that place clear while it is minimized. "Follow
 everything" is "Follow all" to make the room.
+
+## 2026-10-03 (evening) — The hero's textures are bounded
+
+A member's photo was uploaded to the canvas at its full size and kept until Discover was left: 48MB
+of graphics memory for a 4000x3000 original, and one more for every member a reader swiped past.
+A photo is now drawn down to at most 2.5 million pixels before upload (what covering the canvas
+takes; 10MB at most), and six textures are kept: the least recently used is let go, never the one
+showing or the one being wiped to. A photo let go is shown by the CSS layer if the reader returns
+to it, while its texture loads again.
+
+The failing "slow current cover" test was the test's own fault: it compared the heading's text,
+which carries whitespace, to a bare name, and so released the wrong photo. It also expected the CSS
+copy under the canvas, which is now removed once the canvas covers it.
+
+## 2026-10-03 (night) — Discover's buttons answer while they slide in; viewed previews are kept
+
+**`use:tap` on Discover's action row.** A browser makes a click only when press and release land
+on the same element. These buttons slide in, so a tap on one still moving was released on
+whatever had replaced it under the finger, and no click came; and after a swipe the browser
+sometimes makes no click at all for a while (the tab bar's old problem). `actions/tap.ts` takes
+the press and the release themselves: a release that has not travelled is a tap, wherever the
+button has got to. A plain click with no tap behind it (keyboard, screen reader) still works.
+
+**A preview's pictures are held once seen** (`keptImages.ts`, the last 40). Many creators' hosts
+tell a browser not to reuse a download, so reopening a preview after visiting someone else
+fetched every picture again. A browser reuses a picture the page is still holding whatever the
+host said, so the ones that have loaded are held. The test forces a collection between looks,
+which is what makes the refetch show without the fix.
+
+## 2026-10-04 — Back closes a preview first; a tap's own click is swallowed
+
+**Phone Back closes an open preview before it goes anywhere** (`closeOnBack.ts`): Discover's
+preview sheet and the full-screen picture in a partner ring each get a history entry while open,
+taken back out if they are closed by hand. Entries stack, so a picture closing inside a ring's
+panel leaves the panel open: an overlay closes only when the entry on top is no longer its own.
+
+**More actions liked the creator.** `use:tap` opened the menu on the finger's release, and the
+click the browser makes a moment later landed on the menu item now under the finger. The click
+after a handled tap is now swallowed wherever it lands, for 400ms at most.

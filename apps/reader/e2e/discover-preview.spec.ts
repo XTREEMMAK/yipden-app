@@ -191,4 +191,110 @@ test.describe('Discover previews', () => {
 		// At least one sample sits strictly between start and end: it travelled, it did not jump.
 		expect(seen.some((y) => y > before + 4 && y < after - 4)).toBe(true);
 	});
+
+	test('a preview opened again shows its pictures from memory, without asking the host twice', async ({
+		page
+	}) => {
+		await seed(page);
+		// A host that tells the browser not to reuse what it downloads, as many creators' do.
+		const PNG = Buffer.from(
+			'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+			'base64'
+		);
+		let requests = 0;
+		await page.route('https://example.com/*.png', (route) => {
+			// Only the comic's own pages: walking the ring also fetches other members' covers.
+			if (/\/p\d\.png$/.test(route.request().url())) requests += 1;
+			return route.fulfill({
+				status: 200,
+				contentType: 'image/png',
+				headers: { 'cache-control': 'no-store' },
+				body: PNG
+			});
+		});
+		await showMember(page, 'Creator cmc');
+
+		await page.getByRole('button', { name: 'Read a preview' }).click();
+		const first = page
+			.getByRole('dialog', { name: /preview/ })
+			.locator('img')
+			.first();
+		await expect.poll(() => first.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1);
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('dialog', { name: /preview/ })).toHaveCount(0);
+		const afterFirstLook = requests;
+
+		// Away to someone else and back, as a reader would, long enough for the browser to let go
+		// of pictures nothing is holding: a collection stands in for the wait.
+		await ringNext(page);
+		const session = await page.context().newCDPSession(page);
+		await session.send('HeapProfiler.collectGarbage');
+		await page.waitForTimeout(300);
+		await showMember(page, 'Creator cmc');
+		await page.getByRole('button', { name: 'Read a preview' }).click();
+		await expect.poll(() => first.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1);
+		expect(requests).toBe(afterFirstLook);
+	});
+
+	test('a button still sliding in answers a tap, though the finger lifts off it', async ({
+		page
+	}) => {
+		await seed(page);
+		await showMember(page, 'Creator cmc');
+		await ringNext(page);
+		await page.waitForTimeout(700);
+		// Back to the comic, and press its preview button while the row is still arriving.
+		await page.keyboard.press('ArrowLeft');
+		const button = page.locator('.body-inner:not([aria-hidden]) .actions .btn-icon').first();
+		const row = page.locator('.body-inner:not([aria-hidden]) .actions');
+		await expect
+			.poll(() => row.evaluate((el) => Number(getComputedStyle(el).opacity)))
+			.toBeGreaterThan(0.2);
+		const box = (await button.boundingBox())!;
+		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+		await page.mouse.down();
+		// Held for a moment: the button slides out from under the pointer before it lifts.
+		await page.waitForTimeout(250);
+		await page.mouse.up();
+
+		await expect(page.getByRole('dialog', { name: /preview/ })).toBeVisible();
+	});
+
+	test('Back closes an open preview and stays on Discover; closed by hand, Back is not left a dead step', async ({
+		page
+	}) => {
+		await seed(page);
+		await showMember(page, 'Creator cmc');
+		const viewer = page.getByRole('dialog', { name: /preview/ });
+		const entries = () => page.evaluate(() => window.history.length);
+		const before = await entries();
+
+		await page.getByRole('button', { name: 'Read a preview' }).click();
+		await expect(viewer).toBeVisible();
+		await page.goBack();
+		await expect(viewer).toHaveCount(0);
+		await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Creator cmc/);
+
+		// Opened and closed with its own button: the entry it added is taken back out, so the
+		// preview does not come back and Back has no step that does nothing.
+		await page.getByRole('button', { name: 'Read a preview' }).click();
+		await expect(viewer).toBeVisible();
+		await page.getByRole('button', { name: 'Close preview' }).click();
+		await expect(viewer).toHaveCount(0);
+		await expect.poll(() => page.evaluate(() => window.history.state?.yipdenPreview)).toBeFalsy();
+		expect(await entries()).toBeLessThanOrEqual(before + 1);
+	});
+
+	test('More actions opens its menu, and the tap that opened it does not press what is in it', async ({
+		page
+	}) => {
+		await seed(page);
+		await showMember(page, 'Creator cmc');
+		await page.getByRole('button', { name: 'More actions' }).tap();
+		const dialog = page.getByRole('dialog', { name: /^Actions for / });
+		await expect(dialog).toBeVisible();
+		await page.waitForTimeout(500);
+		await expect(dialog).toBeVisible();
+		await expect(page.locator('.name-heart')).toHaveCount(0);
+	});
 });

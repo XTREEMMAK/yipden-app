@@ -114,7 +114,24 @@ interface Texture {
 	height: number;
 	/** True once a real photo (not the placeholder color) is in the texture. */
 	loaded: boolean;
+	/** When it was last asked for, as a count: the least recently used is the first to go. */
+	usedAt: number;
 }
+
+/**
+ * A photo is uploaded at no more than this many pixels. A texture is held uncompressed, four
+ * bytes a pixel, so a member's 4000x3000 original was 48MB of graphics memory to fill a phone
+ * screen. Two and a half million is what covering the canvas actually takes (a 4:3 photo cropped
+ * to a tall screen at this hero's capped pixel ratio), and is 10MB at most.
+ */
+const MAX_TEXTURE_PIXELS = 2_500_000;
+
+/**
+ * How many photos are kept as textures: the one showing, the one being wiped to, both
+ * neighbours, and a few behind for stepping back. Every photo ever visited used to stay until
+ * Discover was left, which grew without limit while a reader browsed the ring.
+ */
+const MAX_TEXTURES = 6;
 
 export interface HeroGLOptions {
 	/** Called once per photo when it finishes loading, or definitively fails, so the caller can
@@ -292,23 +309,70 @@ export function createHeroGL(
 		return texture;
 	}
 
+	let uses = 0;
+
 	/**
-	 * Loads once per URL, ever: the `textures` cache means a photo that failed is never
-	 * retried, and a photo that succeeded is never re-fetched. A failure leaves the entry on
-	 * its placeholder color permanently; nothing here treats that as fatal to the hero itself,
-	 * since a wipe between two solid colors is still the wipe, just without a real photo in it.
+	 * Lets go of the least recently used photos past `MAX_TEXTURES`, never the one showing or the
+	 * one being wiped to. The caller is told (`onTexture(url, false)`), so it shows that photo
+	 * from its CSS layer if the reader comes back to it, while the texture loads again.
+	 */
+	function evict(): void {
+		if (textures.size <= MAX_TEXTURES) return;
+		const spare = [...textures]
+			.filter(([url]) => url !== current && url !== next)
+			.sort(([, a], [, b]) => a.usedAt - b.usedAt);
+		for (const [url, entry] of spare.slice(0, textures.size - MAX_TEXTURES)) {
+			context.deleteTexture(entry.texture);
+			textures.delete(url);
+			if (entry.loaded) options.onTexture?.(url, false, 'released');
+		}
+	}
+
+	/** The photo, drawn smaller if it is past `MAX_TEXTURE_PIXELS`; itself if it is not. */
+	function fitted(image: HTMLImageElement): {
+		source: TexImageSource;
+		width: number;
+		height: number;
+	} {
+		const width = image.naturalWidth;
+		const height = image.naturalHeight;
+		const scale = Math.sqrt(MAX_TEXTURE_PIXELS / Math.max(1, width * height));
+		if (scale >= 1) return { source: image, width, height };
+		const small = document.createElement('canvas');
+		small.width = Math.max(1, Math.round(width * scale));
+		small.height = Math.max(1, Math.round(height * scale));
+		const pen = small.getContext('2d');
+		if (!pen) return { source: image, width, height };
+		pen.imageSmoothingQuality = 'high';
+		pen.drawImage(image, 0, 0, small.width, small.height);
+		return { source: small, width: small.width, height: small.height };
+	}
+
+	/**
+	 * Loads once per URL for as long as its texture is kept: a photo that failed is not retried,
+	 * and one that succeeded is not fetched again, until it has gone unused long enough to be let
+	 * go (see `evict`). A failure leaves the entry on its placeholder color; nothing here treats
+	 * that as fatal to the hero itself, since a wipe between two solid colors is still the wipe,
+	 * just without a real photo in it.
 	 */
 	function loadTexture(url: string, fallbackColor: [number, number, number]): Texture {
 		const existing = textures.get(url);
-		if (existing) return existing;
+		if (existing) {
+			existing.usedAt = uses += 1;
+			return existing;
+		}
 
 		const entry: Texture = {
 			texture: placeholderTexture(fallbackColor),
 			width: 1,
 			height: 1,
-			loaded: false
+			loaded: false,
+			usedAt: (uses += 1)
 		};
 		textures.set(url, entry);
+		evict();
+		// Let go of while it was still loading: whatever arrives now has nowhere to go.
+		const kept = () => textures.get(url) === entry;
 
 		const upload = (
 			source: TexImageSource,
@@ -346,22 +410,31 @@ export function createHeroGL(
 			const image = new Image();
 			image.crossOrigin = 'anonymous';
 			image.onload = () => {
+				if (!kept()) return;
 				try {
-					upload(image, image.naturalWidth, image.naturalHeight, true, via);
+					const photo = fitted(image);
+					upload(photo.source, photo.width, photo.height, true, via);
+					// The reduced copy has done its job once it is in the texture.
+					if (photo.source instanceof HTMLCanvasElement) photo.source.width = 0;
 				} catch (error) {
 					// An engine that refuses a cross-origin upload: the CSS layer shows the photo.
 					options.onTexture?.(url, false, `${via} upload: ${error}`);
 				}
 			};
-			image.onerror = () => options.onTexture?.(url, false, `${via} would not decode or load`);
+			image.onerror = () => {
+				if (kept()) options.onTexture?.(url, false, `${via} would not decode or load`);
+			};
 			image.src = source ?? url;
 		};
 
 		if (options.loadDataUrl) {
 			options
 				.loadDataUrl(url)
-				.then((dataUrl) => viaImage(dataUrl))
+				.then((dataUrl) => {
+					if (kept()) viaImage(dataUrl);
+				})
 				.catch((error) => {
+					if (!kept()) return;
 					console.warn('hero photo: native load failed, trying a plain image', url, error);
 					options.onTexture?.(url, false, `native fetch failed: ${error}`);
 					viaImage();

@@ -141,7 +141,15 @@
 			() => (glActive = false),
 			{
 				onTexture: (url, loaded) => {
-					if (!loaded) return;
+					if (!loaded) {
+						// Let go of to make room (or it never loaded): the CSS layer shows it from here.
+						if (drawable.has(url)) {
+							const next = new Set(drawable);
+							next.delete(url);
+							drawable = next;
+						}
+						return;
+					}
 					const newlyDrawable = !drawable.has(url);
 					drawable = new Set(drawable).add(url);
 					// A target can become current while its texture is still the one-pixel wash.
