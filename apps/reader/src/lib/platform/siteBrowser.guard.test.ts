@@ -47,6 +47,22 @@ describe('the app manifest', () => {
 			/<uses-permission android:name="android\.permission\.CAMERA" tools:node="remove" \/>/
 		);
 	});
+
+	it('gives the toolbar button a spoken label that says what it does', () => {
+		// The plugin's layout reads this string; the app's own copy of it wins over the plugin's.
+		const layout = readFileSync(
+			join(pluginRoot, 'android/src/main/res/layout/tool_bar.xml'),
+			'utf8'
+		);
+		expect(layout).toContain('android:contentDescription="@string/button_near_done"');
+		const strings = readFileSync(
+			join(import.meta.dirname, '../../../android/app/src/main/res/values/strings.xml'),
+			'utf8'
+		);
+		expect(strings).toContain(
+			'<string name="button_near_done">Keep something from this page</string>'
+		);
+	});
 });
 
 describe('how YipDen opens a site', () => {

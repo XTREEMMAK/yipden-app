@@ -125,7 +125,7 @@ class SiteBrowser {
 			ignoreUntrustedSSLError: false,
 			isInspectable: __YIPDEN_DEBUG__,
 			buttonNearDone: {
-				ios: { iconType: 'sf-symbol', icon: 'music.note.list' },
+				ios: { iconType: 'sf-symbol', icon: 'tray.and.arrow.down' },
 				android: { iconType: 'vector', icon: 'ic_yipden_found', width: 24, height: 24 }
 			}
 		});

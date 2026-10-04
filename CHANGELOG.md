@@ -117,6 +117,9 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- The button in the in-app browser's toolbar is now a "keep" sign rather than a music note, since
+  it keeps pictures and passages as well as tracks, and TalkBack reads it as "Keep something from
+  this page" instead of "Button near done".
 - Keeping a track now checks it first: a file has to be on the creator's own site, and a copy
   hosted anywhere else is refused, with a plain reason. Platform players (Bandcamp and the like)
   found on their page are still kept as links. Kept tracks are checked again now and then, and one

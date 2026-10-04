@@ -2706,3 +2706,17 @@ from their site stays listed, marked, so it can be removed.
 **Re-checks.** A passage is re-checked by looking for its text on the page. A passage restored
 from a backup carries only its link (see the backup decision above), so it has nothing to look for
 and is never re-checked, never marked gone on that account.
+
+## 2026-10-04 (late, later) — The in-app browser's button keeps anything, not only music
+
+Feedback from the developer: the toolbar button was a note with a plus on every site, which says
+nothing on a page of comics. A per-creator icon was considered and rejected. Pages are mixed (a
+comic with a soundtrack, a musician's lyrics), and the sheet behind the button offers every kind.
+
+- **The icon** is now a tray with an arrow dropping into it, the same idea as the iOS symbol it now
+  uses (`tray.and.arrow.down`, replacing `music.note.list`). Not a bookmark, which Save for later
+  already uses. An arched den with a plus inside was tried first, and rendered it reads as a
+  gravestone.
+- **The spoken label** was the plugin's own "Button near done", which TalkBack read aloud. The app
+  now overrides that string resource with "Keep something from this page" (an app's resources win
+  over a library's, so no patch), and a guard test keeps it.

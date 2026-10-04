@@ -4,4 +4,10 @@
     <string name="title_activity_main">YipDen</string>
     <string name="package_name">com.yipden.app</string>
     <string name="custom_url_scheme">com.yipden.app</string>
+    <!--
+        Overrides the in-app browser plugin's own label for its toolbar button, which TalkBack would
+        otherwise read as "Button near done". An app's resources win over a library's of the same
+        name, so no patch is needed.
+    -->
+    <string name="button_near_done">Keep something from this page</string>
 </resources>
