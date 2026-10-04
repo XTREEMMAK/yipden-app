@@ -2767,3 +2767,23 @@ name, or else their site's address. Nothing is rewritten to fill them in.
 Discover's "Your notes and tracks" became "Your notes and keeps", and its count includes pictures
 and passages. Read history stays off the Library, as the audit proposed: the Library holds what a
 reader chose to keep.
+
+## 2026-10-04 (night, later) — A followed member's own picks, on You
+
+Raised by the developer: once someone is followed, what they put up themselves (their ring
+tracks, comic pages, artwork, writing sample, trailer) could only be reached by finding them again
+in Discover. Their row on You showed their sources and what the reader kept, but nothing of
+theirs.
+
+- **On the row:** a round button gives one-tap access to their own picks, with the same action as
+  Discover's (`previewFor`): Play, Read a preview, View artwork, Read a sample, or the trailer link.
+- **In the expanded row:** a "Their own picks" block, "chosen by {name} for the IndieNodes ring",
+  set apart from "Added by you", so a reader's own keeps and a creator's choices are never confused.
+- **Read live, stored nowhere new.** The member is found in the ring by the entry id kept when they
+  were followed, or by their site for a follow made another way. You loads the cached ring if it
+  is not already in memory, as Discover does.
+- **When there is nothing to show.** Someone not in the ring, someone who has left it, or a member
+  with nothing to preview gets no button and no block, rather than an error.
+- **Partner rings are not covered,** because their members cannot be followed yet (a ROADMAP open
+  question).
+- **Not in the Library.** That holds what the reader kept; these are the creator's.

@@ -67,6 +67,12 @@ async function withRing(page: Page, body: unknown = RING, status = 200) {
 	await page.route('https://example.com/**', (route) => route.abort());
 }
 
+/** Opens the filter sheet and picks one option, same as a reader tapping the Filter button. */
+async function chooseFilter(page: Page, label: string) {
+	await page.getByRole('button', { name: /^Filter the ring/ }).click();
+	await page.getByRole('radio', { name: label, exact: true }).click();
+}
+
 test.describe('Discover', () => {
 	test.beforeEach(async ({ page }) => {
 		await withRing(page);
@@ -110,12 +116,6 @@ test.describe('Discover', () => {
 		}
 		await expect(heading).toHaveText(first ?? '');
 	});
-
-	/** Opens the filter sheet and picks one option, same as a reader tapping the Filter button. */
-	async function chooseFilter(page: Page, label: string) {
-		await page.getByRole('button', { name: /^Filter the ring/ }).click();
-		await page.getByRole('radio', { name: label, exact: true }).click();
-	}
 
 	test('filters the ring with the chips', async ({ page }) => {
 		await page.goto('/');
@@ -335,5 +335,52 @@ test.describe('Discover with no network', () => {
 		await page.reload();
 
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText(name ?? '');
+	});
+});
+
+test.describe('a followed member’s own picks', () => {
+	test('are one tap from their row on You, and in it, played the way Discover plays them', async ({
+		page
+	}) => {
+		const [ada, ...rest] = RING.entries;
+		await withRing(page, {
+			...RING,
+			entries: [
+				{ ...ada, tracks: [{ label: 'Broken Synth', media_url: 'https://example.com/synth.wav' }] },
+				...rest
+			]
+		});
+		await page.goto('/');
+		await chooseFilter(page, 'Music');
+		await page.getByRole('button', { name: /Follow all/ }).click();
+		await expect(page.getByRole('status').filter({ hasText: 'Following Ada Reed' })).toBeVisible();
+
+		await page.goto('/you');
+		const quick = page.getByRole('button', { name: 'Play: Ada Reed’s own picks' });
+		await expect(quick).toBeVisible();
+		const box = await quick.boundingBox();
+		expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+		await page
+			.getByRole('button', { name: /^Ada Reed/ })
+			.first()
+			.click();
+		const picks = page.locator('.their-picks');
+		await expect(picks).toContainText('Their own picks');
+		await expect(picks).toContainText('Chosen by Ada Reed for the IndieNodes ring');
+
+		await quick.click();
+		await expect(page.getByText('Broken Synth').first()).toBeVisible();
+	});
+
+	test('show nothing for a member with nothing of their own to show', async ({ page }) => {
+		await withRing(page);
+		await page.goto('/');
+		await chooseFilter(page, 'Music');
+		await page.getByRole('button', { name: /Follow all/ }).click();
+		await expect(page.getByRole('status').filter({ hasText: 'Following Ada Reed' })).toBeVisible();
+
+		await page.goto('/you');
+		await expect(page.getByRole('button', { name: /own picks$/ })).toHaveCount(0);
 	});
 });

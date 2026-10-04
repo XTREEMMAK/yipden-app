@@ -21,6 +21,15 @@
 	import ReaderTracks from '$components/ReaderTracks.svelte';
 	import ReaderFinds from '$components/ReaderFinds.svelte';
 	import Library from '$components/Library.svelte';
+	import PreviewSheet from '$components/PreviewSheet.svelte';
+	import type { RingEntry } from '@yipden/ring-client';
+	import { openExternal } from '$lib/platform/external.js';
+	import { previewFor, type Preview, type Slide } from '$lib/preview.js';
+	import { ring } from '$lib/ring.svelte.js';
+	import { ringPlayer } from '$lib/ringPlayer.svelte.js';
+	import type { Person } from '$lib/store/types.js';
+	import { verdictKey } from '$lib/verdicts.svelte.js';
+	import { explored } from '$lib/explored.svelte.js';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 
 	/**
@@ -53,7 +62,34 @@
 		void creatorNotes.load();
 		void you.load();
 		void shelf.load();
+		// Their own picks come from the ring; a cached ring paints at once, as in Discover.
+		if (!ring.all.length) void ring.load();
 	});
+
+	/**
+	 * A followed person's own entry in the ring: by the entry id kept when they were followed,
+	 * else by their site, for a follow made another way. Null for someone not in the ring, or who
+	 * has left it; then there is simply nothing of theirs to show.
+	 */
+	function ringEntryFor(person: Person): RingEntry | null {
+		if (person.ringId) {
+			const byId = ring.all.find((entry) => entry.id === person.ringId);
+			if (byId) return byId;
+		}
+		const site = verdictKey(person.siteUrl);
+		return ring.all.find((entry) => verdictKey(entry.source_url) === site) ?? null;
+	}
+
+	/** Open for "Read a preview", "View artwork" or "Read a sample". */
+	let picks = $state<{ title: string; slides: Slide[] } | null>(null);
+
+	/** What they chose to show, the same way Discover shows it. */
+	function openPicks(entry: RingEntry, preview: Preview, from?: HTMLElement) {
+		void explored.mark(entry.source_url);
+		if (preview.kind === 'play') ringPlayer.play(entry, from);
+		else if (preview.kind === 'view') picks = { title: entry.creator, slides: preview.slides };
+		else openExternal(preview.url);
+	}
 
 	async function onPullRefresh() {
 		refreshing = true;
@@ -453,6 +489,8 @@
 					<p class="empty">You are not following anyone yet. Discover is a good place to start.</p>
 				{:else}
 					{#each you.rows as row, personIndex (row.person.id)}
+						{@const entry = ringEntryFor(row.person)}
+						{@const own = entry ? previewFor(entry) : null}
 						<div class="follow-person">
 							<div class="srow person-row">
 								<button
@@ -484,6 +522,23 @@
 										aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg
 									>
 								</button>
+								{#if entry && own && confirmingId !== row.person.id}
+									<button
+										class="picks-btn"
+										aria-label={`${own.label}: ${row.person.name}’s own picks`}
+										onclick={(event) => openPicks(entry, own, event.currentTarget)}
+									>
+										<svg viewBox="0 0 24 24" aria-hidden="true">
+											{#if own.kind === 'play'}
+												<path d="M8 5v14l11-7z" />
+											{:else if own.kind === 'view'}
+												<path d="M4 6h16v12H4zM4 15l5-4 4 3 3-2 4 3" />
+											{:else}
+												<path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5" />
+											{/if}
+										</svg>
+									</button>
+								{/if}
 								{#if confirmingId === row.person.id}
 									<span class="confirm">
 										<button
@@ -505,6 +560,19 @@
 								{/if}
 							</div>
 							{#if expandedIds.has(row.person.id)}
+								{#if entry && own}
+									<div class="their-picks">
+										<span class="tt">
+											<b>Their own picks</b>
+											<small>Chosen by {row.person.name} for the IndieNodes ring</small>
+										</span>
+										<button
+											class="mini-btn"
+											onclick={(event) => openPicks(entry, own, event.currentTarget)}
+											>{own.label}</button
+										>
+									</div>
+								{/if}
 								<div class="feed-list" id={`feeds-${personIndex}`}>
 									{#each row.feeds as feed, feedIndex (feed.id)}
 										<div class:feed-problem={feed.failures > 0} class="feed-row">
@@ -682,6 +750,10 @@
 
 	<Toast />
 </div>
+
+{#if picks}
+	<PreviewSheet title={picks.title} slides={picks.slides} onclose={() => (picks = null)} />
+{/if}
 
 <style>
 	/* Anchors the pull overlay to this scroll area rather than whatever ancestor is positioned. */
@@ -1171,6 +1243,49 @@
 		font-family: var(--body);
 		font-size: 13px;
 		font-weight: 600;
+	}
+
+	/* Their own picks, one tap from the row: the brand's round play button, as in Discover. */
+	.picks-btn {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		padding: 0;
+		border: 0;
+		border-radius: 999px;
+		background: var(--brand);
+		color: #fff;
+	}
+
+	.picks-btn svg {
+		width: 18px;
+		height: 18px;
+		fill: currentColor;
+		stroke: currentColor;
+		stroke-width: 1.6;
+		stroke-linejoin: round;
+	}
+
+	.their-picks {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		margin: 0 14px;
+		padding: 10px 12px;
+		border-radius: 14px;
+		background: var(--brand-soft);
+		color: var(--brand-ink);
+	}
+
+	.their-picks .tt {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.their-picks small {
+		color: var(--brand-ink);
 	}
 
 	.mini-btn.danger {

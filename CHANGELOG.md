@@ -22,6 +22,8 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- Someone you follow from the IndieNodes ring now has their own picks on their row in You: their
+  tracks, comic pages, artwork or writing sample, one tap away, the same as in Discover.
 - A Library at the top of You: everything you kept (tracks, pictures, screenshots, passages) and
   every link you saved for later, in one place. It counts what is there, shows what is recent,
   arranges by type, creator or date, and searches titles, creators and passages. Every item says
