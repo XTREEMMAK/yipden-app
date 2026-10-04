@@ -2533,3 +2533,27 @@ is not in the app.
 
 The About sheet's attributions now list the sqlite plugin, SQLCipher (BSD-style, © Zetetic LLC)
 and the in-app browser plugin, which was missing.
+
+## 2026-10-04 (later) — A security check of the encrypted store: one leak, closed
+
+Asked for after the store landed: did any of it add a risk?
+
+- **The web build is not worse than before.** Before, IndexedDB held everything in plaintext:
+  readable by any script on the origin, and off the disk. Now any script on the origin can still
+  decrypt (that is the documented weakness), and the disk holds ciphertext. There are no new
+  entry points: no new script sources (the CSP is unchanged) and nothing fetched from a CDN. The
+  sqlite plugin's web code is in the bundle as a lazy chunk, but only the phone's driver imports
+  it, and it never runs on the web. The data read back is data this app encrypted itself.
+- **The phone had one leak, now closed.** Capacitor's bridge logs every plugin call with its full
+  arguments (`methodData`) when native logging is on, and it is on by default in debug builds. On
+  the debug APKs used for phone testing, the database key would have reached logcat once, through
+  `setEncryptionSecret`, and every SQL value after it. Release builds were not affected, and only
+  adb or a system app can read another app's logcat, but the brief's rule is that the key never
+  reaches a log. `loggingBehavior: 'none'` now applies to every build; the web console still
+  shows in chrome://inspect. A guard test keeps it off, along with the plugin's encryption flag
+  and the backup settings.
+- **Checked and fine:**
+  - The plugin rewrites `DELETE` statements only for its own sync columns, which these tables do
+    not have.
+  - Every SQL value is a bound parameter. Table and column names come only from constants.
+  - The plugin's own Android logs carry no data.

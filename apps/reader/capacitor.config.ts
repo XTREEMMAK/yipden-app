@@ -12,6 +12,14 @@ const config: CapacitorConfig = {
 	appName: 'YipDen',
 	webDir: 'build',
 	backgroundColor: '#120B08',
+	/*
+	 * No native logging in any build. Capacitor's bridge logs every plugin call with its full
+	 * arguments when logging is on, which it is by default in debug builds: the database key
+	 * handed to the sqlite plugin once, and every SQL value after it (follow addresses, yip text,
+	 * read times) would reach logcat. The web side's console still shows in chrome://inspect on a
+	 * debug build, which is where debugging happens anyway.
+	 */
+	loggingBehavior: 'none',
 	android: {
 		// No plain http, ever, including in development against real feeds.
 		allowMixedContent: false,

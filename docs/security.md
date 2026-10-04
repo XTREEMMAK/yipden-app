@@ -165,6 +165,9 @@ All of it is in one encrypted database, behind the `Store` interface (`src/lib/s
   - The WebView HTTP cache, which holds creators' images and the in-app browser's pages, is cleared
     when the app closes and again at every cold start (`MainActivity.java`).
   - Release builds log no addresses: the two logs that name a URL run only in development.
+  - Native logging is off in every build (`loggingBehavior: 'none'`). Capacitor's bridge would
+    otherwise log each plugin call with its arguments in debug builds, which would put the key and
+    every SQL value in logcat. `store.guard.test.ts` keeps it off.
 
 **What this does not protect.** It protects data at rest: a copied disk image, a stolen backup, the
 files read off a phone that is off or locked. It does **not** protect a rooted phone while YipDen
