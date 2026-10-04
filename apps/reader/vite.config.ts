@@ -28,8 +28,8 @@ function commit(): string {
 }
 
 /**
- * Whether this build carries the debugging tools: the age limit switch and the testing-only
- * partner rings in Settings (and the age limit starting off).
+ * Whether this build carries the debugging tools: the age limit switch and the scroll
+ * diagnostics in Settings (and the age limit starting off).
  *
  * On for the dev server (live reload included), for Vitest, and for any build made with
  * `VITE_YIPDEN_DEBUG=1`, which `android:apk`/`android:install` and the end to end suite set. Off for

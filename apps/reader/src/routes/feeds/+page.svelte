@@ -15,12 +15,14 @@
 		type FeedsFilterKey
 	} from '$lib/feeds.svelte.js';
 	import { shelf, toggleShelf } from '$lib/shelf.svelte.js';
+	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
 	import type { FeedYip } from '$lib/syndication.js';
 	import type { StoredYip } from '$lib/store/index.js';
 	import YipCard from '$components/YipCard.svelte';
 	import Toast from '$components/Toast.svelte';
 	import RingMemberCard from '$components/RingMemberCard.svelte';
+	import FeedsFilterSheet from '$components/FeedsFilterSheet.svelte';
 
 	/**
 	 * Feeds: everything followed, merged and reverse chronological, in four panes a reader
@@ -28,6 +30,14 @@
 	 * the pull to refresh, and the pills are always on screen. Each pane keeps its own scroll position because all
 	 * four stay mounted; only the track that holds them moves.
 	 */
+
+	let scopeSheetOpen = $state(false);
+	let scopeButton: HTMLButtonElement | undefined;
+
+	function closeScopeSheet() {
+		scopeSheetOpen = false;
+		scopeButton?.focus();
+	}
 
 	let filterIndex = $derived(FEEDS_FILTERS.findIndex((filter) => filter.key === feeds.filter));
 	let viewport: HTMLDivElement | undefined;
@@ -62,6 +72,7 @@
 	onMount(() => {
 		void feeds.loadAndCatchUp();
 		void shelf.load();
+		void creatorNotes.load();
 		if (!ring.all.length) void ring.load();
 
 		/*
@@ -136,7 +147,8 @@
 
 	/** A yip from a site that declared, or was found to be, built for a bigger screen. */
 	function isDesktopFirst(yip: StoredYip): boolean {
-		return feeds.personFor(yip)?.layout === 'desktop-first';
+		const person = feeds.personFor(yip);
+		return !!person && creatorNotes.layoutFor(person.siteUrl, person.layout) === 'desktop-first';
 	}
 
 	function saveForLater(yip: StoredYip) {
@@ -158,13 +170,36 @@
 
 <div class="feeds">
 	<header class="head">
-		<p class="eyebrow">
-			{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-		</p>
-		<h2 class="screen-title">
-			{feeds.unreadCount} new <em>yips</em> from {feeds.peopleCount}
-			{feeds.peopleCount === 1 ? 'person' : 'people'}
-		</h2>
+		<div class="head-row">
+			<div class="head-text">
+				<p class="eyebrow">
+					{new Date().toLocaleDateString('en-US', {
+						weekday: 'short',
+						month: 'short',
+						day: 'numeric'
+					})}{#if feeds.scopeLabel}{' · '}<span class="scope">{feeds.scopeLabel}</span>{/if}
+				</p>
+				<h2 class="screen-title">
+					{feeds.unreadCount} new <em>yips</em> from {feeds.peopleCount}
+					{feeds.peopleCount === 1 ? 'person' : 'people'}
+				</h2>
+			</div>
+			<button
+				bind:this={scopeButton}
+				class="scope-btn"
+				class:is-active={feeds.scope.kind !== 'all'}
+				onclick={() => (scopeSheetOpen = true)}
+				aria-haspopup="dialog"
+				aria-expanded={scopeSheetOpen}
+				aria-label={feeds.scopeLabel
+					? `Filter your feeds: ${feeds.scopeLabel}`
+					: 'Filter your feeds'}
+			>
+				<svg viewBox="0 0 24 24" aria-hidden="true">
+					<path d="M4 5h16M7 12h10M10 19h4" />
+				</svg>
+			</button>
+		</div>
 
 		<div class="pills" role="tablist" aria-label="Filter yips">
 			<span
@@ -226,9 +261,11 @@
 						<p class="empty">Loading{'…'}</p>
 					{:else if feeds.panes[filter.key].length === 0}
 						<p class="empty">
-							{filter.key === 'everything'
-								? 'Nothing here yet. Follow someone to see their yips.'
-								: 'Nothing here yet.'}
+							{feeds.scopeLabel
+								? `Nothing from ${feeds.scopeLabel} here yet.`
+								: filter.key === 'everything'
+									? 'Nothing here yet. Follow someone to see their yips.'
+									: 'Nothing here yet.'}
 						</p>
 					{:else}
 						<div class="stack-list">
@@ -307,6 +344,10 @@
 	<Toast />
 </div>
 
+{#if scopeSheetOpen}
+	<FeedsFilterSheet onclose={closeScopeSheet} />
+{/if}
+
 <style>
 	.feeds {
 		display: flex;
@@ -319,6 +360,52 @@
 		flex-direction: column;
 		gap: 10px;
 		padding: calc(20px + env(safe-area-inset-top, 0px)) 20px 14px;
+	}
+
+	.head-row {
+		display: flex;
+		align-items: flex-start;
+		gap: 12px;
+	}
+
+	.head-text {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		gap: 10px;
+		min-width: 0;
+	}
+
+	.scope {
+		color: var(--brand-text);
+	}
+
+	.scope-btn {
+		display: grid;
+		place-items: center;
+		flex: none;
+		width: 44px;
+		height: 44px;
+		padding: 0;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--ink);
+	}
+
+	.scope-btn.is-active {
+		border-color: var(--brand);
+		background: var(--brand);
+		color: #fff;
+	}
+
+	.scope-btn svg {
+		width: 20px;
+		height: 20px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
 	}
 
 	.eyebrow {

@@ -58,4 +58,11 @@
       Its own manifest declares FOREGROUND_SERVICE but not this one, so it is added here.
     -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <!--
+        The in-app browser plugin asks for the camera so a page's file picker can take a photo.
+        YipDen never needs that from a creator's page, so the merged manifest drops it here,
+        whatever a plugin version declares. See docs/security.md.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" tools:node="remove" />
 </manifest>

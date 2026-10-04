@@ -16,6 +16,10 @@
 	import type { Feed, FeedError } from '$lib/store/index.js';
 	import Toast from '$components/Toast.svelte';
 	import YouLists from '$components/YouLists.svelte';
+	import FolderPicker from '$components/FolderPicker.svelte';
+	import LayoutPicker from '$components/LayoutPicker.svelte';
+	import ReaderTracks from '$components/ReaderTracks.svelte';
+	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 
 	/**
 	 * You: who you follow and what you have saved. The reader's own data, not the app's
@@ -44,6 +48,7 @@
 	const PULL_THRESHOLD = 64;
 
 	onMount(() => {
+		void creatorNotes.load();
 		void you.load();
 		void shelf.load();
 	});
@@ -576,6 +581,25 @@
 										{/if}
 									{/each}
 									<div class="source-manage">
+										<FolderPicker
+											id={`folder-${personIndex}`}
+											value={row.person.folder}
+											folders={you.folders}
+											onchange={(folder) => you.setPersonFolder(row.person.id, folder)}
+										/>
+										<LayoutPicker
+											id={`layout-${personIndex}`}
+											creatorUrl={row.person.siteUrl}
+											declared={row.person.layout}
+										/>
+										<ReaderTracks
+											id={`tracks-${personIndex}`}
+											creator={{
+												url: row.person.siteUrl,
+												name: row.person.name,
+												artUrl: row.person.iconUrl ?? null
+											}}
+										/>
 										<div class="age-limit">
 											<label for={`age-${personIndex}`}>
 												Keep posts from the last

@@ -5,3 +5,6 @@ packages:
 # esbuild ships a prebuilt binary its postinstall puts in place; vitest needs it.
 allowBuilds:
   esbuild: true
+
+patchedDependencies:
+  '@capgo/capacitor-inappbrowser@8.21.1': patches/@capgo__capacitor-inappbrowser@8.21.1.patch

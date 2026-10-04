@@ -85,25 +85,116 @@ Following Mozilla's web security guidance, adapted to an app whose origin is loc
   never from markup a feed supplied.
 - **`Referrer-Policy: strict-origin-when-cross-origin`**, so a creator's server never learns
   which yip the reader came from beyond the origin.
-- **Android cleartext traffic disabled** in the manifest, release builds not debuggable,
-  Capacitor's `allowNavigation` left empty so no remote origin can take over the WebView, and
-  no exported components beyond the launcher activity.
+- **Android cleartext traffic disabled** in the manifest, release builds not debuggable, and
+  Capacitor's `allowNavigation` left empty so no remote origin can take over the WebView.
+- **Exported components** (checked in the merged manifest, 2026-10-02): the launcher activity; the
+  media session plugin's `MediaSessionService` and AndroidX's `MediaButtonReceiver`, both only for
+  `MEDIA_BUTTON` (another app can at most press play or pause, which is what headset buttons
+  are); and AndroidX's `ProfileInstallReceiver`, guarded by the system-only `DUMP` permission.
+
+## Creators' sites in the app (Android)
+
+Visit, from Discover and partner rings, can open a creator's site inside the app through
+`@capgo/capacitor-inappbrowser` (Settings: "Open creators' sites in YipDen", on by default; the web build
+and an off switch use the system browser as before). The aim is a toolbar button that lets the
+reader keep audio the page plays (see DECISIONS.md, 2026-10-02). What keeps that safe:
+
+- **A separate WebView, never the app's.** The creator's page runs in the plugin's own WebView at
+  its own origin. It cannot reach the app's origin (`https://localhost`), its IndexedDB, or the
+  Capacitor bridge. The only path from the page to the app is the plugin's `postMessage`.
+- **Every message from the page is untrusted.** The page's own code can call the same bridge our
+  scan uses, so `pageMedia.ts` keeps only `safeUrl` addresses (https, no credentials, no private or
+  loopback hosts) and bounded plain-text titles with control and direction-override characters
+  stripped. Nothing found is stored until the reader taps Keep in the app's own sheet.
+- **The trust anchor is native chrome.** Results reach that sheet only through YipDen's toolbar
+  button (`buttonNearDoneClick`), which a page cannot press. No account action, and nothing beyond
+  offering candidates, may ever be driven by `messageFromWebview`.
+- **No way out to other apps.** `preventDeeplink: true` blocks `intent:`, `file:` and every other
+  non-http scheme. Without it the plugin launches `intent:` URLs with `Intent.parseUri` from the
+  app's own context, which could start this app's non-exported activities.
+- **Patched WebView settings.** The plugin hard-codes general file and content access on for
+  every page. `patches/@capgo__capacitor-inappbrowser@8.21.1.patch` turns `setAllowFileAccess` and
+  `setAllowContentAccess` off. pnpm applies it on every install, CI included; the Android build
+  compiles the patched copy. Since 8.21 the plugin itself only allows file-URL cross-origin access
+  for its own bundled files, so those two settings need no patch.
+- **Camera permission removed in our own manifest** (`tools:node="remove"`), not by the patch, so
+  it holds whatever a plugin version declares.
+- **Guard tests** (`siteBrowser.guard.test.ts`) read the installed plugin and the manifest and fail
+  if file or content access is on, the camera removal is gone, deep links or TLS checks are
+  loosened in our options, or the deprecated `@capgo/inappbrowser` package comes back. They are
+  the check that a plugin upgrade kept the patch, rather than relying on pnpm's own behavior when a
+  patch no longer matches. An upgrade means re-making the two-line patch for the new version.
+- **Left as the plugin ships it:** TLS errors are not ignored (`ignoreUntrustedSSLError: false`);
+  downloads, screenshots and page-controlled show and hide stay off (their defaults); mixed
+  content stays blocked (only the Google Pay mode, unused, changes it); remote debugging only in
+  debug builds (`isInspectable`). Pages may autoplay media (`setMediaPlaybackRequiresUserGesture`
+  is false in the plugin), which is a nuisance, not a hole.
+- **Shared with the app WebView:** Android's `CookieManager` is per process, so cookies set in one
+  WebView are visible to the other. v0.9 has no cookies of its own, so nothing leaks today. This is
+  the main constraint the v2.0 account work below has to respect.
 
 ## Data on the device
 
-v0.9 stores follows, read state, cached yips and cached waveform peaks, and nothing else. There
+v0.9 stores follows, read state, cached yips, cached waveform peaks, saved links, verdicts,
+explored marks, folders, and the reader's own tracks and layout choices, and nothing else. There
 is no password, no token and no personal identifier, because there is no account. Follows are
 private to the device: nothing is posted anywhere and the creator is not notified.
 
 OPML import is parsed with the same hardened XML rules as feeds, and every URL in it goes
 through the same checks before it is followed.
 
+A full YipDen backup is input from outside too. Its people, sources, saved links and verdicts are
+validated before anything is written; explored marks, reader tracks and layout choices are checked
+entry by entry and merged, never replaced. A restored ring queue is checked item by item in
+`ringPlayer.restore` (every address through `safeUrl`) before it reaches the audio element or an
+image, whether it came from a backup or from this phone's own storage. The other restored settings
+are plain flags and numbers read back with type checks.
+
+## OWASP Mobile Top 10 (2024) review, 2026-10-02
+
+Done when the in-app browser was added, against the 2024 list and the MASVS areas it maps to,
+with the v2.0 account work in mind.
+
+| Risk                                       | Where YipDen stands                                                                                                                                                                                                                                                          |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M1 Improper credential usage               | No credentials exist. v2.0 rules below.                                                                                                                                                                                                                                      |
+| M2 Inadequate supply chain security        | Lockfile with integrity hashes, install scripts denied by default, Gradle artifact checksums pinned, the plugin patched and pinned to one version. New native code is asked about first.                                                                                     |
+| M3 Insecure authentication / authorization | No accounts yet. v2.0 rules below.                                                                                                                                                                                                                                           |
+| M4 Insufficient input / output validation  | Feed and ring content sanitized or rendered as text; every URL through `safeUrl`; OPML and backups validated; page messages from the in-app browser validated and never acted on without a tap in the app. Fixed in this review: restored ring queue items were not checked. |
+| M5 Insecure communication                  | https only, cleartext disabled, no TLS error bypass, mixed content blocked. To confirm on a phone: that an `http://` link followed inside the in-app browser is refused by the network security config.                                                                      |
+| M6 Inadequate privacy controls             | No analytics, no account, no cloud backup (`allowBackup` false). The in-app browser is a normal browser session on the creator's site; the creator sees a visit, as they would from Chrome. Captured tracks stay on the phone.                                               |
+| M7 Insufficient binary protections         | Release builds not debuggable, WebView debugging off in release. No obfuscation; nothing in the app is secret.                                                                                                                                                               |
+| M8 Security misconfiguration               | Plugin WebView file access and the camera permission fixed by patch; deep links from pages blocked; exported components reviewed above.                                                                                                                                      |
+| M9 Insecure data storage                   | IndexedDB in app-private storage, excluded from backup and device transfer. Unencrypted, which is fine for what is stored today and is not fine for tokens (below).                                                                                                          |
+| M10 Insufficient cryptography              | None used, none needed yet.                                                                                                                                                                                                                                                  |
+
+### Rules the v2.0 account work must follow
+
+The in-app browser shares Android's cookie jar with the app WebView and exposes a message bridge
+to any page it loads, so accounts must not lean on either:
+
+1. **No session cookies for the API.** Use short-lived bearer access tokens held in memory and a
+   refresh token in Android Keystore-backed storage (a native secure-storage plugin, asked about
+   first). Never IndexedDB, localStorage or a cookie. If a cookie is ever unavoidable, it is
+   `Secure`, `HttpOnly`, `SameSite=Strict` and scoped to the API host.
+2. **Put the API host in the in-app browser's `blockedHosts`**, so a creator's page can never
+   navigate that WebView to it.
+3. **Sign-in never happens in the in-app browser.** Magic link and IndieAuth go through the system
+   browser or Custom Tabs, with the result returned by a verified App Link or PKCE redirect
+   (RFC 8252), never by `messageFromWebview` or `executeScript`.
+4. **Never pass a token, user id or account data into `executeScript`**, or anything else that runs
+   in a creator's page.
+5. **The API allows CORS only from the app origin** (`https://localhost`) and checks `Origin` on
+   state-changing requests.
+6. **Signing out clears tokens only**, never local follows (already a v2.0 rule), and clears the
+   shared cookie jar in case anything set one.
+
 ## Dependencies
 
 The brief's "no UI framework, no gesture library, no animation library" is also a security
 position: every dependency is code trusted while building the app or shipped to a device that
 renders hostile input. The reader's direct runtime dependencies are Capacitor's core and app
-plugins, `@capgo/capacitor-media-session`, `@rgrove/parse-xml`, wavesurfer.js and the two local
+plugins, `@capgo/capacitor-media-session`, `@capgo/capacitor-inappbrowser`, `@rgrove/parse-xml`, wavesurfer.js and the two local
 workspace packages. `ring-client` has zero external runtime dependencies; `feeds` depends only on
 `@rgrove/parse-xml`. Svelte, SvelteKit, Vite and the test and lint tools are development
 dependencies.
@@ -114,7 +205,8 @@ The npm side is pinned and fail closed:
   `--frozen-lockfile`. Every registry artifact in the lockfile has a SHA-512 integrity value.
 - Dependency install scripts are denied unless `pnpm-workspace.yaml` explicitly allows them. Only
   esbuild is allowed because its platform binary is installed by its postinstall script.
-- A new package is reviewed by exact name and scope, registry age and maintainers, source
+- A new package is reviewed by exact name and scope, whether npm marks it deprecated or moved,
+  registry age and maintainers, source
   repository, license, lifecycle scripts and transitive dependencies. Its manifest and lockfile
   changes are reviewed together with the code that uses it.
 
@@ -138,10 +230,13 @@ CI pins GitHub Actions to commit SHAs rather than tags.
 
 ## Where to look when changing things
 
-| Concern                | File                                   |
-| ---------------------- | -------------------------------------- |
-| URL safety, SSRF       | `packages/ring-client/src/url.ts`      |
-| Ring validation caps   | `packages/ring-client/src/validate.ts` |
-| Fetch size and timeout | `packages/ring-client/src/fetch.ts`    |
-| Feed HTML sanitizing   | `packages/feeds/` (see that package)   |
-| CSP and manifest       | `apps/reader/` (see that app)          |
+| Concern                | File                                                             |
+| ---------------------- | ---------------------------------------------------------------- |
+| URL safety, SSRF       | `packages/ring-client/src/url.ts`                                |
+| Ring validation caps   | `packages/ring-client/src/validate.ts`                           |
+| Fetch size and timeout | `packages/ring-client/src/fetch.ts`                              |
+| Feed HTML sanitizing   | `packages/feeds/` (see that package)                             |
+| In-app browser         | `apps/reader/src/lib/platform/siteBrowser.svelte.ts`, `patches/` |
+| Page scan messages     | `apps/reader/src/lib/pageMedia.ts`                               |
+| Backup validation      | `apps/reader/src/lib/backup.ts`                                  |
+| CSP and manifest       | `apps/reader/` (see that app)                                    |

@@ -107,6 +107,46 @@ test.describe('a desktop first member in Discover', () => {
 		expect(await opened(page)).toEqual(['https://wide.example.com/']);
 	});
 
+	test('a reader can overrule the layout and add a track of their own, labelled as theirs', async ({
+		page
+	}) => {
+		await page.goto('/');
+		await chooseFilter(page, 'Comics');
+		await expect(page.getByRole('button', { name: 'Save for later' })).toBeVisible();
+
+		const actions = await openActions(page);
+		await actions.getByRole('button', { name: 'Your notes and tracks' }).click();
+		const notes = page.getByRole('dialog', { name: 'Your notes on Wide Screen' });
+		await notes.getByLabel('Reads best on').selectOption('mobile-friendly');
+
+		await notes.getByLabel('Add a track by link').fill('http://wide.example.com/a.mp3');
+		await notes.getByRole('button', { name: 'Add track' }).click();
+		await expect(page.getByText('That link cannot be used.', { exact: false })).toBeVisible();
+
+		await notes
+			.getByLabel('Add a track by link')
+			.fill('https://wide.example.com/audio/night_drive.mp3');
+		await notes.getByRole('button', { name: 'Add track' }).click();
+		await expect(notes.getByText('night drive')).toBeVisible();
+		await expect(notes.getByText(/Added by you/)).toBeVisible();
+
+		await page.keyboard.press('Escape');
+		await expect(notes).toHaveCount(0);
+		// Now read as fine on a phone: the usual actions, not Save for later.
+		await expect(page.getByText('Best on desktop', { exact: true })).toHaveCount(0);
+		await expect(page.getByRole('button', { name: 'Save for later' })).toHaveCount(0);
+
+		// Kept across a relaunch.
+		await page.reload();
+		await chooseFilter(page, 'Comics');
+		await expect(page.getByText('Best on desktop', { exact: true })).toHaveCount(0);
+		const again = await openActions(page);
+		await again.getByRole('button', { name: 'Your notes and tracks' }).click();
+		await expect(page.getByText('night drive')).toBeVisible();
+		await page.getByRole('button', { name: 'Remove night drive' }).click();
+		await expect(page.getByText('night drive')).toHaveCount(0);
+	});
+
 	test('keeps the usual actions for a member who declared nothing, or something unknown', async ({
 		page
 	}) => {
@@ -292,32 +332,6 @@ test.describe('partner rings in Discover', () => {
 		await expect(page.getByRole('button', { name: /^Filter the ring/ })).toBeVisible();
 	});
 
-	test('a testing ring switched on in Settings brings the switcher, in an installed build too', async ({
-		page
-	}) => {
-		await withRing(page);
-		const html = await readFile(
-			new URL('../src/lib/partner/test-fixtures/musicians-webring.html', import.meta.url),
-			'utf8'
-		);
-		await page.route('https://lydels.neocities.org/robots.txt', (route) =>
-			route.fulfill({ status: 404, body: '' })
-		);
-		await page.route('https://lydels.neocities.org/musicianswebring/webring', (route) =>
-			route.fulfill({ status: 200, contentType: 'text/html', body: html })
-		);
-		await page.route('https://lydels.neocities.org/musicianswebring/imagenes/**', (route) =>
-			route.abort()
-		);
-
-		await page.goto('/you/settings');
-		await page.getByRole('switch', { name: 'Show Musicians Webring in Discover' }).click();
-		await page.getByRole('link', { name: 'Discover' }).click();
-
-		await page.getByRole('button', { name: /^Switch ring/ }).click();
-		await expect(page.getByRole('radio', { name: /Musicians Webring/ })).toBeVisible();
-	});
-
 	test.describe('with the fixture ring', () => {
 		test.beforeEach(async ({ page }) => {
 			await withRing(page);
@@ -343,6 +357,87 @@ test.describe('partner rings in Discover', () => {
 			await expect(hub).toHaveAttribute('href', 'https://fixture-ring.example/');
 			await hub.click();
 			expect(await opened(page)).toEqual(['https://fixture-ring.example/']);
+		});
+
+		test('a card swiped left is explored, the check top right undoes it, and the hint goes', async ({
+			page
+		}) => {
+			await page.goto('/');
+			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
+			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
+			const hint = panel.getByRole('note');
+			await expect(hint).toContainText('Swipe a card left');
+
+			const card = panel.locator('.card').first();
+			const box = (await card.boundingBox())!;
+			const y = box.y + box.height / 2;
+			await page.mouse.move(box.x + box.width - 20, y);
+			await page.mouse.down();
+			for (let step = 1; step <= 10; step += 1) {
+				await page.mouse.move(box.x + box.width - 20 - step * 25, y);
+			}
+			await page.mouse.up();
+
+			await expect(panel.getByText('1 of 2 explored')).toBeVisible();
+			await expect(hint).toHaveCount(0);
+			const check = panel.getByRole('button', { name: 'Unmark Ash & Ember as explored' });
+			await check.click();
+			await expect(panel.getByText('0 of 2 explored')).toBeVisible();
+
+			// Every action on a card fits one row: the icon buttons share one top edge.
+			const icons = card.locator('.acts').last().locator('button');
+			const tops = await icons.evaluateAll((buttons) =>
+				buttons.map((button) => Math.round(button.getBoundingClientRect().top))
+			);
+			expect(new Set(tops).size).toBe(1);
+
+			await page.reload();
+			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
+			await expect(page.getByRole('note')).toHaveCount(0);
+		});
+
+		test('marks members explored, hides them on request, and keeps the search after leaving', async ({
+			page
+		}) => {
+			await page.goto('/');
+			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
+			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
+			await expect(panel.getByText('0 of 2 explored')).toBeVisible();
+
+			// Visiting someone counts as looking at them.
+			await panel
+				.getByRole('button', { name: /^Visit/ })
+				.first()
+				.click();
+			await expect(panel.getByText('1 of 2 explored')).toBeVisible();
+			await expect(
+				panel.getByRole('button', { name: 'Unmark Ash & Ember as explored' })
+			).toHaveAttribute('aria-pressed', 'true');
+
+			await panel.getByRole('button', { name: 'Hide explored' }).click();
+			await expect(panel.getByRole('heading', { level: 3 })).toHaveText(['Big Monitor Club']);
+			await panel.getByRole('button', { name: 'Hide explored' }).click();
+
+			await panel.getByRole('searchbox').fill('monitor');
+			await expect(panel.getByRole('heading', { level: 3 })).toHaveText(['Big Monitor Club']);
+
+			// Away to Feeds and back: the ring, its search and the marks are all still there.
+			await page.getByRole('link', { name: 'Feeds' }).click();
+			await page.getByRole('link', { name: 'Discover' }).click();
+			const again = page.getByRole('region', { name: 'Fixture Ring members' });
+			await expect(again.getByRole('searchbox')).toHaveValue('monitor');
+			await expect(again.getByRole('heading', { level: 3 })).toHaveText(['Big Monitor Club']);
+			await expect(again.getByText('1 of 2 explored')).toBeVisible();
+
+			// And after a relaunch.
+			await page.reload();
+			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
+			await expect(page.getByRole('searchbox')).toHaveValue('monitor');
+			await expect(page.getByText('1 of 2 explored')).toBeVisible();
 		});
 
 		test('the switcher sits next to Shuffle, on its own, not inside Filter', async ({ page }) => {
@@ -403,7 +498,7 @@ test.describe('partner rings in Discover', () => {
 			).toBeVisible();
 		});
 
-		test('offers a sample only for a member who has one, labelled honestly by what it actually is, and opens externally', async ({
+		test('offers a sample only for a member who has one, labelled honestly by what it actually is, and opens the way Visit does', async ({
 			page
 		}) => {
 			await page.goto('/');
@@ -429,8 +524,11 @@ test.describe('partner rings in Discover', () => {
 				.getAttribute('d');
 			expect(iconPath).toContain('23.999 14.165');
 
+			// The web build has no in-app browser, so this falls back to the system one, as Visit
+			// does; on a phone both open in the app with this member as the creator.
 			await bmcCard.getByRole('button', { name: 'Open on SoundCloud' }).click();
 			expect(await opened(page)).toEqual(['https://soundcloud.com/bmc/a-track']);
+			await expect(panel.getByText('1 of 2 explored')).toBeVisible();
 		});
 
 		test('folds and stands its cards the same way Feeds does, and turns off under reduced motion', async ({

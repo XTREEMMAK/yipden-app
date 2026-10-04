@@ -18,6 +18,11 @@
 	import { previewFor } from '$lib/preview.js';
 	import { ringPlayer } from '$lib/ringPlayer.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
+	import { explored } from '$lib/explored.svelte.js';
+	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
+	import { siteBrowser } from '$lib/platform/siteBrowser.svelte.js';
+	import { prefs } from '$lib/prefs.svelte.js';
+	import CreatorNotesSheet from '$components/CreatorNotesSheet.svelte';
 	import { partners } from '$lib/partnerRings.svelte.js';
 	import { shelf, toggleShelf } from '$lib/shelf.svelte.js';
 	import { verdicts } from '$lib/verdicts.svelte.js';
@@ -85,6 +90,7 @@
 	function runPreview() {
 		const entry = ring.current;
 		if (!entry || !preview) return;
+		void explored.mark(entry.source_url);
 		if (preview.kind === 'play') ringPlayer.play(entry);
 		else if (preview.kind === 'view') previewOpen = true;
 		else void openExternal(preview.url);
@@ -96,7 +102,12 @@
 	 * from More actions, as the "not sure yet, find them later" that a Like is not. The site is still one tap away, since every yip
 	 * links out, and the reader is told why the buttons are arranged this way.
 	 */
-	let desktopFirst = $derived(layoutOf(ring.current?.layout) === 'desktop-first');
+	let desktopFirst = $derived(
+		!!ring.current &&
+			creatorNotes.layoutFor(ring.current.source_url, layoutOf(ring.current.layout)) ===
+				'desktop-first'
+	);
+	let notesOpen = $state(false);
 	let onShelf = $derived(ring.current ? shelf.has(ring.current.source_url) : false);
 
 	function saveForLater() {
@@ -208,6 +219,8 @@
 	}
 
 	onMount(() => {
+		void explored.load();
+		void creatorNotes.load();
 		void ring.load();
 		void partners.load();
 		void shelf.load();
@@ -526,6 +539,7 @@
 			ringSheetOpen ||
 			actionsSheetOpen ||
 			membersSheetOpen ||
+			notesOpen ||
 			partners.selected ||
 			ring.visible.length <= 1
 		)
@@ -967,7 +981,46 @@
 					{onShelf ? 'Saved for later' : 'Save for later'}
 				</button>
 			{/if}
-			<button class="sheet-row" onclick={() => fromActions(() => openExternal(entry.source_url))}>
+			<button class="sheet-row" onclick={() => fromActions(() => (notesOpen = true))}>
+				<svg class="row-ic" viewBox="0 0 24 24" aria-hidden="true"
+					><path d="M9 18V6l10-2v12" /><circle cx="6.5" cy="18" r="2.5" /><circle
+						cx="16.5"
+						cy="16"
+						r="2.5"
+					/></svg
+				>
+				Your notes and tracks
+				{#if creatorNotes.tracksFor(entry.source_url).length}<small class="sheet-hint"
+						>{creatorNotes.tracksFor(entry.source_url).length}</small
+					>{/if}
+			</button>
+			<button
+				class="sheet-row"
+				aria-pressed={explored.has(entry.source_url)}
+				onclick={() => fromActions(() => void explored.toggle(entry.source_url))}
+			>
+				<svg class="row-ic" viewBox="0 0 24 24" aria-hidden="true"
+					><circle cx="12" cy="12" r="8.5" /><path d="M8.2 12.3l2.6 2.6 5-5.4" /></svg
+				>
+				{explored.has(entry.source_url) ? 'Explored (tap to unmark)' : 'Mark explored'}
+			</button>
+			<button
+				class="sheet-row"
+				onclick={() =>
+					fromActions(() => {
+						void explored.mark(entry.source_url);
+						void siteBrowser.open(
+							entry.source_url,
+							{
+								url: entry.source_url,
+								name: entry.creator,
+								artUrl: heroImage(entry) ?? null,
+								layout: layoutOf(entry.layout)
+							},
+							prefs.sitesInApp
+						);
+					})}
+			>
 				<svg class="row-ic" viewBox="0 0 24 24" aria-hidden="true"
 					><path
 						d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"
@@ -1078,11 +1131,25 @@
 				>
 					<span class="sheet-dot" aria-hidden="true"></span>
 					{entry.creator}
-					<small class="sheet-hint">{hostOf(entry.source_url)}</small>
+					<small class="sheet-hint"
+						>{explored.has(entry.source_url) ? 'Explored · ' : ''}{hostOf(entry.source_url)}</small
+					>
 				</button>
 			{/each}
 		</div>
 	</div>
+{/if}
+
+{#if notesOpen && ring.current}
+	<CreatorNotesSheet
+		creator={{
+			url: ring.current.source_url,
+			name: ring.current.creator,
+			artUrl: heroImage(ring.current) ?? null
+		}}
+		declared={layoutOf(ring.current.layout)}
+		onclose={() => (notesOpen = false)}
+	/>
 {/if}
 
 {#if previewOpen && ring.current && preview?.kind === 'view'}

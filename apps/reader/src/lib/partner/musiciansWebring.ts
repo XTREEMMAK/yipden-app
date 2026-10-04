@@ -5,14 +5,13 @@ import { fetchPartnerPage } from './fetchPage.js';
 import type { PartnerSource } from './registry.js';
 
 /**
- * Musicians Webring (https://lydels.neocities.org/musicianswebring/webring), read for testing.
+ * Musicians Webring (https://lydels.neocities.org/musicianswebring/webring), read live.
  *
  * There is no JSON here and no schema: the maintainer hand-writes a member table into a page
  * built for a person to read, not a client. That is exactly why this is worth building against
  * before the first ring whose maintainer has agreed to anything (see docs/ring-contract.md and
  * DECISIONS.md): it proves the adapter boundary against a real, uncooperative shape rather than
- * only the fixture. It is testing only, not a shipped inclusion; see `registry.ts` for the gate
- * and DECISIONS.md for why.
+ * only the fixture. It ships on for everyone; see `registry.ts` and DECISIONS.md.
  *
  * Reading it walks the same untrusted-HTML tokenizer `packages/feeds` already trusts for
  * sanitizing feed content and scanning a page for its own feed links (`tokenize`), not a hand

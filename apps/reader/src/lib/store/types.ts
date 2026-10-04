@@ -26,6 +26,8 @@ export interface Person {
 	 */
 	layout?: SiteLayout;
 	followedAt: string;
+	/** The reader's own folder for them, one at most. See `folders.ts`. */
+	folder?: string;
 	/** Only keep posts newer than this many days. Absent uses the reader's default. */
 	maxAgeDays?: number;
 }
@@ -174,7 +176,12 @@ export type SettingKey =
 	| 'ageLimitEnabled'
 	| 'sounds'
 	| 'partnerCache'
-	| 'ringCheckedAt';
+	| 'ringCheckedAt'
+	| 'explored'
+	| 'ringViews'
+	| 'readerTracks'
+	| 'layoutOverrides'
+	| 'sitesInApp';
 
 /**
  * Cached waveform peaks, keyed by media URL and ETag so a track is decoded at most once.

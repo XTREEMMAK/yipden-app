@@ -2,6 +2,7 @@ import { flushSync } from 'svelte';
 import { MediaSession, type MediaSessionAction } from '@capgo/capacitor-media-session';
 import { prefersReducedMotion } from './motion.js';
 import { store, type PeaksRecord } from './store/index.js';
+import { toast } from './toast.svelte.js';
 
 /**
  * The player: one shared `HTMLAudioElement` for the whole app, a queue, and the state every
@@ -66,16 +67,29 @@ function sameSite(left: string, right: string): boolean {
 	}
 }
 
-function safePlay(audio: HTMLAudioElement): void {
+function safePlay(audio: HTMLAudioElement, onUnplayable?: () => void): void {
 	const result = audio.play();
 	if (result && typeof result.catch === 'function') {
-		result.catch(() => {
-			// Autoplay refused by the platform. The reader presses play themselves.
+		result.catch((cause: unknown) => {
+			// Autoplay refused by the platform: the reader presses play themselves. A source the
+			// browser cannot play at all is different, and is said out loud.
+			if (cause instanceof DOMException && cause.name === 'NotSupportedError') onUnplayable?.();
 		});
 	}
 }
 
+/** What a reader is told when a track will not play: what likely happened, and what is left. */
+export const UNPLAYABLE_MESSAGE =
+	'This track would not play. It may have moved, or its site does not allow playing it here. Open their page to listen there.';
+
 class PlayerState {
+	private reportUnplayable(): void {
+		if (this.error) return;
+		this.error = UNPLAYABLE_MESSAGE;
+		this.playing = false;
+		toast.show(UNPLAYABLE_MESSAGE);
+	}
+
 	/**
 	 * Created lazily, once, in the browser. Never recreated: every screen that ever plays
 	 * anything reaches for this same element.
@@ -87,6 +101,8 @@ class PlayerState {
 	queue = $state<QueueItem[]>([]);
 	currentIndex = $state(-1);
 	playing = $state(false);
+	/** Set when the current track cannot be played, cleared when another one starts. */
+	error = $state<string | null>(null);
 	currentTime = $state(0);
 	duration = $state(0);
 	rate = $state<(typeof RATES)[number]>(1);
@@ -144,6 +160,15 @@ class PlayerState {
 				this.updateMediaSessionPosition();
 			});
 			element.addEventListener('ended', () => this.advance());
+			element.addEventListener('error', () => {
+				// An abort is the element switching sources on purpose, not a failure.
+				const code = element.error?.code;
+				if (!code || code === MediaError.MEDIA_ERR_ABORTED || !element.getAttribute('src')) return;
+				this.reportUnplayable();
+			});
+			element.addEventListener('playing', () => {
+				this.error = null;
+			});
 			this._audio = element;
 			this.wireMediaSession();
 		}
@@ -354,10 +379,11 @@ class PlayerState {
 		this.pendingSeek = null;
 		this.ended = false;
 
+		this.error = null;
 		const audio = this.audio;
 		if (audio.src !== item.mediaUrl) audio.src = item.mediaUrl;
 		audio.playbackRate = this.rate;
-		safePlay(audio);
+		safePlay(audio, () => this.reportUnplayable());
 
 		this.sheet = 'full';
 		this.setMediaSessionMetadata(item);

@@ -1,5 +1,6 @@
 import type { DiscoveredFeed, DiscoveryResult } from '@yipden/feeds';
 import { discoverWithDeadline } from './discovery.js';
+import { cleanFolder, folderList, matchFolder, type FolderSummary } from './folders.js';
 import { exportOpml, parseOpml, parseOpmlShelf } from './opml.js';
 import { player } from './player.svelte.js';
 import { pruneToMaxAge, refreshAll, type FeedRefreshResult } from './refresh.js';
@@ -34,6 +35,7 @@ export type ReplaceSourceResult =
 class YouState {
 	rows = $state<FollowRow[]>([]);
 	loaded = $state(false);
+	folders = $derived<FolderSummary[]>(folderList(this.rows.map((row) => row.person)));
 
 	async load(): Promise<void> {
 		await store.init();
@@ -64,13 +66,29 @@ class YouState {
 	async setPersonMaxAge(personId: string, days: number | null): Promise<void> {
 		const row = this.rows.find((entry) => entry.person.id === personId);
 		if (!row) return;
-		const { maxAgeDays: _previous, ...rest } = row.person;
+		const rest: Person = { ...row.person };
+		delete rest.maxAgeDays;
 		const person: Person = days === null ? rest : { ...rest, maxAgeDays: days };
 		await store.updatePerson(person);
 		this.rows = this.rows.map((entry) =>
 			entry.person.id === personId ? { ...entry, person } : entry
 		);
 		await pruneToMaxAge();
+	}
+
+	/** Put a person in a folder, or take them out of theirs with `null`. */
+	async setPersonFolder(personId: string, name: string | null): Promise<void> {
+		const row = this.rows.find((entry) => entry.person.id === personId);
+		if (!row) return;
+		const cleaned = cleanFolder(name);
+		const folder = cleaned ? matchFolder(cleaned, this.folders) : undefined;
+		const person: Person = { ...row.person };
+		if (folder) person.folder = folder;
+		else delete person.folder;
+		await store.updatePerson(person);
+		this.rows = this.rows.map((entry) =>
+			entry.person.id === personId ? { ...entry, person } : entry
+		);
 	}
 
 	async clearCachedYips(): Promise<void> {
@@ -265,7 +283,8 @@ class YouState {
 				id,
 				name: person.name,
 				siteUrl,
-				followedAt: new Date().toISOString()
+				followedAt: new Date().toISOString(),
+				...(person.folder ? { folder: person.folder } : {})
 			};
 			const feeds: Feed[] = person.feeds.map((feed) => ({
 				id: feed.url,

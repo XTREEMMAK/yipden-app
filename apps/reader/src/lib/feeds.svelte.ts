@@ -1,3 +1,4 @@
+import { folderList, type FolderSummary } from './folders.js';
 import { refreshAll } from './refresh.js';
 import { groupCrossposts, type FeedYip } from './syndication.js';
 import { store, type Feed, type Person, type StoredYip, type YipCategory } from './store/index.js';
@@ -19,6 +20,13 @@ export const FEEDS_FILTERS = [
 
 export type FeedsFilterKey = (typeof FEEDS_FILTERS)[number]['key'];
 
+/**
+ * Whose yips Feeds shows: everyone, one folder, or one person. It narrows every pane, so it
+ * combines with the pills ("Friends" and Listen). It is a filter, never an ordering.
+ */
+export type FeedsScope =
+	{ kind: 'all' } | { kind: 'folder'; name: string } | { kind: 'person'; id: string };
+
 const PAGE_SIZE = 50;
 const GROUP_SCAN_SIZE = PAGE_SIZE * 3;
 
@@ -38,6 +46,15 @@ class FeedsState {
 		listen: []
 	});
 	people = $state<Map<string, Person>>(new Map());
+	/** Kept for the session only: a relaunch starts back at everyone. */
+	scope = $state<FeedsScope>({ kind: 'all' });
+	folders = $derived<FolderSummary[]>(folderList(this.people.values()));
+	/** The folder or person Feeds is narrowed to, for the header and the empty state. */
+	scopeLabel = $derived.by(() => {
+		if (this.scope.kind === 'folder') return this.scope.name;
+		if (this.scope.kind === 'person') return this.people.get(this.scope.id)?.name ?? null;
+		return null;
+	});
 	separatedGroupIds = $state<Set<string>>(new Set());
 	status = $state<'idle' | 'loading' | 'refreshing'>('loading');
 	/** People whose first posts are being fetched right now, so every screen can say so. */
@@ -59,7 +76,18 @@ class FeedsState {
 	async load(): Promise<void> {
 		await store.init();
 		const [people, followedFeeds] = await Promise.all([store.listPeople(), store.listFeeds()]);
-		const enabledFeedIds = followedFeeds.filter((feed) => feed.enabled).map((feed) => feed.id);
+		// A folder emptied or a person unfollowed since it was chosen: back to everyone.
+		const scope = this.scope;
+		if (
+			(scope.kind === 'folder' && !people.some((person) => person.folder === scope.name)) ||
+			(scope.kind === 'person' && !people.some((person) => person.id === scope.id))
+		) {
+			this.scope = { kind: 'all' };
+		}
+		const inScope = this.scopedPersonIds(people);
+		const enabledFeedIds = followedFeeds
+			.filter((feed) => feed.enabled && (!inScope || inScope.has(feed.personId)))
+			.map((feed) => feed.id);
 		const lists = await Promise.all(
 			FEEDS_FILTERS.map((filter) =>
 				store.listYips({
@@ -154,6 +182,23 @@ class FeedsState {
 
 	setFilter(key: FeedsFilterKey): void {
 		this.filter = key;
+	}
+
+	async setScope(scope: FeedsScope): Promise<void> {
+		this.scope = scope;
+		await this.load();
+	}
+
+	/** The people the scope narrows to, or `null` for everyone. */
+	private scopedPersonIds(people: Person[]): Set<string> | null {
+		const scope = this.scope;
+		if (scope.kind === 'person') return new Set([scope.id]);
+		if (scope.kind === 'folder') {
+			return new Set(
+				people.filter((person) => person.folder === scope.name).map((person) => person.id)
+			);
+		}
+		return null;
 	}
 
 	async markRead(yip: FeedYip): Promise<void> {

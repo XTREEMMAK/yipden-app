@@ -2253,3 +2253,154 @@ panel leaves the panel open: an overlay closes only when the entry on top is no 
 **More actions liked the creator.** `use:tap` opened the menu on the finger's release, and the
 click the browser makes a moment later landed on the menu item now under the finger. The click
 after a handled tap is now swallowed wherever it lands, for 400ms at most.
+
+## 2026-10-02 — Musicians Webring and Knifebeetle are on for everyone
+
+**Both partner rings ship in every build, with no flag.** They were debug-only while each
+maintainer's approval was pending. Researched since: given what a webring is, reading one as it
+stands is fine provided the app links back to the ring's own site, and uses the ring's official
+badges and images where it has them. Both adapters already do: every card says "via [ring name]"
+and links to `hubUrl`, and the ring's own icon and badge are shown. So the `__YIPDEN_DEBUG__` gate,
+the two local flags and their Settings switches are gone (`partner/registry.ts`).
+
+These two are the whole list for now. A further ring still needs its own adapter and the same
+check. The end to end build sets `VITE_YIPDEN_PARTNER_LIVE=0` so the suite stays off the network.
+There is no per-ring show/hide control for readers; that stays open on the roadmap.
+
+## 2026-10-02 (later) — Folders: one per person, and only a name
+
+**A person is in one folder at most** (`Person.folder`, `folders.ts`). Several, like tags, was
+weighed for people who make more than one kind of thing. Feeds already sorts each yip by kind, so a
+musician who also writes sits in one folder and the Listen pill still separates their tracks: the
+folder filter and the pills combine. It also matches IndieNodes, where a member has one `type`.
+Widening to several later is easy; narrowing back would not be.
+
+**A folder is only that name**, with no record of its own, so it exists while someone is in it and
+needs no migration. A typed name joins an existing folder whatever its capitals.
+
+**Feeds' filter is a scope, not a fifth pill** (`FeedsScope`): everyone, a folder, or one person,
+chosen in a sheet and applied to all four panes. It lasts the session and is never an ordering.
+
+**OPML.** A folder is an outline around its people, marked `yipdenFolder` so a person with several
+feeds inside reads back as one person. Another reader's file has no mark, and a folder of feeds
+looks the same as one person's group of feeds, which is how such a folder used to import: as one
+person named after it. Now an unmarked group holding feeds from more than one site, or holding
+other groups, is read as a folder of separate people. Nested folders keep the outermost name.
+
+## 2026-10-02 (evening) — Explored marks, and a ring keeps your place
+
+**A long directory can be worked through.** A ring member is marked explored when the reader
+visits, previews or finds feeds for them, or by hand from the check on their card. Keyed by the
+creator's site, like Liked, so one creator met in two rings is explored once. Explored cards dim
+rather than disappear; "Hide explored" hides them on request, and Resume jumps to the first one
+not looked at after the last one that was. IndieNodes shows the same marks in Browse members and
+More actions. Kept as one setting and in the backup, merged rather than replaced on restore.
+
+**The partner panel's search, genre, hide switch and scroll are kept per ring** (`explored.svelte.ts`,
+`ringViews`), so leaving Discover and coming back, or relaunching, lands where the reader was. They
+used to live in the panel component and died with it. A changed search writes at once; a scroll
+waits 400ms and is flushed when the app is hidden or the panel closes.
+
+## 2026-10-02 (evening) — A reader can add tracks and overrule a site's layout
+
+**Reader tracks** (`creatorNotes.svelte.ts`): a link a reader adds to a creator, by pasting it or
+by keeping what a page played (below). Labelled "Added by you" everywhere, never treated as the
+creator's chosen sample, and only the address is kept. A real audio file plays in the one shared
+player; a platform page opens on its own site. At most 20 per creator. This changes "the sample is
+always opened externally, never assumed playable in app" (2026-09-29) for audio the reader chose
+themselves; it does not touch the refusal to download, cache or crawl.
+
+**Layout overrides**: "Reads best on a phone / a bigger screen / as found", per creator, from You,
+Discover's notes sheet and partner cards' notes. Wins over the ring's declaration and the
+viewport guess. This is the override ROADMAP item 2 in the doorway batch asked for.
+
+## 2026-10-02 (evening) — Creators' sites open in the app, with a button to keep their audio
+
+**`@capgo/capacitor-inappbrowser`** (MPL-2.0, Capacitor 8), approved by the developer. Visit from Discover
+and partner rings opens the site in its own WebView with YipDen's button in the toolbar. A script
+we inject reads what audio the page shows or plays (audio and video elements, links to audio
+files, files the page loaded, and known platform players embedded in it) and reports it. Tapping
+the button closes the page and opens "Found on their page", where the reader keeps what they want
+and can set the layout.
+
+What it cannot do, by nature: see inside another site's embedded player (Bandcamp, SoundCloud,
+YouTube), where only the player itself can be offered, as a link that opens on that platform;
+keep a streamed (segmented) track; or keep a platform's signed, expiring file address usefully.
+
+**Settings switch, on by default.** Off, and on the web build, Visit uses the system browser as
+before. Sign-ins are separate from Chrome's.
+
+**Security** is written up in docs/security.md: the plugin's file access settings are patched
+off and its camera permission removed in our manifest, deep links from pages are blocked, page messages are untrusted and
+only ever become candidates, and the native toolbar button is the only path to the keep screen.
+An OWASP Mobile Top 10 review done at the same time found one existing gap, a restored ring queue
+reaching the player unchecked, now validated item by item; and set the rules v2.0 accounts must
+follow because this WebView shares the app's cookie jar.
+
+The plugin's Android dependencies (AndroidX, Material, androidsvg) were added to
+`verification-metadata.xml` the documented way.
+
+## 2026-10-03 — The in-app browser is `@capgo/capacitor-inappbrowser`, not the deprecated name
+
+The first install used `@capgo/inappbrowser` 8.6.14. Same repository, but npm marks that name
+deprecated ("moved to `@capgo/capacitor-inappbrowser`"), and it stopped at 8.6.14 while the current
+package is 8.21.1. Caught by the developer, not by the review, because the check looked at the
+repository URL and not the `deprecated` field. Replaced, and re-reviewed against 8.21.1's source.
+
+What changed in 8.21.1: file-URL cross-origin access is now only switched on for the plugin's own
+bundled files, so the patch shrank to the two settings still hard-coded on (file and content
+access). The camera permission moved out of the patch into our manifest. Deep links still need our
+`preventDeeplink: true`. Its one extra Android library, `androidx.swiperefreshlayout`, was added to
+`verification-metadata.xml` by hand: a write-mode run also recorded the plugin's own test
+dependencies (Robolectric and the rest), which are not part of this build and were left out.
+
+A guard test now checks the installed package name and its deprecation, so the same mistake fails
+the suite. Checking `deprecated` belongs in the new-package review in docs/security.md too.
+
+## 2026-10-03 (later) — Phone feedback on the browser, reader tracks and the partner card
+
+- **A track that will not play says so** (`player.svelte.ts`): a media error (other than the
+  element's own abort when switching sources) or a "not supported" play rejection sets
+  `player.error`, shown in the full player and as a toast. Before, it loaded and sat silent.
+- **Play in the notes sheet closes the sheet**, which was covering the player it had just opened.
+- **The page stays open behind "Found on their page"**: YipDen's button now hides the browser
+  instead of closing it. Closing the sheet (or Back) shows the page again where the reader was;
+  "Done with this site" closes it.
+- **Back inside the browser goes back a page** (`activeNativeNavigationForWebview`), and closes
+  the browser only from its first page. Without it, the first Back dismissed the page and the next
+  one left Discover or the app.
+- **Explored is a swipe**: a partner card swiped left is marked (or unmarked), with a one-time hint,
+  and the check at the card's top right does the same for anyone who does not swipe. The bottom-row
+  explored button is gone, notes became a pencil (the sheet holds tracks and layout both), and the
+  icon buttons shrank to 50px with 8px between so five fit one row. The swipe moves only the card's
+  body, inside the card, so the stack's own fold transform on the card is untouched.
+
+## 2026-10-03 (night) — Two new briefs, and what was decided before starting them
+
+Both briefs are kept as given in `docs/briefs/`. The plan is ROADMAP's "Encrypted store and
+reference finds".
+
+- **The encrypted store comes before 0.9.0.** A released build that wrote plaintext would leave a
+  migration to run on every reader's phone. Shipping the first release encrypted means the only
+  migration ever run is from development builds. The new reference kinds (comics, games, writing)
+  follow in 0.9.x.
+- **The revised v0.9 brief's gaps go into that same move.** A stable yip id (a hash of the feed's
+  canonical URL and the entry's own id) changes every stored key, so it is a data migration
+  anyway. It is done once, on the way into SQLite, with read state carried across. `FeedSource` and
+  hub recording land just before, so the new store is written by the new pipeline. This supersedes
+  the September choice of "IndexedDB rather than SQLite" (`store/idb.ts`) on Android. The web build
+  stays on IndexedDB, with each value encrypted.
+- **Platform embeds stay, as links.** The brief's "own site only" rule would refuse a Bandcamp,
+  SoundCloud, YouTube, Spotify or Apple Music player found on a creator's own page, which the audio
+  find keeps today. Such a player is still offered, saved as a reference with
+  `hostVerified: false` and `sharable: false`, and it opens on the platform. A file goes through
+  the own-host rule in full.
+- **Long-press and selection are seen by the page script, kept through YipDen's button.** The
+  brief's "long-press → Save to [creator]" would mean new entries in the page's own native menus,
+  which is a much larger patch to the browser plugin to keep and re-review. Instead the injected
+  script notes the image or text the reader last pressed or selected, and the toolbar button, which
+  docs/security.md already treats as the only trusted path, offers it in "Found on their page".
+- **A partner card's Listen opens in the in-app browser,** with the member as the creator, the same
+  path as Visit, so audio found on the sample's page can be kept for them. This changes "the sample
+  is always opened externally" (2026-09-29). With the setting off, or on the web build, it still
+  opens in the system browser.

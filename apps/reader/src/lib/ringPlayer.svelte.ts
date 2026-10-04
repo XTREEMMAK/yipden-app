@@ -1,4 +1,4 @@
-import { suggestNextEntry, type RingEntry } from '@yipden/ring-client';
+import { safeUrl, suggestNextEntry, type RingEntry } from '@yipden/ring-client';
 import { player, type QueueItem } from './player.svelte.js';
 import { prefs } from './prefs.svelte.js';
 import { queueItemsFromRing, shuffled } from './queue.js';
@@ -24,6 +24,44 @@ export interface RingQueueRecord {
 	queue: QueueItem[];
 	currentIndex: number;
 	playedEntryIds: string[];
+}
+
+const shortText = (value: unknown, max = 1_000): value is string =>
+	typeof value === 'string' && value.length <= max;
+const safeAddress = (value: unknown): value is string =>
+	typeof value === 'string' && value.length <= 8_192 && safeUrl(value) !== null;
+
+/**
+ * A saved queue item, checked before it reaches the audio element or an image: storage can be
+ * written by a restored backup file, which is input from outside like any other. Same address
+ * rule as everywhere (`safeUrl`); a picture that fails it is dropped, a track that fails it is.
+ */
+export function restorableItem(value: unknown): QueueItem | null {
+	if (!value || typeof value !== 'object') return null;
+	const item = value as Record<string, unknown>;
+	if (
+		!shortText(item.id, 8_192) ||
+		!shortText(item.title) ||
+		!shortText(item.creator) ||
+		!safeAddress(item.url) ||
+		!safeAddress(item.siteUrl) ||
+		!safeAddress(item.mediaUrl) ||
+		(item.personId !== undefined && !shortText(item.personId, 8_192)) ||
+		(item.batchKey !== undefined && !shortText(item.batchKey, 8_192))
+	) {
+		return null;
+	}
+	return {
+		id: item.id,
+		title: item.title,
+		creator: item.creator,
+		url: item.url,
+		siteUrl: item.siteUrl,
+		mediaUrl: item.mediaUrl,
+		artUrl: safeAddress(item.artUrl) ? item.artUrl : null,
+		...(item.personId !== undefined ? { personId: item.personId as string } : {}),
+		...(item.batchKey !== undefined ? { batchKey: item.batchKey as string } : {})
+	};
 }
 
 class RingPlayerState {
@@ -84,9 +122,18 @@ class RingPlayerState {
 
 	/** Restores a session saved from a previous launch, paused until the reader presses play. */
 	restore(record: RingQueueRecord): void {
-		if (record.version !== 2) return;
-		player.hydrate(record.queue, record.currentIndex, { loop: false });
-		this.playedEntryIds = record.playedEntryIds;
+		if (record?.version !== 2 || !Array.isArray(record.queue)) return;
+		const current = record.queue[record.currentIndex];
+		const queue = record.queue
+			.slice(0, 1_000)
+			.map(restorableItem)
+			.filter((item): item is QueueItem => item !== null);
+		const currentIndex = queue.findIndex((item) => item.id === restorableItem(current)?.id);
+		if (!queue.length || currentIndex === -1) return;
+		player.hydrate(queue, currentIndex, { loop: false });
+		this.playedEntryIds = Array.isArray(record.playedEntryIds)
+			? record.playedEntryIds.filter((id) => shortText(id, 1_000)).slice(0, 1_000)
+			: [];
 	}
 }
 

@@ -8,6 +8,7 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- A ring queue restored from storage or a backup file is checked before it reaches the player.
 - The 3D card stack in Feeds and partner rings no longer judders or shakes as a card folds at the
   top, and a partner ring's scroll keeps its fling.
 - The phone keyboard now opens over the tab bar instead of pushing it up.
@@ -21,6 +22,27 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- Ring members can be marked explored: automatically when you visit or preview them, by swiping a
+  partner card left, or with the check at its top right.
+  Partner rings show how many you have explored, can hide them, and Resume jumps to the next one
+  you have not seen.
+- A partner ring keeps its search, genre and scroll position when you leave Discover or close the
+  app.
+- Add a track to any creator by pasting its link, from their row in You or "Your notes and
+  tracks" in Discover and partner rings. It is labelled as added by you and plays in the app when
+  it is an audio file.
+- Tell YipDen whether a creator's site reads best on a phone or a bigger screen, over what the
+  ring or the page said.
+- Android: Visit opens a creator's site inside YipDen. Its toolbar button lists audio the page
+  played or showed, to keep for that creator, with the page still open behind it; Back steps back
+  through the site. Settings can turn this off.
+- The player says when a track cannot be played, instead of staying silent.
+- Folders: put anyone you follow in a folder from their row in You. Feeds has a Filter button
+  that narrows it to one folder or one person, alongside the Everything, Posts, Watch and Listen
+  pills. Folders travel in the OPML file and the full backup, and a folder in another reader's
+  OPML file is kept on import.
+- Musicians Webring and Knifebeetle Webring are in Discover's ring picker for everyone, each
+  linking back to the ring's own site. They were debug-only before.
 - A new app icon: the fox and its howl on brand orange, without the arch. The splash matches.
 - Partner rings: an icon-only back arrow with search beside it at the top; the intro note scrolls
   away with the cards.
@@ -39,9 +61,7 @@ Every notable change to YipDen, newest first. The format follows
 - Replace for a source that has moved or stopped being a feed: find the new address, and it takes
   over only once it checks out.
 - Debug builds have a "Debug build" section in Settings: the age limit switch (off by default, so
-  old saved feeds can be used for testing) and switches for the testing-only partner rings,
-  Musicians Webring and Knifebeetle, so an installed APK can turn them on. Release builds have
-  none of it, and always enforce the age limit.
+  old saved feeds can be used for testing). Release builds have none of it, and always enforce the age limit.
 - Partner cards: Find feeds, Like and Not for me sit in the same row as Visit, with larger icons.
   The More actions menu's icons are larger too.
 

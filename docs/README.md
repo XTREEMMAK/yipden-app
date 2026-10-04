@@ -1,14 +1,15 @@
 # Documentation
 
-| Document                                 | What is in it                                                  |
-| ---------------------------------------- | -------------------------------------------------------------- |
-| [architecture.md](architecture.md)       | How the pieces fit, and what v0.9 refuses to depend on         |
-| [android-testing.md](android-testing.md) | The toolchain, the browser loop, and running on a real phone   |
-| [security.md](security.md)               | The OWASP and Mozilla checks applied, and where each one lives |
-| [ring-contract.md](ring-contract.md)     | What the app needs from `ring.json`, and the changes owed      |
-| [shelf-format.md](shelf-format.md)       | How the Shelf appears in an export, for anything that reads it |
-| [ci-cd.md](ci-cd.md)                     | What CI runs, and where Semaphore fits later                   |
-| [../DECISIONS.md](../DECISIONS.md)       | Every choice that differs from the brief, and why              |
+| Document                                 | What is in it                                                   |
+| ---------------------------------------- | --------------------------------------------------------------- |
+| [architecture.md](architecture.md)       | How the pieces fit, and what v0.9 refuses to depend on          |
+| [android-testing.md](android-testing.md) | The toolchain, the browser loop, and running on a real phone    |
+| [security.md](security.md)               | The OWASP and Mozilla checks applied, and where each one lives  |
+| [ring-contract.md](ring-contract.md)     | What the app needs from `ring.json`, and the changes owed       |
+| [shelf-format.md](shelf-format.md)       | How the Shelf appears in an export, for anything that reads it  |
+| [ci-cd.md](ci-cd.md)                     | What CI runs, and where Semaphore fits later                    |
+| [briefs/](briefs/)                       | The briefs as given: the revised v0.9 brief and reference finds |
+| [../DECISIONS.md](../DECISIONS.md)       | Every choice that differs from the brief, and why               |
 
 ## reference/
 

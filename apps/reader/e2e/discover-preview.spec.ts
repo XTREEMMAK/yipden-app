@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openActions, ringNext } from './support.js';
+import { ringNext } from './support.js';
 
 /**
  * Discover's per-type preview button: audio plays, comics, art and text open a viewer, a game

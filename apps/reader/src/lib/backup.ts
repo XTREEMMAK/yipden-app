@@ -1,4 +1,5 @@
-import { KNOWN_LAYOUTS, safeUrl } from '@yipden/ring-client';
+import { KNOWN_LAYOUTS, safeUrl, type SiteLayout } from '@yipden/ring-client';
+import { MAX_TRACKS_PER_CREATOR, type ReaderTrack } from './readerTracks.js';
 import { store as defaultStore } from './store/index.js';
 import type {
 	Feed,
@@ -26,7 +27,11 @@ const SETTING_KEYS: SettingKey[] = [
 	'shuffleMusic',
 	'maxAgeDays',
 	'markReadOnScroll',
-	'sounds'
+	'sounds',
+	'sitesInApp',
+	'explored',
+	'readerTracks',
+	'layoutOverrides'
 ];
 
 export interface YipDenBackup {
@@ -101,6 +106,53 @@ function optionalNumber(value: unknown): boolean {
 	return value === undefined || (typeof value === 'number' && Number.isFinite(value));
 }
 
+/**
+ * A per-creator map as a backup carries it (explored marks, reader tracks, layout overrides):
+ * creator key to a value, bounded, keeping only the entries `valid` accepts. A malformed entry
+ * is dropped, not the whole file, and `__proto__` is never a key.
+ */
+function creatorMap<T>(
+	value: unknown,
+	valid: (entry: unknown) => entry is T
+): Record<string, T> | null {
+	if (!record(value)) return null;
+	const entries = Object.entries(value);
+	if (entries.length > 50_000) return null;
+	const map: Record<string, T> = {};
+	for (const [key, entry] of entries) {
+		if (key === '__proto__' || key.length > 2_048) continue;
+		if (valid(entry)) map[key] = entry;
+	}
+	return map;
+}
+
+const exploredAt = (entry: unknown): entry is string => text(entry, 100);
+
+const siteLayout = (entry: unknown): entry is SiteLayout =>
+	KNOWN_LAYOUTS.some((layout) => layout === entry);
+
+function readerTrackList(entry: unknown): entry is ReaderTrack[] {
+	return (
+		Array.isArray(entry) &&
+		entry.length <= MAX_TRACKS_PER_CREATOR &&
+		entry.every(
+			(track) =>
+				record(track) &&
+				https(track.url) &&
+				text(track.title, 200) &&
+				text(track.addedAt, 100) &&
+				(track.foundOn === undefined || https(track.foundOn))
+		)
+	);
+}
+
+/** Restored by merging into what is already here; this phone's own entry wins a clash. */
+const MERGED_SETTINGS = {
+	explored: exploredAt,
+	readerTracks: readerTrackList,
+	layoutOverrides: siteLayout
+} as const;
+
 function validPerson(value: unknown): value is Person {
 	return (
 		record(value) &&
@@ -111,6 +163,7 @@ function validPerson(value: unknown): value is Person {
 		(value.iconUrl === undefined || https(value.iconUrl)) &&
 		optionalText(value.ringId, 1_000) &&
 		(value.layout === undefined || KNOWN_LAYOUTS.some((layout) => layout === value.layout)) &&
+		optionalText(value.folder, 100) &&
 		text(value.followedAt, 100)
 	);
 }
@@ -417,6 +470,18 @@ export async function restoreBackup(
 
 	for (const key of SETTING_KEYS) {
 		if (!(key in backup.settings)) continue;
+		if (key in MERGED_SETTINGS) {
+			const valid = MERGED_SETTINGS[key as keyof typeof MERGED_SETTINGS] as (
+				entry: unknown
+			) => boolean;
+			const incoming = creatorMap(backup.settings[key], (entry): entry is unknown => valid(entry));
+			if (!incoming) continue;
+			const current =
+				creatorMap(await store.getSetting(key), (entry): entry is unknown => valid(entry)) ?? {};
+			await store.setSetting(key, { ...incoming, ...current });
+			report.settingsRestored += 1;
+			continue;
+		}
 		await store.setSetting(key, backup.settings[key]);
 		report.settingsRestored += 1;
 	}

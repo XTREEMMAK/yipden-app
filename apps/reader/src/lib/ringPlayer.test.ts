@@ -159,6 +159,27 @@ describe('snapshot and restore', () => {
 	});
 });
 
+describe('restoring a saved queue', () => {
+	it('drops a track whose address is not safe, and a picture that is not', async () => {
+		const { restorableItem } = await import('./ringPlayer.svelte.js');
+		const base = {
+			id: 'a',
+			title: 'A',
+			creator: 'Ash',
+			url: 'https://ash.example/',
+			siteUrl: 'https://ash.example/',
+			mediaUrl: 'https://ash.example/a.mp3',
+			artUrl: 'https://ash.example/a.jpg'
+		};
+		expect(restorableItem(base)?.artUrl).toBe('https://ash.example/a.jpg');
+		expect(restorableItem({ ...base, artUrl: 'http://192.168.1.1/x.png' })?.artUrl).toBeNull();
+		expect(restorableItem({ ...base, mediaUrl: 'https://192.168.1.1/a.mp3' })).toBeNull();
+		expect(restorableItem({ ...base, mediaUrl: 'javascript:alert(1)' })).toBeNull();
+		expect(restorableItem({ ...base, title: 42 })).toBeNull();
+		expect(restorableItem(null)).toBeNull();
+	});
+});
+
 describe('music shuffle', () => {
 	it('deals a music member tracks in a shuffled order by default', () => {
 		const many = member({

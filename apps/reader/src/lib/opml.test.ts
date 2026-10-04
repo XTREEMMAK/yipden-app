@@ -157,6 +157,75 @@ describe('round trip', () => {
 	});
 });
 
+describe('folders in OPML', () => {
+	it('nests a folder’s people under one outline and reads them back into it', () => {
+		const people = [
+			person({ id: 'p1', name: 'Ada', folder: 'Music' }),
+			person({ id: 'p2', name: 'Bo', siteUrl: 'https://bo.example/' })
+		];
+		const feedsByPerson = new Map([
+			[
+				'p1',
+				[
+					feed({ url: 'https://ada.example/a.xml' }),
+					feed({ id: 'f2', url: 'https://social.example/@ada.rss' })
+				]
+			],
+			['p2', [feed({ id: 'f3', personId: 'p2', url: 'https://bo.example/feed.xml' })]]
+		]);
+
+		const imported = parseOpml(exportOpml(people, feedsByPerson));
+		expect(imported.map((entry) => [entry.name, entry.folder, entry.feeds.length])).toEqual([
+			['Ada', 'Music', 2],
+			['Bo', undefined, 1]
+		]);
+	});
+
+	it('escapes a folder name', () => {
+		const xml = exportOpml([person({ folder: 'R&B "live"' })], new Map([['p1', [feed()]]]));
+		expect(xml).toContain('text="R&amp;B &quot;live&quot;"');
+		expect(parseOpml(xml)[0]?.folder).toBe('R&B "live"');
+	});
+
+	it('reads another reader’s folder of feeds as separate people in that folder', () => {
+		const xml = `<opml version="2.0"><body>
+			<outline text="Tech">
+				<outline type="rss" text="One" xmlUrl="https://one.example/feed" htmlUrl="https://one.example/"/>
+				<outline type="rss" text="Two" xmlUrl="https://two.example/feed" htmlUrl="https://two.example/"/>
+			</outline>
+		</body></opml>`;
+		expect(parseOpml(xml).map((entry) => [entry.name, entry.folder])).toEqual([
+			['One', 'Tech'],
+			['Two', 'Tech']
+		]);
+	});
+
+	it('still reads one site’s feeds under one outline as one person, in no folder', () => {
+		const xml = `<opml version="2.0"><body>
+			<outline text="Ada">
+				<outline type="rss" text="Posts" xmlUrl="https://ada.example/posts.xml" htmlUrl="https://ada.example/"/>
+				<outline type="rss" text="Notes" xmlUrl="https://ada.example/notes.xml" htmlUrl="https://ada.example/"/>
+			</outline>
+		</body></opml>`;
+		const imported = parseOpml(xml);
+		expect(imported).toHaveLength(1);
+		expect(imported[0]?.folder).toBeUndefined();
+		expect(imported[0]?.feeds).toHaveLength(2);
+	});
+
+	it('names a person by the outermost of nested folders', () => {
+		const xml = `<opml version="2.0"><body>
+			<outline text="Reading">
+				<outline text="Comics">
+					<outline type="rss" text="One" xmlUrl="https://one.example/feed" htmlUrl="https://one.example/"/>
+					<outline type="rss" text="Two" xmlUrl="https://two.example/feed" htmlUrl="https://two.example/"/>
+				</outline>
+			</outline>
+		</body></opml>`;
+		expect(parseOpml(xml).map((entry) => entry.folder)).toEqual(['Reading', 'Reading']);
+	});
+});
+
 describe('the Shelf in OPML', () => {
 	const item = (overrides: Partial<ShelfItem> = {}): ShelfItem => ({
 		id: 'https://wide.example.com/essay?a=1&b=2',

@@ -14,3 +14,6 @@ apps/reader/src/lib/partner/test-fixtures
 apps/reader/android
 apps/reader/static/fonts
 LICENSE
+
+# Briefs are kept exactly as they were given.
+docs/briefs/

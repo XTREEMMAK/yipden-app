@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import type { PartnerAdapter } from '@yipden/ring-client';
 
@@ -195,52 +195,40 @@ describe('partner rings', () => {
 });
 
 describe('the registry', () => {
-	it('registers no partner ring unless a build and a test both opt in', async () => {
+	afterEach(() => vi.unstubAllEnvs());
+
+	it('registers Musicians Webring and Knifebeetle for everyone, with no flag', async () => {
+		vi.doUnmock('./partner/registry.js');
+		const { partnerSources } = await import('./partner/registry.js');
+		const sources = await partnerSources();
+		expect(sources.map((source) => source.adapter.ring.id)).toEqual([
+			'musicians-webring',
+			'knifebeetle'
+		]);
+	});
+
+	it('gives each ring a link back to its own site', async () => {
+		vi.doUnmock('./partner/registry.js');
+		const { partnerSources } = await import('./partner/registry.js');
+		for (const source of await partnerSources()) {
+			expect(source.adapter.ring.hubUrl).toMatch(/^https:\/\//);
+		}
+	});
+
+	it('leaves the live rings out of a build that must not touch the network', async () => {
+		vi.stubEnv('VITE_YIPDEN_PARTNER_LIVE', '0');
 		vi.doUnmock('./partner/registry.js');
 		const { partnerSources } = await import('./partner/registry.js');
 		expect(await partnerSources()).toEqual([]);
+	});
+
+	it('registers the fixture only when a build and a test both opt in', async () => {
+		vi.stubEnv('VITE_YIPDEN_PARTNER_LIVE', '0');
+		vi.doUnmock('./partner/registry.js');
+		const { partnerSources } = await import('./partner/registry.js');
 		localStorage.setItem('yipden:partnerFixture', '1');
 		// Without the build flag the local opt in alone does nothing.
 		expect(await partnerSources()).toEqual([]);
-	});
-
-	it('adopts a flag from the URL once, with no console needed, then keeps it on its own', async () => {
-		vi.doUnmock('./partner/registry.js');
-		try {
-			history.pushState({}, '', '/?yipden:partnerMusiciansWebring=1');
-			const { partnerSources } = await import('./partner/registry.js');
-
-			expect(await partnerSources()).toHaveLength(1);
-			expect(localStorage.getItem('yipden:partnerMusiciansWebring')).toBe('1');
-
-			// The query string is a one-time trigger, not a standing switch: the setting the
-			// first load wrote to storage is what a later, plain load without it still reads.
-			history.pushState({}, '', '/');
-			expect(await partnerSources()).toHaveLength(1);
-		} finally {
-			history.pushState({}, '', '/');
-		}
-	});
-
-	it('registers Knifebeetle behind its own flag, independently of the others', async () => {
-		vi.doUnmock('./partner/registry.js');
-		const { partnerSources } = await import('./partner/registry.js');
-		expect(await partnerSources()).toEqual([]);
-		localStorage.setItem('yipden:partnerKnifebeetle', '1');
-		const sources = await partnerSources();
-		expect(sources).toHaveLength(1);
-		expect(sources[0]?.adapter.ring.id).toBe('knifebeetle');
-	});
-
-	it('never turns anything on from an unrelated query string', async () => {
-		vi.doUnmock('./partner/registry.js');
-		try {
-			history.pushState({}, '', '/?utm_source=somewhere');
-			const { partnerSources } = await import('./partner/registry.js');
-			expect(await partnerSources()).toEqual([]);
-		} finally {
-			history.pushState({}, '', '/');
-		}
 	});
 });
 

@@ -21,6 +21,7 @@
     "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.5.2",
     "@capacitor/share": "^8.0.2",
+    "@capgo/capacitor-inappbrowser": "8.21.1",
     "@capgo/capacitor-media-session": "^8.0.32",
     "@rgrove/parse-xml": "^5.0.0",
     "@yipden/feeds": "workspace:*",

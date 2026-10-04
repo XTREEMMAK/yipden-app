@@ -235,4 +235,70 @@ test.describe('Feeds', () => {
 			expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
 		}
 	});
+
+	test('a folder made in You narrows Feeds, and Everyone brings the rest back', async ({
+		page
+	}) => {
+		await seed(page);
+		await page.route('https://cymarsh.com/', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'text/html',
+				body: LENA_PAGE.replace('Lena Ofori', 'Cy Marsh')
+			})
+		);
+		await page.route('https://cymarsh.com/feed.xml', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/rss+xml',
+				body: `<?xml version="1.0"?><rss version="2.0"><channel>
+					<title>Cy Marsh</title><link>https://cymarsh.com/</link><description>Essays.</description>
+					<item><title>An essay by Cy</title><link>https://cymarsh.com/essay</link>
+						<pubDate>Mon, 21 Sep 2026 09:00:00 GMT</pubDate>
+						<description>Long words.</description></item>
+				</channel></rss>`
+			})
+		);
+		await page.goto('/follow');
+		await page.getByLabel('Creator, website, or profile').fill('cymarsh.com');
+		await page.getByRole('button', { name: 'Find feeds' }).click();
+		await page.getByRole('button', { name: /Follow Cy Marsh in/ }).click();
+		await expect(page.getByText('Following Cy Marsh')).toBeVisible();
+
+		await page.goto('/you');
+		await page.getByRole('button', { name: /Lena Ofori.*sources active/ }).click();
+		await page.getByLabel('Folder', { exact: true }).selectOption({ label: 'New folder…' });
+		await page.getByLabel('New folder name').fill('Music');
+		await page.getByRole('button', { name: 'Save', exact: true }).click();
+		await expect(page.getByLabel('Folder', { exact: true })).toHaveValue('Music');
+
+		await page.goto('/feeds');
+		const everything = page.locator('#pane-everything');
+		await expect(everything.getByText('An essay by Cy')).toBeVisible({ timeout: 10_000 });
+		await expect(everything.getByText('A plain post')).toBeVisible();
+
+		await page.getByRole('button', { name: 'Filter your feeds' }).click();
+		const sheet = page.getByRole('dialog', { name: 'Filter your feeds' });
+		await expect(sheet.getByRole('radio', { name: 'Everyone' })).toBeChecked();
+		await sheet.getByRole('radio', { name: /^Music/ }).click();
+
+		await expect(sheet).toHaveCount(0);
+		await expect(page.getByRole('button', { name: 'Filter your feeds: Music' })).toBeFocused();
+		await expect(everything.getByText('A plain post')).toBeVisible();
+		await expect(everything.getByText('An essay by Cy')).toHaveCount(0);
+
+		// One person, chosen the same way.
+		await page.getByRole('button', { name: 'Filter your feeds: Music' }).click();
+		await sheet.getByRole('radio', { name: 'Cy Marsh' }).click();
+		await expect(everything.getByText('An essay by Cy')).toBeVisible();
+		await expect(everything.getByText('A plain post')).toHaveCount(0);
+
+		await page.getByRole('button', { name: 'Filter your feeds: Cy Marsh' }).click();
+		await page.keyboard.press('Escape');
+		await expect(sheet).toHaveCount(0);
+		await page.getByRole('button', { name: 'Filter your feeds: Cy Marsh' }).click();
+		await sheet.getByRole('radio', { name: 'Everyone' }).click();
+		await expect(everything.getByText('A plain post')).toBeVisible();
+		await expect(everything.getByText('An essay by Cy')).toBeVisible();
+	});
 });

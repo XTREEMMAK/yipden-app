@@ -5,7 +5,7 @@ import { fetchPartnerPage } from './fetchPage.js';
 import type { PartnerSource } from './registry.js';
 
 /**
- * Knifebeetle (https://knifebeetle.neocities.org/), a webcomic ring, read for testing.
+ * Knifebeetle (https://knifebeetle.neocities.org/), a webcomic ring, read live.
  *
  * A second real, uncooperative shape on purpose, not a repeat of Musicians Webring's: a custom
  * hand-built page, no shared ring engine, ten genre sections, and two different hand-written

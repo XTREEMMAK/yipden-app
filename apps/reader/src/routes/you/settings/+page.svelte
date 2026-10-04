@@ -278,6 +278,20 @@
 						onchange={(on) => prefs.setMarkReadOnScroll(on)}
 					/>
 				</div>
+				<div class="srow">
+					<span class="tt">
+						<b>Open creators' sites in YipDen</b>
+						<small
+							>Android: Visit opens the site here, with a button to keep audio you find on it</small
+						>
+					</span>
+					<Switch
+						id="sites-in-app"
+						label="Open creators' sites in YipDen"
+						checked={prefs.sitesInApp}
+						onchange={(on) => prefs.setSitesInApp(on)}
+					/>
+				</div>
 				<div class="srow slider-row">
 					<span class="tt">
 						<b>Keep posts from the last {prefs.maxAgeDays} days</b>

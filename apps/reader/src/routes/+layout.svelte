@@ -4,6 +4,8 @@
 	import { onMount } from 'svelte';
 	import MiniPlayer from '$components/MiniPlayer.svelte';
 	import Player from '$components/Player.svelte';
+	import FoundOnPageSheet from '$components/FoundOnPageSheet.svelte';
+	import { siteBrowser } from '$lib/platform/siteBrowser.svelte.js';
 	import TabBar from '$components/TabBar.svelte';
 	import { directionBetween } from '$lib/navigation.js';
 	import { player } from '$lib/player.svelte.js';
@@ -148,4 +150,11 @@
 	<MiniPlayer />
 	<TabBar />
 	<Player />
+	{#if siteBrowser.reviewing}
+		<FoundOnPageSheet
+			session={siteBrowser.reviewing}
+			onback={() => void siteBrowser.resume()}
+			ondone={() => void siteBrowser.close()}
+		/>
+	{/if}
 </div>

@@ -17,6 +17,9 @@ class Prefs {
 	/** How many days back a followed person's posts are kept, unless a follow says otherwise. */
 	maxAgeDays = $state(DEFAULT_MAX_AGE_DAYS);
 
+	/** Creators' sites open inside the app (Android), where audio on them can be found. On by default. */
+	sitesInApp = $state(true);
+
 	/** A little yip and a buzz when a creator is liked. On by default. */
 	sounds = $state(true);
 
@@ -31,6 +34,8 @@ class Prefs {
 		if (typeof scroll === 'boolean') this.markReadOnScroll = scroll;
 		const sounds = await store.getSetting<boolean>('sounds');
 		if (typeof sounds === 'boolean') this.sounds = sounds;
+		const inApp = await store.getSetting<boolean>('sitesInApp');
+		if (typeof inApp === 'boolean') this.sitesInApp = inApp;
 		const enforce = await store.getSetting<boolean>('ageLimitEnabled');
 		// A release build always enforces it, whatever a debug build once saved on this phone.
 		if (__YIPDEN_DEBUG__ && typeof enforce === 'boolean') {
@@ -49,6 +54,11 @@ class Prefs {
 	setMarkReadOnScroll(on: boolean): void {
 		this.markReadOnScroll = on;
 		void store.setSetting('markReadOnScroll', on);
+	}
+
+	setSitesInApp(on: boolean): void {
+		this.sitesInApp = on;
+		void store.setSetting('sitesInApp', on);
 	}
 
 	setSounds(on: boolean): void {

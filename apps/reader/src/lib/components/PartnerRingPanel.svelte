@@ -1,11 +1,17 @@
 <script lang="ts">
 	import { previewKindOf, type PartnerRingResult, type PreviewKind } from '@yipden/ring-client';
 	import { cardStack } from '$lib/actions/cardStack.js';
+	import { swipe } from '$lib/actions/swipe.js';
 	import { tuckMini } from '$lib/actions/tuckMini.js';
 	import { diagnostics, frameMeter, type ScrollReport } from '$lib/diagnostics.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
+	import { explored, resumeIndex } from '$lib/explored.svelte.js';
+	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
+	import CreatorNotesSheet from './CreatorNotesSheet.svelte';
+	import { siteBrowser } from '$lib/platform/siteBrowser.svelte.js';
+	import { prefs } from '$lib/prefs.svelte.js';
 	import { shelf, toggleShelf } from '$lib/shelf.svelte.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import { verdicts } from '$lib/verdicts.svelte.js';
@@ -64,8 +70,11 @@
 	 * and, for a ring that publishes categories (the `tags` capability), one chip per category.
 	 * Generic over rings: nothing here knows which ring it is showing.
 	 */
+	// Where the reader was in this ring last time, kept across leaving Discover and relaunching:
+	// applied in onMount, once it has been read.
 	let query = $state('');
 	let genre = $state<string | null>(null);
+	let hideExplored = $state(false);
 	let scroller = $state<HTMLDivElement | undefined>(undefined);
 
 	let genres = $derived.by(() => {
@@ -83,6 +92,7 @@
 		return members.filter(
 			(member) =>
 				(!genre || member.tags?.includes(genre)) &&
+				(!hideExplored || !explored.has(member.url)) &&
 				(!needle ||
 					[member.name, member.blurb, hostOf(member.url), ...(member.tags ?? [])].some((field) =>
 						field?.toLowerCase().includes(needle)
@@ -95,12 +105,100 @@
 		return tag.charAt(0).toUpperCase() + tag.slice(1);
 	}
 
-	// A new search or genre starts the list from the top, not wherever the last one was scrolled.
+	let exploredCount = $derived(members.filter((member) => explored.has(member.url)).length);
+
+	/*
+	 * A changed search, genre or "hide explored" starts the list from the top and is remembered.
+	 * The first run is the restored view itself, which keeps its own scroll position instead.
+	 */
+	let restored = false;
 	$effect(() => {
-		void query;
-		void genre;
-		if (scroller) scroller.scrollTop = 0;
+		const view = { query, genre, hideExplored };
+		if (!restored) return;
+		// Untracked: setView reads the saved views it writes, and must not rerun this effect.
+		untrack(() => {
+			explored.setView(result.ring.id, { ...view, scrollTop: 0 });
+			if (scroller) scroller.scrollTop = 0;
+		});
 	});
+
+	function onScroll() {
+		if (restored && scroller) explored.setView(result.ring.id, { scrollTop: scroller.scrollTop });
+	}
+
+	/** Visiting, previewing or finding feeds for someone means they were looked at. */
+	function explore(member: (typeof result.members)[number]) {
+		void explored.mark(member.url);
+	}
+
+	/** A member's own site: in the app when the reader allows it, where audio on it can be kept. */
+	function visit(member: (typeof result.members)[number]) {
+		openInBrowser(member, member.url);
+	}
+
+	/**
+	 * Any page of a member's, kept in the in-app browser with that member as the creator, so audio
+	 * found there (their own site or their chosen sample's page) is kept for them.
+	 */
+	function openInBrowser(member: (typeof result.members)[number], url: string) {
+		void siteBrowser.open(
+			url,
+			{
+				url: member.url,
+				name: member.name,
+				artUrl: member.thumbUrl ?? null,
+				layout: creatorNotes.layoutFor(member.url, member.layout)
+			},
+			prefs.sitesInApp
+		);
+	}
+
+	/** The card being swiped, and how far: only its body moves, the card itself keeps its fold. */
+	let drag = $state<{ id: string; x: number } | null>(null);
+
+	/** Swiping a card left marks it explored, or unmarks it; the check top right does the same. */
+	function swipedCard(member: (typeof result.members)[number], commit: boolean) {
+		drag = null;
+		if (!commit) return;
+		void toggleExplored(member);
+		dismissHint();
+	}
+
+	const HINT_KEY = 'yipden:hint:swipeExplored';
+	let showHint = $state(false);
+
+	function dismissHint() {
+		showHint = false;
+		try {
+			localStorage.setItem(HINT_KEY, '1');
+		} catch {
+			// No storage: the hint may show again next time, which is harmless.
+		}
+	}
+
+	async function toggleExplored(member: (typeof result.members)[number]) {
+		const now = await explored.toggle(member.url);
+		toast.show(now ? `${member.name} marked explored.` : `${member.name} unmarked.`);
+	}
+
+	/** Scroll to the first member not looked at yet, after the last one that was. */
+	function resume() {
+		const index = resumeIndex(
+			shown.map((member) => member.url),
+			(url) => explored.has(url)
+		);
+		if (index === null || !scroller) {
+			toast.show('Everyone here is explored.');
+			return;
+		}
+		const card = scroller.querySelectorAll<HTMLElement>('.cards > li')[index];
+		if (!card) return;
+		// The list item, not its card: the card is the sticky box, and a pinned one reports where
+		// it is drawn rather than where it sits in the list.
+		const top =
+			card.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+		scroller.scrollTo({ top: Math.max(0, top - 6), behavior: 'smooth' });
+	}
 
 	async function decide(member: (typeof result.members)[number], verdict: 'liked' | 'hidden') {
 		const now = await verdicts.toggle(
@@ -135,6 +233,7 @@
 	 * `PartnerThumb.svelte` for why a preview cannot be opened from inside one of those cards.
 	 */
 	let preview = $state<{ src: string; alt: string } | null>(null);
+	let notesFor = $state<(typeof result.members)[number] | null>(null);
 
 	$effect(() => {
 		back?.focus();
@@ -149,6 +248,25 @@
 	let historyOpen = false;
 
 	onMount(() => {
+		try {
+			showHint = localStorage.getItem(HINT_KEY) !== '1';
+		} catch {
+			showHint = false;
+		}
+		void creatorNotes.load();
+		// On a cold launch the saved view is still being read: apply it once it arrives.
+		void explored.load().then(async () => {
+			const view = explored.view(result.ring.id);
+			query = view.query;
+			genre = view.genre;
+			hideExplored = view.hideExplored;
+			await tick();
+			requestAnimationFrame(() => {
+				if (scroller) scroller.scrollTop = view.scrollTop;
+				restored = true;
+			});
+		});
+
 		window.history.pushState(
 			{ ...window.history.state, yipdenRing: true },
 			'',
@@ -163,7 +281,13 @@
 			onback();
 		};
 		window.addEventListener('popstate', onPopState);
+		// Android can close a hidden app without warning: a scroll position waiting to be saved
+		// is saved as the app goes to the background.
+		const onHide = () => explored.flush();
+		document.addEventListener('visibilitychange', onHide);
 		return () => {
+			document.removeEventListener('visibilitychange', onHide);
+			explored.flush();
 			window.removeEventListener('popstate', onPopState);
 			if (historyOpen && window.history.state?.yipdenRing) window.history.back();
 			historyOpen = false;
@@ -183,8 +307,8 @@
 	 * What the Listen button actually says, so a reader knows what they are about to open before
 	 * they tap it: a file plays in a second, a platform page may ask for an account, and a
 	 * paywalled one may ask for a subscription. Guessed from the URL alone, the same way
-	 * `previewKindOf` itself is; nothing here changes what happens on tap, which is always
-	 * `openExternal`, whatever the label says.
+	 * `previewKindOf` itself is; nothing here changes what happens on tap, which is always the
+	 * in-app browser (or the system one, where the reader turned that off), whatever the label says.
 	 */
 	const PREVIEW_LABELS: Record<PreviewKind, string> = {
 		file: 'Listen',
@@ -244,6 +368,19 @@
 				<img class="ring-badge" src={result.ring.badgeUrl} alt={`${result.ring.name} badge`} />
 			{/if}
 		</div>
+		<div class="progress">
+			<span class="count">{exploredCount} of {members.length} explored</span>
+			<button
+				class="mini"
+				aria-pressed={hideExplored}
+				onclick={() => (hideExplored = !hideExplored)}
+			>
+				Hide explored
+			</button>
+			<button class="mini" onclick={resume} disabled={exploredCount === members.length}>
+				Resume
+			</button>
+		</div>
 		{#if genres.length > 1}
 			<div class="genres" role="group" aria-label="Genre">
 				<button class="genre" aria-pressed={genre === null} onclick={() => (genre = null)}>
@@ -263,7 +400,7 @@
 		{/if}
 	</header>
 
-	<div class="scroll" bind:this={scroller} use:stack use:tuckMini>
+	<div class="scroll" bind:this={scroller} use:stack use:tuckMini onscroll={onScroll}>
 		<!--
 			The intro scrolls away with the cards rather than folding out of the head: anything that
 			resizes the scroller mid-fling re-lays the whole list out every frame and cuts the fling.
@@ -271,146 +408,238 @@
 		<p class="note intro">
 			Another ring. These members are not part of Discover’s rotation, and nothing here is ranked.
 		</p>
+		{#if showHint}
+			<div class="hint" role="note">
+				<span>Swipe a card left to mark it explored. The check at its top right does the same.</span
+				>
+				<button class="hint-close" onclick={dismissHint} aria-label="Got it">
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+				</button>
+			</div>
+		{/if}
 		<div class="stack-list">
 			<ul class="cards">
 				{#each shown as member (member.id)}
-					{@const desktopFirst = member.layout === 'desktop-first'}
-					{@const saved = shelf.has(member.url)}
+					{@const desktopFirst =
+						creatorNotes.layoutFor(member.url, member.layout) === 'desktop-first'}
+					{@const yours = creatorNotes.tracksFor(member.url)}
+					{@const onShelf = shelf.has(member.url)}
+					{@const seen = explored.has(member.url)}
 					<li class="yip-stack">
 						<div class="yip-rail">
-							<div class="card yip-fold">
-								<p class="via">
-									via
-									<a
-										href={result.ring.hubUrl}
-										target="_blank"
-										rel="noopener noreferrer"
-										onclick={(event) => {
-											event.preventDefault();
-											openExternal(result.ring.hubUrl);
-										}}>{result.ring.name}</a
+							<div
+								class="card yip-fold"
+								class:seen
+								use:swipe={{
+									axis: 'x',
+									allow: [-1],
+									exclude: 'a, input',
+									onMove: (delta) => (drag = { id: member.id, x: Math.min(0, delta) }),
+									onEnd: (end) => swipedCard(member, end.commit)
+								}}
+							>
+								<div
+									class="swipe-reveal"
+									aria-hidden="true"
+									style:opacity={drag?.id === member.id ? Math.min(1, -drag.x / 80) : 0}
+								>
+									<svg viewBox="0 0 24 24"
+										><circle cx="12" cy="12" r="8.5" /><path d="M8.2 12.3l2.6 2.6 5-5.4" /></svg
 									>
-								</p>
-								<div class="title-row">
-									{#if member.thumbUrl && !diag('noThumbs')}
-										<PartnerThumb
-											src={member.thumbUrl}
-											alt={member.name}
-											onpreview={() => (preview = { src: member.thumbUrl!, alt: member.name })}
-										/>
-									{/if}
-									<h3>{member.name}</h3>
+									{seen ? 'Unmark' : 'Explored'}
 								</div>
-								{#if member.blurb}<p class="blurb">{member.blurb}</p>{/if}
-								<p class="host">
-									{hostOf(member.url)}{#if desktopFirst}<span class="chip">Best on desktop</span
-										>{/if}
-								</p>
-								<div class="acts">
-									{#if desktopFirst}
+								<div
+									class="card-body"
+									class:settling={drag?.id !== member.id}
+									style:transform={drag?.id === member.id ? `translateX(${drag.x}px)` : null}
+								>
+									<div class="via-row">
+										<p class="via">
+											via
+											<a
+												href={result.ring.hubUrl}
+												target="_blank"
+												rel="noopener noreferrer"
+												onclick={(event) => {
+													event.preventDefault();
+													openExternal(result.ring.hubUrl);
+												}}>{result.ring.name}</a
+											>
+										</p>
 										<button
-											class="primary"
-											aria-pressed={saved}
-											onclick={() => toggleShelf(shelfDraft(member))}
+											class="seen-toggle"
+											aria-label={seen
+												? `Unmark ${member.name} as explored`
+												: `Mark ${member.name} as explored`}
+											title={seen ? 'Explored' : 'Mark explored'}
+											aria-pressed={seen}
+											onclick={() => toggleExplored(member)}
 										>
-											{saved ? 'Saved' : 'Save for later'}
+											<svg viewBox="0 0 24 24" aria-hidden="true"
+												><circle cx="12" cy="12" r="8.5" /><path d="M8.2 12.3l2.6 2.6 5-5.4" /></svg
+											>
 										</button>
-										<button
-											class="secondary"
-											onclick={() => openExternal(member.url)}
-											aria-label={`Open ${hostOf(member.url)}`}
-										>
-											<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
-												<circle cx="12" cy="12" r="9" />
-												<path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z" />
-											</svg>
-											Open
-										</button>
-									{:else}
-										<button
-											class="primary"
-											onclick={() => openExternal(member.url)}
-											aria-label={`Visit ${hostOf(member.url)}`}
-										>
-											<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
-												<circle cx="12" cy="12" r="9" />
-												<path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z" />
-											</svg>
-											Visit
-										</button>
-									{/if}
-									{#if member.previewUrl}
-										<button
-											class="secondary"
-											onclick={() => openExternal(member.previewUrl!)}
-											title="Their own chosen sample, opens on its own site"
-										>
-											<PlatformIcon kind={previewKindOf(member.previewUrl)} />
-											{previewLabel(member.previewUrl)}
-										</button>
-									{/if}
-								</div>
-								<div class="acts">
-									<button
-										class="secondary icon-only"
-										aria-label={`Find feeds for ${member.name}`}
-										title="Find feeds"
-										onclick={() => goto(`/follow?url=${encodeURIComponent(member.url)}`)}
-									>
-										<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
-											<circle cx="11" cy="11" r="6.5" />
-											<path d="M20 20l-4.4-4.4" />
-										</svg>
-									</button>
-									{#if !desktopFirst}
+									</div>
+									<div class="title-row">
+										{#if member.thumbUrl && !diag('noThumbs')}
+											<PartnerThumb
+												src={member.thumbUrl}
+												alt={member.name}
+												onpreview={() => (preview = { src: member.thumbUrl!, alt: member.name })}
+											/>
+										{/if}
+										<h3>{member.name}</h3>
+									</div>
+									{#if member.blurb}<p class="blurb">{member.blurb}</p>{/if}
+									<p class="host">
+										{hostOf(member.url)}{#if desktopFirst}<span class="chip">Best on desktop</span
+											>{/if}
+									</p>
+									<div class="acts">
+										{#if desktopFirst}
+											<button
+												class="primary"
+												aria-pressed={onShelf}
+												onclick={() => toggleShelf(shelfDraft(member))}
+											>
+												{onShelf ? 'Saved' : 'Save for later'}
+											</button>
+											<button
+												class="secondary"
+												onclick={() => {
+													explore(member);
+													visit(member);
+												}}
+												aria-label={`Open ${hostOf(member.url)}`}
+											>
+												<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
+													<circle cx="12" cy="12" r="9" />
+													<path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z" />
+												</svg>
+												Open
+											</button>
+										{:else}
+											<button
+												class="primary"
+												onclick={() => {
+													explore(member);
+													visit(member);
+												}}
+												aria-label={`Visit ${hostOf(member.url)}`}
+											>
+												<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
+													<circle cx="12" cy="12" r="9" />
+													<path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z" />
+												</svg>
+												Visit
+											</button>
+										{/if}
+										{#if member.previewUrl}
+											<button
+												class="secondary"
+												onclick={() => {
+													explore(member);
+													openInBrowser(member, member.previewUrl!);
+												}}
+												title="Their own chosen sample"
+											>
+												<PlatformIcon kind={previewKindOf(member.previewUrl)} />
+												{previewLabel(member.previewUrl)}
+											</button>
+										{/if}
+										{#if yours.length}
+											<button
+												class="secondary"
+												onclick={(event) => {
+													explore(member);
+													creatorNotes.play(
+														{ url: member.url, name: member.name, artUrl: member.thumbUrl ?? null },
+														yours[0]!.url,
+														event.currentTarget
+													);
+												}}
+												title="A track you added yourself"
+											>
+												<PlatformIcon kind={previewKindOf(yours[0]!.url)} />
+												Your track
+											</button>
+										{/if}
+									</div>
+									<div class="acts">
 										<button
 											class="secondary icon-only"
-											aria-label={`Save ${member.name} for later`}
-											title={saved ? 'Saved' : 'Save for later'}
-											aria-pressed={saved}
-											onclick={() => toggleShelf(shelfDraft(member))}
+											aria-label={`Find feeds for ${member.name}`}
+											title="Find feeds"
+											onclick={() => {
+												explore(member);
+												void goto(`/follow?url=${encodeURIComponent(member.url)}`);
+											}}
+										>
+											<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
+												<circle cx="11" cy="11" r="6.5" />
+												<path d="M20 20l-4.4-4.4" />
+											</svg>
+										</button>
+										{#if !desktopFirst}
+											<button
+												class="secondary icon-only"
+												aria-label={`Save ${member.name} for later`}
+												title={onShelf ? 'Saved' : 'Save for later'}
+												aria-pressed={onShelf}
+												onclick={() => toggleShelf(shelfDraft(member))}
+											>
+												<svg
+													class="globe"
+													class:filled={onShelf}
+													viewBox="0 0 24 24"
+													aria-hidden="true"
+												>
+													<path d="M6 4h12v16l-6-4-6 4z" />
+												</svg>
+											</button>
+										{/if}
+										<button
+											class="secondary icon-only"
+											aria-label={`Like ${member.name}`}
+											title="Like"
+											aria-pressed={verdicts.verdictFor(member.url) === 'liked'}
+											onclick={() => decide(member, 'liked')}
 										>
 											<svg
 												class="globe"
-												class:filled={saved}
+												class:filled={verdicts.verdictFor(member.url) === 'liked'}
 												viewBox="0 0 24 24"
 												aria-hidden="true"
 											>
-												<path d="M6 4h12v16l-6-4-6 4z" />
+												<path
+													d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"
+												/>
 											</svg>
 										</button>
-									{/if}
-									<button
-										class="secondary icon-only"
-										aria-label={`Like ${member.name}`}
-										title="Like"
-										aria-pressed={verdicts.verdictFor(member.url) === 'liked'}
-										onclick={() => decide(member, 'liked')}
-									>
-										<svg
-											class="globe"
-											class:filled={verdicts.verdictFor(member.url) === 'liked'}
-											viewBox="0 0 24 24"
-											aria-hidden="true"
+										<button
+											class="secondary icon-only"
+											aria-label={`Not for me: ${member.name}`}
+											title="Not for me"
+											onclick={() => decide(member, 'hidden')}
 										>
-											<path
-												d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"
-											/>
-										</svg>
-									</button>
-									<button
-										class="secondary icon-only"
-										aria-label={`Not for me: ${member.name}`}
-										title="Not for me"
-										onclick={() => decide(member, 'hidden')}
-									>
-										<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
-											<path
-												d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"
-											/>
-											<path d="M9.6 8.6l4.8 4.8M14.4 8.6l-4.8 4.8" />
-										</svg>
-									</button>
+											<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
+												<path
+													d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"
+												/>
+												<path d="M9.6 8.6l4.8 4.8M14.4 8.6l-4.8 4.8" />
+											</svg>
+										</button>
+										<button
+											class="secondary icon-only"
+											aria-label={`Your notes on ${member.name}`}
+											title="Your notes: tracks and how their site reads"
+											onclick={() => (notesFor = member)}
+										>
+											<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
+												<path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" />
+											</svg>
+										</button>
+									</div>
 								</div>
 							</div>
 						</div>
@@ -439,6 +668,14 @@
 	<p class="meter" aria-live="polite">
 		{report.slow}/{report.frames} slow · worst {report.worst}ms · stack {report.stack}
 	</p>
+{/if}
+
+{#if notesFor}
+	<CreatorNotesSheet
+		creator={{ url: notesFor.url, name: notesFor.name, artUrl: notesFor.thumbUrl ?? null }}
+		declared={notesFor.layout}
+		onclose={() => (notesFor = null)}
+	/>
 {/if}
 
 {#if preview}
@@ -674,9 +911,10 @@
 	 */
 	.card {
 		/* No `position` here: under the stack this box is the sticky one (styles/card-stack.css). */
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
+		/* A grid: the body slides over a quiet "Explored" label in the same cell, no positioning. */
+		display: grid;
+		overflow: hidden;
+		touch-action: pan-y;
 		padding: 16px 18px;
 		border: 1px solid rgba(255, 255, 255, 0.24);
 		border-radius: var(--r-card);
@@ -753,8 +991,156 @@
 	.acts {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 10px;
+		gap: 8px;
 		margin-top: 4px;
+	}
+
+	.progress {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.progress .count {
+		flex: 1;
+		min-width: 0;
+		font-family: var(--mono);
+		font-size: 11.5px;
+		letter-spacing: 0.04em;
+		color: rgba(255, 255, 255, 0.85);
+	}
+
+	.mini {
+		flex: none;
+		min-height: 44px;
+		padding: 0 14px;
+		border: 1px solid rgba(255, 255, 255, 0.28);
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.1);
+		color: #fff;
+		font: inherit;
+		font-size: 13px;
+		font-weight: 600;
+	}
+
+	.mini[aria-pressed='true'] {
+		background: #fff;
+		color: var(--deep);
+	}
+
+	.mini:disabled {
+		opacity: 0.5;
+	}
+
+	/* Looked at already: quieter, never hidden unless the reader asks. */
+	.card.seen .card-body > :not(.acts):not(.via-row) {
+		opacity: 0.62;
+	}
+
+	.hint {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		margin: 0 0 14px;
+		padding: 10px 6px 10px 14px;
+		border: 1px solid rgba(255, 255, 255, 0.28);
+		border-radius: 14px;
+		background: rgba(255, 255, 255, 0.12);
+		color: #fff;
+		font-size: 13.5px;
+		line-height: 1.35;
+	}
+
+	.hint span {
+		flex: 1;
+	}
+
+	.hint-close {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		border: 0;
+		border-radius: 999px;
+		background: none;
+		color: #fff;
+	}
+
+	.hint-close svg,
+	.seen-toggle svg,
+	.swipe-reveal svg {
+		width: 18px;
+		height: 18px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.card-body,
+	.swipe-reveal {
+		grid-area: 1 / 1;
+	}
+
+	.card-body {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		min-width: 0;
+	}
+
+	.card-body.settling {
+		transition: transform var(--dur-m) var(--ease);
+	}
+
+	/*
+	 * Never in the way of a tap: its opacity makes it paint above the body's buttons even while
+	 * fully transparent, so it takes no pointer events at all.
+	 */
+	.swipe-reveal {
+		pointer-events: none;
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 6px;
+		padding-right: 4px;
+		font-family: var(--mono);
+		font-size: 11px;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: rgba(255, 255, 255, 0.85);
+	}
+
+	.via-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		/* The check's 44px target overlaps the card's padding rather than pushing the row down. */
+		margin: -10px -10px -6px 0;
+	}
+
+	.seen-toggle {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		border: 0;
+		border-radius: 999px;
+		background: none;
+		color: rgba(255, 255, 255, 0.55);
+	}
+
+	.seen-toggle[aria-pressed='true'] {
+		color: #fff;
+	}
+
+	.seen-toggle[aria-pressed='true'] svg {
+		fill: var(--brand);
+		stroke: #fff;
 	}
 
 	.hidden-note {
@@ -771,14 +1157,15 @@
 	 * The glyphs only fill about 60% of their 24 unit box (a heart, a magnifier), so the svg is
 	 * drawn much larger than the glyph looks: 25px read as no change at all from 18px.
 	 */
+	/* Five of these fit one row on a phone: 50px each with 8px between. */
 	.icon-only {
-		width: 56px;
+		width: 50px;
 		padding: 0;
 	}
 
 	.icon-only .globe {
-		width: 36px;
-		height: 36px;
+		width: 32px;
+		height: 32px;
 		stroke-width: 1.7;
 	}
 
@@ -789,7 +1176,7 @@
 		justify-content: center;
 		gap: 7px;
 		min-height: 48px;
-		padding: 0 18px;
+		padding: 0 15px;
 		border: 0;
 		border-radius: 999px;
 		font-family: var(--body);

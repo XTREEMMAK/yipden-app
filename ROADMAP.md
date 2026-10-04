@@ -63,18 +63,17 @@ Still open from this batch:
 
 1. **`layout` is not published yet.** `indienodes-ring` has to add it to its schemas and
    `build-ring.js` (ring-contract.md, "Changes owed"). Until then only the heuristic ever fires.
-2. **The heuristic has no override and no disclosure.** A hand written page with no viewport tag that
+2. **The heuristic has no disclosure (the override shipped 2026-10-02, per creator, in You and the
+   notes sheets).** A hand written page with no viewport tag that
    reads fine on a phone is called desktop-first. Say so on the Follow screen when it applies, and let
    a reader turn it off per person. Measure false positives on real follows first.
 3. **A follow made before this batch has no layout**, and a ring member followed before the ring
    declares one keeps none. Re-reading the ring's declaration on load would fix the second.
-4. **First partner ring adapter: Musicians Webring, testing only, pending approval (2026-09-28).**
-   A real adapter now exists (`apps/reader/src/lib/partner/musiciansWebring.ts`), scraping its
-   hand-written HTML table, gated behind a local flag alone
-   (`localStorage: yipden:partnerMusiciansWebring`). Its own maintainer has not been asked yet.
-   **Since 2026-10-01 both testing rings exist only in debug builds** (`__YIPDEN_DEBUG__`, see
-   `vite.config.ts`): a release build contains neither adapter and can never fetch them, so
-   `v0.9.0` is no longer blocked on this. Approval is still needed before either ships in a release. Reads a member's own curated sample link too, folds/stands its cards the same way Feeds'
+4. **Partner rings: Musicians Webring and Knifebeetle, on for everyone (2026-10-02).** Both
+   adapters (`apps/reader/src/lib/partner/`) ship in every build with no flag. Researched and
+   cleared: reading a ring as it stands is fine with a link back to the ring's own site and its
+   official badges and images, which both already have. These two are the whole list for now.
+   Musicians Webring scrapes a hand-written HTML table. Reads a member's own curated sample link too, folds/stands its cards the same way Feeds'
    yips do, labels the sample honestly by what it actually is with that platform's own mark
    (SoundCloud, Bandcamp, Spotify, Apple Music, YouTube, or a real file, via Simple Icons, CC0),
    and shows a member's own thumbnail as a badge where the ring publishes one, sized to its own
@@ -85,16 +84,13 @@ Still open from this batch:
    never makes that request. The sample is always opened externally, never assumed playable in
    app.
 
-   **A second real adapter, Knifebeetle (a webcomic ring), is built and gated the same way**
-   (`localStorage: yipden:partnerKnifebeetle`), proving the boundary against a structurally
+   **Knifebeetle (a webcomic ring) is the second adapter**, proving the boundary against a structurally
    different, custom-built ring rather than a repeat of the first. Its content-warning blocks are
    deliberately not treated as `sensitive` (folded into the blurb instead; see DECISIONS.md for
-   why hiding 84% of the ring by default would have been the wrong call). Neither ring's
-   maintainer has been asked yet.
+   why hiding 84% of the ring by default would have been the wrong call).
 
    Also still open: whether partner members can be followed, not only visited or saved, and
-   whether a reader should get any per-ring show/hide control once more than one is registered
-   (there is only one today, so nothing to choose between yet).
+   whether a reader should get any per-ring show/hide control now that two are registered.
 
 5. **The desktop handoff page (follow-up, outside this repo).** A small static page on YipDen's
    marketing and docs site that opens an exported file and lists its links, per
@@ -242,7 +238,8 @@ Open questions DECISIONS.md already flags as unverified, all needing a phone:
 - CHANGELOG: the Feeds/Today line still says the 3D stack and full playback are deferred. Both
   shipped. Cut a real `0.9.0` section out of Unreleased and correct that line.
 - `tmp/` holds a git bundle, the handoff prompt and a prototype backup. Decide what is worth
-  keeping, move it, or ignore it, so the repo root is not half scratch.
+  keeping, move it, or ignore it, so the repo root is not half scratch. The two briefs of
+  2026-10-03 moved to `docs/briefs/`.
 - `docs/reference` is gitignored but `docs/README.md` points at it. Make sure a fresh clone's
   docs say where to get the prototype.
 - No `CLAUDE.md`. Worth a short one with the commands, the ask first rules and the DECISIONS.md
@@ -412,7 +409,59 @@ Still open from this batch:
    library to keep current) this app has otherwise avoided by making things discoverable in the UI
    itself rather than explaining them. **(ask first: a new dependency, even a small one.)**
 
+## Encrypted store and reference finds (briefs of 2026-10-03)
+
+Two briefs, kept as given in [docs/briefs/](docs/briefs/): a revised [v0.9 brief](docs/briefs/v0.9.md)
+and [reference finds](docs/briefs/reference-finds.md). The revised v0.9 brief mostly describes what
+has shipped. Its tab names and auto-advance predate decisions already in DECISIONS.md, which
+stand. It adds three things the code does not do yet, folded in below. The reference finds brief
+widens the audio find to comics, games and writing under one `Reference` model, and moves the
+on-device store into an encrypted SQLite database.
+
+**Gate: items 1 to 4 land before 0.9.0**, so no released build ever holds plaintext data that has to
+be migrated out of a reader's phone. Items 5 to 7 follow in 0.9.x. Decided 2026-10-03; the reasons
+are in DECISIONS.md.
+
+1. **Partner cards' Listen opens in the in-app browser** (requested 2026-10-03). The sample button
+   uses the same path as Visit, so audio found on that page can be kept for the member. With the
+   setting off, or on the web build, it opens externally as before.
+2. **`FeedSource`, stable ids, WebSub hubs** (v0.9 brief gaps). Refresh goes through a `FeedSource`
+   with one `DirectFetchSource`, so it no longer calls `httpFetch` itself. It fetches feeds in
+   batches, with a cursor per feed and an error per feed. A yip's id becomes a hash of the feed's
+   canonical URL and the entry's own id, the same on every device. A feed's hub is recorded and
+   not used. New ids are written only through item 3's migration.
+3. **Encrypted store.** `@capacitor-community/sqlite` with SQLCipher, and its key in the Android
+   Keystore through `@aparajita/capacitor-secure-storage` (both approved by the brief; check both
+   support Capacitor 8 and are not deprecated before installing, and ask if not). Same `Store`
+   interface. The web build uses IndexedDB with values encrypted by a non-extractable WebCrypto
+   key, which is weaker and documented as such.
+   - A one-time migration moves the IndexedDB data into the new database, re-keying yips to the
+     stable ids with their read state intact. It checks the result, then deletes the old database,
+     and survives being interrupted.
+   - Leak hardening: `fullBackupContent` for Android 11 and lower (12+ is already excluded), the
+     WebView cache of creator media cleared when the app closes, and no reference URLs or snip
+     text in logs.
+4. **The `Reference` model.** One record for audio, image, screenshot and text. Reader tracks
+   migrate onto it and keep their UI. Platform embeds (Bandcamp, SoundCloud, YouTube, Spotify,
+   Apple Music) stay, as links that open on the platform: `hostVerified: false`,
+   `sharable: false`. The backup carries references, and still reads an old backup's tracks.
+5. **Capture rules.** A media file must be on one of the creator's own sites (after redirects), and
+   actually linked on the page where it was found. `robots.txt`, `noindex` or `X-Robots-Tag` on
+   that page mean `sharable: false`. A reference is re-checked with a conditional GET when it is
+   opened and occasionally on resume, and becomes `gone` when the file or the link disappears.
+   Tested against fixture pages.
+6. **Capture flows: comics, then games, then writing.** The injected page script notices a
+   long-pressed image or a text selection. YipDen's toolbar button, still the only trusted path,
+   then offers it in "Found on their page". A writing snip keeps at most 500 characters plus a
+   little context, and opens the creator's page scrolled to the passage with a Text Fragment
+   link. Images always load live from the creator's host and are never saved.
+7. **Phone pass** on a numbered debug APK: an upgrade with real data, the database unreadable
+   without the key, nothing in `adb backup`, a re-upload on another host refused, a snip scrolling
+   to its passage.
+
 ## Later: v0.9 release
+
+Blocked on items 1 to 4 of "Encrypted store and reference finds" above.
 
 1. Release signing: a Play Console identity and an upload keystore, stored as GitHub secrets, per
    [docs/ci-cd.md](docs/ci-cd.md).
@@ -424,8 +473,8 @@ Still open from this batch:
 
 ## Later: after 0.9
 
-Multiring inclusion: the surface exists (2026-09-28, see above) and the first real adapter is
-ask first. Original note: it stays exploratory until after this active batch. Treat each ring as a provider
+Multiring inclusion: the surface exists (2026-09-28, see above) and two real adapters ship
+(2026-10-02). A further ring is ask first. Treat each ring as a provider
 adapter, validate it at the boundary, and normalize only a small common member shape. Rich fields
 such as IndieNodes media and feed metadata remain capability-gated instead of forcing every ring
 into the richest schema. Initial support should be explicit per ring, with fixtures for each
@@ -449,6 +498,33 @@ in the prototype). Signing out must never delete local follows. Nothing in v0.9 
 The fediverse side of the feed model belongs here too: webmention receiving, ActivityPub, and
 Mastodon and Bluesky sign in. Item 8 has the split between what can stay on the phone and what
 cannot.
+
+### Shared feed cache (from the revised v0.9 brief)
+
+A poller in or beside `apps/api` fetches each feed once and serves it to every reader. It reuses
+`packages/feeds`, runs on a Postgres-backed queue, and subscribes over WebSub wherever a feed
+advertises a hub. The reader gets a `CachedSource` that falls back to `DirectFetchSource` for each
+feed, so reading keeps working when the backend is down. A paste-a-link feed is polled only when a
+client asks for it, and the cache never records who asked. The same deployable serves the web
+build's fetch proxy, which blocks private and loopback addresses, including after redirects. The
+stable ids and `FeedSource` work before 0.9.0 (above) is what makes this swap possible without
+touching the UI.
+
+### References, shared (from the reference finds brief)
+
+Built on the `sharable` flag that 0.9 computes and stores, but does not use yet.
+
+- **A shared community index**, which needs accounts. It holds pointers only, never media or snip
+  text: a writing snip is shared as a selector and a hash, and each client matches it against the
+  live page. Saves are anonymous ("N people saved this", never who). Dead links are swept on the
+  server.
+- **Partner-ring creator protections:**
+  - An account-free opt-out ("remove references to my site"), and respecting an opt-out meta tag or
+    well-known file. It applies to the whole site until reversed.
+  - Pages labelled "Found by listeners from [ring], not affiliated", always linking out.
+  - Claiming through IndieAuth, with hide, remove and pin.
+  - A report button, a takedown contact, and a registered DMCA agent.
+- **Own-ring opt-in:** a `community_refs` field in `ring.json`. **(ask first: a contract change.)**
 
 ### New yip notifications (deferred to here, decided 2026-09-28)
 
@@ -474,7 +550,35 @@ at the moment of following someone, not buried later in You. The exact trigger U
 follow confirmation, a toast with a settings link, or something else) is undecided and should be
 designed against the real screen once the backend exists, not guessed at here.
 
-## Ideas
+## After 0.9.0: reader controls (order agreed 2026-10-02)
 
-- Folders: group follows (an optional folder on each follow, folder chips on Feeds, OPML
-  category round-trip). Nothing exists yet; raised 2026-09-30.
+Built on a branch now, released as 0.9.x. All four are local, with no server and no native
+dependency. None may become ranking.
+
+1. **Folders and a creator filter on Feeds (done 2026-10-02).** One folder per person, set from
+   their row in You. A Filter button in the Feeds header opens a sheet, the same pattern as
+   Discover's Filter, listing folders and people. Folders round-trip through OPML and ride in the
+   backup. Still open: renaming a folder in one step, a folder choice at the moment of following,
+   remembering the filter across launches, and a device pass.
+2. **Mute and Muffle rules.** Keyword rules applied across every feed: Mute hides a yip, Muffle
+   collapses it to one line that opens on a tap. Stored locally and in the backup.
+3. **Search in Feeds**, over cached yips.
+4. **Text size setting.**
+
+## Browsing rings, and audio a reader finds (2026-10-02)
+
+Shipped on the branch, not yet seen on a phone:
+
+1. **Explored marks and kept position** in partner rings and IndieNodes.
+2. **Reader tracks by link and layout overrides**, per creator.
+3. **The in-app browser** with YipDen's toolbar button and the "Found on their page" sheet.
+   Security review and v2.0 rules in docs/security.md.
+
+Still open:
+
+- A device pass: the toolbar icon, whether real ring sites' audio is found (self-hosted files,
+  Bandcamp and SoundCloud embeds), Back inside the browser, and that an `http://` page is refused.
+- Reader tracks for a followed person do not show in Feeds; they live on the person's row and in
+  the notes sheets.
+- Whether the in-app browser should also open Feeds' "Open on site" links. Today only Discover and
+  partner rings use it (a partner card's Listen too, from 2026-10-03).

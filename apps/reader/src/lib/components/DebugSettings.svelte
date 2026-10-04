@@ -2,8 +2,6 @@
 	import { fly } from 'svelte/transition';
 	import { flyIn, staggerDelay } from '$lib/motion.js';
 	import { prefs } from '$lib/prefs.svelte.js';
-	import { partners } from '$lib/partnerRings.svelte.js';
-	import { setTestingRing, TESTING_RINGS, testingRingOn } from '$lib/partner/registry.js';
 	import Switch from './Switch.svelte';
 	import { diagnostics, type DiagKey } from '$lib/diagnostics.svelte.js';
 
@@ -20,22 +18,12 @@
 	];
 
 	/**
-	 * Settings' debug-build section: the age limit switch and the testing-only partner rings.
+	 * Settings' debug-build section: the age limit switch and the scroll diagnostics.
 	 *
 	 * Its own component, loaded with a dynamic import behind `__YIPDEN_DEBUG__`, so a release
 	 * build (where that constant is the literal `false`) drops the import and never emits this
 	 * code at all, rather than shipping it hidden. See vite.config.ts.
 	 */
-
-	let testingRings = $state<Record<string, boolean>>(
-		Object.fromEntries(TESTING_RINGS.map((ring) => [ring.key, testingRingOn(ring.key)]))
-	);
-
-	function setTestingRingOn(key: string, on: boolean) {
-		setTestingRing(key, on);
-		testingRings = { ...testingRings, [key]: on };
-		void partners.reload();
-	}
 </script>
 
 <section class="grp" in:fly={flyIn({ delay: staggerDelay(2) })}>
@@ -53,20 +41,6 @@
 				onchange={(on) => prefs.setAgeLimitEnabled(on)}
 			/>
 		</div>
-		{#each TESTING_RINGS as ring (ring.key)}
-			<div class="srow">
-				<span class="tt">
-					<b>{ring.name} in Discover</b>
-					<small>A partner ring read live; not approved by its maintainer yet</small>
-				</span>
-				<Switch
-					id={`testing-ring-${ring.key}`}
-					label={`Show ${ring.name} in Discover`}
-					checked={testingRings[ring.key] ?? false}
-					onchange={(on) => setTestingRingOn(ring.key, on)}
-				/>
-			</div>
-		{/each}
 		{#each DIAG as entry (entry.key)}
 			<div class="srow">
 				<span class="tt">

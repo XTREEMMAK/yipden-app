@@ -211,6 +211,9 @@
 			<span class="src">{item.creator}</span>
 			<h2 class="pl-title">{item.title}</h2>
 			<p class="pl-host">{new URL(item.siteUrl).hostname.replace(/^www\./, '')}</p>
+			{#if player.error}
+				<p class="pl-error" role="alert">{player.error}</p>
+			{/if}
 
 			<Waveform />
 
@@ -459,6 +462,16 @@
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		color: rgba(255, 255, 255, 0.85);
+	}
+
+	.pl-error {
+		margin: 8px 0 0;
+		padding: 10px 12px;
+		border-radius: 12px;
+		background: rgba(255, 255, 255, 0.12);
+		color: #fff;
+		font-size: 13.5px;
+		line-height: 1.4;
 	}
 
 	.pl-title {

@@ -1,5 +1,6 @@
 import { parseXml, XmlElement } from '@rgrove/parse-xml';
 import { safeUrl } from '@yipden/ring-client';
+import { cleanFolder, folderList } from './folders.js';
 import type { Feed, Person, ShelfItem } from './store/index.js';
 
 /**
@@ -15,6 +16,8 @@ export interface ImportedPerson {
 	name: string;
 	siteUrl: string | null;
 	feeds: Array<{ url: string; title: string; kind: string; enabled?: boolean }>;
+	/** The folder the file had them in, when it had one. */
+	folder?: string;
 }
 
 function escapeAttribute(value: string): string {
@@ -58,28 +61,50 @@ function shelfOutline(shelf: ShelfItem[]): string {
 	);
 }
 
+/**
+ * Marks a folder outline as YipDen's own, so a person with several feeds inside it is read back as
+ * one person rather than guessed at. Other readers ignore it and see an ordinary nested folder.
+ */
+const FOLDER_GROUP = 'yipdenFolder';
+
+function personOutline(person: Person, feeds: Feed[], indent: string): string {
+	const inner = feeds
+		.map(
+			(feed) =>
+				`${indent}\t<outline type="${opmlType(feed.kind)}" text="${escapeAttribute(feed.title)}" ` +
+				`title="${escapeAttribute(feed.title)}" xmlUrl="${escapeAttribute(feed.url)}" ` +
+				`htmlUrl="${escapeAttribute(person.siteUrl)}"${feed.enabled === false ? ' yipdenEnabled="false"' : ''}/>`
+		)
+		.join('\n');
+	return (
+		`${indent}<outline text="${escapeAttribute(person.name)}" title="${escapeAttribute(person.name)}">\n` +
+		`${inner}\n${indent}</outline>`
+	);
+}
+
 export function exportOpml(
 	people: Person[],
 	feedsByPerson: Map<string, Feed[]>,
 	shelf: ShelfItem[] = []
 ): string {
-	const outlines = people
-		.map((person) => {
-			const feeds = feedsByPerson.get(person.id) ?? [];
-			const inner = feeds
-				.map(
-					(feed) =>
-						`\t\t\t<outline type="${opmlType(feed.kind)}" text="${escapeAttribute(feed.title)}" ` +
-						`title="${escapeAttribute(feed.title)}" xmlUrl="${escapeAttribute(feed.url)}" ` +
-						`htmlUrl="${escapeAttribute(person.siteUrl)}"${feed.enabled === false ? ' yipdenEnabled="false"' : ''}/>`
-				)
-				.join('\n');
-			return (
-				`\t\t<outline text="${escapeAttribute(person.name)}" title="${escapeAttribute(person.name)}">\n` +
-				`${inner}\n\t\t</outline>`
-			);
-		})
-		.join('\n');
+	const outlineFor = (person: Person, indent: string) =>
+		personOutline(person, feedsByPerson.get(person.id) ?? [], indent);
+
+	const folders = folderList(people).map((folder) => {
+		const members = people
+			.filter((person) => person.folder === folder.name)
+			.map((person) => outlineFor(person, '\t\t\t'))
+			.join('\n');
+		const name = escapeAttribute(folder.name);
+		return (
+			`\t\t<outline text="${name}" title="${name}" ${FOLDER_GROUP}="true">\n` +
+			`${members}\n\t\t</outline>`
+		);
+	});
+	const unfiled = people
+		.filter((person) => !person.folder)
+		.map((person) => outlineFor(person, '\t\t'));
+	const outlines = [...folders, ...unfiled].join('\n');
 	const body = [outlines, shelfOutline(shelf)].filter(Boolean).join('\n');
 
 	return (
@@ -139,27 +164,63 @@ export function parseOpml(xml: string): ImportedPerson[] {
 		};
 	};
 
-	for (const outline of topLevel) {
+	const nameOf = (outline: XmlElement) => outline.attributes.title || outline.attributes.text;
+
+	/** Whose site a feed outline says it belongs to, falling back to where the feed itself is. */
+	const siteHost = (outline: XmlElement): string | null => {
+		const url = safeUrl(outline.attributes.htmlUrl) ?? safeUrl(outline.attributes.xmlUrl);
+		return url ? url.hostname.replace(/^www\./, '') : null;
+	};
+
+	/**
+	 * Another reader's folder, as opposed to one person's group of feeds: both are an outline
+	 * around feed outlines, and only YipDen marks which it wrote. A group holding other groups, or
+	 * feeds from more than one site, is a folder of people.
+	 */
+	const looksLikeFolder = (outline: XmlElement, nested: XmlElement[]): boolean => {
+		if (outline.attributes.htmlUrl) return false;
+		if (nested.some((child) => !child.attributes.xmlUrl && outlineChildren(child).length)) {
+			return true;
+		}
+		const hosts = new Set(
+			nested
+				.filter((child) => child.attributes.xmlUrl)
+				.map(siteHost)
+				.filter(Boolean)
+		);
+		return hosts.size > 1;
+	};
+
+	const read = (outline: XmlElement, folder: string | undefined): void => {
 		// The Shelf is not a person; `parseOpmlShelf` reads it.
-		if (outline.attributes[SHELF_GROUP] === 'true') continue;
+		if (outline.attributes[SHELF_GROUP] === 'true') return;
 		const nested = outlineChildren(outline);
+		const inFolder = folder ? { folder } : {};
 
 		if (outline.attributes.xmlUrl && !nested.length) {
 			// A bare feed with no grouping outline around it: one person, one feed.
 			const feed = feedFrom(outline);
-			if (!feed) continue;
+			if (!feed) return;
 			people.push({
-				name: outline.attributes.title || outline.attributes.text || new URL(feed.url).hostname,
+				name: nameOf(outline) || new URL(feed.url).hostname,
 				siteUrl: safeUrl(outline.attributes.htmlUrl)?.toString() ?? null,
-				feeds: [feed]
+				feeds: [feed],
+				...inFolder
 			});
-			continue;
+			return;
+		}
+
+		if (outline.attributes[FOLDER_GROUP] === 'true' || looksLikeFolder(outline, nested)) {
+			// One folder per person: the outermost one names it.
+			const name = folder ?? cleanFolder(nameOf(outline));
+			for (const child of nested) read(child, name);
+			return;
 		}
 
 		const feeds = nested
 			.map(feedFrom)
 			.filter((feed): feed is NonNullable<typeof feed> => feed !== null);
-		if (!feeds.length) continue;
+		if (!feeds.length) return;
 
 		const siteUrl =
 			safeUrl(outline.attributes.htmlUrl)?.toString() ??
@@ -167,11 +228,14 @@ export function parseOpml(xml: string): ImportedPerson[] {
 			null;
 
 		people.push({
-			name: outline.attributes.title || outline.attributes.text || new URL(feeds[0]!.url).hostname,
+			name: nameOf(outline) || new URL(feeds[0]!.url).hostname,
 			siteUrl,
-			feeds
+			feeds,
+			...inFolder
 		});
-	}
+	};
+
+	for (const outline of topLevel) read(outline, undefined);
 
 	return people;
 }
