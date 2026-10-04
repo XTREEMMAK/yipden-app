@@ -111,8 +111,8 @@ export type YipCategory = 'posts' | 'watch' | 'listen';
 /** A yip as stored: the parsed item plus what this reader has done with it. */
 export interface StoredYip extends Item {
 	/**
-	 * `${feedId}::${entryId}`, unique across feeds. Kept in this form, not the stable `id`, until
-	 * the move to the encrypted store re-keys every yip at once, read state included.
+	 * The yip's stable `id`. Records stored as `${feedId}::${entryId}` before 2026-10-04 were
+	 * moved to it by `rekey.ts`, on the move into the encrypted store or on a backup import.
 	 */
 	key: string;
 	/** The followed feed record this came from. Absent only on records stored before this field. */

@@ -435,7 +435,10 @@ export function createHeroGL(
 				})
 				.catch((error) => {
 					if (!kept()) return;
-					console.warn('hero photo: native load failed, trying a plain image', url, error);
+					// Addresses stay out of a release build's log (logcat on Android), like every log here.
+					if (import.meta.env.DEV) {
+						console.warn('hero photo: native load failed, trying a plain image', url, error);
+					}
 					options.onTexture?.(url, false, `native fetch failed: ${error}`);
 					viaImage();
 				});

@@ -113,6 +113,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- Everything YipDen keeps on your phone (follows, read state, cached yips, saved links, your tracks)
+  is now in an encrypted database, its key held by Android's Keystore. Your existing data moves
+  across on first launch, and the old unencrypted copy is deleted once the move is checked.
+- Creators' images and pages cached while you browse are cleared when the app closes.
 - A partner card's sample (Listen, Open on SoundCloud and the like) opens in the in-app browser,
   as Visit does, so audio found on that page can be kept for the member.
 - Refreshing goes through one feed source, and each yip now carries an id that is the same on

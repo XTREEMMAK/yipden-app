@@ -65,8 +65,11 @@
 			name: 'Bricolage Grotesque, Instrument Sans, JetBrains Mono',
 			license: 'SIL Open Font License 1.1'
 		},
-		{ name: 'Capacitor core, app and Android', license: 'MIT' },
+		{ name: 'Capacitor core, app, share and Android', license: 'MIT' },
 		{ name: '@capgo/capacitor-media-session', license: 'MPL 2.0' },
+		{ name: '@capgo/capacitor-inappbrowser', license: 'MPL 2.0' },
+		{ name: '@capacitor-community/sqlite', license: 'MIT' },
+		{ name: 'SQLCipher, © Zetetic LLC', license: 'BSD-style (zetetic.net/sqlcipher/license)' },
 		{ name: '@rgrove/parse-xml', license: 'ISC' },
 		{ name: 'Svelte and SvelteKit', license: 'MIT' },
 		{ name: 'Platform icons: Simple Icons', license: 'CC0 1.0' },

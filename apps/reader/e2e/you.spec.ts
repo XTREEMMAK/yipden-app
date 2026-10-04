@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { seedOldStore } from './support.js';
 
 const LENA_PAGE = `<!doctype html><html><head>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -164,38 +165,31 @@ test.describe('You', () => {
 			encodeURIComponent(
 				'<svg xmlns="http://www.w3.org/2000/svg" width="88" height="31"><rect width="88" height="31" fill="red"/></svg>'
 			);
+		const records = Array.from({ length: 30 }, (_, i) => ({
+			id: `creator${i}.example.com`,
+			url: `https://creator${i}.example.com/`,
+			name: `Creator ${i}`,
+			verdict: 'liked',
+			source: 'partner',
+			via: 'Musicians Webring',
+			...(i === 0 ? { thumbUrl: BADGE } : {}),
+			at: new Date(Date.UTC(2026, 8, 1, 0, 30 - i)).toISOString()
+		}));
+		records.push({
+			id: 'nope.example.com',
+			url: 'https://nope.example.com/',
+			name: 'Nope',
+			verdict: 'hidden',
+			source: 'indienodes',
+			at: '2026-09-01T00:00:00.000Z'
+		} as (typeof records)[number]);
+		await seedOldStore(page, { verdicts: records });
 		await page.goto('/you');
 		await expect(page.getByRole('tab', { name: /^Liked/ })).toBeVisible();
-		await page.evaluate(async (badge) => {
-			const db = await new Promise<IDBDatabase>((resolve, reject) => {
-				const request = indexedDB.open('yipden');
-				request.onsuccess = () => resolve(request.result);
-				request.onerror = () => reject(request.error);
-			});
-			const tx = db.transaction('verdicts', 'readwrite');
-			const records = Array.from({ length: 30 }, (_, i) => ({
-				id: `creator${i}.example.com`,
-				url: `https://creator${i}.example.com/`,
-				name: `Creator ${i}`,
-				verdict: 'liked',
-				source: 'partner',
-				via: 'Musicians Webring',
-				...(i === 0 ? { thumbUrl: badge } : {}),
-				at: new Date(Date.UTC(2026, 8, 1, 0, 30 - i)).toISOString()
-			}));
-			records.push({
-				id: 'nope.example.com',
-				url: 'https://nope.example.com/',
-				name: 'Nope',
-				verdict: 'hidden',
-				source: 'indienodes',
-				at: '2026-09-01T00:00:00.000Z'
-			} as (typeof records)[number]);
-			for (const record of records) tx.objectStore('verdicts').put(record);
-			await new Promise((resolve) => (tx.oncomplete = resolve));
-			db.close();
-		}, BADGE);
-		await page.reload();
+		// Moved into the encrypted store, and the plaintext database is gone.
+		await expect
+			.poll(() => page.evaluate(async () => (await indexedDB.databases()).map((db) => db.name)))
+			.toEqual(['yipden-sealed']);
 
 		const panel = page.getByRole('tabpanel');
 		await page.getByRole('tab', { name: /^Liked/ }).click();
@@ -224,28 +218,20 @@ test.describe('You', () => {
 		context
 	}) => {
 		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+		await seedOldStore(page, {
+			shelf: [
+				{
+					id: 'https://wide.example.com/',
+					url: 'https://wide.example.com/',
+					title: 'Wide Screen',
+					from: 'discover',
+					savedAt: '2026-10-01T00:00:00.000Z'
+				}
+			]
+		});
 		await page.goto('/you');
 		await expect(page.getByRole('tab', { name: /^Saved/ })).toBeVisible();
-		await page.evaluate(async () => {
-			// Headless Chromium has no share sheet; take it away explicitly so this tests the fallback.
-			Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
-			const db = await new Promise<IDBDatabase>((resolve, reject) => {
-				const request = indexedDB.open('yipden');
-				request.onsuccess = () => resolve(request.result);
-				request.onerror = () => reject(request.error);
-			});
-			const tx = db.transaction('shelf', 'readwrite');
-			tx.objectStore('shelf').put({
-				id: 'https://wide.example.com/',
-				url: 'https://wide.example.com/',
-				title: 'Wide Screen',
-				from: 'discover',
-				savedAt: '2026-10-01T00:00:00.000Z'
-			});
-			await new Promise((resolve) => (tx.oncomplete = resolve));
-			db.close();
-		});
-		await page.reload();
+		// Headless Chromium has no share sheet; take it away explicitly so this tests the fallback.
 		await page.evaluate(() =>
 			Object.defineProperty(navigator, 'share', { value: undefined, configurable: true })
 		);
@@ -531,7 +517,9 @@ test.describe('You', () => {
 		await expect(dialog.getByRole('heading', { name: 'What changed' })).toBeVisible();
 		await expect(dialog.getByRole('heading', { name: 'Built with and around' })).toBeVisible();
 		await expect(dialog.getByText('@capgo/capacitor-media-session', { exact: true })).toBeVisible();
-		await expect(dialog.getByText('MPL 2.0')).toBeVisible();
+		// Both Capgo plugins are MPL 2.0.
+		await expect(dialog.getByText('MPL 2.0', { exact: true })).toHaveCount(2);
+		await expect(dialog.getByText('@capacitor-community/sqlite', { exact: true })).toBeVisible();
 
 		await page.keyboard.press('Escape');
 		await expect(dialog).toHaveCount(0);

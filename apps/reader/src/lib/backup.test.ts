@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
+import { stableYipId } from '@yipden/feeds';
 import { createBackup, parseBackup, restoreBackup } from './backup.js';
 import { IdbStore } from './store/idb.js';
 import type { Feed, Person, ShelfItem, StoredYip } from './store/types.js';
@@ -83,6 +84,21 @@ describe('YipDen backup', () => {
 		expect(await target.getSetting('shuffleMusic')).toBe(false);
 		expect(localStorage.getItem('yipden:theme')).toBe('dark');
 		expect(localStorage.getItem('yipden:skin')).toBe('forest');
+	});
+
+	it('moves yips from a file made before stable ids onto them, read state and all', async () => {
+		const source = new IdbStore();
+		await source.init();
+		await source.follow(PERSON, [FEED]);
+		await source.putYips([YIP]);
+		const preview = parseBackup(JSON.stringify(await createBackup(source)));
+
+		globalThis.indexedDB = new IDBFactory();
+		const target = new IdbStore();
+		await restoreBackup(preview.backup, target);
+		const [restored] = await target.listAllYips();
+		const id = stableYipId(FEED.id, 'one');
+		expect(restored).toMatchObject({ key: id, id, entryId: 'one', readAt: YIP.readAt });
 	});
 
 	it('rejects malformed files and orphaned sources before changing storage', () => {

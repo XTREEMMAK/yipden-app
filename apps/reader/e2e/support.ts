@@ -42,3 +42,32 @@ export async function openActions(page: Page) {
 	await expect(dialog).toBeVisible();
 	return dialog;
 }
+
+/**
+ * Leave records in the old plaintext IndexedDB store, as a phone upgraded from an earlier build
+ * would have them, before the app first opens. The app moves them into the encrypted store and
+ * deletes the old database on load. Done from a static file on the same origin, where the app
+ * itself does not run.
+ */
+export async function seedOldStore(
+	page: Page,
+	records: { verdicts?: object[]; shelf?: object[] }
+): Promise<void> {
+	await page.goto('/favicon.svg');
+	await page.evaluate(async (seed) => {
+		const db = await new Promise<IDBDatabase>((resolve, reject) => {
+			const request = indexedDB.open('yipden', 3);
+			request.onupgradeneeded = () => {
+				request.result.createObjectStore('verdicts', { keyPath: 'id' });
+				request.result.createObjectStore('shelf', { keyPath: 'id' });
+			};
+			request.onsuccess = () => resolve(request.result);
+			request.onerror = () => reject(request.error);
+		});
+		const tx = db.transaction(['verdicts', 'shelf'], 'readwrite');
+		for (const record of seed.verdicts ?? []) tx.objectStore('verdicts').put(record);
+		for (const record of seed.shelf ?? []) tx.objectStore('shelf').put(record);
+		await new Promise((resolve) => (tx.oncomplete = resolve));
+		db.close();
+	}, records);
+}

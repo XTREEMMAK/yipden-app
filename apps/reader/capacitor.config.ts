@@ -48,6 +48,15 @@ const config: CapacitorConfig = {
 		 */
 		CapacitorHttp: {
 			enabled: true
+		},
+		/*
+		 * The store is SQLCipher-encrypted (src/lib/store/capacitorDriver.ts). The key sits in the
+		 * Android Keystore through the plugin, with no biometric prompt: the app has no lock
+		 * screen of its own, and the phone's is the one that protects a running app.
+		 */
+		CapacitorSQLite: {
+			androidIsEncryption: true,
+			androidBiometric: { biometricAuth: false }
 		}
 	}
 };

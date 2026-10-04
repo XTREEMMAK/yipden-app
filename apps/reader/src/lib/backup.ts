@@ -1,6 +1,7 @@
 import { KNOWN_LAYOUTS, safeUrl, type SiteLayout } from '@yipden/ring-client';
 import { MAX_TRACKS_PER_CREATOR, type ReaderTrack } from './readerTracks.js';
 import { store as defaultStore } from './store/index.js';
+import { rekeyAll } from './store/rekey.js';
 import type {
 	Feed,
 	Person,
@@ -443,7 +444,8 @@ export async function restoreBackup(
 		}
 	}
 
-	const yips = backup.yips.flatMap((yip) => {
+	// A file from before stable ids holds old keys; moved the same way the store's own were.
+	const yips = rekeyAll(backup.yips).yips.flatMap((yip) => {
 		const personId = personIds.get(yip.personId);
 		const feedId = yip.feedId ?? yip.sourceFeedId;
 		if (!personId || ownership.get(feedId) !== personId) return [];

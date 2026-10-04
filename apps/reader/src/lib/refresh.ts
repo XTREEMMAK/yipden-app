@@ -34,9 +34,8 @@ export function categorize(item: Item): YipCategory {
 export function toStoredYip(item: Item, feed: Feed, personId: string, now: string): StoredYip {
 	return {
 		...item,
-		// The entry's own id, as before stable ids existed, so a refresh keeps matching what is
-		// already stored. Re-keyed to `item.id` by the move to the encrypted store.
-		key: `${feed.id}::${item.entryId ?? item.id}`,
+		// The stable id: the same yip from another device, a backup or the v2.0 cache matches it.
+		key: item.id,
 		feedId: feed.id,
 		personId,
 		feedKind: feed.kind,

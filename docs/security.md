@@ -100,7 +100,7 @@ and an off switch use the system browser as before). The aim is a toolbar button
 reader keep audio the page plays (see DECISIONS.md, 2026-10-02). What keeps that safe:
 
 - **A separate WebView, never the app's.** The creator's page runs in the plugin's own WebView at
-  its own origin. It cannot reach the app's origin (`https://localhost`), its IndexedDB, or the
+  its own origin. It cannot reach the app's origin (`https://localhost`), its database, or the
   Capacitor bridge. The only path from the page to the app is the plugin's `postMessage`.
 - **Every message from the page is untrusted.** The page's own code can call the same bridge our
   scan uses, so `pageMedia.ts` keeps only `safeUrl` addresses (https, no credentials, no private or
@@ -140,6 +140,40 @@ explored marks, folders, and the reader's own tracks and layout choices, and not
 is no password, no token and no personal identifier, because there is no account. Follows are
 private to the device: nothing is posted anywhere and the creator is not notified.
 
+### Encrypted at rest (2026-10-04)
+
+All of it is in one encrypted database, behind the `Store` interface (`src/lib/store/`).
+
+- **Android: SQLite encrypted with SQLCipher** (`@capacitor-community/sqlite`). The key is 256
+  random bits from `crypto.getRandomValues`, made on first launch, handed once to the plugin's
+  `setEncryptionSecret` in SQLCipher's raw-key form, and never kept, logged or read back by
+  JavaScript. The plugin keeps it in EncryptedSharedPreferences, under an AES-256-GCM master key in
+  the Android Keystore. The brief also named a separate secure-storage plugin for the key. It was
+  not added: this sqlite plugin can only open an encrypted database with a key it stores itself,
+  so a second plugin would only have kept a second copy (DECISIONS.md, 2026-10-04).
+- **Web build: IndexedDB with every value encrypted** with AES-GCM, and every record key replaced
+  by its HMAC, using non-extractable WebCrypto keys kept in the same database. **This is weaker.**
+  A browser has no keystore, so any script running on the origin can use those keys. It protects
+  the files on a disk or in a profile backup, nothing more.
+- **The old plaintext IndexedDB database** is copied across on first launch, checked, and only then
+  deleted (`migrate.ts`). An interrupted move restarts from the old database, which stays whole
+  until a checked copy exists.
+- **Leaks around it are closed off.**
+  - Android backups and device transfer exclude every domain (`data_extraction_rules.xml` for
+    Android 12 and later, `full_backup_content.xml` and `allowBackup="false"` for older versions).
+    That includes the shared preferences that hold the wrapped key.
+  - The WebView HTTP cache, which holds creators' images and the in-app browser's pages, is cleared
+    when the app closes and again at every cold start (`MainActivity.java`).
+  - Release builds log no addresses: the two logs that name a URL run only in development.
+
+**What this does not protect.** It protects data at rest: a copied disk image, a stolen backup, the
+files read off a phone that is off or locked. It does **not** protect a rooted phone while YipDen
+is unlocked and running, where the key can be read from memory or the Keystore used on the app's
+behalf. Nor does it protect a backup file the reader exports, which is plain JSON on purpose.
+
+The theme and skin stay in `localStorage`, outside the database. They are read before the first
+paint, before the database can be opened, and they say nothing about what a reader follows.
+
 OPML import is parsed with the same hardened XML rules as feeds, and every URL in it goes
 through the same checks before it is followed.
 
@@ -165,8 +199,8 @@ with the v2.0 account work in mind.
 | M6 Inadequate privacy controls             | No analytics, no account, no cloud backup (`allowBackup` false). The in-app browser is a normal browser session on the creator's site; the creator sees a visit, as they would from Chrome. Captured tracks stay on the phone.                                               |
 | M7 Insufficient binary protections         | Release builds not debuggable, WebView debugging off in release. No obfuscation; nothing in the app is secret.                                                                                                                                                               |
 | M8 Security misconfiguration               | Plugin WebView file access and the camera permission fixed by patch; deep links from pages blocked; exported components reviewed above.                                                                                                                                      |
-| M9 Insecure data storage                   | IndexedDB in app-private storage, excluded from backup and device transfer. Unencrypted, which is fine for what is stored today and is not fine for tokens (below).                                                                                                          |
-| M10 Insufficient cryptography              | None used, none needed yet.                                                                                                                                                                                                                                                  |
+| M9 Insecure data storage                   | SQLCipher on Android with its key in the Keystore; encrypted IndexedDB on the web (weaker, stated above). Excluded from backup and device transfer; WebView cache cleared on close. Not protection on a rooted, unlocked phone.                                              |
+| M10 Insufficient cryptography              | SQLCipher (AES-256) with a CSPRNG key on Android; AES-GCM with HMAC-hidden keys via WebCrypto on the web. No hand-rolled cryptography; the SHA-256 in `packages/feeds` makes ids, not secrets.                                                                               |
 
 ### Rules the v2.0 account work must follow
 
@@ -230,13 +264,15 @@ CI pins GitHub Actions to commit SHAs rather than tags.
 
 ## Where to look when changing things
 
-| Concern                | File                                                             |
-| ---------------------- | ---------------------------------------------------------------- |
-| URL safety, SSRF       | `packages/ring-client/src/url.ts`                                |
-| Ring validation caps   | `packages/ring-client/src/validate.ts`                           |
-| Fetch size and timeout | `packages/ring-client/src/fetch.ts`                              |
-| Feed HTML sanitizing   | `packages/feeds/` (see that package)                             |
-| In-app browser         | `apps/reader/src/lib/platform/siteBrowser.svelte.ts`, `patches/` |
-| Page scan messages     | `apps/reader/src/lib/pageMedia.ts`                               |
-| Backup validation      | `apps/reader/src/lib/backup.ts`                                  |
-| CSP and manifest       | `apps/reader/` (see that app)                                    |
+| Concern                | File                                                              |
+| ---------------------- | ----------------------------------------------------------------- |
+| URL safety, SSRF       | `packages/ring-client/src/url.ts`                                 |
+| Ring validation caps   | `packages/ring-client/src/validate.ts`                            |
+| Fetch size and timeout | `packages/ring-client/src/fetch.ts`                               |
+| Feed HTML sanitizing   | `packages/feeds/` (see that package)                              |
+| In-app browser         | `apps/reader/src/lib/platform/siteBrowser.svelte.ts`, `patches/`  |
+| Page scan messages     | `apps/reader/src/lib/pageMedia.ts`                                |
+| Backup validation      | `apps/reader/src/lib/backup.ts`                                   |
+| Encrypted store, key   | `apps/reader/src/lib/store/` (`capacitorDriver.ts`, `migrate.ts`) |
+| Backup and cache rules | `android/app/src/main/res/xml/`, `MainActivity.java`              |
+| CSP and manifest       | `apps/reader/` (see that app)                                     |

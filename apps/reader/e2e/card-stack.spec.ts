@@ -1,4 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
+import { stableYipId } from '@yipden/feeds';
+
+/** The first post's key: its stable id, from the feed's address and the post's link. */
+const FIRST_KEY = stableYipId('https://lenaofori.com/feed.xml', 'https://lenaofori.com/post-0');
 
 /**
  * Feeds' card stack: enough yips to actually scroll, so cards genuinely enter and pin rather
@@ -75,7 +79,7 @@ test.describe('The card stack', () => {
 		// The stack layer is the `.yip-stack` wrapper around a card (it also carries a grouped card's
 		// source bar), so `behind` lands there, not on the card's own button.
 		// By its key, not its button: once folded away the card's content is hidden, button included.
-		const firstCard = pane.locator('.yip-stack[data-key$="/post-0"]');
+		const firstCard = pane.locator(`.yip-stack[data-key="${FIRST_KEY}"]`);
 
 		await pane.evaluate((el) => el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }));
 		// The IntersectionObserver reports asynchronously; give it a moment to settle.
@@ -119,7 +123,7 @@ test.describe('The card stack', () => {
 		// The stack layer is the `.yip-stack` wrapper around a card (it also carries a grouped card's
 		// source bar), so `behind` lands there, not on the card's own button.
 		// By its key, not its button: once folded away the card's content is hidden, button included.
-		const firstCard = pane.locator('.yip-stack[data-key$="/post-0"]');
+		const firstCard = pane.locator(`.yip-stack[data-key="${FIRST_KEY}"]`);
 
 		await pane.evaluate((el) => el.scrollTo({ top: el.scrollHeight, behavior: 'instant' }));
 		await expect(firstCard).toHaveClass(/\bbehind\b/, { timeout: 5000 });

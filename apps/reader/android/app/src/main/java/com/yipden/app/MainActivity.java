@@ -42,6 +42,7 @@ public class MainActivity extends BridgeActivity {
          */
         if (getBridge() != null) {
             getBridge().getWebView().setOverScrollMode(View.OVER_SCROLL_NEVER);
+            clearCreatorMedia();
         }
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
@@ -58,5 +59,23 @@ public class MainActivity extends BridgeActivity {
                 getOnBackPressedDispatcher().onBackPressed();
             }
         });
+    }
+
+    @Override
+    public void onDestroy() {
+        if (isFinishing()) clearCreatorMedia();
+        super.onDestroy();
+    }
+
+    /*
+     * Creators' images and pages the WebViews loaded sit in the app's HTTP cache, outside the
+     * encrypted store, so they are cleared when the app closes. The cache is shared by every
+     * WebView in the app, the in-app browser's included. A close Android never reports (the
+     * process killed in the background) is caught by the same sweep on the next cold start.
+     * Disabling caching for those loads instead is not possible from the page: an <img> cannot
+     * ask for it. The app's own files come from the APK and are never in this cache.
+     */
+    private void clearCreatorMedia() {
+        if (getBridge() != null) getBridge().getWebView().clearCache(true);
     }
 }

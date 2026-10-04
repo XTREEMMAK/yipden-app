@@ -443,6 +443,9 @@ are in DECISIONS.md.
    - Leak hardening: `fullBackupContent` for Android 11 and lower (12+ is already excluded), the
      WebView cache of creator media cleared when the app closes, and no reference URLs or snip
      text in logs.
+   - **Built 2026-10-04**, with the key kept by the sqlite plugin alone (no second plugin; see
+     DECISIONS.md). Still to see on a phone: an upgrade carrying real data, the file unreadable
+     without the key, and how long the first launch takes.
 4. **The `Reference` model.** One record for audio, image, screenshot and text. Reader tracks
    migrate onto it and keep their UI. Platform embeds (Bandcamp, SoundCloud, YouTube, Spotify,
    Apple Music) stay, as links that open on the platform: `hostVerified: false`,

@@ -2461,3 +2461,75 @@ interface FeedSource {
 **WebSub hubs** are read from a `Link: rel="hub"` response header (which wins, as WebSub
 discovery orders it), from `<link rel="hub">` in Atom or `<atom:link rel="hub">` in RSS, and from
 JSON Feed's `hubs`. The hub is kept on `Feed.hubUrl`, https only, and nothing uses it.
+
+## 2026-10-04 — The store is encrypted: SQLCipher on the phone, sealed IndexedDB on the web
+
+ROADMAP's encrypted store item, from the reference finds brief. This supersedes the 2026-09
+choice of "IndexedDB rather than SQLite" for the phone. docs/security.md says what it protects and
+what it does not.
+
+**One store over two backends.** All of a store's behaviour lives in one `DocStore` (what
+following touches, that a refetched yip keeps its read state, and so on). It is written over a
+small backend that only keeps records: named collections with a few indexed fields. The phone's
+backend is SQLite (`sqlBackend.ts`, a table per collection with indexed fields as columns, so
+counts and paging run in the database rather than after every record has crossed the native
+bridge). The web's is encrypted IndexedDB. Two complete `Store` implementations would have drifted
+apart. One contract suite runs against the old store and both new ones, so a behaviour the old
+store had and a new one lacks fails a test.
+
+**The key: the sqlite plugin's own Keystore storage, not a second plugin** (decided with the
+developer). The brief named `@aparajita/capacitor-secure-storage` to hold the key. But
+`@capacitor-community/sqlite` cannot be handed a key when it opens a database. It only opens an
+encrypted database with a secret it stores itself, in EncryptedSharedPreferences under an Android
+Keystore AES-256-GCM master key. The key lives there whatever else is added, so the second plugin
+would only have kept a second copy. That plugin also lists `@capacitor/keyboard` and
+`@capacitor/ios` as hard dependencies. It was installed, reviewed and removed.
+
+- The key is 32 bytes from `crypto.getRandomValues`, written as SQLCipher's raw-key form `x'…'`, so
+  those bits are the key itself rather than a passphrase put through PBKDF2 on every launch.
+- If the key is ever missing while the file survives, nothing can read the file. It is deleted and
+  the store starts empty; an exported backup is the way back. This only happens if the Keystore
+  entry is lost, since clearing app data removes both together.
+- No biometric prompt. The app has no lock screen of its own, and the phone's lock protects a
+  running app as much as anything in the app could.
+
+**The web build is weaker, and says so.** There is no keystore in a browser. Values are sealed
+with AES-GCM and record keys replaced by an HMAC, both with non-extractable WebCrypto keys kept in
+the same database. Nothing readable is left, not even the addresses used as keys. Any script on
+the origin can still use the keys. An IndexedDB transaction closes itself while WebCrypto works,
+so each transaction holds its writes in memory, encrypts them, then applies them in one IndexedDB
+transaction. Queries decrypt the whole collection and filter in memory, which is fine for the web
+build.
+
+**The move.** On first launch the old IndexedDB is copied in one transaction:
+
+- every yip is re-keyed to its stable id (`rekey.ts`), keeping read state and the earliest
+  `seenAt`;
+- old feed validators become cursors;
+- the player's saved queue follows the new keys.
+
+The copy is read back and checked, collection by collection. Only then is a marker written, and
+only after the marker is the old database deleted. Interrupted before the marker, the next launch
+starts the copy again from the old database. Interrupted after it, the next launch only finishes
+the deletion. Tests cover both cases. Backup files from before the move are re-keyed the same way
+on import. Refresh now keys new yips by their stable id.
+
+**Around the database:**
+
+- `full_backup_content.xml` excludes everything for Android 11 and lower, alongside
+  `allowBackup="false"` and the Android 12+ rules that were already there.
+- **The WebView cache is cleared, rather than caching turned off.** An `<img>` cannot ask not to
+  be cached, so turning caching off for creator media was not available. `MainActivity` clears the
+  HTTP cache shared by every WebView when the activity finishes, and again at every cold start for
+  a close Android never reports. The cost: creators' images download again once per launch.
+- The hero image's one release-build log that named an address now runs in development only.
+
+**Gradle verification.** As with the in-app browser, write mode also recorded the plugin's test
+libraries (Robolectric and others), which are not part of this build. Instead, a lenient build
+listed the 36 artifacts the build really resolves: SQLCipher, Room's annotation processor and its
+tools, androidx.security, Tink and the rest. Only those were added, and a strict build passes.
+`sql.js` (SQLite in WebAssembly, MIT) is a dev dependency that runs the SQLite backend in tests. It
+is not in the app.
+
+The About sheet's attributions now list the sqlite plugin, SQLCipher (BSD-style, © Zetetic LLC)
+and the in-app browser plugin, which was missing.

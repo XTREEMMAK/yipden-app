@@ -8,7 +8,8 @@ import {
 	HttpError,
 	type FeedSource,
 	type FetchLike,
-	type HttpResponse
+	type HttpResponse,
+	stableYipId
 } from '@yipden/feeds';
 import { IdbStore } from './store/idb.js';
 import { setAgeLimitActive } from './age.js';
@@ -151,9 +152,10 @@ describe('categorize', () => {
 });
 
 describe('toStoredYip', () => {
-	it('keys a yip by feed and item id, so two feeds never collide', () => {
+	it('keys a yip by its stable id, which already tells two feeds apart', () => {
 		const item: Item = {
-			id: '1',
+			id: stableYipId('https://lena.example.com/feed.xml', '1'),
+			entryId: '1',
 			title: 't',
 			url: 'https://example.com/1',
 			publishedAt: null,
@@ -163,7 +165,8 @@ describe('toStoredYip', () => {
 			sourceFeedId: 'f'
 		};
 		const yip = toStoredYip(item, feed(), 'person-lena', '2026-09-22T00:00:00.000Z');
-		expect(yip.key).toBe('https://lena.example.com/feed.xml::1');
+		expect(yip.key).toBe(stableYipId('https://lena.example.com/feed.xml', '1'));
+		expect(yip.key).not.toBe(stableYipId('https://other.example.com/feed.xml', '1'));
 		expect(yip.feedId).toBe('https://lena.example.com/feed.xml');
 		expect(yip.personId).toBe('person-lena');
 		expect(yip.feedKind).toBe('blog');
@@ -248,10 +251,10 @@ describe('refreshAll', () => {
 		expect(saved?.hubUrl).toBe('https://hub.example/');
 	});
 
-	it('keeps keying yips by the entry id, so nothing already stored is duplicated', async () => {
+	it('keys yips by their stable id', async () => {
 		await refreshAll({ store, http: fastHttp(fakeFetch(() => response(200, ONE_POST))) });
 		const [yip] = await store.listYips();
-		expect(yip?.key).toBe(`${feed().id}::https://lena.example.com/1`);
+		expect(yip?.key).toBe(yip?.id);
 		expect(yip?.entryId).toBe('https://lena.example.com/1');
 		expect(yip?.id).toMatch(/^[0-9a-f]{32}$/);
 	});
