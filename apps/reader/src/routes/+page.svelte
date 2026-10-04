@@ -989,9 +989,9 @@
 						r="2.5"
 					/></svg
 				>
-				Your notes and tracks
-				{#if creatorNotes.tracksFor(entry.source_url).length}<small class="sheet-hint"
-						>{creatorNotes.tracksFor(entry.source_url).length}</small
+				Your notes and keeps
+				{#if creatorNotes.referencesFor(entry.source_url).length}<small class="sheet-hint"
+						>{creatorNotes.referencesFor(entry.source_url).length}</small
 					>{/if}
 			</button>
 			<button

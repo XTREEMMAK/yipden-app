@@ -11,11 +11,15 @@
 	-->
 	<div
 		class="toast"
+		class:has-action={toast.action}
 		role="status"
 		aria-live="polite"
 		transition:fly={{ y: 12, duration: duration.m, easing: ease }}
 	>
-		{toast.message}
+		<span>{toast.message}</span>
+		{#if toast.action}
+			<button class="action" onclick={() => toast.act()}>{toast.action.label}</button>
+		{/if}
 	</div>
 {/if}
 
@@ -34,5 +38,32 @@
 		line-height: 1.4;
 		box-shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.5);
 		pointer-events: none;
+	}
+
+	/* Only a toast with something to tap takes taps, and only on its button. */
+	.toast.has-action {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding-block: 6px;
+	}
+
+	.toast span {
+		flex: 1;
+	}
+
+	.action {
+		flex: none;
+		min-width: 44px;
+		min-height: 44px;
+		padding: 0 14px;
+		border: 0;
+		border-radius: 999px;
+		background: none;
+		/* Fixed, like the toast's own ground: about 9:1 on it, in every theme and skin. */
+		color: #f6b08a;
+		font: inherit;
+		font-weight: 700;
+		pointer-events: auto;
 	}
 </style>

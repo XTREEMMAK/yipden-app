@@ -3,7 +3,7 @@
 	import { fade, fly } from 'svelte/transition';
 	import { type PreviewKind } from '@yipden/ring-client';
 	import { closeOnBack } from '$lib/closeOnBack.js';
-	import { keepMessage } from '$lib/references/messages.js';
+	import { showKept } from '$lib/references/messages.js';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import { explored } from '$lib/explored.svelte.js';
 	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
@@ -90,7 +90,7 @@
 				...(image.alt ? { title: image.alt } : {}),
 				foundOn: image.page
 			});
-			toast.show(keepMessage(result, session.creator.name, imageKind));
+			showKept(result, session.creator, imageKind, ondone);
 		} finally {
 			const next = new Set(checking);
 			next.delete(image.url);
@@ -111,7 +111,7 @@
 				title: passageTitle(passage.exact),
 				selector
 			});
-			toast.show(keepMessage(result, session.creator.name, 'text'));
+			showKept(result, session.creator, 'text', ondone);
 		} finally {
 			const next = new Set(checking);
 			next.delete(key);
@@ -148,7 +148,7 @@
 				title: titleOf(item),
 				foundOn: session.pageUrl
 			});
-			toast.show(keepMessage(result, session.creator.name));
+			showKept(result, session.creator, 'audio', ondone);
 		} finally {
 			const next = new Set(checking);
 			next.delete(item.url);

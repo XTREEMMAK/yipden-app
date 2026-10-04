@@ -468,6 +468,18 @@ are in DECISIONS.md.
    without the key, nothing in `adb backup`, a re-upload on another host refused, a snip scrolling
    to its passage.
 
+## The Library and Forums (brief of 2026-10-04)
+
+From [docs/briefs/library-and-forums.md](docs/briefs/library-and-forums.md).
+
+1. **The Library (Part 1).** The audit is in [docs/you-page-audit.md](docs/you-page-audit.md).
+   **Built 2026-10-04** (DECISIONS.md), to see on a phone.
+2. **Forums (Part 2).** Follow public Discourse forums, or chosen categories, as a calm digest
+   with one card per topic, on a Forums pill in Feeds. Standalone: not tied to creators or the
+   ring. Next. Discourse feeds already attached to people stay as they are; only new forum links
+   take the forum path. On Android only until v2.0's proxy, because a browser cannot read another
+   site's forum JSON.
+
 ## Later: v0.9 release
 
 Blocked on items 1 to 4 of "Encrypted store and reference finds" above.

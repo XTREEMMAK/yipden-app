@@ -34,6 +34,11 @@ export interface Reference {
 	kind: ReferenceKind;
 	/** The creator it is attached to: `verdictKey` of their site, as Liked and layouts use. */
 	creatorId: string;
+	/**
+	 * Their name as shown where it was kept, for the Library. Absent on references kept before
+	 * 2026-10-04 evening; those show a followed person's name, or else the site address.
+	 */
+	creatorName?: string;
 	ringSource: RingSource;
 	/** Null when `ringSource` is `none`. */
 	ringId: string | null;

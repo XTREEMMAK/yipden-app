@@ -186,6 +186,7 @@ function validReference(value: unknown): value is Reference {
 		/^ref_[0-9a-f]{32}$/.test(String(value.id)) &&
 		REFERENCE_KINDS.includes(value.kind as ReferenceKind) &&
 		text(value.creatorId, 8_192) &&
+		optionalText(value.creatorName, MAX_TITLE) &&
 		['own', 'partner', 'none'].includes(String(value.ringSource)) &&
 		(value.ringSource === 'none' ? value.ringId === null : text(value.ringId, 200)) &&
 		text(value.title, MAX_TITLE) &&

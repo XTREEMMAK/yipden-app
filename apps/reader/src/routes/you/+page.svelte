@@ -20,6 +20,7 @@
 	import LayoutPicker from '$components/LayoutPicker.svelte';
 	import ReaderTracks from '$components/ReaderTracks.svelte';
 	import ReaderFinds from '$components/ReaderFinds.svelte';
+	import Library from '$components/Library.svelte';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 
 	/**
@@ -433,7 +434,9 @@
 	</header>
 
 	<div class="groups">
-		<section class="grp" in:fly={flyIn({ delay: staggerDelay(0) })}>
+		<Library />
+
+		<section class="grp" in:fly={flyIn({ delay: staggerDelay(1) })}>
 			<h3 class="grp-h">
 				Following
 				<span>

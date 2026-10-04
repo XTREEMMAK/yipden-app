@@ -22,6 +22,12 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- A Library at the top of You: everything you kept (tracks, pictures, screenshots, passages) and
+  every link you saved for later, in one place. It counts what is there, shows what is recent,
+  arranges by type, creator or date, and searches titles, creators and passages. Every item says
+  whose it is and reaches their site.
+- Keeping something or saving it for later now says so with a View button that takes you
+  straight to it in the Library.
 - On a creator's site in the app, long-press a picture or select a passage, then tap YipDen's
   button to keep it for them: a comic page, a game screenshot, or a passage of their writing. Only
   the link is kept; pictures load from their site each time, and a passage opens their page
@@ -117,6 +123,8 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- Saved links moved from their own tab on You into the Library. Liked and Not for me stay where
+  they were.
 - The button in the in-app browser's toolbar is now a "keep" sign rather than a music note, since
   it keeps pictures and passages as well as tracks, and TalkBack reads it as "Keep something from
   this page" instead of "Button near done".

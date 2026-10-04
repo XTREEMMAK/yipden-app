@@ -1,4 +1,6 @@
+import { goto } from '$app/navigation';
 import { safeUrl } from '@yipden/ring-client';
+import { libraryHref } from './library.js';
 import { store, type ShelfItem } from './store/index.js';
 import { toast } from './toast.svelte.js';
 
@@ -92,7 +94,14 @@ export const shelf = new ShelfState();
 export async function toggleShelf(draft: ShelfDraft): Promise<void> {
 	try {
 		const saved = await shelf.toggle(draft);
-		toast.show(saved ? 'Saved for later. Find it under Saved in You.' : 'Removed from Saved.');
+		if (saved) {
+			toast.show('Saved for later, in your Library.', {
+				label: 'View',
+				run: () => void goto(libraryHref({ type: 'links' }))
+			});
+		} else {
+			toast.show('Removed from your Library.');
+		}
 	} catch {
 		toast.show('Could not save that on this phone.');
 	}

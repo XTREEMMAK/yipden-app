@@ -1,6 +1,7 @@
 # The You page as a library: audit
 
-An audit for the library and forums brief, Part 1, step 1. It changes no code. Written
+An audit for the library and forums brief, Part 1, step 1. It changes no code. **The plan in
+section 6 was approved and built on 2026-10-04**; see DECISIONS.md. Written
 2026-10-04 against commit `2a47406`.
 
 Decided with the developer before this was written:

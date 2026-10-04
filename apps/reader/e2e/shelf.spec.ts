@@ -115,7 +115,7 @@ test.describe('a desktop first member in Discover', () => {
 		await expect(page.getByRole('button', { name: 'Save for later' })).toBeVisible();
 
 		const actions = await openActions(page);
-		await actions.getByRole('button', { name: 'Your notes and tracks' }).click();
+		await actions.getByRole('button', { name: 'Your notes and keeps' }).click();
 		const notes = page.getByRole('dialog', { name: 'Your notes on Wide Screen' });
 		await notes.getByLabel('Reads best on').selectOption('mobile-friendly');
 
@@ -141,10 +141,54 @@ test.describe('a desktop first member in Discover', () => {
 		await chooseFilter(page, 'Comics');
 		await expect(page.getByText('Best on desktop', { exact: true })).toHaveCount(0);
 		const again = await openActions(page);
-		await again.getByRole('button', { name: 'Your notes and tracks' }).click();
+		await again.getByRole('button', { name: 'Your notes and keeps' }).click();
 		await expect(page.getByText('night drive')).toBeVisible();
 		await page.getByRole('button', { name: 'Remove night drive' }).click();
 		await expect(page.getByText('night drive')).toHaveCount(0);
+	});
+
+	test('a kept track is in the Library, reached from the toast, searchable and arranged', async ({
+		page
+	}) => {
+		await page.goto('/you');
+		const library = page.getByRole('region', { name: /^Library/ });
+		await expect(library.getByText(/Everything you keep, in one place/)).toBeVisible();
+
+		await page.goto('/');
+		await chooseFilter(page, 'Comics');
+		const actions = await openActions(page);
+		await actions.getByRole('button', { name: 'Your notes and keeps' }).click();
+		const notes = page.getByRole('dialog', { name: 'Your notes on Wide Screen' });
+		await notes
+			.getByLabel('Add a track by link')
+			.fill('https://wide.example.com/audio/night_drive.mp3');
+		await notes.getByRole('button', { name: 'Add track' }).click();
+		const toast = page.getByRole('status');
+		await expect(toast).toContainText('Kept to Library');
+
+		await toast.getByRole('button', { name: 'View' }).click();
+		await expect(page).toHaveURL(/\/you\/?\?library=creator&of=wide\.example\.com#library$/);
+		await expect(library).toContainText('1 track');
+		await expect(library.getByText('Showing Wide Screen')).toBeVisible();
+		// Narrowed to one creator, so arranged by creator.
+		const tracks = library.getByRole('list', { name: 'Wide Screen' });
+		await expect(tracks.locator('li.marked')).toContainText('night drive');
+		await expect(tracks.getByText(/Wide Screen · Track ·/)).toBeVisible();
+		await expect(tracks.getByRole('button', { name: /^Visit Wide Screen’s site/ })).toBeVisible();
+
+		await library.getByRole('button', { name: 'Show everything' }).click();
+		await library.getByRole('radio', { name: 'By type' }).click();
+		await expect(library.getByRole('list', { name: 'Tracks' })).toBeVisible();
+
+		const search = library.getByRole('searchbox', { name: 'Search your Library' });
+		await search.fill('night wide');
+		await expect(library.getByText('night drive')).toBeVisible();
+		await search.fill('nothing like it');
+		await expect(library.getByText('Nothing matches “nothing like it”.')).toBeVisible();
+		await search.fill('');
+
+		await library.getByRole('button', { name: /^Remove night drive from your Library/ }).click();
+		await expect(library.getByText(/Everything you keep, in one place/)).toBeVisible();
 	});
 
 	test('keeps the usual actions for a member who declared nothing, or something unknown', async ({
@@ -165,15 +209,20 @@ test.describe('a desktop first member in Discover', () => {
 		await page.goto('/');
 		await chooseFilter(page, 'Comics');
 		await page.getByRole('button', { name: 'Save for later' }).click();
-		await expect(page.getByText('Saved for later. Find it under Saved in You.')).toBeVisible();
+		await expect(page.getByText('Saved for later, in your Library.')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Saved' })).toHaveAttribute(
 			'aria-pressed',
 			'true'
 		);
 
-		await page.goto('/you');
-		const shelf = page.getByRole('tabpanel', { name: /^Saved/ });
-		await expect(shelf.getByText('Wide Screen')).toBeVisible();
+		// The toast's View goes straight there, to the Library's links, with the new one picked out.
+		await page.getByRole('status').getByRole('button', { name: 'View' }).click();
+		await expect(page).toHaveURL(/\/you\/?\?library=type&of=links#library$/);
+		const shelf = page.getByRole('region', { name: /^Library/ });
+		await expect(shelf).toContainText('1 link');
+		await expect(shelf.getByText('Showing Links')).toBeVisible();
+		await expect(shelf.locator('li.marked')).toContainText('Wide Screen');
+		await expect(shelf.getByText('Wide Screen').first()).toBeVisible();
 		await expect(shelf.getByText('wide.example.com')).toBeVisible();
 
 		// Through the existing follows file, not a second export; the export tools live in
@@ -203,10 +252,10 @@ test.describe('a desktop first member in Discover', () => {
 		expect(await opened(page)).toEqual(['https://wide.example.com/']);
 
 		await shelf.getByRole('button', { name: /^Remove Wide Screen/ }).click();
-		await expect(shelf.getByText(/Nothing saved yet/)).toBeVisible();
+		await expect(shelf.getByText(/Everything you keep, in one place/)).toBeVisible();
 		await page.reload();
 		await expect(
-			page.getByRole('tabpanel', { name: /^Saved/ }).getByText(/Nothing saved yet/)
+			page.getByRole('region', { name: /^Library/ }).getByText(/Everything you keep, in one place/)
 		).toBeVisible();
 	});
 
@@ -227,7 +276,7 @@ test.describe('a desktop first member in Discover', () => {
 		]);
 
 		await page.goto('/you');
-		const shelf = page.getByRole('tabpanel', { name: /^Saved/ });
+		const shelf = page.getByRole('region', { name: /^Library/ });
 		await tall([
 			shelf.getByRole('button', { name: /^Open / }),
 			shelf.getByRole('button', { name: /^Remove / })
@@ -249,7 +298,7 @@ test.describe('a desktop first member in Discover', () => {
 
 		await page.goto('/you');
 		await expect(
-			page.getByRole('tabpanel', { name: /^Saved/ }).getByRole('button', { name: /^Open / })
+			page.getByRole('region', { name: /^Library/ }).getByRole('button', { name: /^Open / })
 		).toHaveCount(1);
 	});
 });
@@ -303,10 +352,10 @@ test.describe('a followed site that looks built for desktop', () => {
 		const everything = page.getByRole('tabpanel', { name: 'Everything' });
 		await expect(everything.getByText('Best on desktop', { exact: true })).toBeVisible();
 		await everything.getByRole('button', { name: 'Save A long, wide post for later' }).click();
-		await expect(page.getByText('Saved for later. Find it under Saved in You.')).toBeVisible();
+		await expect(page.getByText('Saved for later, in your Library.')).toBeVisible();
 
 		await page.goto('/you');
-		const shelf = page.getByRole('tabpanel', { name: /^Saved/ });
+		const shelf = page.getByRole('region', { name: /^Library/ });
 		await expect(shelf.getByText('A long, wide post')).toBeVisible();
 		await expect(shelf.getByText(/Wide Writer · wide-writer\.example/)).toBeVisible();
 	});
@@ -493,7 +542,7 @@ test.describe('partner rings in Discover', () => {
 			await page.goto('/you');
 			await expect(
 				page
-					.getByRole('tabpanel', { name: /^Saved/ })
+					.getByRole('region', { name: /^Library/ })
 					.getByText(/via Fixture Ring · bmc\.example\.org/)
 			).toBeVisible();
 		});
@@ -644,7 +693,7 @@ test.describe('partner rings in Discover', () => {
 			await page.goto('/you');
 			await expect(
 				page
-					.getByRole('tabpanel', { name: /^Saved/ })
+					.getByRole('region', { name: /^Library/ })
 					.getByText(/via Fixture Ring · ash\.example\.com/)
 			).toBeVisible();
 		});

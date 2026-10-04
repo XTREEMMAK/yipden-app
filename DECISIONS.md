@@ -2720,3 +2720,50 @@ comic with a soundtrack, a musician's lyrics), and the sheet behind the button o
 - **The spoken label** was the plugin's own "Button near done", which TalkBack read aloud. The app
   now overrides that string resource with "Keep something from this page" (an app's resources win
   over a library's, so no patch), and a guard test keeps it.
+
+## 2026-10-04 (evening, later) — The Library
+
+The library and forums brief (`docs/briefs/library-and-forums.md`), Part 1, built as approved
+from the audit in `docs/you-page-audit.md`.
+
+**One place for everything kept.** A Library section at the top of You collects:
+
+- the tracks, pictures, screenshots and passages kept from creators' pages;
+- the Shelf's saved links, as "Links".
+
+Before, things kept for someone not followed (every partner-ring member, for one) were on no part
+of You at all.
+
+- **What it offers:** counts that name only the types present, a Recent row, three arrangements
+  (by type, by creator by name, and by date from Today back), and a search that needs every word
+  somewhere in an item's title, creator, address or passage.
+- **Every item** says whose it is and has a button to that creator's site. Tapping an item does
+  what that kind does: a track plays, a picture opens full screen, a passage opens on the
+  creator's page, a link opens.
+- **It is a view, not storage.** It reads references and the Shelf where they already live, in
+  the encrypted store, and arranges them in `library.ts` (plain functions, unit tested).
+
+**Decided with the developer:**
+
+- The Shelf joins as Links, and YouLists keeps only Liked and Not for me, so no link is listed
+  twice.
+- Keeping says "Kept to Library", not the brief's "Saved to Library", which would clash with Save
+  for later.
+- **Recent appears only past six items.** Below that, every item is already on screen, and
+  showing each one twice only made the section longer.
+
+**Toasts can carry one action.** The action is a real 44px button, the toast stays six seconds
+rather than 2.8, and its colour is fixed at about 9:1 on the toast in every theme.
+
+- Every keep and every Save for later offers View. View opens You at the Library, narrowed to that
+  creator (or to Links) and arranged to match, with the newest item there picked out and scrolled
+  to, and a "Show everything" to widen it again.
+- From the in-app browser's sheet, View closes the site first.
+
+**Creator names on references.** References stored only `creatorId`, so a name is now kept with
+each new one (`creatorName`, optional, validated in backups). Older ones show a followed person's
+name, or else their site's address. Nothing is rewritten to fill them in.
+
+Discover's "Your notes and tracks" became "Your notes and keeps", and its count includes pictures
+and passages. Read history stays off the Library, as the audit proposed: the Library holds what a
+reader chose to keep.

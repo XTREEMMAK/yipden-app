@@ -45,6 +45,8 @@ export type AddTrackResult = 'added' | 'already-added' | 'unsafe' | 'full' | Cap
 /** Who a track is being kept for: their site, and the ring they were found through, if any. */
 export interface TrackCreator {
 	url: string;
+	/** Their name, kept on the reference so the Library can say whose it is. */
+	name?: string;
 	ring?: RingOrigin | null;
 }
 
@@ -163,6 +165,7 @@ class CreatorNotes {
 			id,
 			kind: draft.kind,
 			creatorId,
+			...(creator.name?.trim() ? { creatorName: creator.name.trim().slice(0, MAX_TITLE) } : {}),
 			...ringFields(creator.ring),
 			title: (draft.title?.trim() || titleFromUrl(url)).slice(0, MAX_TITLE),
 			url,

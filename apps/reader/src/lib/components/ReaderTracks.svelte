@@ -2,7 +2,7 @@
 	import { previewKindOf, type PreviewKind } from '@yipden/ring-client';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import type { RingOrigin } from '$lib/references/types.js';
-	import { keepMessage } from '$lib/references/messages.js';
+	import { showKept } from '$lib/references/messages.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import PlatformIcon from './PlatformIcon.svelte';
 
@@ -48,7 +48,7 @@
 				link = '';
 				title = '';
 			}
-			toast.show(keepMessage(result, creator.name));
+			showKept(result, creator);
 		} finally {
 			adding = false;
 		}

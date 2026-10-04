@@ -230,13 +230,13 @@ test.describe('You', () => {
 			]
 		});
 		await page.goto('/you');
-		await expect(page.getByRole('tab', { name: /^Saved/ })).toBeVisible();
+		await expect(page.getByRole('region', { name: /^Library/ })).toBeVisible();
 		// Headless Chromium has no share sheet; take it away explicitly so this tests the fallback.
 		await page.evaluate(() =>
 			Object.defineProperty(navigator, 'share', { value: undefined, configurable: true })
 		);
 
-		const panel = page.getByRole('tabpanel', { name: /^Saved/ });
+		const panel = page.getByRole('region', { name: /^Library/ });
 		await panel.getByRole('button', { name: 'Send Wide Screen to another device or app' }).click();
 		await expect(page.getByRole('status')).toContainText('Link copied.');
 		expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
