@@ -52,6 +52,7 @@ export {
 export {
 	FeedHttp,
 	HttpError,
+	linkHeaderUrl,
 	parseRobots,
 	type FeedHttpOptions,
 	type FetchLike,
@@ -60,3 +61,13 @@ export {
 } from './http.js';
 
 export { discoverFeeds, type DiscoverOptions } from './discover.js';
+
+export { sha256Hex, stableYipId } from './hash.js';
+export {
+	DirectFetchSource,
+	directCursor,
+	type DirectFetchSourceOptions,
+	type FeedRequest,
+	type FeedResult,
+	type FeedSource
+} from './source.js';

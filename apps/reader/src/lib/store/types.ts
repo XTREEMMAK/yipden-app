@@ -78,9 +78,19 @@ export interface Feed {
 	verified: boolean;
 	/** Manual means reader-supplied and remains unverified unless a separate proof exists. */
 	provenance?: FeedProvenance;
-	/** Conditional request validators from the last fetch, so the next one costs nothing. */
+	/**
+	 * What the `FeedSource` returned last time, handed back on the next fetch so an unchanged
+	 * feed costs its host nothing. Opaque here: only the source that wrote it reads it.
+	 */
+	cursor?: string;
+	/**
+	 * The validators a fetch kept before `cursor` existed. Read once to build a first cursor and
+	 * dropped on the next successful check; the move to the encrypted store converts the rest.
+	 */
 	etag?: string;
 	lastModified?: string;
+	/** The feed's WebSub hub, when it announces one. Recorded for v2.0's poller, unused here. */
+	hubUrl?: string;
 	lastFetchedAt?: string;
 	/** Consecutive failures, so a dead feed can be backed off rather than retried forever. */
 	failures: number;
@@ -100,7 +110,10 @@ export type YipCategory = 'posts' | 'watch' | 'listen';
 
 /** A yip as stored: the parsed item plus what this reader has done with it. */
 export interface StoredYip extends Item {
-	/** Unique across feeds: an item id is only stable within the feed that published it. */
+	/**
+	 * `${feedId}::${entryId}`, unique across feeds. Kept in this form, not the stable `id`, until
+	 * the move to the encrypted store re-keys every yip at once, read state included.
+	 */
 	key: string;
 	/** The followed feed record this came from. Absent only on records stored before this field. */
 	feedId?: string;

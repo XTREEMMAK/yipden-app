@@ -1,6 +1,7 @@
 import { parseDate, parseDuration } from '../dates.js';
 import { mediaKindFor } from '../kind.js';
 import { sanitizeHtml, summarize } from '../sanitize.js';
+import { stableYipId } from '../hash.js';
 import { absoluteUrl } from '../urls.js';
 import type { Item, MediaAttachment, ParsedFeed } from '../types.js';
 
@@ -98,7 +99,8 @@ function itemFrom(raw: unknown, options: JsonFeedParseOptions): Item | null {
 	}
 
 	return {
-		id: text(record.id, 500) || url,
+		entryId: text(record.id, 500) || url,
+		id: stableYipId(feedUrl, text(record.id, 500) || url),
 		title: text(record.title, 500) || 'Untitled',
 		url,
 		...(author ? { author } : {}),
@@ -110,6 +112,19 @@ function itemFrom(raw: unknown, options: JsonFeedParseOptions): Item | null {
 		media,
 		sourceFeedId: feedUrl
 	};
+}
+
+/** JSON Feed's `hubs`: the first WebSub one, recorded for the v2.0 poller and not used here. */
+function hubOf(hubs: unknown, feedUrl: string): string | null {
+	if (!Array.isArray(hubs)) return null;
+	for (const hub of hubs.slice(0, 10)) {
+		if (!hub || typeof hub !== 'object') continue;
+		const { type, url } = hub as Record<string, unknown>;
+		if (typeof type === 'string' && type.toLowerCase() !== 'websub') continue;
+		const resolved = absoluteUrl(url, feedUrl);
+		if (resolved) return resolved;
+	}
+	return null;
 }
 
 export function parseJsonFeed(json: unknown, options: JsonFeedParseOptions): ParsedFeed {
@@ -127,6 +142,8 @@ export function parseJsonFeed(json: unknown, options: JsonFeedParseOptions): Par
 		if (item) items.push(item);
 	}
 
+	const hubUrl = hubOf(record.hubs, feedUrl);
+
 	return {
 		id: feedUrl,
 		title: text(record.title, 200) || 'Untitled feed',
@@ -135,6 +152,7 @@ export function parseJsonFeed(json: unknown, options: JsonFeedParseOptions): Par
 		iconUrl: absoluteUrl(record.icon, feedUrl) ?? absoluteUrl(record.favicon, feedUrl),
 		format: 'jsonfeed',
 		kind: 'blog',
+		...(hubUrl ? { hubUrl } : {}),
 		items
 	};
 }

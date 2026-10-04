@@ -11,6 +11,7 @@ import {
 import { parseDate, parseDuration } from '../dates.js';
 import { mediaKindFor } from '../kind.js';
 import { sanitizeHtml, summarize } from '../sanitize.js';
+import { stableYipId } from '../hash.js';
 import { absoluteUrl } from '../urls.js';
 import type { Item, MediaAttachment, ParsedFeed } from '../types.js';
 
@@ -170,7 +171,8 @@ function itemFrom(element: XmlElement, options: RssParseOptions, isMastodon: boo
 		: null;
 
 	return {
-		id: guid || link,
+		entryId: guid || link,
+		id: stableYipId(feedUrl, guid || link),
 		title: childText(element, 'title') || 'Untitled',
 		url: link,
 		...(canonicalUrl ? { canonicalUrl } : {}),
@@ -214,6 +216,8 @@ export function parseRss(document: XmlDocument, options: RssParseOptions): Parse
 		absoluteUrl(image ? childText(image, 'url') : undefined, feedUrl) ??
 		absoluteUrl(attr(child(channel, 'image') ?? channel, 'href'), feedUrl);
 
+	const hubUrl = relatedUrls(channel, 'hub', feedUrl)[0];
+
 	return {
 		id: feedUrl,
 		title: childText(channel, 'title') || 'Untitled feed',
@@ -222,6 +226,7 @@ export function parseRss(document: XmlDocument, options: RssParseOptions): Parse
 		iconUrl,
 		format: 'rss',
 		kind: 'blog',
+		...(hubUrl ? { hubUrl } : {}),
 		items
 	};
 }

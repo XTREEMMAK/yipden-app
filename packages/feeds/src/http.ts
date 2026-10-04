@@ -37,6 +37,8 @@ export interface TextResponse {
 	body: string;
 	etag?: string;
 	lastModified?: string;
+	/** A WebSub hub announced in a `Link: <…>; rel="hub"` header. */
+	hubUrl?: string;
 	notModified: boolean;
 }
 
@@ -237,6 +239,7 @@ export class FeedHttp {
 
 			const etag = response.headers.get('etag');
 			const lastModified = response.headers.get('last-modified');
+			const hubUrl = linkHeaderUrl(response.headers.get('link'), 'hub', finalUrl);
 			return {
 				status: response.status,
 				url: finalUrl,
@@ -244,6 +247,7 @@ export class FeedHttp {
 				body,
 				...(etag ? { etag } : {}),
 				...(lastModified ? { lastModified } : {}),
+				...(hubUrl ? { hubUrl } : {}),
 				notModified: false
 			};
 		} finally {
@@ -287,6 +291,33 @@ export class FeedHttp {
 			return null;
 		}
 	}
+}
+
+/**
+ * The first URL in an HTTP `Link` header with this relation, resolved and checked, or null.
+ *
+ * Only as much of RFC 8288 as finding one relation needs: `<uri>; param; rel="a b"`, comma
+ * separated. A comma inside a URI is legal but has to be inside the angle brackets, which is why
+ * entries are matched rather than split.
+ */
+export function linkHeaderUrl(
+	header: string | null,
+	relation: string,
+	baseUrl: string
+): string | null {
+	if (!header) return null;
+	for (const entry of header.slice(0, 8_192).matchAll(/<([^>]*)>([^,<]*)/g)) {
+		const rel = /;\s*rel\s*=\s*(?:"([^"]*)"|([^;\s]+))/i.exec(entry[2] ?? '');
+		const relations = (rel?.[1] ?? rel?.[2] ?? '').toLowerCase().split(/\s+/);
+		if (!relations.includes(relation)) continue;
+		try {
+			const resolved = safeUrl(new URL(entry[1] ?? '', baseUrl).toString());
+			if (resolved) return resolved.toString();
+		} catch {
+			// An unparseable target is skipped, like any other unusable link.
+		}
+	}
+	return null;
 }
 
 /**

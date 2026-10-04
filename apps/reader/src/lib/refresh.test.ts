@@ -2,9 +2,11 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import {
+	directCursor,
 	FeedHttp,
 	FeedParseError,
 	HttpError,
+	type FeedSource,
 	type FetchLike,
 	type HttpResponse
 } from '@yipden/feeds';
@@ -202,13 +204,75 @@ describe('refreshAll', () => {
 		expect(yip).toMatchObject({ category: 'watch', feedKind: 'youtube' });
 	});
 
-	it('saves the etag and last-modified for the next request', async () => {
+	it("saves the source's cursor for the next request", async () => {
 		await refreshAll({
 			store,
 			http: fastHttp(fakeFetch(() => response(200, ONE_POST, { etag: 'W/"v1"' })))
 		});
 		const [saved] = await store.listFeeds();
-		expect(saved?.etag).toBe('W/"v1"');
+		expect(saved?.cursor).toBe(directCursor({ etag: 'W/"v1"' }));
+	});
+
+	it('starts a record saved before cursors from its old validators, then drops them', async () => {
+		await store.updateFeed({
+			...feed(),
+			etag: 'W/"old"',
+			lastModified: 'Mon, 21 Sep 2026 00:00:00 GMT'
+		});
+		const seen: Array<Record<string, string> | undefined> = [];
+		await refreshAll({
+			store,
+			http: fastHttp(async (_url, init) => {
+				seen.push(init?.headers);
+				return response(304, '');
+			})
+		});
+
+		expect(seen[0]?.['if-none-match']).toBe('W/"old"');
+		const [saved] = await store.listFeeds();
+		expect(saved?.etag).toBeUndefined();
+		expect(saved?.lastModified).toBeUndefined();
+		expect(saved?.cursor).toBe(
+			directCursor({ etag: 'W/"old"', lastModified: 'Mon, 21 Sep 2026 00:00:00 GMT' })
+		);
+	});
+
+	it('records a hub the feed announces', async () => {
+		await refreshAll({
+			store,
+			http: fastHttp(
+				fakeFetch(() => response(200, ONE_POST, { link: '<https://hub.example/>; rel="hub"' }))
+			)
+		});
+		const [saved] = await store.listFeeds();
+		expect(saved?.hubUrl).toBe('https://hub.example/');
+	});
+
+	it('keeps keying yips by the entry id, so nothing already stored is duplicated', async () => {
+		await refreshAll({ store, http: fastHttp(fakeFetch(() => response(200, ONE_POST))) });
+		const [yip] = await store.listYips();
+		expect(yip?.key).toBe(`${feed().id}::https://lena.example.com/1`);
+		expect(yip?.entryId).toBe('https://lena.example.com/1');
+		expect(yip?.id).toMatch(/^[0-9a-f]{32}$/);
+	});
+
+	it('takes yips from whatever source it is given, failures included', async () => {
+		const source: FeedSource = {
+			async *fetchBatch(requests) {
+				for (const request of requests) {
+					yield { id: 'not-asked-for', status: 'not-modified' };
+					yield { id: request.id, status: 'failed', error: new HttpError('nope', 410) };
+				}
+			}
+		};
+		const result = await refreshAll({ store, source });
+		expect(result.feeds).toEqual([
+			expect.objectContaining({
+				feedId: feed().id,
+				status: 'failed',
+				problem: { kind: 'gone', status: 410 }
+			})
+		]);
 	});
 
 	it('sends the saved validators back on the next refresh', async () => {

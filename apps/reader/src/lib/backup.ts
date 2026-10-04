@@ -212,8 +212,10 @@ function validFeed(value: unknown): value is Feed {
 		typeof value.enabled === 'boolean' &&
 		(value.provenance === undefined ||
 			['ring', 'discovered', 'manual', 'opml'].includes(String(value.provenance))) &&
+		optionalText(value.cursor, 16_384) &&
 		optionalText(value.etag, 8_192) &&
 		optionalText(value.lastModified, 8_192) &&
+		optionalHttps(value.hubUrl) &&
 		optionalText(value.lastFetchedAt, 100) &&
 		(value.lastError === undefined || validFeedError(value.lastError))
 	);
@@ -257,6 +259,7 @@ function validYip(value: unknown): value is StoredYip {
 		record(value) &&
 		text(value.key, 20_000) &&
 		text(value.id, 10_000) &&
+		optionalText(value.entryId, 10_000) &&
 		stringValue(value.title, 10_000) &&
 		https(value.url) &&
 		optionalHttps(value.canonicalUrl) &&

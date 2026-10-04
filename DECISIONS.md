@@ -2404,3 +2404,60 @@ reference finds".
   path as Visit, so audio found on the sample's page can be kept for them. This changes "the sample
   is always opened externally" (2026-09-29). With the setting off, or on the web build, it still
   opens in the system browser.
+
+## 2026-10-04 — `FeedSource`, stable yip ids and WebSub hubs
+
+The revised v0.9 brief asks for these three, and for the final interface to be written down here.
+
+**`FeedSource`** (`packages/feeds/src/source.ts`):
+
+```ts
+interface FeedRequest {
+  id: string;
+  url: string;
+  cursor?: string;
+}
+type FeedResult =
+  | { id; status: 'updated'; url; feed: ParsedFeed; cursor?; hubUrl? }
+  | { id; status: 'not-modified'; cursor? }
+  | { id; status: 'failed'; error: unknown };
+interface FeedSource {
+  fetchBatch(requests: FeedRequest[]): AsyncIterable<FeedResult>;
+}
+```
+
+- **A batch in, results out one at a time.** A cache can answer the whole batch in one request.
+  Direct fetching answers feed by feed, and refresh stores each result as it arrives, so a refresh
+  cut short keeps what it already fetched.
+- **The cursor is opaque** and stored on the feed record (`Feed.cursor`). `DirectFetchSource` puts
+  the ETag and Last-Modified in it. A source that cannot read a cursor (one written by another
+  source, say) treats it as no cursor, which means a full fetch, never a failure. Feed records from
+  before cursors keep `etag`/`lastModified`. Refresh builds a first cursor from them and drops them
+  on the next successful check; the move to the encrypted store converts the rest.
+- **Failures are results.** `error` is whatever was thrown, so the app's existing
+  `classifyFailure` still sorts it into the reasons You shows. The rule that a feed stops being
+  retried automatically after five failures stays in refresh, which decides what to ask for.
+  It is not the source's call.
+- `DirectFetchSource` wraps the existing `FeedHttp`, unchanged: robots.txt, per-host spacing,
+  size and time caps, and redirect checks.
+
+**Stable ids** (`packages/feeds/src/hash.ts`):
+
+- **The layout.** `Item.id` is the first 32 hex characters (128 bits) of SHA-256 over
+  `` `${new URL(sourceFeedId).href}\n${entryId}` ``.
+- **`entryId`** is the entry's own identifier: RSS `guid`, Atom `id` or JSON Feed `id`. When the
+  entry has none it is the entry's URL; with no URL either, title and date (unreachable today,
+  since an item with no URL is dropped).
+- **`sourceFeedId`** is the URL the feed was fetched from after redirects, as before.
+- **Hand-written, not WebCrypto.** `crypto.subtle` is async and the parsers are not, and the
+  package has to run unchanged in the WebView, in Node, and in the v2.0 poller. The tests check it
+  against Node's own SHA-256.
+- **Any change to this layout is a migration.** It changes every id on every device.
+- **Stored keys are not changed yet.** They stay `${feedId}::${entryId}`, byte for byte what they
+  were, so refreshing matches what is already stored. Every yip is re-keyed once, read state
+  included, in the move to the encrypted store (ROADMAP, encrypted store item 3). Yips stored
+  before today have no `entryId`; that migration takes it from the key.
+
+**WebSub hubs** are read from a `Link: rel="hub"` response header (which wins, as WebSub
+discovery orders it), from `<link rel="hub">` in Atom or `<atom:link rel="hub">` in RSS, and from
+JSON Feed's `hubs`. The hub is kept on `Feed.hubUrl`, https only, and nothing uses it.

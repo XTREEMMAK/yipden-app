@@ -3,6 +3,7 @@ import { attr, child, childText, children } from '../xml.js';
 import { parseDate, parseDuration } from '../dates.js';
 import { mediaKindFor } from '../kind.js';
 import { sanitizeHtml, summarize } from '../sanitize.js';
+import { stableYipId } from '../hash.js';
 import { absoluteUrl } from '../urls.js';
 import type { Item, MediaAttachment, ParsedFeed } from '../types.js';
 
@@ -137,7 +138,8 @@ function itemFrom(entry: XmlElement, options: AtomParseOptions): Item | null {
 	const parsedMedia = mediaFrom(entry, url);
 
 	return {
-		id: childText(entry, 'id') || url,
+		entryId: childText(entry, 'id') || url,
+		id: stableYipId(feedUrl, childText(entry, 'id') || url),
 		title: childText(entry, 'title') || 'Untitled',
 		url,
 		...(canonicalUrl ? { canonicalUrl } : {}),
@@ -165,6 +167,7 @@ export function parseAtom(document: XmlDocument, options: AtomParseOptions): Par
 	}
 
 	const alternate = linkWithRel(root, 'alternate', feedUrl);
+	const hubUrl = relatedUrls(root, 'hub', feedUrl)[0];
 
 	return {
 		id: feedUrl,
@@ -176,6 +179,7 @@ export function parseAtom(document: XmlDocument, options: AtomParseOptions): Par
 			absoluteUrl(childText(root, 'logo'), feedUrl),
 		format: 'atom',
 		kind: 'blog',
+		...(hubUrl ? { hubUrl } : {}),
 		items
 	};
 }

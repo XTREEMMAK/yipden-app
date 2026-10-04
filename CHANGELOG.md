@@ -22,6 +22,8 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- A feed that announces a WebSub hub has it recorded, ready for the shared feed cache in v2.0.
+  Nothing uses it yet.
 - Ring members can be marked explored: automatically when you visit or preview them, by swiping a
   partner card left, or with the check at its top right.
   Partner rings show how many you have explored, can hide them, and Resume jumps to the next one
@@ -110,6 +112,12 @@ Every notable change to YipDen, newest first. The format follows
   jump straight to one instead of stepping through them. Replaces the node counter, which is gone.
 
 ### Changed
+
+- A partner card's sample (Listen, Open on SoundCloud and the like) opens in the in-app browser,
+  as Visit does, so audio found on that page can be kept for the member.
+- Refreshing goes through one feed source, and each yip now carries an id that is the same on
+  every device. Nothing you have stored changes yet; your yips move to the new ids with the
+  encrypted store.
 
 - Feeds no longer pages between panes by swiping sideways; it stopped working after the first
   swipe and fought the vertical scroll, and the pills are always visible.

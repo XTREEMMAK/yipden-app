@@ -36,8 +36,16 @@ export interface MediaAttachment {
 }
 
 export interface Item {
-	/** Stable within a feed: the feed's own guid or id when it has one, else the URL. */
+	/**
+	 * The same on every device and on the v2.0 server: a hash of the feed's canonical URL and
+	 * `entryId` (see `stableYipId`), so copies of one yip from different sources dedupe.
+	 */
 	id: string;
+	/**
+	 * The entry's own identifier: the feed's guid or id when it has one, else the URL. Stable
+	 * only within its feed. Absent on yips stored before 2026-10-03.
+	 */
+	entryId?: string;
 	title: string;
 	/** Where the yip can be opened. Always https, always checked. */
 	url: string;
@@ -74,6 +82,8 @@ export interface ParsedFeed {
 	iconUrl: string | null;
 	format: FeedFormat;
 	kind: FeedKind;
+	/** The WebSub hub the feed document declares. Recorded for the v2.0 poller, unused here. */
+	hubUrl?: string;
 	items: Item[];
 }
 

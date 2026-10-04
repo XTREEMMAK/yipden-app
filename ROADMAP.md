@@ -424,12 +424,14 @@ are in DECISIONS.md.
 
 1. **Partner cards' Listen opens in the in-app browser** (requested 2026-10-03). The sample button
    uses the same path as Visit, so audio found on that page can be kept for the member. With the
-   setting off, or on the web build, it opens externally as before.
+   setting off, or on the web build, it opens externally as before. **Done 2026-10-03**; to see on
+   a phone.
 2. **`FeedSource`, stable ids, WebSub hubs** (v0.9 brief gaps). Refresh goes through a `FeedSource`
    with one `DirectFetchSource`, so it no longer calls `httpFetch` itself. It fetches feeds in
    batches, with a cursor per feed and an error per feed. A yip's id becomes a hash of the feed's
    canonical URL and the entry's own id, the same on every device. A feed's hub is recorded and
-   not used. New ids are written only through item 3's migration.
+   not used. New ids are written only through item 3's migration. **Done 2026-10-04**: the
+   interface and the id layout are in DECISIONS.md; stored keys are unchanged until item 3.
 3. **Encrypted store.** `@capacitor-community/sqlite` with SQLCipher, and its key in the Android
    Keystore through `@aparajita/capacitor-secure-storage` (both approved by the brief; check both
    support Capacitor 8 and are not deprecated before installing, and ask if not). Same `Store`

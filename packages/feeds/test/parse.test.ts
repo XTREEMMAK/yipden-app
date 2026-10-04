@@ -21,9 +21,10 @@ describe('RSS 2.0', () => {
 		expect(feed.items.map((item) => item.title)).not.toContain('No link at all');
 	});
 
-	it('prefers the guid as an id and the link as a destination', () => {
+	it('prefers the guid as the entry id and the link as a destination', () => {
 		const item = feed.items[0];
-		expect(item?.id).toBe('tag:keyjay.neocities.org,2026:calypso');
+		expect(item?.entryId).toBe('tag:keyjay.neocities.org,2026:calypso');
+		expect(item?.id).toMatch(/^[0-9a-f]{32}$/);
 		expect(item?.url).toBe('https://keyjay.neocities.org/posts/calypso');
 	});
 

@@ -1,8 +1,11 @@
 import {
+	DirectFetchSource,
+	directCursor,
 	FeedHttp,
 	FeedParseError,
 	HttpError,
-	parseFeed,
+	type FeedRequest,
+	type FeedSource,
 	type FetchLike,
 	type Item
 } from '@yipden/feeds';
@@ -31,7 +34,9 @@ export function categorize(item: Item): YipCategory {
 export function toStoredYip(item: Item, feed: Feed, personId: string, now: string): StoredYip {
 	return {
 		...item,
-		key: `${feed.id}::${item.id}`,
+		// The entry's own id, as before stable ids existed, so a refresh keeps matching what is
+		// already stored. Re-keyed to `item.id` by the move to the encrypted store.
+		key: `${feed.id}::${item.entryId ?? item.id}`,
 		feedId: feed.id,
 		personId,
 		feedKind: feed.kind,
@@ -42,6 +47,8 @@ export function toStoredYip(item: Item, feed: Feed, personId: string, now: strin
 
 export interface RefreshOptions {
 	store?: Store;
+	/** Where yips come from. Defaults to each feed's own host, through `http`. */
+	source?: FeedSource;
 	fetch?: FetchLike;
 	/**
 	 * A prebuilt client, so a caller can turn off robots.txt or per-host throttling for a test.
@@ -88,6 +95,26 @@ function healthy(feed: Feed): Feed {
 	return next;
 }
 
+/** The record after a check that worked, holding the source's new cursor in place of validators. */
+function checked(feed: Feed, cursor: string | undefined, fetchedAt: string): Feed {
+	const next: Feed = { ...healthy(feed), lastFetchedAt: fetchedAt };
+	delete next.etag;
+	delete next.lastModified;
+	delete next.cursor;
+	return cursor ? { ...next, cursor } : next;
+}
+
+/** What to ask the source for. A record from before cursors starts from its old validators. */
+function requestFor(feed: Feed): FeedRequest {
+	const cursor =
+		feed.cursor ??
+		directCursor({
+			...(feed.etag ? { etag: feed.etag } : {}),
+			...(feed.lastModified ? { lastModified: feed.lastModified } : {})
+		});
+	return { id: feed.id, url: feed.url, ...(cursor ? { cursor } : {}) };
+}
+
 export interface RefreshResult {
 	feeds: FeedRefreshResult[];
 	added: number;
@@ -97,13 +124,10 @@ export interface RefreshResult {
 export const MAX_AUTO_FAILURES = 5;
 
 /**
- * Refresh every followed feed, one at a time.
+ * Refresh every followed feed, through the `FeedSource`.
  *
- * Sequential rather than parallel: `FeedHttp` already limits itself to one request per host,
- * so running feeds in parallel would only mean more of them waiting at once, not finishing
- * sooner, while making a pull to refresh harder to reason about and to cancel.
- *
- * One feed failing never stops the rest. A dead blog should not silence everyone else a reader
+ * Results are stored as each arrives, so a refresh cut short keeps what it already fetched. One
+ * feed failing never stops the rest. A dead blog should not silence everyone else a reader
  * follows, which is the same principle `ring-client`'s validation follows for ring entries.
  */
 export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshResult> {
@@ -111,6 +135,7 @@ export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshR
 		store = defaultStore,
 		fetch: fetchImpl = httpFetch,
 		http = new FeedHttp({ fetch: fetchImpl }),
+		source = new DirectFetchSource({ http }),
 		feedIds,
 		now = () => new Date()
 	} = options;
@@ -130,31 +155,31 @@ export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshR
 	const results: FeedRefreshResult[] = [];
 	let totalAdded = 0;
 
+	const due: Feed[] = [];
 	for (const feed of targets) {
 		if (feed.failures >= MAX_AUTO_FAILURES && !feedIds) {
 			results.push({ feedId: feed.id, status: 'disabled', added: 0 });
-			continue;
+		} else {
+			due.push(feed);
 		}
+	}
+	const byId = new Map(due.map((feed) => [feed.id, feed]));
+
+	for await (const result of source.fetchBatch(due.map(requestFor))) {
+		const feed = byId.get(result.id);
+		if (!feed) continue;
 
 		try {
-			const response = await http.get(feed.url, {
-				...(feed.etag ? { etag: feed.etag } : {}),
-				...(feed.lastModified ? { lastModified: feed.lastModified } : {})
-			});
-
+			if (result.status === 'failed') throw result.error;
 			const fetchedAt = now().toISOString();
 
-			if (response.notModified) {
-				await store.updateFeed({ ...healthy(feed), lastFetchedAt: fetchedAt });
+			if (result.status === 'not-modified') {
+				await store.updateFeed(checked(feed, result.cursor ?? requestFor(feed).cursor, fetchedAt));
 				results.push({ feedId: feed.id, status: 'not-modified', added: 0 });
 				continue;
 			}
 
-			const parsed = parseFeed(response.body, {
-				feedUrl: response.url,
-				contentType: response.contentType
-			});
-
+			const parsed = result.feed;
 			// Posts older than the reader's limit are never stored. Undated ones are kept.
 			const cutoff = ageCutoff(effectiveMaxAgeDays(people.get(feed.personId), defaultDays), now());
 			prunable.set(feed.personId, cutoff);
@@ -165,13 +190,11 @@ export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshR
 			totalAdded += added;
 
 			await store.updateFeed({
-				...healthy(feed),
-				url: response.url,
+				...checked(feed, result.cursor, fetchedAt),
+				url: result.url,
 				kind: parsed.kind,
 				...(parsed.title ? { title: parsed.title } : {}),
-				...(response.etag ? { etag: response.etag } : {}),
-				...(response.lastModified ? { lastModified: response.lastModified } : {}),
-				lastFetchedAt: fetchedAt
+				...(result.hubUrl ? { hubUrl: result.hubUrl } : {})
 			});
 
 			results.push({ feedId: feed.id, status: 'updated', added });
