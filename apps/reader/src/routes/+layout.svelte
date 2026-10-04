@@ -16,6 +16,7 @@
 	import { theme } from '$lib/theme.svelte.js';
 	import { verdicts } from '$lib/verdicts.svelte.js';
 	import '$styles/app.css';
+	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 
 	let { children } = $props();
 	let ringQueueRestored = $state(false);
@@ -25,6 +26,7 @@
 		void prefs.hydrate();
 		void verdicts.load();
 		void restoreRingQueue();
+		void creatorNotes.recheckDue();
 		const stopResume = watchResume();
 		const stopKeyboard = watchKeyboard();
 		return () => {
@@ -75,7 +77,10 @@
 	 */
 	function watchResume() {
 		const onVisible = () => {
-			if (document.visibilityState === 'visible' && ring.all.length) void ring.load();
+			if (document.visibilityState !== 'visible') return;
+			if (ring.all.length) void ring.load();
+			// Kept references due a check get one, a few at a time (`creatorNotes.recheckDue`).
+			void creatorNotes.recheckDue();
 		};
 		document.addEventListener('visibilitychange', onVisible);
 		const native = App.addListener('resume', onVisible).catch(() => null);

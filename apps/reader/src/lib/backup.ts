@@ -194,6 +194,7 @@ function validReference(value: unknown): value is Reference {
 		optionalHttps(value.foundOnPage) &&
 		typeof value.hostVerified === 'boolean' &&
 		typeof value.sharable === 'boolean' &&
+		optionalBoolean(value.linkedInMarkup) &&
 		optionalText(value.etag, 8_192) &&
 		optionalText(value.contentHash, 200) &&
 		(value.selector === undefined || (value.kind === 'text' && validSelector(value.selector))) &&

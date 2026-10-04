@@ -8,6 +8,8 @@ export interface ReaderTrack {
 	addedAt: string;
 	/** The page it was found on, when it came from browsing their site. */
 	foundOn?: string;
+	/** A re-check found it gone from their site. Kept so the reader can see it and remove it. */
+	gone?: boolean;
 }
 
 export const MAX_TRACKS_PER_CREATOR = 20;

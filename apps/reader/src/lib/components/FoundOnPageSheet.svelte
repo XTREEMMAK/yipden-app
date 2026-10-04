@@ -3,6 +3,7 @@
 	import { fade, fly } from 'svelte/transition';
 	import { type PreviewKind } from '@yipden/ring-client';
 	import { closeOnBack } from '$lib/closeOnBack.js';
+	import { keepMessage } from '$lib/references/messages.js';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import { explored } from '$lib/explored.svelte.js';
 	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
@@ -64,15 +65,23 @@
 		return platform ? `${platform} player` : titleFromUrl(item.url);
 	}
 
+	/** Being checked against the capture rules, which can take a request or two. */
+	let checking = $state<Set<string>>(new Set());
+
 	async function keep(item: SiteSession['found'][number]) {
-		const result = await creatorNotes.addTrack(session.creator, {
-			url: item.url,
-			title: titleOf(item),
-			foundOn: session.pageUrl
-		});
-		if (result === 'added') toast.show(`Added to ${session.creator.name}, on this phone only.`);
-		else if (result === 'full') toast.show('That is as many tracks as one creator can have here.');
-		else if (result === 'unsafe') toast.show('That one cannot be used.');
+		checking = new Set(checking).add(item.url);
+		try {
+			const result = await creatorNotes.addTrack(session.creator, {
+				url: item.url,
+				title: titleOf(item),
+				foundOn: session.pageUrl
+			});
+			toast.show(keepMessage(result, session.creator.name));
+		} finally {
+			const next = new Set(checking);
+			next.delete(item.url);
+			checking = next;
+		}
 	}
 </script>
 
@@ -120,6 +129,7 @@
 			<ul class="list">
 				{#each session.found as item (item.url)}
 					{@const kept = added.has(item.url)}
+					{@const busy = checking.has(item.url)}
 					<li class="item">
 						<span class="icon"><PlatformIcon kind={item.kind} /></span>
 						<span class="text">
@@ -131,11 +141,16 @@
 						<button
 							class="keep"
 							aria-pressed={kept}
-							disabled={kept}
-							aria-label={kept ? `${titleOf(item)} kept` : `Keep ${titleOf(item)}`}
+							disabled={kept || busy}
+							aria-busy={busy}
+							aria-label={kept
+								? `${titleOf(item)} kept`
+								: busy
+									? `Checking ${titleOf(item)}`
+									: `Keep ${titleOf(item)}`}
 							onclick={() => keep(item)}
 						>
-							{kept ? 'Kept' : 'Keep'}
+							{kept ? 'Kept' : busy ? 'Checking…' : 'Keep'}
 						</button>
 					</li>
 				{/each}

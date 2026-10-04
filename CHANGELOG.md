@@ -113,6 +113,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- Keeping a track now checks it first: a file has to be on the creator's own site, and a copy
+  hosted anywhere else is refused, with a plain reason. Platform players (Bandcamp and the like)
+  found on their page are still kept as links. Kept tracks are checked again now and then, and one
+  their site no longer has shows as "No longer on their site" instead of failing to play.
 - Tracks you keep from a creator's page are now saved as references, the shape images, screenshots
   and passages will share. Nothing changes on screen. Backups carry them, and still read the tracks
   in a backup made earlier.

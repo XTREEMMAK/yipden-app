@@ -64,6 +64,14 @@ export { discoverFeeds, type DiscoverOptions } from './discover.js';
 
 export { sha256Hex, stableYipId } from './hash.js';
 export {
+	bareHost,
+	headerNoIndex,
+	isOnOwnSite,
+	linkedOnPage,
+	metaNoIndex,
+	textOnPage
+} from './capture.js';
+export {
 	DirectFetchSource,
 	directCursor,
 	type DirectFetchSourceOptions,

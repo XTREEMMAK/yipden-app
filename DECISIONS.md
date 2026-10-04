@@ -2608,3 +2608,58 @@ to write databases in the old format for the migration tests, and nothing in the
 Unit tests that built one now get a fresh in-memory SQLite `DocStore` (`store/testing/memory.ts`).
 The SQLite schema gained its second step, a `references` table, and step one is now a fixed list
 rather than "every collection", so it can never change after shipping.
+
+## 2026-10-04 (night) — The capture rules
+
+ROADMAP's capture rules item, from the reference finds brief. The pure rules are in
+`packages/feeds/src/capture.ts`, so the v2.0 shared index can run them on the server. The app
+applies them in `apps/reader/src/lib/references/capture.ts`, at capture and on every re-check.
+
+**Own site only.** A file's host after redirects must be one of the creator's sites, or a
+subdomain of one. A parent host never counts: a creator on `lena.neocities.org` does not own
+`neocities.org`.
+
+- The creator's sites are the address they were found at and where it redirects (the
+  `neo.keyjayonline.com` → `keyjay.neocities.org` case). For someone followed, they also include
+  their site and any of their blog or podcast feeds proved by a two-way link.
+- A verified profile on a platform never counts. Bluesky's host is not theirs, so counting it
+  would let any Bluesky image be kept for them.
+- A copy anywhere else is refused, with one sentence that says why. That applies to pasted links
+  too, which used to accept any https address.
+- **The known limit:** the rule matches hosts, as the brief sets it. On a host shared by path
+  (`example.club/~lena`), anyone else on that host passes too.
+
+**Platform players stay links** (decided 2026-10-03). A Bandcamp, SoundCloud, YouTube, Spotify or
+Apple Music player found on a creator's page is kept without asking anything of the platform. It
+is never host-verified and never sharable.
+
+**Only what is publicly linked.** At capture, the evidence is the live page the reader is looking
+at. A re-check can only fetch the page's markup, and media a page's script inserts is not in it.
+So each reference records `linkedInMarkup`, and only a link the markup showed is held to "the page
+no longer links it". Without that proof, a reference is not sharable.
+
+**"No" signals.** If robots.txt disallows the page, it is not fetched at all. `noindex` (or
+`none`) in a robots or `yipden` meta tag, or in an `X-Robots-Tag` header for every agent or for
+YipDen, also counts. Any of these keeps the reference for the reader but makes it not sharable.
+
+**Re-check, never remember.**
+
+- **How it asks:** files are asked about with `HEAD`, never downloaded, through the same polite
+  client as feeds (one request per host, spacing, redirect checks, an honest agent). robots.txt is
+  not consulted for that `HEAD`. It governs crawling pages, and this is a file the reader already
+  plays from that address. Pages are fetched with robots.txt honoured.
+- **Gone:** a 404 or 410 for the file or the page, a page that no longer links it, or a passage no
+  longer on the page. It stays listed so the reader can see it and remove it, but it does not
+  play. There is no copy to fall back on.
+- **Never gone on a failure.** A check that could not finish (offline, a host refusing `HEAD`)
+  refuses nothing and marks nothing gone. Capture judges the address as given; a re-check changes
+  nothing and is not retried until the next launch.
+- **When:** on launch and on resume, a few per pass, never-checked first, and not again within a
+  week. Opening a track also checks it, unless it was checked within the hour.
+
+**Snip passages in backups.** A writing snip exports as its link alone until text capture has been
+tested on a phone. After that, exporting the passage is approved (the developer, 2026-10-04), and
+the backup can carry `selector` and `textFragmentUrl` again.
+
+Fixed along the way: `creatorNotes.reload()` now takes the store's word for it. It used to keep
+in-memory references the store no longer had, so a restore could leave stale entries on screen.

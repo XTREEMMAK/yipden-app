@@ -39,6 +39,8 @@ export interface TextResponse {
 	lastModified?: string;
 	/** A WebSub hub announced in a `Link: <…>; rel="hub"` header. */
 	hubUrl?: string;
+	/** The `X-Robots-Tag` header, as sent. */
+	robotsTag?: string;
 	notModified: boolean;
 }
 
@@ -146,6 +148,23 @@ export class FeedHttp {
 		return this.queued(target.hostname, () => this.request(target.toString(), conditional));
 	}
 
+	/**
+	 * HEAD a file: whether it is still there, where it really lives after redirects, and its
+	 * validators, without downloading it. For checking media a reader already plays from that
+	 * address, so robots.txt, which governs crawling pages, is not consulted; every other rule of
+	 * `get` applies (one request per host, spacing, the redirect checks, the honest agent).
+	 */
+	async head(
+		url: string,
+		conditional: { etag?: string; lastModified?: string } = {}
+	): Promise<TextResponse> {
+		const target = safeUrl(url);
+		if (!target) throw new HttpError(`refusing to request ${url}`);
+		return this.queued(target.hostname, () =>
+			this.request(target.toString(), { ...conditional, accept: '*/*' }, 0, 'HEAD')
+		);
+	}
+
 	/** Run one request per host at a time, spaced by the configured interval. */
 	private async queued<T>(host: string, work: () => Promise<T>): Promise<T> {
 		const previous = this.hostQueues.get(host) ?? Promise.resolve();
@@ -169,7 +188,8 @@ export class FeedHttp {
 	private async request(
 		url: string,
 		conditional: { etag?: string; lastModified?: string; accept?: string },
-		hop = 0
+		hop = 0,
+		method: 'GET' | 'HEAD' = 'GET'
 	): Promise<TextResponse> {
 		if (hop > this.options.maxRedirects) throw new HttpError('too many redirects');
 
@@ -192,6 +212,7 @@ export class FeedHttp {
 		try {
 			if (controller.signal.aborted) throw new HttpError('request aborted');
 			const response = await this.options.fetch(url, {
+				method,
 				headers,
 				signal: controller.signal,
 				// Followed by hand so every hop is checked, not only the address we started from.
@@ -216,7 +237,7 @@ export class FeedHttp {
 					throw new HttpError(`redirect with no location from ${url}`, response.status);
 				const next = safeUrl(new URL(location, url).toString());
 				if (!next) throw new HttpError(`refusing to follow a redirect to ${location}`);
-				return this.request(next.toString(), conditional, hop + 1);
+				return this.request(next.toString(), conditional, hop + 1, method);
 			}
 
 			if (response.status < 200 || response.status >= 300) {
@@ -228,11 +249,11 @@ export class FeedHttp {
 			if (!safeUrl(finalUrl)) throw new HttpError(`request ended at an unsafe address`);
 
 			const declared = Number(response.headers.get('content-length'));
-			if (Number.isFinite(declared) && declared > this.options.maxBytes) {
+			if (method === 'GET' && Number.isFinite(declared) && declared > this.options.maxBytes) {
 				throw new HttpError(`response declares ${declared} bytes, over the cap`);
 			}
 
-			const body = await response.text();
+			const body = method === 'HEAD' ? '' : await response.text();
 			if (body.length > this.options.maxBytes) {
 				throw new HttpError('response exceeded the size cap');
 			}
@@ -240,6 +261,7 @@ export class FeedHttp {
 			const etag = response.headers.get('etag');
 			const lastModified = response.headers.get('last-modified');
 			const hubUrl = linkHeaderUrl(response.headers.get('link'), 'hub', finalUrl);
+			const robotsTag = response.headers.get('x-robots-tag');
 			return {
 				status: response.status,
 				url: finalUrl,
@@ -248,6 +270,7 @@ export class FeedHttp {
 				...(etag ? { etag } : {}),
 				...(lastModified ? { lastModified } : {}),
 				...(hubUrl ? { hubUrl } : {}),
+				...(robotsTag ? { robotsTag: robotsTag.slice(0, 4_096) } : {}),
 				notModified: false
 			};
 		} finally {

@@ -47,6 +47,12 @@ export interface Reference {
 	foundOnPage?: string;
 	/** The media is on one of the creator's own sites (capture rules). */
 	hostVerified: boolean;
+	/**
+	 * The found-on page's own markup links it (or, for text, shows the passage), as fetched. Absent
+	 * when that could not be read. Media a page's script adds is seen when captured but is not in
+	 * the markup, so only a markup link can be proved again by a re-check.
+	 */
+	linkedInMarkup?: boolean;
 	/** May enter the v2.0 shared index. Computed and stored now; nothing reads it in this build. */
 	sharable: boolean;
 	etag?: string;

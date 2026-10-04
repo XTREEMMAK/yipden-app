@@ -2,6 +2,7 @@
 	import { previewKindOf, type PreviewKind } from '@yipden/ring-client';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import type { RingOrigin } from '$lib/references/types.js';
+	import { keepMessage } from '$lib/references/messages.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import PlatformIcon from './PlatformIcon.svelte';
 
@@ -36,16 +37,21 @@
 		external: 'Open'
 	};
 
+	let adding = $state(false);
+
 	async function add(event: SubmitEvent) {
 		event.preventDefault();
-		const result = await creatorNotes.addTrack(creator, { url: link, title });
-		if (result === 'added') {
-			link = '';
-			title = '';
-			toast.show(`Added to ${creator.name}, on this phone only.`);
-		} else if (result === 'already-added') toast.show('That track is already added.');
-		else if (result === 'full') toast.show('That is as many tracks as one creator can have here.');
-		else toast.show('That link cannot be used. It has to be a public https address.');
+		adding = true;
+		try {
+			const result = await creatorNotes.addTrack(creator, { url: link, title });
+			if (result === 'added') {
+				link = '';
+				title = '';
+			}
+			toast.show(keepMessage(result, creator.name));
+		} finally {
+			adding = false;
+		}
 	}
 </script>
 
@@ -57,7 +63,10 @@
 				<li class="track">
 					<button
 						class="play"
-						aria-label={`${PLAY_LABELS[kind]}: ${track.title}`}
+						disabled={track.gone}
+						aria-label={track.gone
+							? `${track.title} is no longer on their site`
+							: `${PLAY_LABELS[kind]}: ${track.title}`}
 						onclick={(event) => {
 							onplay?.();
 							creatorNotes.play(creator, track.url, event.currentTarget);
@@ -67,7 +76,11 @@
 					</button>
 					<span class="text">
 						<b>{track.title}</b>
-						<small>Added by you · {new URL(track.url).hostname.replace(/^www\./, '')}</small>
+						<small
+							>{track.gone ? 'No longer on their site' : 'Added by you'} · {new URL(
+								track.url
+							).hostname.replace(/^www\./, '')}</small
+						>
 					</span>
 					<button
 						class="remove"
@@ -98,7 +111,9 @@
 			maxlength="200"
 			bind:value={title}
 		/>
-		<button type="submit" disabled={!link.trim()}>Add track</button>
+		<button type="submit" disabled={!link.trim() || adding} aria-busy={adding}
+			>{adding ? 'Checking…' : 'Add track'}</button
+		>
 		<small class="note"
 			>Only the link is kept, on this phone. {creator.name} did not choose it.</small
 		>
@@ -146,6 +161,13 @@
 		border-color: var(--brand);
 		background: var(--brand);
 		color: #fff;
+	}
+
+	/* Gone from their site: still listed so it can be removed, but there is nothing to play. */
+	.play:disabled {
+		border-color: var(--line);
+		background: transparent;
+		color: var(--muted);
 	}
 
 	.remove svg {

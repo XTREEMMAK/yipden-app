@@ -175,6 +175,17 @@ files read off a phone that is off or locked. It does **not** protect a rooted p
 is unlocked and running, where the key can be read from memory or the Keystore used on the app's
 behalf. Nor does it protect a backup file the reader exports, which is plain JSON on purpose.
 
+### References: what is checked, and what is asked of creators' hosts
+
+Keeping something, and checking it again later, applies the capture rules
+(`references/capture.ts`, DECISIONS.md 2026-10-04). Only the creator's own sites are asked
+anything. A file gets a `HEAD` request, never a download. A page is fetched with robots.txt
+honoured. Everything goes through the same polite client as feeds. Those requests use the app's
+native HTTP client, which shares the in-app browser's cookie jar, so a creator's site sees the
+reader's cookies for that site. That is the exposure feed fetching already has, and it is the
+reason v2.0's API host must stay out of the in-app browser (below). Nothing from a page is
+executed or rendered: markup is only tokenized, to look for a link or a passage.
+
 The theme and skin stay in `localStorage`, outside the database. They are read before the first
 paint, before the database can be opened, and they say nothing about what a reader follows.
 

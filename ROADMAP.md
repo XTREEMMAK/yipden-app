@@ -450,13 +450,14 @@ are in DECISIONS.md.
    migrate onto it and keep their UI. Platform embeds (Bandcamp, SoundCloud, YouTube, Spotify,
    Apple Music) stay, as links that open on the platform: `hostVerified: false`,
    `sharable: false`. The backup carries references, and still reads an old backup's tracks.
-   **Done 2026-10-04** (DECISIONS.md). Open: whether a writing snip's passage may leave the
-   encrypted database inside an exported backup. Until decided, it does not.
+   **Done 2026-10-04** (DECISIONS.md). A writing snip exports as its link only until text capture
+   is tested on a phone; exporting the passage is approved after that.
 5. **Capture rules.** A media file must be on one of the creator's own sites (after redirects), and
    actually linked on the page where it was found. `robots.txt`, `noindex` or `X-Robots-Tag` on
    that page mean `sharable: false`. A reference is re-checked with a conditional GET when it is
    opened and occasionally on resume, and becomes `gone` when the file or the link disappears.
-   Tested against fixture pages.
+   Tested against fixture pages. **Done 2026-10-04** (DECISIONS.md). Known limit: a host shared by
+   path (`example.club/~lena`) counts as everyone's on it.
 6. **Capture flows: comics, then games, then writing.** The injected page script notices a
    long-pressed image or a text selection. YipDen's toolbar button, still the only trusted path,
    then offers it in "Found on their page". A writing snip keeps at most 500 characters plus a
