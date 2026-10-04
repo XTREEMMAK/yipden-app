@@ -209,3 +209,82 @@ describe('layout overrides', () => {
 		expect(creatorNotes.layoutFor('https://e.example/', 'desktop-first')).toBe('desktop-first');
 	});
 });
+
+describe('keeping pictures and passages', () => {
+	it('keeps a picture on their site as a screenshot when asked, with the page it was on', async () => {
+		expect(
+			await creatorNotes.keep(
+				{ url: 'https://k.example/', ring: { source: 'own', id: 'indienodes' } },
+				{
+					kind: 'screenshot',
+					url: 'https://k.example/shots/level-1.png',
+					title: 'Level one',
+					foundOn: 'https://k.example/game'
+				}
+			)
+		).toBe('added');
+		expect(creatorNotes.referencesFor('https://k.example/', 'screenshot')[0]).toMatchObject({
+			kind: 'screenshot',
+			title: 'Level one',
+			foundOnPage: 'https://k.example/game',
+			hostVerified: true
+		});
+	});
+
+	it('refuses a picture hosted elsewhere', async () => {
+		expect(
+			await creatorNotes.keep(
+				{ url: 'https://k.example/' },
+				{ kind: 'image', url: 'https://imagehost.example/k.png', foundOn: 'https://k.example/' }
+			)
+		).toBe('not-own-site');
+	});
+
+	it('keeps a passage as its page, its selector and a link that scrolls to it', async () => {
+		const selector = { exact: 'The fox went down to the river.', prefix: 'Before. ' };
+		expect(
+			await creatorNotes.keep(
+				{ url: 'https://l.example/' },
+				{ kind: 'text', url: 'https://l.example/story#part-2', title: 'The fox', selector }
+			)
+		).toBe('added');
+		const [passage] = creatorNotes.referencesFor('https://l.example/', 'text');
+		expect(passage).toMatchObject({
+			url: 'https://l.example/story',
+			foundOnPage: 'https://l.example/story',
+			selector,
+			textFragmentUrl: 'https://l.example/story#:~:text=The%20fox%20went%20down%20to%20the%20river.'
+		});
+		// The same passage again is the same reference; another passage on that page is not.
+		expect(
+			await creatorNotes.keep(
+				{ url: 'https://l.example/' },
+				{ kind: 'text', url: 'https://l.example/story', selector }
+			)
+		).toBe('already-added');
+		expect(
+			await creatorNotes.keep(
+				{ url: 'https://l.example/' },
+				{ kind: 'text', url: 'https://l.example/story', selector: { exact: 'Another line.' } }
+			)
+		).toBe('added');
+	});
+
+	it('refuses a passage from a page that is not theirs', async () => {
+		expect(
+			await creatorNotes.keep(
+				{ url: 'https://l.example/' },
+				{ kind: 'text', url: 'https://quotes.example/l', selector: { exact: 'Copied.' } }
+			)
+		).toBe('not-own-site');
+	});
+
+	it('removes one kept thing by id, leaving the rest', async () => {
+		const [first] = creatorNotes.referencesFor('https://l.example/', 'text');
+		await creatorNotes.removeReference(first!.id);
+		expect(creatorNotes.referencesFor('https://l.example/', 'text')).toHaveLength(1);
+		expect((await store.listReferences('l.example')).map((entry) => entry.id)).not.toContain(
+			first!.id
+		);
+	});
+});

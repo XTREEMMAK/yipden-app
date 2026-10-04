@@ -5,7 +5,7 @@ import { testStore } from '../store/testing/memory.js';
 import { reference } from '../store/testing/fixtures.js';
 import { feed, person } from '../store/testing/fixtures.js';
 import type { Store } from '../store/types.js';
-import { assessCapture, recheck, type CaptureDeps } from './capture.js';
+import { assessCapture, canRecheck, recheck, type CaptureDeps } from './capture.js';
 
 /**
  * The capture rules against fixture pages. Every response is made up here; nothing reaches the
@@ -308,5 +308,40 @@ describe('checking again', () => {
 		expect(await recheck(snip, deps({ [PAGE]: { body: '<p>Rewritten.</p>' } }))).toMatchObject({
 			status: 'gone'
 		});
+	});
+});
+
+describe('passages', () => {
+	const STORY = 'https://lena.example/story';
+	const selector = { exact: 'the fox went down to the river' };
+
+	it('keeps a passage from their page, sharable when the page shows it', async () => {
+		const result = await assessCapture(
+			{ kind: 'text', url: STORY, creatorUrl: CREATOR, foundOnPage: STORY, selector },
+			deps({ [STORY]: { body: '<p>The fox went\n down to the river.</p>' } })
+		);
+		expect(result).toMatchObject({
+			ok: true,
+			fields: { hostVerified: true, sharable: true, linkedInMarkup: true }
+		});
+	});
+
+	it('keeps one the page’s script wrote, but cannot share it', async () => {
+		const result = await assessCapture(
+			{ kind: 'text', url: STORY, creatorUrl: CREATOR, foundOnPage: STORY, selector },
+			deps({ [STORY]: { body: '<div id="app"></div>' } })
+		);
+		expect(result).toMatchObject({ ok: true, fields: { sharable: false, linkedInMarkup: false } });
+	});
+
+	it('leaves alone a passage restored without its text, which has nothing to look for', async () => {
+		const linkOnly = reference({
+			kind: 'text',
+			url: STORY,
+			canonicalUrl: STORY,
+			creatorId: 'lena.example'
+		});
+		expect(canRecheck(linkOnly)).toBe(false);
+		expect(canRecheck({ ...linkOnly, selector })).toBe(true);
 	});
 });

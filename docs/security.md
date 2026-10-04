@@ -186,6 +186,12 @@ reader's cookies for that site. That is the exposure feed fetching already has, 
 reason v2.0's API host must stay out of the in-app browser (below). Nothing from a page is
 executed or rendered: markup is only tokenized, to look for a link or a passage.
 
+A picture or passage picked on a page is as untrusted as found audio: the page's own code can send
+the same message. Only public https addresses and plain bounded text get through (`readFound`).
+Nothing is kept until the reader taps Keep in the app's own sheet, and the own-site rule still
+applies. Passage text is only ever shown as text. A kept picture is shown from the creator's host
+and never stored.
+
 The theme and skin stay in `localStorage`, outside the database. They are read before the first
 paint, before the database can be opened, and they say nothing about what a reader follows.
 

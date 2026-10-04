@@ -19,6 +19,7 @@
 	import FolderPicker from '$components/FolderPicker.svelte';
 	import LayoutPicker from '$components/LayoutPicker.svelte';
 	import ReaderTracks from '$components/ReaderTracks.svelte';
+	import ReaderFinds from '$components/ReaderFinds.svelte';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 
 	/**
@@ -599,6 +600,13 @@
 												name: row.person.name,
 												artUrl: row.person.iconUrl ?? null,
 												// Followed from IndieNodes (`ringId` is their entry there), or found another way.
+												ring: row.person.ringId ? { source: 'own', id: 'indienodes' } : null
+											}}
+										/>
+										<ReaderFinds
+											creator={{
+												url: row.person.siteUrl,
+												name: row.person.name,
 												ring: row.person.ringId ? { source: 'own', id: 'indienodes' } : null
 											}}
 										/>

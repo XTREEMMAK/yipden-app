@@ -10,8 +10,10 @@ import {
 	ringFields,
 	type Reference,
 	type ReferenceKind,
-	type RingOrigin
+	type RingOrigin,
+	type TextSelector
 } from './references/types.js';
+import { textFragmentUrl } from './references/textFragment.js';
 import { verdictKey } from './verdicts.svelte.js';
 import {
 	assessCapture,
@@ -116,41 +118,58 @@ class CreatorNotes {
 		return this.referencesFor(creatorUrl, 'audio').map(asTrack);
 	}
 
-	async addTrack(
+	/**
+	 * Keep something found on a creator's page: a track, a picture or a passage. The capture rules
+	 * decide whether it may be kept for them, and what is true of it (`references/capture.ts`).
+	 */
+	async keep(
 		creator: TrackCreator,
-		draft: { url: string; title?: string; foundOn?: string }
+		draft: {
+			kind: ReferenceKind;
+			url: string;
+			title?: string;
+			foundOn?: string;
+			selector?: TextSelector;
+		}
 	): Promise<AddTrackResult> {
 		await this.load();
 		const safe = safeUrl(draft.url.trim());
 		if (!safe) return 'unsafe';
-		const url = safe.toString();
+		// A passage's address is its page, without any fragment the reader happened to be at.
+		const url = draft.kind === 'text' ? safe.toString().replace(/#.*$/, '') : safe.toString();
 		const creatorId = verdictKey(creator.url);
-		const existing = this.referencesFor(creator.url, 'audio');
-		if (existing.some((reference) => reference.url === url)) return 'already-added';
-		if (existing.length >= MAX_PER_KIND.audio) return 'full';
+		const id = referenceId(creatorId, draft.kind, url, draft.selector);
+		const already = () => this.references.some((reference) => reference.id === id);
+		if (already()) return 'already-added';
+		if (this.referencesFor(creator.url, draft.kind).length >= MAX_PER_KIND[draft.kind]) {
+			return 'full';
+		}
 		const foundOn = draft.foundOn ? safeUrl(draft.foundOn)?.toString() : undefined;
+		const foundOnPage = draft.kind === 'text' ? url : foundOn;
 		const assessed = await assessCapture(
 			{
-				kind: 'audio',
+				kind: draft.kind,
 				url,
 				creatorUrl: creator.url,
-				...(foundOn ? { foundOnPage: foundOn } : {})
+				...(foundOnPage ? { foundOnPage } : {}),
+				...(draft.selector ? { selector: draft.selector } : {})
 			},
 			this.captureDeps()
 		);
 		if (!assessed.ok) return assessed.reason;
-		// Checked against the store again: the capture rules took network time.
-		if (this.referencesFor(creator.url, 'audio').some((reference) => reference.url === url)) {
-			return 'already-added';
-		}
+		// Checked again: the capture rules took network time.
+		if (already()) return 'already-added';
 		const reference: Reference = {
-			id: referenceId(creatorId, 'audio', url),
-			kind: 'audio',
+			id,
+			kind: draft.kind,
 			creatorId,
 			...ringFields(creator.ring),
 			title: (draft.title?.trim() || titleFromUrl(url)).slice(0, MAX_TITLE),
 			url,
-			...(foundOn ? { foundOnPage: foundOn } : {}),
+			...(foundOnPage ? { foundOnPage } : {}),
+			...(draft.selector
+				? { selector: draft.selector, textFragmentUrl: textFragmentUrl(url, draft.selector) }
+				: {}),
 			...assessed.fields,
 			status: 'live',
 			createdAt: new Date().toISOString()
@@ -158,6 +177,20 @@ class CreatorNotes {
 		this.references = [...this.references, reference];
 		await store.putReference(reference);
 		return 'added';
+	}
+
+	/** A track: an audio reference, kept the way every reference is. */
+	addTrack(
+		creator: TrackCreator,
+		draft: { url: string; title?: string; foundOn?: string }
+	): Promise<AddTrackResult> {
+		return this.keep(creator, { kind: 'audio', ...draft });
+	}
+
+	async removeReference(id: string): Promise<void> {
+		await this.load();
+		this.references = this.references.filter((reference) => reference.id !== id);
+		await store.removeReference(id);
 	}
 
 	async removeTrack(creatorUrl: string, trackUrl: string): Promise<void> {

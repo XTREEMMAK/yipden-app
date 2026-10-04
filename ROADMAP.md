@@ -463,6 +463,7 @@ are in DECISIONS.md.
    then offers it in "Found on their page". A writing snip keeps at most 500 characters plus a
    little context, and opens the creator's page scrolled to the passage with a Text Fragment
    link. Images always load live from the creator's host and are never saved.
+   **Done 2026-10-04** (DECISIONS.md); to see on a phone, which item 7 covers.
 7. **Phone pass** on a numbered debug APK: an upgrade with real data, the database unreadable
    without the key, nothing in `adb backup`, a re-upload on another host refused, a snip scrolling
    to its passage.

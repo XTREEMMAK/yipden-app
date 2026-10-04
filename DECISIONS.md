@@ -2663,3 +2663,46 @@ the backup can carry `selector` and `textFragmentUrl` again.
 
 Fixed along the way: `creatorNotes.reload()` now takes the store's word for it. It used to keep
 in-memory references the store no longer had, so a restore could leave stale entries on screen.
+
+## 2026-10-04 (late) — Keeping pictures, screenshots and passages
+
+ROADMAP's capture flows item, from the reference finds brief: comics, games and writing.
+
+**How a pick reaches the app** (decided 2026-10-03: the page script sees it, the toolbar button
+keeps it). The script injected into a creator's page now also remembers the last picture the
+reader long-pressed and the last passage they selected, each with the page it was on. It sends
+them with every scan. The long-press is caught through `contextmenu`, which Chrome on Android
+fires for a long press, and through a 550 ms hold that a finger moving more than 10 px cancels.
+The script prevents no default and stops no event, so the page's own long-press and selection menus
+work as before. The plugin patch did not grow.
+
+- Like found audio, a pick is untrusted: the page's own code can send the same message.
+  `readFound` keeps only public https addresses and plain, bounded text. A selection longer
+  than a passage (500 characters) is not cut short. The sheet says so and asks for a shorter one,
+  because a quietly trimmed quote would not be what the reader chose.
+- "Found on their page" gains a Picture and a Passage section beside Tracks, with the same
+  Keep / Checking… / Kept button. Its wording stays the sheet's own "Keep" rather than the brief's
+  "Save to [creator]".
+
+**Comic or screenshot.** A picture is kept as `image` (comics and other pictures) or `screenshot`
+(games). The default comes from what the ring says the creator makes: a type or form naming
+games means screenshot, and everything else, including Knifebeetle's comics, means picture. The
+reader can switch it before keeping. The two differ only in their label and their limit.
+
+**Passages.** A passage is kept as its page (any fragment dropped), a TextQuoteSelector, and a
+Text Fragment link that opens the page scrolled to it.
+
+- A short passage goes into the link whole. A long one goes in as its first and last four words.
+- The selector's prefix and suffix stay out of the link: a selection that starts mid-word would
+  make the browser match nothing.
+- Opening a kept passage always goes out to the creator's page, in the in-app browser when that
+  is on.
+
+**Where kept things show.** `ReaderFinds` lists them on the creator's notes sheet and their row in
+You. A picture loads live from the creator's host each time (`referrerpolicy="no-referrer"`). It
+is never stored, and the WebView cache holding it is cleared when the app closes. Something gone
+from their site stays listed, marked, so it can be removed.
+
+**Re-checks.** A passage is re-checked by looking for its text on the page. A passage restored
+from a backup carries only its link (see the backup decision above), so it has nothing to look for
+and is never re-checked, never marked gone on that account.

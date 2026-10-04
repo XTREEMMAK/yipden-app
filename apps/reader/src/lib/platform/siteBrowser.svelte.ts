@@ -1,6 +1,12 @@
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { safeUrl, type SiteLayout } from '@yipden/ring-client';
-import { readFoundMedia, SCAN_SCRIPT, type FoundMedia } from '../pageMedia.js';
+import {
+	readFound,
+	SCAN_SCRIPT,
+	type FoundImage,
+	type FoundMedia,
+	type FoundPassage
+} from '../pageMedia.js';
 import { openExternal } from './external.js';
 import type { RingOrigin } from '../references/types.js';
 
@@ -27,6 +33,8 @@ export interface SiteCreator {
 	layout?: SiteLayout | undefined;
 	/** The ring they were found through, recorded on anything kept from their pages. */
 	ring?: RingOrigin | null;
+	/** What a long-pressed picture is kept as by default: a comic page, or a game screenshot. */
+	imageKind?: 'image' | 'screenshot';
 }
 
 export interface SiteSession {
@@ -34,6 +42,10 @@ export interface SiteSession {
 	/** The page the reader was on when they tapped the button. */
 	pageUrl: string;
 	found: FoundMedia[];
+	/** The last picture long-pressed, and the last passage selected, on any of their pages. */
+	image: FoundImage | null;
+	passage: FoundPassage | null;
+	passageTooLong: boolean;
 }
 
 class SiteBrowser {
@@ -57,7 +69,14 @@ class SiteBrowser {
 		}
 		await this.end();
 		const { InAppBrowser, ToolBarType } = await import('@capgo/capacitor-inappbrowser');
-		this.session = { creator, pageUrl: target.toString(), found: [] };
+		this.session = {
+			creator,
+			pageUrl: target.toString(),
+			found: [],
+			image: null,
+			passage: null,
+			passageTooLong: false
+		};
 
 		this.handles = await Promise.all([
 			InAppBrowser.addListener('browserPageLoaded', () => {
@@ -69,10 +88,18 @@ class SiteBrowser {
 			}),
 			InAppBrowser.addListener('messageFromWebview', (event) => {
 				if (!this.session) return;
-				const found = readFoundMedia(event.detail);
-				if (!found.length) return;
+				const { media, image, passage, passageTooLong } = readFound(event.detail);
+				// The latest pick wins; a scan that carries none leaves the last one standing.
+				if (image) this.session.image = image;
+				if (passage) {
+					this.session.passage = passage;
+					this.session.passageTooLong = false;
+				} else if (passageTooLong) {
+					this.session.passageTooLong = true;
+				}
+				if (!media.length) return;
 				const byUrl = new Map(this.session.found.map((item) => [item.url, item]));
-				for (const item of found) if (!byUrl.has(item.url)) byUrl.set(item.url, item);
+				for (const item of media) if (!byUrl.has(item.url)) byUrl.set(item.url, item);
 				this.session.found = [...byUrl.values()].slice(0, 50);
 			}),
 			InAppBrowser.addListener('buttonNearDoneClick', () => {
@@ -112,11 +139,7 @@ class SiteBrowser {
 		await InAppBrowser.executeScript({ code: SCAN_SCRIPT }).catch(() => {});
 		await new Promise((resolve) => setTimeout(resolve, 250));
 		await InAppBrowser.hide().catch(() => {});
-		this.reviewing = {
-			creator: session.creator,
-			pageUrl: session.pageUrl,
-			found: [...session.found]
-		};
+		this.reviewing = { ...session, found: [...session.found] };
 	}
 
 	/** The sheet closed: back to the page, as the reader left it. */

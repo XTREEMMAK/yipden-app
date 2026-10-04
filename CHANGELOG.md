@@ -22,6 +22,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- On a creator's site in the app, long-press a picture or select a passage, then tap YipDen's
+  button to keep it for them: a comic page, a game screenshot, or a passage of their writing. Only
+  the link is kept; pictures load from their site each time, and a passage opens their page
+  scrolled to it.
 - A feed that announces a WebSub hub has it recorded, ready for the shared feed cache in v2.0.
   Nothing uses it yet.
 - Ring members can be marked explored: automatically when you visit or preview them, by swiping a

@@ -1016,7 +1016,11 @@
 								name: entry.creator,
 								artUrl: heroImage(entry) ?? null,
 								layout: layoutOf(entry.layout),
-								ring: { source: 'own', id: 'indienodes' }
+								ring: { source: 'own', id: 'indienodes' },
+								// Pictures from someone who makes games are screenshots, unless the reader says not.
+								imageKind: /\bgames?\b/i.test(`${entry.type} ${entry.form ?? ''}`)
+									? 'screenshot'
+									: 'image'
 							},
 							prefs.sitesInApp
 						);

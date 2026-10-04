@@ -7,6 +7,7 @@
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
 	import LayoutPicker from './LayoutPicker.svelte';
+	import ReaderFinds from './ReaderFinds.svelte';
 	import ReaderTracks from './ReaderTracks.svelte';
 
 	/**
@@ -63,6 +64,7 @@
 	<div class="body">
 		<LayoutPicker id="notes-layout" creatorUrl={creator.url} {declared} />
 		<ReaderTracks {creator} id="notes-tracks" onplay={onclose} />
+		<ReaderFinds {creator} onopen={onclose} />
 	</div>
 </div>
 

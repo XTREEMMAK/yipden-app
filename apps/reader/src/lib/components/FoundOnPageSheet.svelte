@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { type PreviewKind } from '@yipden/ring-client';
 	import { closeOnBack } from '$lib/closeOnBack.js';
@@ -51,6 +51,78 @@
 	let added = $derived(
 		new Set(creatorNotes.tracksFor(session.creator.url).map((track) => track.url))
 	);
+
+	/** A picture is kept as a comic page or a game screenshot; the ring suggests, the reader decides. */
+	// Starts from what the creator makes; after that it is the reader's choice, not kept in sync.
+	let imageKind = $state<'image' | 'screenshot'>(
+		untrack(() => session.creator.imageKind ?? 'image')
+	);
+	let imageKept = $derived(
+		Boolean(
+			session.image &&
+			creatorNotes
+				.referencesFor(session.creator.url)
+				.some(
+					(entry) =>
+						(entry.kind === 'image' || entry.kind === 'screenshot') &&
+						entry.url === session.image?.url
+				)
+		)
+	);
+	let passageKept = $derived(
+		Boolean(
+			session.passage &&
+			creatorNotes
+				.referencesFor(session.creator.url, 'text')
+				.some((entry) => entry.selector?.exact === session.passage?.exact)
+		)
+	);
+	let nothing = $derived(!session.found.length && !session.image && !session.passage);
+
+	async function keepImage() {
+		const image = session.image;
+		if (!image) return;
+		checking = new Set(checking).add(image.url);
+		try {
+			const result = await creatorNotes.keep(session.creator, {
+				kind: imageKind,
+				url: image.url,
+				...(image.alt ? { title: image.alt } : {}),
+				foundOn: image.page
+			});
+			toast.show(keepMessage(result, session.creator.name, imageKind));
+		} finally {
+			const next = new Set(checking);
+			next.delete(image.url);
+			checking = next;
+		}
+	}
+
+	async function keepPassage() {
+		const passage = session.passage;
+		if (!passage) return;
+		const key = `passage:${passage.exact}`;
+		checking = new Set(checking).add(key);
+		try {
+			const { page, ...selector } = passage;
+			const result = await creatorNotes.keep(session.creator, {
+				kind: 'text',
+				url: page,
+				title: passageTitle(passage.exact),
+				selector
+			});
+			toast.show(keepMessage(result, session.creator.name, 'text'));
+		} finally {
+			const next = new Set(checking);
+			next.delete(key);
+			checking = next;
+		}
+	}
+
+	/** A passage's name in lists: its opening words. */
+	function passageTitle(exact: string): string {
+		return exact.length <= 60 ? exact : `${exact.slice(0, 57).trimEnd()}…`;
+	}
 
 	onMount(() => {
 		void creatorNotes.load();
@@ -121,11 +193,67 @@
 		</button>
 	</div>
 	<div class="body">
-		{#if session.found.length}
+		{#if !nothing}
 			<p class="note">
-				Keep a track to play it here later. Only its link is saved, on this phone, labelled as added
-				by you.
+				Keep what you want to come back to. Only its link is saved, on this phone, labelled as added
+				by you. It stays on {session.creator.name}’s site.
 			</p>
+		{/if}
+		{#if session.image}
+			{@const busy = checking.has(session.image.url)}
+			<section class="pick" aria-labelledby="found-picture">
+				<h3 id="found-picture">The picture you pressed</h3>
+				<img
+					class="picture"
+					src={session.image.url}
+					alt={session.image.alt}
+					referrerpolicy="no-referrer"
+					loading="lazy"
+				/>
+				<div class="kinds" role="radiogroup" aria-label="Keep it as">
+					<label
+						><input type="radio" bind:group={imageKind} value="image" disabled={imageKept} /> A comic
+						or picture</label
+					>
+					<label
+						><input type="radio" bind:group={imageKind} value="screenshot" disabled={imageKept} /> A game
+						screenshot</label
+					>
+				</div>
+				<button
+					class="keep wide"
+					aria-pressed={imageKept}
+					disabled={imageKept || busy}
+					aria-busy={busy}
+					onclick={keepImage}
+				>
+					{imageKept ? 'Kept' : busy ? 'Checking…' : 'Keep this picture'}
+				</button>
+			</section>
+		{/if}
+		{#if session.passage}
+			{@const busy = checking.has(`passage:${session.passage.exact}`)}
+			<section class="pick" aria-labelledby="found-passage">
+				<h3 id="found-passage">The passage you selected</h3>
+				<blockquote>{session.passage.exact}</blockquote>
+				<button
+					class="keep wide"
+					aria-pressed={passageKept}
+					disabled={passageKept || busy}
+					aria-busy={busy}
+					onclick={keepPassage}
+				>
+					{passageKept ? 'Kept' : busy ? 'Checking…' : 'Keep this passage'}
+				</button>
+			</section>
+		{:else if session.passageTooLong}
+			<p class="note">
+				That selection is longer than a passage. Select up to 500 characters, then tap the button
+				again.
+			</p>
+		{/if}
+		{#if session.found.length}
+			<h3 class="tracks-head">Tracks</h3>
 			<ul class="list">
 				{#each session.found as item (item.url)}
 					{@const kept = added.has(item.url)}
@@ -155,10 +283,10 @@
 					</li>
 				{/each}
 			</ul>
-		{:else}
+		{:else if nothing}
 			<p class="note">
-				No audio was found on that page. Press play on their player first, then tap the button
-				again.
+				Nothing was found to keep on that page. Press play on their player, long-press a picture, or
+				select a passage, then tap the button again.
 			</p>
 		{/if}
 		<LayoutPicker
@@ -252,6 +380,68 @@
 		color: var(--muted);
 		font-size: 13.5px;
 		line-height: 1.4;
+	}
+
+	.pick {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		padding: 12px;
+		border: 1px solid var(--line);
+		border-radius: 16px;
+	}
+
+	.pick h3,
+	.tracks-head {
+		margin: 0;
+		font-family: var(--display);
+		font-size: 15px;
+		font-weight: 650;
+	}
+
+	/* Loaded live from the creator's host, never stored; the WebView cache is cleared on close. */
+	.picture {
+		display: block;
+		max-width: 100%;
+		max-height: 40vh;
+		margin: 0 auto;
+		border-radius: 10px;
+		object-fit: contain;
+	}
+
+	.kinds {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px 16px;
+		font-size: 14px;
+	}
+
+	.kinds label {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		min-height: 44px;
+	}
+
+	.kinds input {
+		width: 20px;
+		height: 20px;
+		margin: 0;
+		accent-color: var(--brand);
+	}
+
+	blockquote {
+		margin: 0;
+		padding: 2px 0 2px 12px;
+		border-left: 3px solid var(--brand);
+		font-size: 14.5px;
+		line-height: 1.45;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+
+	.keep.wide {
+		align-self: flex-start;
 	}
 
 	.list {

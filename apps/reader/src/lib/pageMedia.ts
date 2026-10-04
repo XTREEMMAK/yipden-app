@@ -1,11 +1,13 @@
 import { previewKindOf, safeUrl, type PreviewKind } from '@yipden/ring-client';
 
 /**
- * Finding audio on a creator's own page, while the reader browses it in the app.
+ * Finding what a reader might keep on a creator's own page, while they browse it in the app.
  *
  * `SCAN_SCRIPT` runs inside the page and reports what it can see: what is playing, audio and
  * video elements, links to audio files, files the page already loaded, and players embedded from
- * a platform. It only reads; it changes nothing on the page and fetches nothing.
+ * a platform. It also notes the last picture the reader long-pressed and the last passage they
+ * selected, each with the page it was on. It only reads; it changes nothing on the page, stops
+ * none of the page's own handling, and fetches nothing.
  *
  * Everything it sends back is untrusted. The page's own code can read and fake the same message,
  * so `readFoundMedia` keeps only public https addresses and plain bounded text, and nothing found
@@ -21,7 +23,35 @@ export interface FoundMedia {
 	kind: PreviewKind;
 }
 
+/** A picture the reader long-pressed. */
+export interface FoundImage {
+	url: string;
+	alt: string;
+	/** The page it was on. */
+	page: string;
+}
+
+/** Text the reader selected, as a W3C TextQuoteSelector with the page it was on. */
+export interface FoundPassage {
+	exact: string;
+	prefix?: string;
+	suffix?: string;
+	page: string;
+}
+
+/** What one scan message carried, checked. */
+export interface FoundOnPage {
+	media: FoundMedia[];
+	image: FoundImage | null;
+	passage: FoundPassage | null;
+	/** The reader selected more than a passage's worth; nothing is offered, and the sheet says so. */
+	passageTooLong: boolean;
+}
+
 export const MESSAGE_TYPE = 'yipden-media';
+/** The longest selection offered as a passage. Matches `MAX_SNIP` (references/types.ts). */
+export const MAX_PASSAGE = 500;
+const MAX_CONTEXT = 64;
 const MAX_ITEMS = 50;
 const MAX_URL = 2_048;
 const MAX_TITLE = 200;
@@ -44,9 +74,78 @@ function cleanTitle(value: unknown): string {
 }
 
 /**
+ * Selected text, kept as written but made safe to show: no control or direction characters,
+ * whitespace collapsed (a Text Fragment and `textOnPage` both match across whitespace anyway).
+ */
+function cleanPassage(value: unknown, max: number): string {
+	if (typeof value !== 'string') return '';
+	return (
+		value
+			// eslint-disable-next-line no-control-regex
+			.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2066-\u2069]/g, ' ')
+			.replace(/\s+/g, ' ')
+			.trim()
+			.slice(0, max)
+	);
+}
+
+function readImage(raw: unknown): FoundImage | null {
+	if (!raw || typeof raw !== 'object') return null;
+	const image = raw as { url?: unknown; alt?: unknown; page?: unknown };
+	if (typeof image.url !== 'string' || image.url.length > MAX_URL) return null;
+	if (typeof image.page !== 'string' || image.page.length > MAX_URL) return null;
+	const url = safeUrl(image.url);
+	const page = safeUrl(image.page);
+	if (!url || !page) return null;
+	return { url: url.toString(), alt: cleanTitle(image.alt), page: page.toString() };
+}
+
+function readPassage(raw: unknown): { passage: FoundPassage | null; tooLong: boolean } {
+	if (!raw || typeof raw !== 'object') return { passage: null, tooLong: false };
+	const passage = raw as { exact?: unknown; prefix?: unknown; suffix?: unknown; page?: unknown };
+	if (typeof passage.page !== 'string' || passage.page.length > MAX_URL) {
+		return { passage: null, tooLong: false };
+	}
+	const page = safeUrl(passage.page);
+	if (!page || typeof passage.exact !== 'string') return { passage: null, tooLong: false };
+	// Measured before cleaning cuts it down, so an over-long selection is never quietly shortened.
+	if (cleanPassage(passage.exact, MAX_PASSAGE * 4).length > MAX_PASSAGE) {
+		return { passage: null, tooLong: true };
+	}
+	const exact = cleanPassage(passage.exact, MAX_PASSAGE);
+	if (!exact) return { passage: null, tooLong: false };
+	const prefix = cleanPassage(passage.prefix, MAX_CONTEXT);
+	const suffix = cleanPassage(passage.suffix, MAX_CONTEXT);
+	return {
+		passage: {
+			exact,
+			...(prefix ? { prefix } : {}),
+			...(suffix ? { suffix } : {}),
+			page: page.toString()
+		},
+		tooLong: false
+	};
+}
+
+/**
  * The message a scan posted, checked. Anything malformed is dropped item by item; a message that
  * is not a scan at all gives nothing.
  */
+export function readFound(detail: unknown): FoundOnPage {
+	const nothing: FoundOnPage = { media: [], image: null, passage: null, passageTooLong: false };
+	if (!detail || typeof detail !== 'object') return nothing;
+	const message = detail as { type?: unknown; image?: unknown; passage?: unknown };
+	if (message.type !== MESSAGE_TYPE) return nothing;
+	const { passage, tooLong } = readPassage(message.passage);
+	return {
+		media: readFoundMedia(detail),
+		image: readImage(message.image),
+		passage,
+		passageTooLong: tooLong
+	};
+}
+
+/** The audio a scan found, checked. See `readFound` for the rest of a message. */
 export function readFoundMedia(detail: unknown): FoundMedia[] {
 	if (!detail || typeof detail !== 'object') return [];
 	const message = detail as { type?: unknown; items?: unknown };
@@ -107,13 +206,53 @@ export const SCAN_SCRIPT = `(() => {
 				if (EMBED.test(src)) add(src, text(f), 'embed');
 			});
 			const bridge = window.mobileApp;
+			const pick = window.__yipdenPick || {};
 			if (bridge && bridge.postMessage) {
-				bridge.postMessage({ detail: { type: '${MESSAGE_TYPE}', page: location.href, items: items.slice(0, 200) } });
+				bridge.postMessage({ detail: { type: '${MESSAGE_TYPE}', page: location.href, items: items.slice(0, 200), image: pick.image || null, passage: pick.passage || null } });
 			}
 		};
 		if (!window.__yipdenScan) {
 			window.__yipdenScan = scan;
+			window.__yipdenPick = {};
 			document.addEventListener('play', (event) => scan(event.target), true);
+			// A long press on a picture. The page's own handling is left alone: nothing here
+			// prevents a default or stops an event. Chrome on Android fires contextmenu for a long
+			// press; the timer covers a page or WebView that does not.
+			const pickImage = (target) => {
+				const img = target && target.closest ? target.closest('img') : null;
+				if (!img) return;
+				const url = absolute(img.currentSrc || img.src);
+				if (!usable(url)) return;
+				window.__yipdenPick.image = { url, alt: (img.getAttribute('alt') || '').trim().slice(0, 200), page: location.href };
+				scan(null);
+			};
+			document.addEventListener('contextmenu', (event) => pickImage(event.target), true);
+			let press = null;
+			const cancel = () => { if (press) { clearTimeout(press.timer); press = null; } };
+			document.addEventListener('pointerdown', (event) => {
+				cancel();
+				const target = event.target;
+				press = { x: event.clientX, y: event.clientY, timer: setTimeout(() => { press = null; pickImage(target); }, 550) };
+			}, true);
+			document.addEventListener('pointermove', (event) => {
+				if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10) cancel();
+			}, true);
+			document.addEventListener('pointerup', cancel, true);
+			document.addEventListener('pointercancel', cancel, true);
+			// The last passage selected, with a little text either side so it can be found again.
+			let settle = null;
+			document.addEventListener('selectionchange', () => {
+				clearTimeout(settle);
+				settle = setTimeout(() => {
+					const selection = document.getSelection();
+					const exact = selection ? String(selection).trim() : '';
+					if (!exact || !selection.rangeCount) return;
+					const range = selection.getRangeAt(0);
+					const before = range.startContainer.nodeType === 3 ? range.startContainer.textContent.slice(0, range.startOffset) : '';
+					const after = range.endContainer.nodeType === 3 ? range.endContainer.textContent.slice(range.endOffset) : '';
+					window.__yipdenPick.passage = { exact: exact.slice(0, 2400), prefix: before.slice(-64), suffix: after.slice(0, 64), page: location.href };
+				}, 300);
+			});
 		}
 		window.__yipdenScan(null);
 	} catch (e) {}

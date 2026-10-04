@@ -190,6 +190,9 @@ export async function assessCapture(
  * is not the creator's file), so it can only be re-proved through a page whose markup linked it.
  */
 export function canRecheck(reference: Reference): boolean {
+	// A passage without its text (one restored from a backup, which carries only the link) has
+	// nothing on the page to look for.
+	if (reference.kind === 'text') return Boolean(reference.selector);
 	if (!isPlatformLink(reference.kind, reference.url)) return true;
 	return Boolean(reference.foundOnPage) && reference.linkedInMarkup === true;
 }
@@ -228,7 +231,9 @@ export async function recheck(
 	// The page is only asked again when it can prove something: it linked the file in its markup
 	// at capture, or (for text) it is where the passage lives.
 	const pageUrl = reference.kind === 'text' ? reference.url : reference.foundOnPage;
-	const askPage = pageUrl && (reference.kind === 'text' || reference.linkedInMarkup === true);
+	const askPage =
+		pageUrl &&
+		(reference.kind === 'text' ? Boolean(reference.selector) : reference.linkedInMarkup === true);
 	let sharable = reference.sharable;
 	if (askPage) {
 		const page = await readPage(pageUrl, { ...reference, canonicalUrl }, deps);
