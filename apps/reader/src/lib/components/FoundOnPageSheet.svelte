@@ -65,7 +65,7 @@
 	}
 
 	async function keep(item: SiteSession['found'][number]) {
-		const result = await creatorNotes.addTrack(session.creator.url, {
+		const result = await creatorNotes.addTrack(session.creator, {
 			url: item.url,
 			title: titleOf(item),
 			foundOn: session.pageUrl

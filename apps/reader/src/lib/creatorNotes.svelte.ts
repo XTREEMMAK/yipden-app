@@ -3,6 +3,15 @@ import { openExternal } from './platform/external.js';
 import { player, type QueueItem } from './player.svelte.js';
 import { store } from './store/index.js';
 import { MAX_TRACKS_PER_CREATOR, titleFromUrl, type ReaderTrack } from './readerTracks.js';
+import {
+	MAX_PER_KIND,
+	MAX_TITLE,
+	referenceId,
+	ringFields,
+	type Reference,
+	type ReferenceKind,
+	type RingOrigin
+} from './references/types.js';
 import { verdictKey } from './verdicts.svelte.js';
 
 export { MAX_TRACKS_PER_CREATOR, titleFromUrl, type ReaderTrack };
@@ -14,18 +23,33 @@ export { MAX_TRACKS_PER_CREATOR, titleFromUrl, type ReaderTrack };
  * Reader intent, never the creator's word: a track here is labelled "Added by you" everywhere it
  * shows and is never treated as the creator's chosen sample. Only the address is kept; nothing is
  * downloaded. Keyed by the creator's site like Liked and Not for me, so it follows the creator
- * across rings and into a follow. Stored as two settings and carried in the backup.
+ * across rings and into a follow. Tracks are audio references (`references/types.ts`) in the
+ * store; layouts are a setting. Both are carried in the backup.
  */
 
 export type TrackMap = Record<string, ReaderTrack[]>;
 export type LayoutMap = Record<string, SiteLayout>;
 
-const MAX_TITLE = 200;
-
 export type AddTrackResult = 'added' | 'already-added' | 'unsafe' | 'full';
 
+/** Who a track is being kept for: their site, and the ring they were found through, if any. */
+export interface TrackCreator {
+	url: string;
+	ring?: RingOrigin | null;
+}
+
+/** A kept audio reference, in the shape the track lists show. */
+function asTrack(reference: Reference): ReaderTrack {
+	return {
+		url: reference.url,
+		title: reference.title,
+		addedAt: reference.createdAt,
+		...(reference.foundOnPage ? { foundOn: reference.foundOnPage } : {})
+	};
+}
+
 class CreatorNotes {
-	tracks = $state<TrackMap>({});
+	references = $state<Reference[]>([]);
 	layouts = $state<LayoutMap>({});
 	private loading: Promise<void> | null = null;
 
@@ -34,53 +58,78 @@ class CreatorNotes {
 		return this.loading;
 	}
 
+	/** Read again from the store, after something other than this changed it (a restore). */
+	reload(): Promise<void> {
+		this.loading = this.read();
+		return this.loading;
+	}
+
 	private async read(): Promise<void> {
 		await store.init();
-		const [tracks, layouts] = await Promise.all([
-			store.getSetting<TrackMap>('readerTracks'),
+		const [references, layouts] = await Promise.all([
+			store.listReferences(),
 			store.getSetting<LayoutMap>('layoutOverrides')
 		]);
-		this.tracks = { ...(tracks ?? {}), ...this.tracks };
+		// Anything kept while loading was already written; keep it rather than lose it here.
+		const kept = new Set(references.map((reference) => reference.id));
+		this.references = [...references, ...this.references.filter((entry) => !kept.has(entry.id))];
 		this.layouts = { ...(layouts ?? {}), ...this.layouts };
 	}
 
+	/** Every reference kept for a creator, oldest first, optionally of one kind. */
+	referencesFor(creatorUrl: string, kind?: ReferenceKind): Reference[] {
+		const creatorId = verdictKey(creatorUrl);
+		return this.references.filter(
+			(reference) => reference.creatorId === creatorId && (!kind || reference.kind === kind)
+		);
+	}
+
 	tracksFor(creatorUrl: string): ReaderTrack[] {
-		return this.tracks[verdictKey(creatorUrl)] ?? [];
+		return this.referencesFor(creatorUrl, 'audio').map(asTrack);
 	}
 
 	async addTrack(
-		creatorUrl: string,
+		creator: TrackCreator,
 		draft: { url: string; title?: string; foundOn?: string }
 	): Promise<AddTrackResult> {
 		await this.load();
 		const safe = safeUrl(draft.url.trim());
 		if (!safe) return 'unsafe';
 		const url = safe.toString();
-		const key = verdictKey(creatorUrl);
-		const existing = this.tracks[key] ?? [];
-		if (existing.some((track) => track.url === url)) return 'already-added';
-		if (existing.length >= MAX_TRACKS_PER_CREATOR) return 'full';
+		const creatorId = verdictKey(creator.url);
+		const existing = this.referencesFor(creator.url, 'audio');
+		if (existing.some((reference) => reference.url === url)) return 'already-added';
+		if (existing.length >= MAX_PER_KIND.audio) return 'full';
 		const foundOn = draft.foundOn ? safeUrl(draft.foundOn)?.toString() : undefined;
-		const track: ReaderTrack = {
-			url,
+		const reference: Reference = {
+			id: referenceId(creatorId, 'audio', url),
+			kind: 'audio',
+			creatorId,
+			...ringFields(creator.ring),
 			title: (draft.title?.trim() || titleFromUrl(url)).slice(0, MAX_TITLE),
-			addedAt: new Date().toISOString(),
-			...(foundOn ? { foundOn } : {})
+			url,
+			canonicalUrl: url,
+			...(foundOn ? { foundOnPage: foundOn } : {}),
+			// Nothing is checked yet: the capture rules decide these (ROADMAP, capture rules).
+			hostVerified: false,
+			sharable: false,
+			status: 'live',
+			createdAt: new Date().toISOString()
 		};
-		this.tracks = { ...this.tracks, [key]: [...existing, track] };
-		await store.setSetting('readerTracks', $state.snapshot(this.tracks));
+		this.references = [...this.references, reference];
+		await store.putReference(reference);
 		return 'added';
 	}
 
 	async removeTrack(creatorUrl: string, trackUrl: string): Promise<void> {
 		await this.load();
-		const key = verdictKey(creatorUrl);
-		const left = (this.tracks[key] ?? []).filter((track) => track.url !== trackUrl);
-		const next = { ...this.tracks };
-		if (left.length) next[key] = left;
-		else delete next[key];
-		this.tracks = next;
-		await store.setSetting('readerTracks', $state.snapshot(this.tracks));
+		const gone = this.referencesFor(creatorUrl, 'audio').filter(
+			(reference) => reference.url === trackUrl
+		);
+		if (!gone.length) return;
+		const ids = new Set(gone.map((reference) => reference.id));
+		this.references = this.references.filter((reference) => !ids.has(reference.id));
+		for (const id of ids) await store.removeReference(id);
 	}
 
 	/**

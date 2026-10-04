@@ -10,6 +10,7 @@
 	import Switch from '$components/Switch.svelte';
 	import { you } from '$lib/you.svelte.js';
 	import { shelf } from '$lib/shelf.svelte.js';
+	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import { downloadTextFile, pickTextFile } from '$lib/platform/download.js';
 	import { createBackup, parseBackup, restoreBackup, type BackupPreview } from '$lib/backup.js';
 	import { toast } from '$lib/toast.svelte.js';
@@ -139,11 +140,12 @@
 			const report = await restoreBackup(selectedBackup);
 			await you.load();
 			await shelf.load();
+			await creatorNotes.reload();
 			backupPreview = null;
 			theme.hydrate();
 			const skipped = report.peopleSkipped + report.feedsSkipped;
 			toast.show(
-				`Restored ${report.peopleAdded} people, ${report.feedsAdded} sources, ${report.yipsAdded} cached yips${report.shelfAdded ? `, and ${report.shelfAdded} Shelf links` : ''}${skipped ? `; skipped ${skipped} conflicts` : ''}.`
+				`Restored ${report.peopleAdded} people, ${report.feedsAdded} sources, ${report.yipsAdded} cached yips${report.shelfAdded ? `, ${report.shelfAdded} Shelf links` : ''}${report.referencesAdded ? `, ${report.referencesAdded} things you kept from creators’ pages` : ''}${skipped ? `; skipped ${skipped} conflicts` : ''}.`
 			);
 		} catch (cause) {
 			toast.show(

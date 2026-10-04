@@ -1,10 +1,12 @@
 import type { RingCacheRecord } from '@yipden/ring-client';
+import type { Reference } from '../references/types.js';
 import type { RecordBackend } from './records.js';
 import type {
 	AddFeedResult,
 	Feed,
 	PeaksRecord,
 	Person,
+	ReferenceCheck,
 	SettingKey,
 	ShelfItem,
 	StoredYip,
@@ -265,5 +267,32 @@ export class DocStore implements Store {
 
 	setSetting<T>(key: SettingKey, value: T): Promise<void> {
 		return this.tx((tx) => tx.put('settings', key, { value }));
+	}
+
+	// ---------- references ----------
+
+	async listReferences(creatorId?: string): Promise<Reference[]> {
+		const rows = await this.tx<Reference[]>((tx) =>
+			tx.all<Reference, 'references'>(
+				'references',
+				creatorId === undefined ? {} : { eq: { creatorId } }
+			)
+		);
+		return rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+	}
+
+	putReference(reference: Reference): Promise<void> {
+		return this.tx((tx) => tx.put('references', reference.id, reference));
+	}
+
+	removeReference(id: string): Promise<void> {
+		return this.tx((tx) => tx.delete('references', id));
+	}
+
+	updateReferenceCheck(id: string, check: ReferenceCheck): Promise<void> {
+		return this.tx(async (tx) => {
+			const existing = await tx.get<Reference>('references', id);
+			if (existing) await tx.put('references', id, { ...existing, ...check });
+		});
 	}
 }

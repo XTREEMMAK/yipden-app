@@ -1,5 +1,6 @@
 import type { Item } from '@yipden/feeds';
 import type { RingCacheRecord, SiteLayout } from '@yipden/ring-client';
+import type { Reference } from '../references/types.js';
 
 export type { Item } from '@yipden/feeds';
 
@@ -258,4 +259,15 @@ export interface Store {
 
 	getSetting<T>(key: SettingKey): Promise<T | null>;
 	setSetting<T>(key: SettingKey, value: T): Promise<void>;
+
+	/** Oldest first, so a creator's tracks keep the order they were kept in. */
+	listReferences(creatorId?: string): Promise<Reference[]>;
+	/** Replaces a reference with the same id. */
+	putReference(reference: Reference): Promise<void>;
+	removeReference(id: string): Promise<void>;
+	/** What a re-check found. Leaves everything else about the reference as it was. */
+	updateReferenceCheck(id: string, check: ReferenceCheck): Promise<void>;
 }
+
+export type ReferenceCheck = Pick<Reference, 'status' | 'checkedAt'> &
+	Partial<Pick<Reference, 'etag' | 'canonicalUrl' | 'hostVerified' | 'sharable' | 'contentHash'>>;

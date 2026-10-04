@@ -113,6 +113,9 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- Tracks you keep from a creator's page are now saved as references, the shape images, screenshots
+  and passages will share. Nothing changes on screen. Backups carry them, and still read the tracks
+  in a backup made earlier.
 - Everything YipDen keeps on your phone (follows, read state, cached yips, saved links, your tracks)
   is now in an encrypted database, its key held by Android's Keystore. Your existing data moves
   across on first launch, and the old unencrypted copy is deleted once the move is checked.

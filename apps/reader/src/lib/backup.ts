@@ -1,5 +1,14 @@
 import { KNOWN_LAYOUTS, safeUrl, type SiteLayout } from '@yipden/ring-client';
 import { MAX_TRACKS_PER_CREATOR, type ReaderTrack } from './readerTracks.js';
+import { referencesFromTracks } from './references/fromTracks.js';
+import {
+	MAX_PER_KIND,
+	MAX_SNIP,
+	MAX_TITLE,
+	REFERENCE_KINDS,
+	type Reference,
+	type ReferenceKind
+} from './references/types.js';
 import { store as defaultStore } from './store/index.js';
 import { rekeyAll } from './store/rekey.js';
 import type {
@@ -31,7 +40,6 @@ const SETTING_KEYS: SettingKey[] = [
 	'sounds',
 	'sitesInApp',
 	'explored',
-	'readerTracks',
 	'layoutOverrides'
 ];
 
@@ -49,6 +57,12 @@ export interface YipDenBackup {
 	shelf?: ShelfItem[];
 	/** Liked and not-for-me creators. Additive, like `shelf`. */
 	verdicts?: VerdictRecord[];
+	/**
+	 * What a reader kept from creators' pages (`references/types.ts`). Additive, like `shelf`.
+	 * Before references existed, kept tracks travelled as the `readerTracks` setting, which an
+	 * import still reads.
+	 */
+	references?: Reference[];
 	settings: Partial<Record<SettingKey, unknown>>;
 	appearance: BackupAppearance;
 }
@@ -60,6 +74,7 @@ export interface BackupPreview {
 	yips: number;
 	shelf: number;
 	verdicts: number;
+	references: number;
 }
 
 export interface RestoreReport {
@@ -72,6 +87,7 @@ export interface RestoreReport {
 	yipsAdded: number;
 	shelfAdded: number;
 	verdictsAdded: number;
+	referencesAdded: number;
 	settingsRestored: number;
 }
 
@@ -150,9 +166,57 @@ function readerTrackList(entry: unknown): entry is ReaderTrack[] {
 /** Restored by merging into what is already here; this phone's own entry wins a clash. */
 const MERGED_SETTINGS = {
 	explored: exploredAt,
-	readerTracks: readerTrackList,
 	layoutOverrides: siteLayout
 } as const;
+
+const SELECTOR_CONTEXT = 200;
+
+function validSelector(value: unknown): boolean {
+	return (
+		record(value) &&
+		text(value.exact, MAX_SNIP) &&
+		optionalText(value.prefix, SELECTOR_CONTEXT) &&
+		optionalText(value.suffix, SELECTOR_CONTEXT)
+	);
+}
+
+function validReference(value: unknown): value is Reference {
+	return (
+		record(value) &&
+		/^ref_[0-9a-f]{32}$/.test(String(value.id)) &&
+		REFERENCE_KINDS.includes(value.kind as ReferenceKind) &&
+		text(value.creatorId, 8_192) &&
+		['own', 'partner', 'none'].includes(String(value.ringSource)) &&
+		(value.ringSource === 'none' ? value.ringId === null : text(value.ringId, 200)) &&
+		text(value.title, MAX_TITLE) &&
+		https(value.url) &&
+		https(value.canonicalUrl) &&
+		optionalHttps(value.foundOnPage) &&
+		typeof value.hostVerified === 'boolean' &&
+		typeof value.sharable === 'boolean' &&
+		optionalText(value.etag, 8_192) &&
+		optionalText(value.contentHash, 200) &&
+		(value.selector === undefined || (value.kind === 'text' && validSelector(value.selector))) &&
+		(value.textFragmentUrl === undefined ||
+			(value.kind === 'text' && https(value.textFragmentUrl))) &&
+		['live', 'gone'].includes(String(value.status)) &&
+		text(value.createdAt, 100) &&
+		optionalText(value.checkedAt, 100)
+	);
+}
+
+/**
+ * A reference as it goes into a backup file. A writing snip leaves without its passage (the
+ * selected text, and the fragment link that repeats it): until a decision says otherwise, snip
+ * text stays inside the encrypted database, and the file keeps only the page it points at.
+ */
+function exportable(reference: Reference): Reference {
+	if (reference.kind !== 'text') return reference;
+	const rest = { ...reference };
+	delete rest.selector;
+	delete rest.textFragmentUrl;
+	return rest;
+}
 
 function validPerson(value: unknown): value is Person {
 	return (
@@ -304,12 +368,13 @@ function readAppearance(): BackupAppearance {
 /** Build a plain, versioned file containing the local reader state. */
 export async function createBackup(store: Store = defaultStore): Promise<YipDenBackup> {
 	await store.init();
-	const [people, feeds, yips, shelf, verdicts, settingValues] = await Promise.all([
+	const [people, feeds, yips, shelf, verdicts, references, settingValues] = await Promise.all([
 		store.listPeople(),
 		store.listFeeds(),
 		store.listAllYips(),
 		store.listShelf(),
 		store.listVerdicts(),
+		store.listReferences(),
 		Promise.all(SETTING_KEYS.map((key) => store.getSetting<unknown>(key)))
 	]);
 	const settings: Partial<Record<SettingKey, unknown>> = {};
@@ -326,6 +391,7 @@ export async function createBackup(store: Store = defaultStore): Promise<YipDenB
 		yips,
 		shelf,
 		verdicts,
+		references: references.map(exportable),
 		settings,
 		appearance: readAppearance()
 	};
@@ -360,6 +426,10 @@ export function parseBackup(source: string): BackupPreview {
 			(!Array.isArray(value.verdicts) ||
 				value.verdicts.length > 10_000 ||
 				!value.verdicts.every(validVerdict))) ||
+		(value.references !== undefined &&
+			(!Array.isArray(value.references) ||
+				value.references.length > 10_000 ||
+				!value.references.every(validReference))) ||
 		!record(value.settings) ||
 		!record(value.appearance) ||
 		!['system', 'light', 'dark'].includes(String(value.appearance.theme)) ||
@@ -378,8 +448,20 @@ export function parseBackup(source: string): BackupPreview {
 		feeds: backup.feeds.length,
 		yips: backup.yips.length,
 		shelf: backup.shelf?.length ?? 0,
-		verdicts: backup.verdicts?.length ?? 0
+		verdicts: backup.verdicts?.length ?? 0,
+		references: incomingReferences(backup).length
 	};
+}
+
+/**
+ * Everything a file brings to keep: its references, and the tracks an older file carried as a
+ * setting, each creator's list checked the way it always was before it is converted.
+ */
+function incomingReferences(backup: YipDenBackup): Reference[] {
+	const fromSetting = creatorMap(backup.settings.readerTracks, (entry): entry is ReaderTrack[] =>
+		readerTrackList(entry)
+	);
+	return [...(backup.references ?? []), ...referencesFromTracks(fromSetting ?? {})];
 }
 
 /** Merge a validated backup without silently moving a source between creators. */
@@ -403,6 +485,7 @@ export async function restoreBackup(
 		yipsAdded: 0,
 		shelfAdded: 0,
 		verdictsAdded: 0,
+		referencesAdded: 0,
 		settingsRestored: 0
 	};
 
@@ -471,6 +554,26 @@ export async function restoreBackup(
 		await store.setVerdict(item);
 		decided.add(item.id);
 		report.verdictsAdded += 1;
+	}
+
+	// References merge like verdicts: one already kept here stays as it is, and a creator's limit
+	// for each kind holds whatever the file says.
+	const kept = await store.listReferences();
+	const keptIds = new Set(kept.map((reference) => reference.id));
+	const counts = new Map<string, number>();
+	for (const reference of kept) {
+		const slot = `${reference.creatorId}\n${reference.kind}`;
+		counts.set(slot, (counts.get(slot) ?? 0) + 1);
+	}
+	for (const reference of incomingReferences(backup)) {
+		const slot = `${reference.creatorId}\n${reference.kind}`;
+		if (keptIds.has(reference.id) || (counts.get(slot) ?? 0) >= MAX_PER_KIND[reference.kind]) {
+			continue;
+		}
+		await store.putReference(reference);
+		keptIds.add(reference.id);
+		counts.set(slot, (counts.get(slot) ?? 0) + 1);
+		report.referencesAdded += 1;
 	}
 
 	for (const key of SETTING_KEYS) {

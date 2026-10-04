@@ -1015,7 +1015,8 @@
 								url: entry.source_url,
 								name: entry.creator,
 								artUrl: heroImage(entry) ?? null,
-								layout: layoutOf(entry.layout)
+								layout: layoutOf(entry.layout),
+								ring: { source: 'own', id: 'indienodes' }
 							},
 							prefs.sitesInApp
 						);
@@ -1145,7 +1146,8 @@
 		creator={{
 			url: ring.current.source_url,
 			name: ring.current.creator,
-			artUrl: heroImage(ring.current) ?? null
+			artUrl: heroImage(ring.current) ?? null,
+			ring: { source: 'own', id: 'indienodes' }
 		}}
 		declared={layoutOf(ring.current.layout)}
 		onclose={() => (notesOpen = false)}

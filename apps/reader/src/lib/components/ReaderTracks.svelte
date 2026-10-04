@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { previewKindOf, type PreviewKind } from '@yipden/ring-client';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
+	import type { RingOrigin } from '$lib/references/types.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import PlatformIcon from './PlatformIcon.svelte';
 
@@ -12,7 +13,7 @@
 	 */
 
 	interface Props {
-		creator: { url: string; name: string; artUrl?: string | null };
+		creator: { url: string; name: string; artUrl?: string | null; ring?: RingOrigin | null };
 		/** Distinguishes form fields when several of these are on one screen. */
 		id: string;
 		/** Called as a track starts, so a sheet holding this list can get out of the player's way. */
@@ -37,7 +38,7 @@
 
 	async function add(event: SubmitEvent) {
 		event.preventDefault();
-		const result = await creatorNotes.addTrack(creator.url, { url: link, title });
+		const result = await creatorNotes.addTrack(creator, { url: link, title });
 		if (result === 'added') {
 			link = '';
 			title = '';

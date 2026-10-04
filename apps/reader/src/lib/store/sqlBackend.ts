@@ -1,5 +1,4 @@
 import {
-	COLLECTIONS,
 	INDEXED,
 	Serial,
 	indexValues,
@@ -38,23 +37,30 @@ const column = (field: string) => field.replace(/[A-Z]/g, (letter) => `_${letter
 const table = (collection: Collection) => `"${collection}"`;
 
 /** Bump with a new step in `migrations`; never edit a step that has shipped. */
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
-function schemaV1(): string {
-	return COLLECTIONS.map((collection) => {
-		const fields = INDEXED[collection] as readonly string[];
-		const columns = fields.map((field) => `, ${column(field)} TEXT`).join('');
-		const indexes = fields
-			.map(
-				(field) =>
-					`CREATE INDEX IF NOT EXISTS ${collection}_${column(field)} ON ${table(collection)} (${column(field)});`
-			)
-			.join('\n');
-		return `CREATE TABLE IF NOT EXISTS ${table(collection)} (k TEXT PRIMARY KEY NOT NULL, data TEXT NOT NULL${columns});\n${indexes}`;
-	}).join('\n');
+/** One collection's table, with a column and an index for each of its indexed fields. */
+function tableSql(collection: Collection): string {
+	const fields = INDEXED[collection] as readonly string[];
+	const columns = fields.map((field) => `, ${column(field)} TEXT`).join('');
+	const indexes = fields
+		.map(
+			(field) =>
+				`CREATE INDEX IF NOT EXISTS ${collection}_${column(field)} ON ${table(collection)} (${column(field)});`
+		)
+		.join('\n');
+	return `CREATE TABLE IF NOT EXISTS ${table(collection)} (k TEXT PRIMARY KEY NOT NULL, data TEXT NOT NULL${columns});\n${indexes}`;
 }
 
-const migrations: Array<() => string> = [schemaV1];
+const migrations: Array<() => string> = [
+	// 1: the collections the first encrypted store shipped with (2026-10-04).
+	() =>
+		(['people', 'feeds', 'yips', 'ring', 'peaks', 'settings', 'shelf', 'verdicts', 'meta'] as const)
+			.map(tableSql)
+			.join('\n'),
+	// 2: references, which replace the reader tracks setting.
+	() => tableSql('references')
+];
 
 export class SqlBackend implements RecordBackend {
 	private readonly serial = new Serial();

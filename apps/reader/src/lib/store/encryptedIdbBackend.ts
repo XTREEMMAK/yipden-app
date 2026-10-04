@@ -32,7 +32,8 @@ import {
  */
 
 const KEYS_STORE = 'keys';
-const VERSION = 1;
+/** Bumped whenever a collection is added; the upgrade creates any store that is missing. */
+const VERSION = 2;
 
 interface Sealed {
 	/** HMAC-SHA-256 of the record's key, hex. */

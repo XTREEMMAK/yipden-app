@@ -2557,3 +2557,54 @@ Asked for after the store landed: did any of it add a risk?
     not have.
   - Every SQL value is a bound parameter. Table and column names come only from constants.
   - The plugin's own Android logs carry no data.
+
+## 2026-10-04 (evening) — References replace reader tracks
+
+ROADMAP's `Reference` model item, from the reference finds brief. Everything a reader keeps from a
+creator's page is now one `Reference` (`apps/reader/src/lib/references/types.ts`), stored in its
+own collection of the encrypted store. Reader tracks are audio references, and the track UI is
+unchanged.
+
+**How the shape differs from the brief's suggestion:**
+
+- **`creatorId` is the existing `verdictKey`** (the site without scheme, `www.` or trailing slash),
+  the key Liked, Not for me and layout overrides already use. A creator is then one creator across
+  rings and into a follow.
+- **`ringSource` can also be `none`, and `ringId` is then null.** A followed person found by
+  pasting a link came through no ring, and claiming one would be false. IndieNodes is
+  `own`/`indienodes`. A partner ring is `partner` with its adapter's id. Every screen that keeps
+  something now passes where the creator came from.
+- **`title` is added.** A track always had a name the reader sees.
+- **`foundOnPage` is optional.** A track added by pasting a link was never found on a page, so it
+  has none, and it can never be sharable.
+- **`checkedAt` is absent until the first re-check.** Writing the creation time there would claim a
+  check that never happened.
+- **`id` is derived** from the creator, the kind, the address and, for text, the passage. Keeping
+  the same thing twice is one reference, as keeping a track twice was one track.
+- **Limits per creator and kind:** audio keeps its 20, and images, screenshots and passages get 50
+  each. A writing snip holds at most 500 characters (`MAX_SNIP`), enough for a passage but never a
+  chapter.
+
+**What nothing has checked yet stays unclaimed.** A new or converted reference is
+`hostVerified: false` and `sharable: false` until the capture rules (the next item) check it. A
+track kept before today has `ringSource: 'none'`, because which ring it came through was never
+recorded.
+
+**The move.** The `readerTracks` setting becomes references once, in one transaction that also
+removes the setting. It runs after the move from the old database and on stores that moved
+before references existed (debug builds 12 and 13). An older backup file's tracks are converted
+the same way on import. New backups carry a `references` array instead (the format stays version
+1, since the array is additive), merged the way Liked is: one already kept here stays as it is,
+and the per-kind limits hold.
+
+**A writing snip leaves a backup without its passage.** The brief says to ask before storing snip
+text outside the encrypted database, and an exported backup is outside it. Until that is decided,
+a text reference goes into the file as the page it points at, without its selector or the Text
+Fragment link that repeats the text. There are no text references yet. The question comes with
+the writing capture flow.
+
+**`IdbStore` is retired.** It is no longer a `Store`. Its code moved to `store/testing/legacyIdb.ts`
+to write databases in the old format for the migration tests, and nothing in the app imports it.
+Unit tests that built one now get a fresh in-memory SQLite `DocStore` (`store/testing/memory.ts`).
+The SQLite schema gained its second step, a `references` table, and step one is now a fixed list
+rather than "every collection", so it can never change after shipping.

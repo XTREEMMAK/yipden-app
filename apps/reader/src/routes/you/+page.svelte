@@ -597,7 +597,9 @@
 											creator={{
 												url: row.person.siteUrl,
 												name: row.person.name,
-												artUrl: row.person.iconUrl ?? null
+												artUrl: row.person.iconUrl ?? null,
+												// Followed from IndieNodes (`ringId` is their entry there), or found another way.
+												ring: row.person.ringId ? { source: 'own', id: 'indienodes' } : null
 											}}
 										/>
 										<div class="age-limit">

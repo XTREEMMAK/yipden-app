@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
-import { IdbStore } from './store/idb.js';
+import { testStore } from './store/testing/memory.js';
+import type { Store } from './store/types.js';
 import { createBackup, parseBackup, restoreBackup } from './backup.js';
 import { verdictKey } from './verdicts.svelte.js';
 import type { VerdictRecord } from './store/types.js';
@@ -30,11 +31,11 @@ describe('verdictKey', () => {
 });
 
 describe('verdict store and backup', () => {
-	let store: IdbStore;
+	let store: Store;
 
 	beforeEach(async () => {
 		globalThis.indexedDB = new IDBFactory();
-		store = new IdbStore();
+		store = testStore();
 		await store.init();
 	});
 
@@ -61,7 +62,7 @@ describe('verdict store and backup', () => {
 		const backup = parseBackup(JSON.stringify(await createBackup(store))).backup;
 
 		globalThis.indexedDB = new IDBFactory();
-		const fresh = new IdbStore();
+		const fresh = testStore();
 		await fresh.init();
 		await fresh.setVerdict({ ...ADA, verdict: 'hidden' });
 		await fresh.setVerdict({ ...ADA, id: 'cy.example.com', name: 'Cy' });

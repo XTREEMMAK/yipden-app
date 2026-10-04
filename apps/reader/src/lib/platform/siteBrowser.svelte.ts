@@ -2,6 +2,7 @@ import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { safeUrl, type SiteLayout } from '@yipden/ring-client';
 import { readFoundMedia, SCAN_SCRIPT, type FoundMedia } from '../pageMedia.js';
 import { openExternal } from './external.js';
+import type { RingOrigin } from '../references/types.js';
 
 /**
  * A creator's site, opened inside the app (Android, `@capgo/capacitor-inappbrowser`), with YipDen's own button in the toolbar.
@@ -24,6 +25,8 @@ export interface SiteCreator {
 	artUrl?: string | null;
 	/** What the ring declared, so the reader's layout choice can say what it overrules. */
 	layout?: SiteLayout | undefined;
+	/** The ring they were found through, recorded on anything kept from their pages. */
+	ring?: RingOrigin | null;
 }
 
 export interface SiteSession {

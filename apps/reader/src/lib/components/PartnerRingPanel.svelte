@@ -147,7 +147,8 @@
 				url: member.url,
 				name: member.name,
 				artUrl: member.thumbUrl ?? null,
-				layout: creatorNotes.layoutFor(member.url, member.layout)
+				layout: creatorNotes.layoutFor(member.url, member.layout),
+				ring: { source: 'partner', id: result.ring.id }
 			},
 			prefs.sitesInApp
 		);
@@ -672,7 +673,12 @@
 
 {#if notesFor}
 	<CreatorNotesSheet
-		creator={{ url: notesFor.url, name: notesFor.name, artUrl: notesFor.thumbUrl ?? null }}
+		creator={{
+			url: notesFor.url,
+			name: notesFor.name,
+			artUrl: notesFor.thumbUrl ?? null,
+			ring: { source: 'partner', id: result.ring.id }
+		}}
 		declared={notesFor.layout}
 		onclose={() => (notesFor = null)}
 	/>

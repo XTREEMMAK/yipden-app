@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { RingOrigin } from '$lib/references/types.js';
 	import { onMount } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import type { SiteLayout } from '@yipden/ring-client';
@@ -14,7 +15,7 @@
 	 */
 
 	interface Props {
-		creator: { url: string; name: string; artUrl?: string | null };
+		creator: { url: string; name: string; artUrl?: string | null; ring?: RingOrigin | null };
 		declared: SiteLayout | undefined;
 		onclose: () => void;
 	}

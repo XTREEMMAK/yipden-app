@@ -3,19 +3,17 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { DocStore } from './docStore.js';
 import { EncryptedIdbBackend } from './encryptedIdbBackend.js';
-import { IdbStore } from './idb.js';
 import { SqlBackend } from './sqlBackend.js';
 import { sqljsDriver } from './testing/sqljs.js';
-import { feed, person, shelfItem, yip } from './testing/fixtures.js';
+import { feed, person, reference, shelfItem, yip } from './testing/fixtures.js';
 import type { Store } from './types.js';
 
 /**
- * What every `Store` must do, run against each one: the IndexedDB store being retired, and the
- * two encrypted ones replacing it (SQLite as on the phone, and encrypted IndexedDB as on the
- * web). A behaviour the old store had and a new one lacks fails here, not on a reader's phone.
+ * What every `Store` must do, run against both backends: SQLite as on the phone, and encrypted
+ * IndexedDB as on the web. Written against the IndexedDB store the app used until 2026-10-04,
+ * and passed by it then, so a behaviour that store had and these lack fails here.
  */
 const implementations: Array<[string, () => Store]> = [
-	['IdbStore', () => new IdbStore()],
 	['DocStore over SQLite', () => new DocStore(new SqlBackend(sqljsDriver()))],
 	['DocStore over encrypted IndexedDB', () => new DocStore(new EncryptedIdbBackend('yipden-test'))]
 ];
@@ -332,6 +330,56 @@ describe.each(implementations)('%s', (_name, make) => {
 			await store.saveToShelf(shelfItem());
 			await store.clearYips();
 			expect(await store.listShelf()).toHaveLength(1);
+		});
+	});
+	describe('references', () => {
+		it("lists a creator's references oldest first, and all of them without a creator", async () => {
+			await store.putReference(reference({ id: 'ref_b', createdAt: '2026-10-02T00:00:00.000Z' }));
+			await store.putReference(reference({ id: 'ref_a', createdAt: '2026-10-01T00:00:00.000Z' }));
+			await store.putReference(reference({ id: 'ref_c', creatorId: 'sam.example' }));
+
+			expect((await store.listReferences('lena.example.com')).map((entry) => entry.id)).toEqual([
+				'ref_a',
+				'ref_b'
+			]);
+			expect(await store.listReferences()).toHaveLength(3);
+		});
+
+		it('replaces one with the same id, and removes only the one asked for', async () => {
+			await store.putReference(reference({ id: 'ref_a' }));
+			await store.putReference(reference({ id: 'ref_a', title: 'Renamed' }));
+			await store.putReference(reference({ id: 'ref_b' }));
+			await store.removeReference('ref_b');
+
+			const left = await store.listReferences();
+			expect(left.map((entry) => [entry.id, entry.title])).toEqual([['ref_a', 'Renamed']]);
+		});
+
+		it('records a re-check without touching anything else, and ignores an unknown id', async () => {
+			await store.putReference(reference({ id: 'ref_a' }));
+			await store.updateReferenceCheck('ref_a', {
+				status: 'gone',
+				checkedAt: '2026-10-05T00:00:00.000Z',
+				etag: 'W/"x"'
+			});
+			await store.updateReferenceCheck('ref_missing', { status: 'gone', checkedAt: 'x' });
+
+			const [checked] = await store.listReferences();
+			expect(checked).toMatchObject({
+				status: 'gone',
+				checkedAt: '2026-10-05T00:00:00.000Z',
+				etag: 'W/"x"',
+				title: 'Night drive'
+			});
+			expect(await store.listReferences()).toHaveLength(1);
+		});
+
+		it('are untouched by unfollowing or clearing yips: they belong to the reader', async () => {
+			await store.follow(person(), [feed()]);
+			await store.putReference(reference());
+			await store.unfollow('person-lena');
+			await store.clearYips();
+			expect(await store.listReferences()).toHaveLength(1);
 		});
 	});
 });

@@ -450,6 +450,8 @@ are in DECISIONS.md.
    migrate onto it and keep their UI. Platform embeds (Bandcamp, SoundCloud, YouTube, Spotify,
    Apple Music) stay, as links that open on the platform: `hostVerified: false`,
    `sharable: false`. The backup carries references, and still reads an old backup's tracks.
+   **Done 2026-10-04** (DECISIONS.md). Open: whether a writing snip's passage may leave the
+   encrypted database inside an exported backup. Until decided, it does not.
 5. **Capture rules.** A media file must be on one of the creator's own sites (after redirects), and
    actually linked on the page where it was found. `robots.txt`, `noindex` or `X-Robots-Tag` on
    that page mean `sharable: false`. A reference is re-checked with a conditional GET when it is

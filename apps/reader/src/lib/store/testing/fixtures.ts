@@ -1,4 +1,5 @@
 import type { Feed, Person, ShelfItem, StoredYip } from '../types.js';
+import type { Reference } from '../../references/types.js';
 
 export function person(overrides: Partial<Person> = {}): Person {
 	return {
@@ -52,6 +53,25 @@ export function shelfItem(overrides: Partial<ShelfItem> = {}): ShelfItem {
 		creator: 'Wide',
 		from: 'feeds',
 		savedAt: '2026-09-26T10:00:00.000Z',
+		...overrides
+	};
+}
+
+export function reference(overrides: Partial<Reference> = {}): Reference {
+	return {
+		id: 'ref_00000000000000000000000000000001',
+		kind: 'audio',
+		creatorId: 'lena.example.com',
+		ringSource: 'own',
+		ringId: 'indienodes',
+		title: 'Night drive',
+		url: 'https://lena.example.com/audio/night.mp3',
+		canonicalUrl: 'https://lena.example.com/audio/night.mp3',
+		foundOnPage: 'https://lena.example.com/music',
+		hostVerified: false,
+		sharable: false,
+		status: 'live',
+		createdAt: '2026-10-01T00:00:00.000Z',
 		...overrides
 	};
 }

@@ -4,8 +4,14 @@ import { IDBFactory } from 'fake-indexeddb';
 import { directCursor, stableYipId } from '@yipden/feeds';
 import { DocStore } from './docStore.js';
 import { EncryptedIdbBackend } from './encryptedIdbBackend.js';
-import { IdbStore } from './idb.js';
-import { LEGACY_DATABASE, migrateFromIdb, type MigrationHooks } from './migrate.js';
+import { LegacyIdbStore } from './testing/legacyIdb.js';
+import {
+	LEGACY_DATABASE,
+	migrateFromIdb,
+	migrateReaderTracks,
+	prepareStore,
+	type MigrationHooks
+} from './migrate.js';
 import type { RecordBackend } from './records.js';
 import { rekeyAll, rekeyYip } from './rekey.js';
 import { SqlBackend } from './sqlBackend.js';
@@ -22,7 +28,7 @@ function legacyYip(entry: string, overrides: Parameters<typeof yip>[0] = {}) {
 }
 
 async function legacyDatabase(): Promise<void> {
-	const old = new IdbStore();
+	const old = new LegacyIdbStore();
 	await old.init();
 	await old.follow(person(), [
 		feed({ etag: 'W/"v1"', lastModified: 'Mon, 21 Sep 2026 00:00:00 GMT' })
@@ -214,5 +220,66 @@ describe('re-keying', () => {
 			readAt: '2026-09-03T00:00:00.000Z'
 		});
 		expect(keys.get(first.key)).toBe(keys.get(second.key));
+	});
+});
+
+describe('reader tracks becoming references', () => {
+	beforeEach(() => {
+		globalThis.indexedDB = new IDBFactory();
+	});
+
+	const TRACKS = {
+		'lena.example.com': [
+			{
+				url: 'https://lena.example.com/a.mp3',
+				title: 'A',
+				addedAt: '2026-10-01T00:00:00.000Z',
+				foundOn: 'https://lena.example.com/music'
+			},
+			{
+				url: 'https://bandcamp.com/EmbeddedPlayer/album=1',
+				title: 'Bandcamp player',
+				addedAt: '2026-10-02T00:00:00.000Z'
+			},
+			{
+				url: 'http://lena.example.com/unsafe.mp3',
+				title: 'dropped',
+				addedAt: '2026-10-03T00:00:00.000Z'
+			}
+		]
+	};
+
+	it('happens on the move from the old database, and the setting is gone after', async () => {
+		const old = new LegacyIdbStore();
+		await old.init();
+		await old.setSetting('readerTracks', TRACKS);
+
+		const store = new DocStore(new SqlBackend(sqljsDriver()), prepareStore);
+		const references = await store.listReferences('lena.example.com');
+		expect(references.map((entry) => [entry.title, entry.kind, entry.foundOnPage])).toEqual([
+			['A', 'audio', 'https://lena.example.com/music'],
+			['Bandcamp player', 'audio', undefined]
+		]);
+		// Never checked, and from no known ring: nothing about them is claimed.
+		expect(references.every((entry) => !entry.hostVerified && !entry.sharable)).toBe(true);
+		expect(references.every((entry) => entry.ringSource === 'none' && entry.ringId === null)).toBe(
+			true
+		);
+		expect(await store.getSetting('readerTracks')).toBeNull();
+	});
+
+	it('happens on a store that moved before references existed, once', async () => {
+		const file = {};
+		const first = new DocStore(new SqlBackend(sqljsDriver(file)), migrateFromIdb);
+		await first.setSetting('readerTracks', TRACKS);
+
+		const again = new DocStore(new SqlBackend(sqljsDriver(file)), prepareStore);
+		expect(await again.listReferences()).toHaveLength(2);
+		// Running the step again directly changes nothing: the setting it reads is gone.
+		const backend = new SqlBackend(sqljsDriver(file));
+		await backend.open();
+		await migrateReaderTracks(backend);
+		const third = new DocStore(new SqlBackend(sqljsDriver(file)), prepareStore);
+		expect(await third.listReferences()).toHaveLength(2);
 	});
 });

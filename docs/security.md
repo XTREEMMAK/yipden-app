@@ -136,7 +136,8 @@ reader keep audio the page plays (see DECISIONS.md, 2026-10-02). What keeps that
 ## Data on the device
 
 v0.9 stores follows, read state, cached yips, cached waveform peaks, saved links, verdicts,
-explored marks, folders, and the reader's own tracks and layout choices, and nothing else. There
+explored marks, folders, layout choices, and references (pointers to what a reader kept from a
+creator's page, never the media itself), and nothing else. There
 is no password, no token and no personal identifier, because there is no account. Follows are
 private to the device: nothing is posted anywhere and the creator is not notified.
 

@@ -7,13 +7,16 @@ import type {
 	SettingKey,
 	ShelfItem,
 	VerdictRecord,
-	Store,
 	StoredYip,
 	YipQuery
-} from './types.js';
+} from '../types.js';
 
 /**
- * The one on device implementation of `Store`, over IndexedDB.
+ * TESTS ONLY. The store the app used until 2026-10-04, kept to write databases in the old format
+ * so the move into the encrypted store (`migrate.ts`) can be tested against the real thing. It
+ * is not a `Store` any more and nothing in the app imports it.
+ *
+ * Originally: the one on device implementation of `Store`, over IndexedDB.
  *
  * IndexedDB rather than SQLite, deliberately: it works identically in the Android WebView and
  * in a browser, so the same code path is exercised in development and on the device, and it
@@ -53,7 +56,7 @@ function done(transaction: IDBTransaction): Promise<void> {
 	});
 }
 
-export class IdbStore implements Store {
+export class LegacyIdbStore {
 	private database: IDBDatabase | null = null;
 	private opening: Promise<IDBDatabase> | null = null;
 

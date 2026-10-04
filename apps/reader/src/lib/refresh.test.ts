@@ -11,7 +11,8 @@ import {
 	type HttpResponse,
 	stableYipId
 } from '@yipden/feeds';
-import { IdbStore } from './store/idb.js';
+import { testStore } from './store/testing/memory.js';
+import type { Store } from './store/types.js';
 import { setAgeLimitActive } from './age.js';
 import { categorize, classifyFailure, pruneToMaxAge, refreshAll, toStoredYip } from './refresh.js';
 import type { Feed, Item, Person } from './store/types.js';
@@ -103,11 +104,11 @@ function fastHttp(fetchImpl: FetchLike): FeedHttp {
 	return new FeedHttp({ fetch: fetchImpl, respectRobots: false, minHostIntervalMs: 0 });
 }
 
-let store: IdbStore;
+let store: Store;
 
 beforeEach(async () => {
 	globalThis.indexedDB = new IDBFactory();
-	store = new IdbStore();
+	store = testStore();
 	await store.init();
 	await store.follow(PERSON, [feed()]);
 	// Fixture dates are fixed; keep them from aging out as the real clock moves on.

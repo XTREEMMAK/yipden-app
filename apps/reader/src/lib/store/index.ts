@@ -2,7 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { capacitorDriver } from './capacitorDriver.js';
 import { DocStore } from './docStore.js';
 import { EncryptedIdbBackend } from './encryptedIdbBackend.js';
-import { migrateFromIdb } from './migrate.js';
+import { prepareStore } from './migrate.js';
 import { SqlBackend } from './sqlBackend.js';
 import type { Store } from './types.js';
 
@@ -21,7 +21,7 @@ export const store: Store = new DocStore(
 	Capacitor.isNativePlatform()
 		? new SqlBackend(capacitorDriver())
 		: new EncryptedIdbBackend('yipden-sealed'),
-	migrateFromIdb
+	prepareStore
 );
 
 export type {
@@ -32,6 +32,7 @@ export type {
 	FeedProvenance,
 	PeaksRecord,
 	Person,
+	ReferenceCheck,
 	SettingKey,
 	ShelfItem,
 	Store,

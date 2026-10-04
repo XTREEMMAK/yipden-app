@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { stableYipId } from '@yipden/feeds';
 import { createBackup, parseBackup, restoreBackup } from './backup.js';
-import { IdbStore } from './store/idb.js';
+import { testStore } from './store/testing/memory.js';
+import { reference } from './store/testing/fixtures.js';
 import type { Feed, Person, ShelfItem, StoredYip } from './store/types.js';
 
 const PERSON: Person = {
@@ -57,7 +58,7 @@ beforeEach(() => {
 
 describe('YipDen backup', () => {
 	it('round trips people, source provenance, read state and preferences', async () => {
-		const source = new IdbStore();
+		const source = testStore();
 		await source.init();
 		await source.follow(PERSON, [FEED]);
 		await source.putYips([YIP]);
@@ -70,7 +71,7 @@ describe('YipDen backup', () => {
 
 		globalThis.indexedDB = new IDBFactory();
 		localStorage.clear();
-		const target = new IdbStore();
+		const target = testStore();
 		const report = await restoreBackup(preview.backup, target);
 		expect(report).toMatchObject({ peopleAdded: 1, feedsAdded: 1, yipsAdded: 1 });
 		expect((await target.listFeeds())[0]).toMatchObject({
@@ -87,14 +88,14 @@ describe('YipDen backup', () => {
 	});
 
 	it('moves yips from a file made before stable ids onto them, read state and all', async () => {
-		const source = new IdbStore();
+		const source = testStore();
 		await source.init();
 		await source.follow(PERSON, [FEED]);
 		await source.putYips([YIP]);
 		const preview = parseBackup(JSON.stringify(await createBackup(source)));
 
 		globalThis.indexedDB = new IDBFactory();
-		const target = new IdbStore();
+		const target = testStore();
 		await restoreBackup(preview.backup, target);
 		const [restored] = await target.listAllYips();
 		const id = stableYipId(FEED.id, 'one');
@@ -120,7 +121,7 @@ describe('YipDen backup', () => {
 	});
 
 	it('reports a feed collision instead of moving the source to the backup creator', async () => {
-		const target = new IdbStore();
+		const target = testStore();
 		await target.init();
 		const other: Person = {
 			id: 'person-other',
@@ -163,7 +164,7 @@ describe('the Shelf in a backup', () => {
 		});
 
 	it('travels through export and restore, with a person’s declared layout', async () => {
-		const source = new IdbStore();
+		const source = testStore();
 		await source.init();
 		await source.follow({ ...PERSON, layout: 'desktop-first' }, [FEED]);
 		await source.saveToShelf(SHELVED);
@@ -172,7 +173,7 @@ describe('the Shelf in a backup', () => {
 		expect(preview.shelf).toBe(1);
 
 		globalThis.indexedDB = new IDBFactory();
-		const target = new IdbStore();
+		const target = testStore();
 		const report = await restoreBackup(preview.backup, target);
 		expect(report.shelfAdded).toBe(1);
 		expect(await target.listShelf()).toEqual([SHELVED]);
@@ -184,7 +185,7 @@ describe('the Shelf in a backup', () => {
 	});
 
 	it('merges rather than replaces, and saving twice keeps one', async () => {
-		const target = new IdbStore();
+		const target = testStore();
 		await target.init();
 		await target.saveToShelf({ ...SHELVED, title: 'Kept as it was' });
 		await target.saveToShelf({
@@ -217,5 +218,71 @@ describe('the Shelf in a backup', () => {
 		expect(() => parseBackup(file({ people: [{ ...PERSON, layout: 'tablet-only' }] }))).toThrow(
 			'not a supported YipDen backup'
 		);
+	});
+});
+
+describe('references in the backup', () => {
+	const KEPT = reference({ id: 'ref_00000000000000000000000000000002' });
+
+	it('round trip, merging: one already kept here is not replaced', async () => {
+		const source = testStore();
+		await source.putReference(KEPT);
+		const preview = parseBackup(JSON.stringify(await createBackup(source)));
+		expect(preview.references).toBe(1);
+
+		const target = testStore();
+		await target.putReference({ ...KEPT, title: 'Mine' });
+		const report = await restoreBackup(preview.backup, target);
+		expect(report.referencesAdded).toBe(0);
+		expect((await target.listReferences())[0]?.title).toBe('Mine');
+
+		const empty = testStore();
+		expect((await restoreBackup(preview.backup, empty)).referencesAdded).toBe(1);
+		expect(await empty.listReferences()).toEqual([KEPT]);
+	});
+
+	it('reads the tracks a file from before references carried as a setting', async () => {
+		const source = testStore();
+		const old = await createBackup(source);
+		delete old.references;
+		old.settings.readerTracks = {
+			'lena.example.com': [
+				{ url: 'https://lena.example.com/a.mp3', title: 'A', addedAt: '2026-10-01T00:00:00.000Z' }
+			]
+		};
+		const preview = parseBackup(JSON.stringify(old));
+		expect(preview.references).toBe(1);
+
+		const target = testStore();
+		await restoreBackup(preview.backup, target);
+		expect((await target.listReferences('lena.example.com')).map((entry) => entry.url)).toEqual([
+			'https://lena.example.com/a.mp3'
+		]);
+		expect(await target.getSetting('readerTracks')).toBeNull();
+	});
+
+	it('lets a writing snip leave without its passage, only the page it points at', async () => {
+		const source = testStore();
+		await source.putReference(
+			reference({
+				id: 'ref_00000000000000000000000000000003',
+				kind: 'text',
+				url: 'https://lena.example.com/story',
+				canonicalUrl: 'https://lena.example.com/story',
+				selector: { exact: 'A secret passage.' },
+				textFragmentUrl: 'https://lena.example.com/story#:~:text=A%20secret%20passage.'
+			})
+		);
+		const file = JSON.stringify(await createBackup(source));
+		expect(file).not.toContain('secret');
+		expect(parseBackup(file).references).toBe(1);
+	});
+
+	it('refuses a file with a malformed reference before changing anything', async () => {
+		const backup = await createBackup(testStore());
+		backup.references = [{ ...KEPT, url: 'http://lena.example.com/a.mp3' }];
+		expect(() => parseBackup(JSON.stringify(backup))).toThrow('not a supported YipDen backup');
+		backup.references = [{ ...KEPT, selector: { exact: 'only text may have one' } }];
+		expect(() => parseBackup(JSON.stringify(backup))).toThrow('not a supported YipDen backup');
 	});
 });

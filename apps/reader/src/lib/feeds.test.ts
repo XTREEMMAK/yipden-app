@@ -142,7 +142,7 @@ describe('FeedsState.loadAndCatchUp', () => {
 
 	/*
 	 * `store` is the app's one real singleton (see store/index.ts), already opened by whichever
-	 * test in this file ran first: unlike a test that constructs its own `IdbStore`, swapping
+	 * test in this file ran first: unlike a test that constructs its own store, swapping
 	 * `globalThis.indexedDB` here would not give it a fresh database, since it never reopens once
 	 * `this.database` is set. Isolation instead comes from cleaning up what each test itself
 	 * followed, not from resetting the store.

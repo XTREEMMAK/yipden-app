@@ -1,6 +1,7 @@
 import { directCursor } from '@yipden/feeds';
 import type { RingQueueRecord } from '../ringPlayer.svelte.js';
 import type { Collection, RecordBackend, RecordTx } from './records.js';
+import { referencesFromTracks } from '../references/fromTracks.js';
 import { rekeyAll } from './rekey.js';
 import type { Feed, StoredYip } from './types.js';
 
@@ -230,4 +231,28 @@ export async function migrateFromIdb(
 		tx.put('meta', MARKER, { at: new Date().toISOString(), copied: rows.length })
 	);
 	await deleteLegacy();
+}
+
+/**
+ * Reader tracks kept as a setting become audio references, once. Runs after the move from the
+ * old database (which copies the setting as it was) and on stores that moved before references
+ * existed. The setting is removed in the same transaction, so this never runs twice.
+ */
+export async function migrateReaderTracks(backend: RecordBackend): Promise<void> {
+	await backend.transaction(async (tx) => {
+		const setting = await tx.get<{ value: unknown }>('settings', 'readerTracks');
+		if (!setting) return;
+		for (const reference of referencesFromTracks(setting.value)) {
+			if (!(await tx.get('references', reference.id))) {
+				await tx.put('references', reference.id, reference);
+			}
+		}
+		await tx.delete('settings', 'readerTracks');
+	});
+}
+
+/** Everything a store runs before its first use, in order. */
+export async function prepareStore(backend: RecordBackend): Promise<void> {
+	await migrateFromIdb(backend);
+	await migrateReaderTracks(backend);
 }
