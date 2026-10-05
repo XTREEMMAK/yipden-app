@@ -178,8 +178,8 @@ behalf. Nor does it protect a backup file the reader exports, which is plain JSO
 ### References: what is checked, and what is asked of creators' hosts
 
 Keeping something, and checking it again later, applies the capture rules
-(`references/capture.ts`, DECISIONS.md 2026-10-04). Only the creator's own sites are asked
-anything. A file gets a `HEAD` request, never a download. A page is fetched with robots.txt
+(`references/capture.ts`, DECISIONS.md 2026-10-04). Only the creator's own sites, and a
+file's host when one of their own pages links it there (2026-10-05), are asked anything. A file gets a `HEAD` request, never a download. A page is fetched with robots.txt
 honoured. Everything goes through the same polite client as feeds. Those requests use the app's
 native HTTP client, which shares the in-app browser's cookie jar, so a creator's site sees the
 reader's cookies for that site. That is the exposure feed fetching already has, and it is the

@@ -2922,3 +2922,20 @@ to ordinary discovery, as any other site would.
 
 **Not touched, as the brief requires:** the ring, `ring.json` and `ring-client`. Forums are never a
 creator's source, and creator discovery never adds one.
+
+## 2026-10-05 (night) — Keeping a file from a creator's page that lives on another host
+
+Feedback from the developer: the own-site rule refused too much. Creators, partner-ring members
+especially, often keep their files on a second host such as File Garden, so a track linked from
+their own page was refused for not being on their domain.
+
+- **Now kept:** a file on another host, when it was found on one of the creator's own pages in the
+  in-app browser. Their page linking it is the evidence that it is theirs. It is kept with
+  `hostVerified: false` and `sharable: false`, so the v2.0 shared index never treats it as the
+  creator's own file. If it is wrong, the reader removes it from the Library.
+- **Still refused:** a pasted link to another host (nothing ties it to them), and a file found on
+  a page that is not theirs either. The refusal now says how to keep it instead: "Open their site
+  and keep it from the page that links it."
+- **Re-checks** treat such a file like any other. Gone if the file or the page's link goes, never
+  host-verified.
+- The rest of the capture rules (2026-10-04, night) are unchanged.

@@ -19,9 +19,13 @@ import type { Reference, ReferenceKind, TextSelector } from './types.js';
  * The capture rules (the reference finds brief), applied when something is kept and again on
  * every re-check:
  *
- * 1. Own site only. A file must be on one of the creator's own sites after redirects, or it is
- *    refused. A known platform's player found on their page is kept as a link that opens on the
- *    platform: never host-verified, never sharable (decided 2026-10-03).
+ * 1. Their own site, or linked from it. A file on one of the creator's own sites (after
+ *    redirects) is host-verified. One on another host is kept too when it was found on one of
+ *    their own pages: creators often keep files on a second host (File Garden and the like), and
+ *    their own page linking it is the evidence. It is not host-verified and never sharable, and
+ *    the reader can remove it. A pasted link to another host has no such evidence and is refused.
+ *    A known platform's player found on their page is kept as a link that opens on the platform:
+ *    never host-verified, never sharable (decided 2026-10-03).
  * 2. Only what is publicly linked. Recorded with the page it was found on; whether that page's
  *    own markup links it decides what a re-check can prove later.
  * 3. "No" signals: robots.txt disallowing the page, or `noindex` in its meta tags or
@@ -161,7 +165,10 @@ export async function assessCapture(
 			// Unreachable, or a host that refuses HEAD: judged on the address as given.
 		}
 	}
-	if (!isOnOwnSite(canonicalUrl, sites)) return { ok: false, reason: 'not-own-site' };
+	const ownHost = isOnOwnSite(canonicalUrl, sites);
+	// Found on one of their own pages: the page linking it is what ties it to them (2026-10-05).
+	const foundOnTheirPage = !!draft.foundOnPage && isOnOwnSite(draft.foundOnPage, sites);
+	if (!ownHost && !foundOnTheirPage) return { ok: false, reason: 'not-own-site' };
 
 	const page = draft.foundOnPage
 		? await readPage(
@@ -176,8 +183,8 @@ export async function assessCapture(
 		ok: true,
 		fields: {
 			canonicalUrl,
-			hostVerified: true,
-			sharable: Boolean(page && page.allowed && page.linked),
+			hostVerified: ownHost,
+			sharable: ownHost && Boolean(page && page.allowed && page.linked),
 			...(etag ? { etag } : {}),
 			...(page && page.linked !== null ? { linkedInMarkup: page.linked } : {}),
 			...(checked ? { checkedAt: deps.now().toISOString() } : {})

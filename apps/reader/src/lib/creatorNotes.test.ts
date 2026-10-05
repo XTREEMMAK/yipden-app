@@ -231,11 +231,24 @@ describe('keeping pictures and passages', () => {
 		});
 	});
 
-	it('refuses a picture hosted elsewhere', async () => {
+	it('keeps a picture on a second host found on their page, marked as not on their own host', async () => {
 		expect(
 			await creatorNotes.keep(
 				{ url: 'https://k.example/' },
 				{ kind: 'image', url: 'https://imagehost.example/k.png', foundOn: 'https://k.example/' }
+			)
+		).toBe('added');
+		const kept = creatorNotes
+			.referencesFor('https://k.example/', 'image')
+			.find((entry) => entry.url === 'https://imagehost.example/k.png');
+		expect(kept).toMatchObject({ hostVerified: false, sharable: false });
+	});
+
+	it('refuses that picture pasted without a page of theirs', async () => {
+		expect(
+			await creatorNotes.keep(
+				{ url: 'https://k.example/' },
+				{ kind: 'image', url: 'https://imagehost.example/k2.png' }
 			)
 		).toBe('not-own-site');
 	});

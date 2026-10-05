@@ -89,16 +89,40 @@ describe('keeping something', () => {
 		]);
 	});
 
-	it('refuses a copy on another host, even linked from their page', async () => {
-		const copy = 'https://reupload.example/night.mp3';
+	it('keeps a file on a second host when their own page links it, but never as theirs to share', async () => {
+		const garden = 'https://file.garden/abc123/night.mp3';
 		const result = await assessCapture(
-			{ kind: 'audio', url: copy, creatorUrl: CREATOR, foundOnPage: PAGE },
-			deps({ [copy]: {}, [PAGE]: { body: `<a href="${copy}">mirror</a>` } })
+			{ kind: 'audio', url: garden, creatorUrl: CREATOR, foundOnPage: PAGE },
+			deps({ [garden]: {}, [PAGE]: { body: `<audio src="${garden}"></audio>` } })
 		);
-		expect(result).toEqual({ ok: false, reason: 'not-own-site' });
+		expect(result).toMatchObject({
+			ok: true,
+			fields: { canonicalUrl: garden, hostVerified: false, sharable: false, linkedInMarkup: true }
+		});
 	});
 
-	it('refuses a file on their host that redirects somewhere else', async () => {
+	it('refuses a file on another host pasted with no page of theirs behind it', async () => {
+		const garden = 'https://file.garden/abc123/night.mp3';
+		expect(
+			await assessCapture(
+				{ kind: 'audio', url: garden, creatorUrl: CREATOR },
+				deps({ [garden]: {} })
+			)
+		).toEqual({ ok: false, reason: 'not-own-site' });
+	});
+
+	it('refuses a file on another host found on a page that is not theirs either', async () => {
+		const copy = 'https://reupload.example/night.mp3';
+		const elsewhere = 'https://aggregator.example/lena';
+		expect(
+			await assessCapture(
+				{ kind: 'audio', url: copy, creatorUrl: CREATOR, foundOnPage: elsewhere },
+				deps({ [copy]: {}, [elsewhere]: { body: `<a href="${copy}">mirror</a>` } })
+			)
+		).toEqual({ ok: false, reason: 'not-own-site' });
+	});
+
+	it('refuses a pasted file on their host that redirects somewhere else', async () => {
 		const result = await assessCapture(
 			{ kind: 'audio', url: FILE, creatorUrl: CREATOR },
 			deps({

@@ -131,6 +131,8 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- A track or picture a creator links from their own page can now be kept even when the file lives
+  on another host, such as File Garden. Pasted links still have to be on their own site.
 - You opens on Following, with the Library and Liked & not for me as tabs beside it. A person's
   open row is split into Sources, Kept from them, and Your settings for them.
 - Sites opened in the app can be pinch-zoomed.

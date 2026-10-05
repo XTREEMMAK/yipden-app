@@ -27,7 +27,7 @@ export function keepMessage(
 		case 'not-own-site':
 			return kind === 'text'
 				? `That page is not on ${creatorName}’s own site, so it cannot be kept for them.`
-				: `That is not on ${creatorName}’s own site, so it cannot be kept for them.`;
+				: `That is not on ${creatorName}’s own site. Open their site and keep it from the page that links it.`;
 		case 'missing':
 			return kind === 'text'
 				? 'That page is not there any more.'
