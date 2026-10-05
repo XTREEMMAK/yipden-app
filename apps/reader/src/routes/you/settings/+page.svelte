@@ -298,18 +298,6 @@
 						onchange={(on) => prefs.setSitesInApp(on)}
 					/>
 				</div>
-				<div class="srow">
-					<span class="tt">
-						<b>Forum topics in Everything</b>
-						<small>Off: forum topics show only under Forums</small>
-					</span>
-					<Switch
-						id="forums-in-everything"
-						label="Show forum topics in Everything"
-						checked={prefs.forumsInEverything}
-						onchange={(on) => prefs.setForumsInEverything(on)}
-					/>
-				</div>
 				<div class="srow slider-row">
 					<span class="tt">
 						<b>Keep posts from the last {prefs.maxAgeDays} days</b>

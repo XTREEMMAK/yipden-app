@@ -59,6 +59,11 @@
 		if (on) whole = false;
 	}
 
+	/** A forum's own words, which can run long: the first 200 characters, then an ellipsis. */
+	function clip(text: string, max = 200): string {
+		return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
+	}
+
 	function confirm() {
 		if (!ready || busy) return;
 		onconfirm(whole ? { whole: true } : { whole: false, categories: picked });
@@ -70,7 +75,7 @@
 	<span class="copy">
 		<b>{forum.title}</b>
 		<small>This is a forum</small>
-		{#if forum.description}<span class="desc">{forum.description}</span>{/if}
+		{#if forum.description}<span class="desc">{clip(forum.description)}</span>{/if}
 	</span>
 </div>
 
@@ -90,12 +95,8 @@
 			<label class="frow" class:sub={category.parentId !== null} for={`forum-c${category.id}`}>
 				<span class="ft">
 					<b>{category.name}</b>
-					<small
-						>{category.topicCount}
-						{category.topicCount === 1 ? 'topic' : 'topics'}{category.description
-							? ` · ${category.description}`
-							: ''}</small
-					>
+					<small>{category.topicCount} {category.topicCount === 1 ? 'topic' : 'topics'}</small>
+					{#if category.description}<span class="cdesc">{clip(category.description)}</span>{/if}
 				</span>
 				<Switch
 					id={`forum-c${category.id}`}
@@ -156,6 +157,17 @@
 		font-weight: 650;
 	}
 
+	.desc,
+	.cdesc {
+		overflow-wrap: anywhere;
+	}
+
+	.cdesc {
+		color: var(--muted);
+		font-size: 12.5px;
+		line-height: 1.35;
+	}
+
 	.desc {
 		color: var(--muted);
 		font-size: 13px;
@@ -165,6 +177,8 @@
 	.found {
 		display: flex;
 		flex-direction: column;
+		/* A fieldset is otherwise as wide as its widest unbroken line, and pushes past the screen. */
+		min-width: 0;
 		margin: 0;
 		padding: 0;
 		border: 1px solid var(--line);

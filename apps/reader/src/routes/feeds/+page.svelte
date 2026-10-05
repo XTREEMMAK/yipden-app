@@ -24,7 +24,7 @@
 	import RingMemberCard from '$components/RingMemberCard.svelte';
 	import FeedsFilterSheet from '$components/FeedsFilterSheet.svelte';
 	import ForumTopicCard from '$components/ForumTopicCard.svelte';
-	import { forums, type DigestTopic } from '$lib/forums.svelte.js';
+	import { forums } from '$lib/forums.svelte.js';
 	import { page } from '$app/state';
 
 	/**
@@ -43,46 +43,21 @@
 	}
 
 	/**
-	 * Forums is a fifth pane beside the four yip filters: one card per topic of the forums followed,
-	 * a separate source with its own count. Its topics stay out of Everything unless the reader
-	 * turns that on in Settings.
+	 * Feeds reads two kinds of source: people, through the four pills, and forums, as one digest
+	 * of topics. A switch at the top chooses between them, so the pills stay four and forum topics
+	 * never mix into the people's panes: a forum is a place, not a person (decided 2026-10-05).
 	 */
 	let onForums = $state(false);
-	const PILLS = [...FEEDS_FILTERS, { key: 'forums', label: 'Forums' }] as const;
-	let selectedPill = $derived(onForums ? 'forums' : feeds.filter);
 	let filterIndex = $derived(
 		onForums
 			? FEEDS_FILTERS.length
 			: FEEDS_FILTERS.findIndex((filter) => filter.key === feeds.filter)
 	);
-
-	function choosePill(key: (typeof PILLS)[number]['key']) {
-		if (key === 'forums') {
-			onForums = true;
-			return;
-		}
-		onForums = false;
-		feeds.setFilter(key);
-	}
+	let selectedPill = $derived(onForums ? 'forums' : feeds.filter);
 
 	$effect(() => {
 		if (page.url.searchParams.get('pane') === 'forums') onForums = true;
 	});
-
-	type PaneItem = { kind: 'yip'; yip: FeedYip } | { kind: 'topic'; topic: DigestTopic };
-
-	/** A pane's cards: its yips, and in Everything the forum topics too, when the reader asked. */
-	function itemsFor(key: FeedsFilterKey): PaneItem[] {
-		const yips: PaneItem[] = feeds.panes[key].map((yip) => ({ kind: 'yip', yip }));
-		if (key !== 'everything' || !prefs.forumsInEverything || !forums.topics.length) return yips;
-		const topics: PaneItem[] = forums.digest.map((topic) => ({ kind: 'topic', topic }));
-		const when = (item: PaneItem) =>
-			(item.kind === 'yip' ? item.yip.publishedAt : item.topic.record.lastActivityAt) ?? '';
-		// Merged by time alone: chronological, as everything in Feeds is.
-		return [...yips, ...topics].sort((a, b) => when(b).localeCompare(when(a)));
-	}
-
-	const itemKey = (item: PaneItem) => (item.kind === 'yip' ? item.yip.key : item.topic.record.key);
 	let viewport: HTMLDivElement | undefined;
 
 	/*
@@ -100,9 +75,10 @@
 	}
 
 	$effect(() => {
-		// The selection is read so this effect reruns when it changes.
+		// The selection is read so this effect reruns when it changes, and again when the
+		// pills come back from Forums.
 		void selectedPill;
-		measureIndicator();
+		if (!onForums) measureIndicator();
 	});
 
 	// Pull to refresh: a vertical drag from the top of the active pane.
@@ -222,6 +198,25 @@
 
 <div class="feeds">
 	<header class="head">
+		<div class="source-switch" role="radiogroup" aria-label="What to read">
+			<button
+				role="radio"
+				aria-checked={!onForums}
+				class:on={!onForums}
+				onclick={() => (onForums = false)}
+			>
+				People
+			</button>
+			<button
+				role="radio"
+				aria-checked={onForums}
+				class:on={onForums}
+				onclick={() => (onForums = true)}
+			>
+				Forums
+				{#if forums.activeCount}<span class="badge">{forums.activeCount}</span>{/if}
+			</button>
+		</div>
 		<div class="head-row">
 			<div class="head-text">
 				<p class="eyebrow">
@@ -270,14 +265,14 @@
 			{/if}
 		</div>
 
-		<div class="pills" role="tablist" aria-label="Filter yips">
+		<div class="pills" role="tablist" aria-label="Filter yips" hidden={onForums}>
 			<span
 				class="ind"
 				aria-hidden="true"
 				style:transform={`translateX(${indicator.left}px)`}
 				style:width={`${indicator.width}px`}
 			></span>
-			{#each PILLS as filter, index (filter.key)}
+			{#each FEEDS_FILTERS as filter, index (filter.key)}
 				<button
 					bind:this={pillEls[index]}
 					class="pill"
@@ -285,7 +280,7 @@
 					id="pill-{filter.key}"
 					aria-controls="pane-{filter.key}"
 					aria-selected={selectedPill === filter.key}
-					onclick={() => choosePill(filter.key)}
+					onclick={() => feeds.setFilter(filter.key)}
 				>
 					{filter.label}
 				</button>
@@ -328,7 +323,7 @@
 				>
 					{#if feeds.status === 'loading'}
 						<p class="empty">Loading{'…'}</p>
-					{:else if itemsFor(filter.key).length === 0}
+					{:else if feeds.panes[filter.key].length === 0}
 						<p class="empty">
 							{feeds.scopeLabel
 								? `Nothing from ${feeds.scopeLabel} here yet.`
@@ -338,66 +333,55 @@
 						</p>
 					{:else}
 						<div class="stack-list">
-							{#each itemsFor(filter.key) as item, index (itemKey(item))}
-								{#if item.kind === 'topic'}
-									<div in:fly={flyIn({ delay: staggerDelay(index) })}>
-										<div class="yip-stack" data-key={item.topic.record.key}>
-											<div class="yip-rail">
-												<div class="yip-fold"><ForumTopicCard topic={item.topic} /></div>
+							{#each feeds.panes[filter.key] as yip, index (yip.key)}
+								<div in:fly={flyIn({ delay: staggerDelay(index) })}>
+									<div class="yip-stack" data-key={yip.key}>
+										<div class="yip-rail">
+											<div class="yip-fold">
+												<YipCard {yip} />
+												{#if isDesktopFirst(yip)}
+													{@const saved = shelf.has(yip.url)}
+													<div class="shelf-bar">
+														<span class="shelf-label">Best on desktop</span>
+														<button
+															class="shelf-btn"
+															aria-pressed={saved}
+															aria-label={saved
+																? `Remove ${yip.title || 'this yip'} from Saved`
+																: `Save ${yip.title || 'this yip'} for later`}
+															onclick={() => saveForLater(yip)}
+														>
+															{saved ? 'Saved' : 'Save for later'}
+														</button>
+													</div>
+												{/if}
+												{#if yip.crosspostGroupId && yip.crossposts && yip.crossposts.length > 1}
+													<div class="crosspost-bar" aria-label="Copies of this post">
+														<span class="crosspost-label">Same post</span>
+														<div class="source-chips">
+															{#each yip.crossposts as copy (copy.key)}
+																<button
+																	class="source-chip"
+																	title={`Open on ${sourceHost(copy)}`}
+																	aria-label={`Open ${sourceLabel(copy)} copy on ${sourceHost(copy)}`}
+																	onclick={() => openCopy(yip, copy)}
+																>
+																	{sourceLabel(copy)}
+																</button>
+															{/each}
+														</div>
+														<button
+															class="separate"
+															onclick={() => feeds.showSeparately(yip.crosspostGroupId!)}
+														>
+															Show separately
+														</button>
+													</div>
+												{/if}
 											</div>
 										</div>
 									</div>
-								{:else}
-									{@const yip = item.yip}
-									<div in:fly={flyIn({ delay: staggerDelay(index) })}>
-										<div class="yip-stack" data-key={yip.key}>
-											<div class="yip-rail">
-												<div class="yip-fold">
-													<YipCard {yip} />
-													{#if isDesktopFirst(yip)}
-														{@const saved = shelf.has(yip.url)}
-														<div class="shelf-bar">
-															<span class="shelf-label">Best on desktop</span>
-															<button
-																class="shelf-btn"
-																aria-pressed={saved}
-																aria-label={saved
-																	? `Remove ${yip.title || 'this yip'} from Saved`
-																	: `Save ${yip.title || 'this yip'} for later`}
-																onclick={() => saveForLater(yip)}
-															>
-																{saved ? 'Saved' : 'Save for later'}
-															</button>
-														</div>
-													{/if}
-													{#if yip.crosspostGroupId && yip.crossposts && yip.crossposts.length > 1}
-														<div class="crosspost-bar" aria-label="Copies of this post">
-															<span class="crosspost-label">Same post</span>
-															<div class="source-chips">
-																{#each yip.crossposts as copy (copy.key)}
-																	<button
-																		class="source-chip"
-																		title={`Open on ${sourceHost(copy)}`}
-																		aria-label={`Open ${sourceLabel(copy)} copy on ${sourceHost(copy)}`}
-																		onclick={() => openCopy(yip, copy)}
-																	>
-																		{sourceLabel(copy)}
-																	</button>
-																{/each}
-															</div>
-															<button
-																class="separate"
-																onclick={() => feeds.showSeparately(yip.crosspostGroupId!)}
-															>
-																Show separately
-															</button>
-														</div>
-													{/if}
-												</div>
-											</div>
-										</div>
-									</div>
-								{/if}
+								</div>
 							{/each}
 							<div class="stack-tail" aria-hidden="true"></div>
 						</div>
@@ -422,10 +406,9 @@
 			<div
 				class="pane"
 				data-pane="forums"
-				role="tabpanel"
-				tabindex="0"
+				role="region"
 				id="pane-forums"
-				aria-labelledby="pill-forums"
+				aria-label="Forums"
 				inert={!onForums}
 				use:cardStack={{ active: onForums }}
 				use:tuckMini
@@ -852,6 +835,64 @@
 		color: var(--muted);
 		font-size: 14.5px;
 		text-align: center;
+	}
+
+	/* Its own `display` would otherwise win over `hidden`. */
+	.pills[hidden] {
+		display: none;
+	}
+
+	/* People or Forums: a quiet pill above the title, the same shape as You's tabs. */
+	.source-switch {
+		display: inline-flex;
+		align-self: flex-start;
+		gap: 4px;
+		margin-bottom: 10px;
+		padding: 3px;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+	}
+
+	.source-switch button {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		min-height: 44px;
+		padding: 0 16px;
+		border: 0;
+		border-radius: 999px;
+		background: none;
+		color: var(--muted);
+		font: inherit;
+		font-size: 14px;
+		font-weight: 600;
+		transition:
+			background var(--dur-s) var(--ease),
+			color var(--dur-s) var(--ease);
+	}
+
+	.source-switch button.on {
+		background: var(--brand-soft);
+		color: var(--brand-ink);
+	}
+
+	.badge {
+		min-width: 20px;
+		padding: 1px 6px;
+		border-radius: 999px;
+		background: var(--brand);
+		color: #fff;
+		font-family: var(--mono);
+		font-size: 11px;
+		font-weight: 500;
+		text-align: center;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.source-switch button {
+			transition: none;
+		}
 	}
 
 	.forums-empty {

@@ -31,3 +31,12 @@ describe('the encrypted store, around its code', () => {
 		expect(manifest).toContain('android:fullBackupContent="@xml/full_backup_content"');
 	});
 });
+
+describe('the Android activity', () => {
+	it('holds portrait on phones and, through Android 16’s opt-out, on tablets too', () => {
+		expect(manifest).toContain('android:screenOrientation="portrait"');
+		expect(manifest).toMatch(
+			/android:name="android\.window\.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"\s+android:value="true"/
+		);
+	});
+});

@@ -131,6 +131,12 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- Feeds has a People | Forums switch at the top instead of a fifth pill: People keeps Everything,
+  Posts, Watch and Listen; Forums shows the topic digest. Forum topics no longer mix into
+  Everything.
+- The app stays in portrait, on phones and tablets.
+- A forum's long category descriptions wrap and are cut at 200 characters instead of running off
+  the screen.
 - A track or picture a creator links from their own page can now be kept even when the file lives
   on another host, such as File Garden. Pasted links still have to be on their own site.
 - You opens on Following, with the Library and Liked & not for me as tabs beside it. A person's

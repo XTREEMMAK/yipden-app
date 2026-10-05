@@ -98,11 +98,14 @@ test.describe('forums', () => {
 		await expect(page.getByText('Following Discourse Meta')).toBeVisible({ timeout: 30_000 });
 
 		await page.getByRole('button', { name: 'See its topics in Feeds' }).click();
-		await expect(page.getByRole('tab', { name: 'Forums' })).toHaveAttribute(
-			'aria-selected',
+		const source = page.getByRole('radiogroup', { name: 'What to read' });
+		await expect(source.getByRole('radio', { name: /^Forums/ })).toHaveAttribute(
+			'aria-checked',
 			'true'
 		);
-		const pane = page.getByRole('tabpanel', { name: 'Forums' });
+		// The people's four pills step aside while Forums is shown.
+		await expect(page.getByRole('tablist', { name: 'Filter yips' })).toBeHidden();
+		const pane = page.getByRole('region', { name: 'Forums' });
 		const cards = pane.locator('.topic');
 		await expect(cards).toHaveCount(4, { timeout: 20_000 });
 		await expect(page.getByRole('heading', { level: 2 })).toContainText('active topics · 1 forum');
@@ -116,19 +119,42 @@ test.describe('forums', () => {
 			.toEqual([expect.stringMatching(new RegExp(`^${BASE}/t/[^/]+/\\d+$`))]);
 		await expect(pane.locator('.topic', { hasText: firstTitle })).toContainText('No new replies');
 
-		// Forum topics stay out of Everything unless asked for.
-		await page.getByRole('tab', { name: 'Everything' }).click();
+		// People is the other side of the switch: the four pills, and no forum topic among them.
+		await source.getByRole('radio', { name: 'People' }).click();
+		const pills = page.getByRole('tablist', { name: 'Filter yips' });
+		await expect(pills.getByRole('tab')).toHaveText(['Everything', 'Posts', 'Watch', 'Listen']);
 		await expect(page.getByRole('tabpanel', { name: 'Everything' }).locator('.topic')).toHaveCount(
 			0
 		);
+	});
 
-		// ...and in it, by time, once the reader turns that on.
-		await page.goto('/you/settings');
-		await page.getByRole('switch', { name: 'Show forum topics in Everything' }).click();
-		await page.goto('/feeds');
-		await expect(page.getByRole('tabpanel', { name: 'Everything' }).locator('.topic')).toHaveCount(
-			4
+	test('a long category description stays inside the screen, cut at 200 characters', async ({
+		page
+	}) => {
+		await forumRoutes(page);
+		const categories = JSON.parse(fixture('categories.json'));
+		categories.category_list.categories[0].description_text =
+			'A-very-long-unbroken-word-'.repeat(12) + ' and then a great deal more prose. '.repeat(10);
+		await page.route(`${BASE}/categories.json?include_subcategories=true`, (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify(categories)
+			})
 		);
+		await findForum(page);
+		const description = page.locator('.cdesc').first();
+		await expect(description).toBeVisible({ timeout: 30_000 });
+		await expect(description).toHaveText(/…$/);
+		expect(((await description.textContent()) ?? '').length).toBeLessThanOrEqual(201);
+
+		const viewport = page.viewportSize()!.width;
+		for (const box of [
+			await page.locator('fieldset.found').boundingBox(),
+			await description.boundingBox()
+		]) {
+			expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewport);
+		}
 	});
 
 	test('says a members-only forum is one, and follows nothing', async ({ page }) => {

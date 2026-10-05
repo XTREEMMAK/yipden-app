@@ -42,7 +42,6 @@ const SETTING_KEYS: SettingKey[] = [
 	'sitesInApp',
 	'explored',
 	'layoutOverrides',
-	'forumsInEverything',
 	'forumQuietDays'
 ];
 

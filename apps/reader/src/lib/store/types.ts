@@ -250,7 +250,6 @@ export type SettingKey =
 	| 'readerTracks'
 	| 'layoutOverrides'
 	| 'sitesInApp'
-	| 'forumsInEverything'
 	| 'forumQuietDays';
 
 /**

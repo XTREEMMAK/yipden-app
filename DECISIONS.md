@@ -2939,3 +2939,28 @@ their own page was refused for not being on their domain.
 - **Re-checks** treat such a file like any other. Gone if the file or the page's link goes, never
   host-verified.
 - The rest of the capture rules (2026-10-04, night) are unchanged.
+
+## 2026-10-05 (late) — People or Forums; portrait; long forum descriptions
+
+- **Feeds reads two kinds of source, and says so.** Everything, Posts, Watch and Listen are all
+  about people. A forum is a place: a combiner of topics from many places, still IndieWeb, but
+  not a person.
+  - **The switch:** a People | Forums switch at the top of Feeds (decided with the developer)
+    replaces the fifth pill, which ran off the edge of a phone.
+  - **People** keeps the four pills, the four that sit comfortably on a phone.
+  - **Forums** hides them and shows the digest, with a badge on the switch for topics with
+    something new.
+  - **Not mixed:** forum topics never mix into Everything. The "Forum topics in Everything" setting
+    is gone, and a backup that still carries it simply has it ignored.
+  - **Unchanged:** `/feeds?pane=forums` still opens on Forums.
+- **Portrait, on phones and tablets** (decided with the developer). The layout is a phone column;
+  a tablet held upright at least shows it as designed. The activity sets
+  `screenOrientation="portrait"`. Android 16 ignores that on large screens for apps targeting API
+  36, so the activity also sets Google's documented opt-out,
+  `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY`. That property stops working at API 37, by which
+  time tablets need a layout of their own. A guard test keeps both.
+- **A forum's own words stay inside the screen.** On discourse.32bit.cafe, long category
+  descriptions pushed the toggle list past the right edge. The cause is a fieldset quirk: a
+  `<fieldset>` is otherwise as wide as its widest unbroken line, and the descriptions were on a
+  single unwrapped line. The fieldset now has `min-width: 0`. Descriptions sit on their own
+  wrapping line, cut at 200 characters with an ellipsis, as is the forum's own description.
