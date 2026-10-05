@@ -2819,3 +2819,34 @@ theirs.
   - **Resume** moved to the ring's name row.
   - **Saved views:** a view saved before this is read the same as before (`showOf`, which maps the
     old `hideExplored`).
+
+## 2026-10-05 (later) — Forums, part 1: reading Discourse in `packages/feeds`
+
+The library and forums brief, Part 2, the package half (`packages/feeds/src/forum.ts`). The app
+half follows in its own commit.
+
+- **Recognizing a forum** from any link on it: a page's `generator` meta naming Discourse, then the
+  forum's public `/site/basic-info.json` to confirm it and name it (title, description, the small
+  logo first). An older forum without that answers through `/about.json`.
+  - **The forum's root** comes from the page's OpenSearch link, which Discourse puts at the root,
+    so a forum in a subfolder (`club.example/forum`) is handled. Without that link, the page's
+    origin stands in.
+  - **A category link** offers that category first, read from `/c/<slug>/<id>`. A topic or profile
+    link only identifies the forum.
+- **Members-only:** `login_required` in basic-info, or a 401 or 403 on the forum's pages or lists,
+  gives a typed `members-only` and nothing more is asked of it. No credentials, ever.
+- **Categories** from `/categories.json?include_subcategories=true`, each subcategory after its
+  parent. A `read_restricted` category is never listed (a signed-out reader cannot open it).
+- **Topics** from `/latest.json` or `/c/<id>.json` (Discourse redirects that to the slugged
+  address, which the polite client follows), with the list's `.rss` when the JSON is missing or
+  is not JSON. A category that answers 404 or 410 is `gone`.
+  - **Counting:** a topic's replies are `posts_count - 1`. "New since you looked" and the post to
+    open at count by `highest_post_number`, since Discourse opens `/t/<slug>/<id>/<n>` at post n.
+  - **What RSS lacks:** reply counts, so a topic read from RSS counts as having none.
+- **Politeness:** the same `FeedHttp` as feeds (robots.txt, the honest agent, size and time caps,
+  redirect checks, conditional GET), at a slower pace per host, 3 seconds rather than 1
+  (`FORUM_HOST_INTERVAL_MS`). Many forums are one small self-hosted server.
+- **The fixtures** are real responses recorded from meta.discourse.org on 2026-10-05, Discourse's
+  own public forum, trimmed to a few entries each. The members-only variant is that file with
+  `login_required` set, and the restricted category is a copy marked `read_restricted`.
+- **Not touched:** the ring, `ring.json` and `ring-client`.

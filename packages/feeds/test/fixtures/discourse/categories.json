@@ -1,0 +1,113 @@
+{
+  "category_list": {
+    "can_create_category": false,
+    "categories": [
+      {
+        "id": 207,
+        "name": "News and Events",
+        "slug": "news-and-events",
+        "topic_count": 2,
+        "post_count": 2,
+        "description_text": "Stay informed about Discourse \u2013 the product, the company, and the community.",
+        "read_restricted": false,
+        "color": "00AEEF",
+        "subcategory_ids": [67, 13, 157, 216],
+        "topic_url": "/t/about-the-news-and-events-category/396990",
+        "subcategory_list": [
+          {
+            "id": 67,
+            "name": "Announcements",
+            "slug": "announcements",
+            "topic_count": 634,
+            "post_count": 8108,
+            "description_text": "Important updates from the Discourse team.",
+            "read_restricted": false,
+            "color": "ED207B",
+            "subcategory_ids": [],
+            "topic_url": "/t/about-the-announcements-category/68629",
+            "parent_category_id": 207
+          },
+          {
+            "id": 13,
+            "name": "Blog",
+            "slug": "blog",
+            "topic_count": 251,
+            "post_count": 1791,
+            "description_text": "For discussion about posts on the official Discourse Blog. Comments here also appear at the bottom of each blog post.",
+            "read_restricted": false,
+            "color": "8080ff",
+            "subcategory_ids": [],
+            "topic_url": "/t/about-the-blog-category/5250",
+            "parent_category_id": 207
+          }
+        ]
+      },
+      {
+        "id": 65,
+        "name": "Community Building",
+        "slug": "community-building",
+        "topic_count": 1071,
+        "post_count": 11401,
+        "description_text": "For discussions about launching, building, growing and managing a thriving community.",
+        "read_restricted": false,
+        "color": "12A89D",
+        "subcategory_ids": [148, 35, 63, 219],
+        "topic_url": "/t/about-the-community-building-category/67750",
+        "subcategory_list": [
+          {
+            "id": 148,
+            "name": "Data & reporting",
+            "slug": "data-reporting",
+            "topic_count": 768,
+            "post_count": 3448,
+            "description_text": "This is the category for everything related to Discourse data and reporting. Here, you can discuss dashboard reports, custom badge queries, data-explorer queries and any other analytic add-ons.",
+            "read_restricted": false,
+            "color": "D24899",
+            "subcategory_ids": [],
+            "topic_url": "/t/about-the-data-reporting-category/274664",
+            "parent_category_id": 65
+          },
+          {
+            "id": 35,
+            "name": "Praise",
+            "slug": "praise",
+            "topic_count": 354,
+            "post_count": 1272,
+            "description_text": "Have something nice to say about Discourse? We would love to hear it",
+            "read_restricted": false,
+            "color": "9EB83B",
+            "subcategory_ids": [],
+            "topic_url": "/t/about-the-praise-category/30010",
+            "parent_category_id": 65
+          }
+        ]
+      },
+      {
+        "id": 124,
+        "name": "General",
+        "slug": "general",
+        "topic_count": 265,
+        "post_count": 2186,
+        "description_text": "For open discussions among the community that don\u2019t belong somewhere else",
+        "read_restricted": false,
+        "color": "25AAE2",
+        "subcategory_ids": [],
+        "topic_url": "/t/about-the-general-category/237517",
+        "subcategory_list": []
+      },
+      {
+        "id": 999,
+        "name": "Staff",
+        "slug": "staff",
+        "topic_count": 2,
+        "post_count": 2,
+        "description_text": "Stay informed about Discourse \u2013 the product, the company, and the community.",
+        "read_restricted": true,
+        "color": "00AEEF",
+        "subcategory_ids": [67, 13, 157, 216],
+        "topic_url": "/t/about-the-news-and-events-category/396990",
+        "subcategory_list": []
+      }
+    ]
+  }
+}

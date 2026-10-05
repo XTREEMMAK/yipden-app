@@ -1,0 +1,14 @@
+{
+  "logo_url": "https://global.discourse-cdn.com/meta/original/3X/a/d/ad2526334012b2ad0c3421f9b6dd94bae2ede52f.svg",
+  "logo_small_url": "https://global.discourse-cdn.com/meta/original/4X/c/1/1/c11a44f8b25bb161fb73a1aa3341788fd626bdb2.png",
+  "apple_touch_icon_url": "https://global.discourse-cdn.com/meta/optimized/4X/b/1/2/b12885a6f292ceffc222608846855f25a272835b_2_180x180.jpeg",
+  "favicon_url": "https://global.discourse-cdn.com/meta/optimized/3X/b/3/b33be9538df3547fcf9d1a51a4637d77392ac6f9_2_32x32.png",
+  "title": "Discourse Meta",
+  "description": "Learn about and discuss Discourse, the next-generation open-source forum software.",
+  "header_primary_color": "333",
+  "header_background_color": "fff",
+  "login_required": false,
+  "locale": "en",
+  "include_in_discourse_discover": true,
+  "mobile_logo_url": "https://global.discourse-cdn.com/meta/original/3X/e/c/ecc92a52ee7353e03d5c0d1ea6521ce4541d9c25.png"
+}

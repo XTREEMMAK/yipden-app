@@ -64,6 +64,22 @@ export { discoverFeeds, type DiscoverOptions } from './discover.js';
 
 export { sha256Hex, stableYipId } from './hash.js';
 export {
+	categoryIdFromUrl,
+	firstUnreadUrl,
+	FORUM_HOST_INTERVAL_MS,
+	forumHttp,
+	listCategories,
+	listTopics,
+	probeForum,
+	readForumPage,
+	topicUrl,
+	type Forum,
+	type ForumCategory,
+	type ForumProbe,
+	type ForumTopic,
+	type TopicsResult
+} from './forum.js';
+export {
 	bareHost,
 	headerNoIndex,
 	isOnOwnSite,
