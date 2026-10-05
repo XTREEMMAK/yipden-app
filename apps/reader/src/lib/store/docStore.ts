@@ -4,6 +4,8 @@ import type { RecordBackend } from './records.js';
 import type {
 	AddFeedResult,
 	Feed,
+	ForumFollow,
+	ForumTopicRecord,
 	PeaksRecord,
 	Person,
 	ReferenceCheck,
@@ -293,6 +295,79 @@ export class DocStore implements Store {
 		return this.tx(async (tx) => {
 			const existing = await tx.get<Reference>('references', id);
 			if (existing) await tx.put('references', id, { ...existing, ...check });
+		});
+	}
+	// ---------- forums ----------
+
+	async listForumFollows(): Promise<ForumFollow[]> {
+		const follows = await this.tx<ForumFollow[]>((tx) => tx.all<ForumFollow, 'forums'>('forums'));
+		return follows.sort((a, b) => a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
+	}
+
+	putForumFollow(follow: ForumFollow): Promise<void> {
+		return this.tx((tx) => tx.put('forums', follow.id, follow));
+	}
+
+	removeForumFollow(id: string): Promise<void> {
+		return this.tx(async (tx) => {
+			await tx.delete('forums', id);
+			for (const row of await tx.fields('forumTopics', { eq: { followId: id } })) {
+				await tx.delete('forumTopics', row.key as string);
+			}
+		});
+	}
+
+	async listForumTopics(): Promise<ForumTopicRecord[]> {
+		const topics = await this.tx<ForumTopicRecord[]>((tx) =>
+			tx.all<ForumTopicRecord, 'forumTopics'>('forumTopics')
+		);
+		return topics.sort(
+			(a, b) =>
+				(b.lastActivityAt ?? '').localeCompare(a.lastActivityAt ?? '') || a.key.localeCompare(b.key)
+		);
+	}
+
+	putForumTopics(topics: ForumTopicRecord[]): Promise<void> {
+		if (!topics.length) return Promise.resolve();
+		return this.tx(async (tx) => {
+			for (const topic of topics) {
+				const existing = await tx.get<ForumTopicRecord>('forumTopics', topic.key);
+				await tx.put(
+					'forumTopics',
+					topic.key,
+					existing
+						? {
+								...topic,
+								firstSeenAt: existing.firstSeenAt,
+								...(existing.seenPostNumber !== undefined
+									? { seenPostNumber: existing.seenPostNumber }
+									: {}),
+								...(existing.seenAt ? { seenAt: existing.seenAt } : {})
+							}
+						: topic
+				);
+			}
+		});
+	}
+
+	markForumTopicSeen(key: string, postNumber: number, at: string): Promise<void> {
+		return this.tx(async (tx) => {
+			const topic = await tx.get<ForumTopicRecord>('forumTopics', key);
+			if (topic)
+				await tx.put('forumTopics', key, { ...topic, seenPostNumber: postNumber, seenAt: at });
+		});
+	}
+
+	pruneForumTopics(cutoff: string): Promise<number> {
+		return this.tx(async (tx) => {
+			let removed = 0;
+			for (const topic of await tx.all<ForumTopicRecord, 'forumTopics'>('forumTopics')) {
+				if ((topic.lastActivityAt ?? topic.firstSeenAt) < cutoff) {
+					await tx.delete('forumTopics', topic.key);
+					removed += 1;
+				}
+			}
+			return removed;
 		});
 	}
 }

@@ -31,6 +31,7 @@
 	import { verdictKey, verdicts } from '$lib/verdicts.svelte.js';
 	import { explored } from '$lib/explored.svelte.js';
 	import { page } from '$app/state';
+	import { forums } from '$lib/forums.svelte.js';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 
 	/**
@@ -63,6 +64,7 @@
 		void creatorNotes.load();
 		void you.load();
 		void shelf.load();
+		void forums.load();
 		// Their own picks come from the ring; a cached ring paints at once, as in Discover.
 		if (!ring.all.length) void ring.load();
 	});
@@ -821,6 +823,18 @@
 						{/each}
 					{/if}
 				</div>
+				<!-- Forums are not people, so they are a screen of their own, one tap from here. -->
+				<a class="forums-link" href="/you/forums">
+					<span class="tt">
+						<b>Forums</b>
+						<small>
+							{forums.forums.length
+								? `${forums.forums.length} followed · ${forums.activeCount} active ${forums.activeCount === 1 ? 'topic' : 'topics'}`
+								: 'Follow a public forum, whole or by category'}
+						</small>
+					</span>
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+				</a>
 			</div>
 		{/if}
 	</div>
@@ -971,6 +985,45 @@
 		font-family: var(--mono);
 		font-size: 11px;
 		font-weight: 400;
+	}
+
+	.forums-link {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		min-height: 56px;
+		padding: 10px 14px;
+		border: 1px solid var(--line);
+		border-radius: var(--r-group);
+		background: var(--surface);
+		color: var(--ink);
+		text-decoration: none;
+	}
+
+	.forums-link .tt {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.forums-link b,
+	.forums-link small {
+		display: block;
+	}
+
+	.forums-link small {
+		color: var(--muted);
+		font-size: 12.5px;
+	}
+
+	.forums-link svg {
+		flex: none;
+		width: 18px;
+		height: 18px;
+		fill: none;
+		stroke: var(--muted);
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
 	}
 
 	/* What an open row holds, in three named parts rather than one long run. */

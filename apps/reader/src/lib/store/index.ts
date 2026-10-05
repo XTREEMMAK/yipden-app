@@ -30,6 +30,8 @@ export type {
 	FeedError,
 	FeedProblem,
 	FeedProvenance,
+	ForumFollow,
+	ForumTopicRecord,
 	PeaksRecord,
 	Person,
 	ReferenceCheck,

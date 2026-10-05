@@ -6,7 +6,7 @@ import { EncryptedIdbBackend } from './encryptedIdbBackend.js';
 import { SqlBackend } from './sqlBackend.js';
 import { sqljsDriver } from './testing/sqljs.js';
 import { feed, person, reference, shelfItem, yip } from './testing/fixtures.js';
-import type { Store } from './types.js';
+import type { ForumFollow, ForumTopicRecord, Store } from './types.js';
 
 /**
  * What every `Store` must do, run against both backends: SQLite as on the phone, and encrypted
@@ -380,6 +380,81 @@ describe.each(implementations)('%s', (_name, make) => {
 			await store.unfollow('person-lena');
 			await store.clearYips();
 			expect(await store.listReferences()).toHaveLength(1);
+		});
+	});
+	describe('forums', () => {
+		const follow = (overrides: Partial<ForumFollow> = {}): ForumFollow => ({
+			id: 'https://forum.example',
+			forumUrl: 'https://forum.example',
+			title: 'A Forum',
+			categoryId: null,
+			followedAt: '2026-10-05T00:00:00.000Z',
+			refreshHours: 6,
+			status: 'ok',
+			failures: 0,
+			...overrides
+		});
+		const topic = (overrides: Partial<ForumTopicRecord> = {}): ForumTopicRecord => ({
+			key: 'https://forum.example#1',
+			forumUrl: 'https://forum.example',
+			followId: 'https://forum.example',
+			topicId: 1,
+			title: 'A topic',
+			url: 'https://forum.example/t/a-topic/1',
+			categoryId: 3,
+			replyCount: 4,
+			highestPostNumber: 5,
+			lastActivityAt: '2026-10-05T10:00:00.000Z',
+			pinned: false,
+			closed: false,
+			firstSeenAt: '2026-10-05T11:00:00.000Z',
+			...overrides
+		});
+
+		it('keeps follows, and takes a follow’s topics away with it', async () => {
+			await store.putForumFollow(follow());
+			await store.putForumFollow(
+				follow({ id: 'https://forum.example#c3', categoryId: 3, title: 'B' })
+			);
+			await store.putForumTopics([
+				topic(),
+				topic({ key: 'https://forum.example#2', topicId: 2, followId: 'https://forum.example#c3' })
+			]);
+			await store.removeForumFollow('https://forum.example');
+			expect((await store.listForumFollows()).map((entry) => entry.id)).toEqual([
+				'https://forum.example#c3'
+			]);
+			expect((await store.listForumTopics()).map((entry) => entry.topicId)).toEqual([2]);
+		});
+
+		it('keeps what the reader saw when a topic comes back with more replies', async () => {
+			await store.putForumTopics([topic()]);
+			await store.markForumTopicSeen('https://forum.example#1', 5, '2026-10-05T12:00:00.000Z');
+			await store.putForumTopics([
+				topic({ replyCount: 9, highestPostNumber: 10, firstSeenAt: '2026-10-06T00:00:00.000Z' })
+			]);
+			const [stored] = await store.listForumTopics();
+			expect(stored).toMatchObject({
+				replyCount: 9,
+				highestPostNumber: 10,
+				seenPostNumber: 5,
+				firstSeenAt: '2026-10-05T11:00:00.000Z'
+			});
+		});
+
+		it('lists topics by latest activity, and drops the quiet ones with their read state', async () => {
+			await store.putForumTopics([
+				topic({ key: 'k-old', topicId: 1, lastActivityAt: '2026-09-01T00:00:00.000Z' }),
+				topic({ key: 'k-new', topicId: 2, lastActivityAt: '2026-10-05T00:00:00.000Z' }),
+				topic({ key: 'k-mid', topicId: 3, lastActivityAt: '2026-10-01T00:00:00.000Z' })
+			]);
+			expect((await store.listForumTopics()).map((entry) => entry.key)).toEqual([
+				'k-new',
+				'k-mid',
+				'k-old'
+			]);
+			expect(await store.pruneForumTopics('2026-09-21T00:00:00.000Z')).toBe(1);
+			expect((await store.listForumTopics()).map((entry) => entry.key)).toEqual(['k-new', 'k-mid']);
 		});
 	});
 });

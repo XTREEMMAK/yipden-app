@@ -11,6 +11,7 @@
 	import { you } from '$lib/you.svelte.js';
 	import { shelf } from '$lib/shelf.svelte.js';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
+	import { forums } from '$lib/forums.svelte.js';
 	import { downloadTextFile, pickTextFile } from '$lib/platform/download.js';
 	import { createBackup, parseBackup, restoreBackup, type BackupPreview } from '$lib/backup.js';
 	import { toast } from '$lib/toast.svelte.js';
@@ -88,14 +89,16 @@
 		try {
 			const text = await pickTextFile('.opml,.xml,text/xml,text/x-opml');
 			if (!text) return;
-			const { people, feeds, saved } = await you.importOpml(text);
-			const shelved = saved ? `${saved} saved ${saved === 1 ? 'link' : 'links'}` : '';
+			const { people, feeds, saved, forums: forumCount } = await you.importOpml(text);
+			const parts = [
+				people
+					? `${people} ${people === 1 ? 'person' : 'people'}, ${feeds} ${feeds === 1 ? 'feed' : 'feeds'}`
+					: '',
+				forumCount ? `${forumCount} forum ${forumCount === 1 ? 'follow' : 'follows'}` : '',
+				saved ? `${saved} saved ${saved === 1 ? 'link' : 'links'}` : ''
+			].filter(Boolean);
 			toast.show(
-				people === 0 && !saved
-					? 'Nothing new to import from that file.'
-					: people === 0
-						? `Added ${shelved} to Saved.`
-						: `Imported ${people} ${people === 1 ? 'person' : 'people'}, ${feeds} ${feeds === 1 ? 'feed' : 'feeds'}${shelved ? `, ${shelved}` : ''}.`
+				parts.length ? `Imported ${parts.join(', ')}.` : 'Nothing new to import from that file.'
 			);
 		} catch {
 			toast.show('Could not read that file as OPML.');
@@ -141,11 +144,12 @@
 			await you.load();
 			await shelf.load();
 			await creatorNotes.reload();
+			await forums.reload();
 			backupPreview = null;
 			theme.hydrate();
 			const skipped = report.peopleSkipped + report.feedsSkipped;
 			toast.show(
-				`Restored ${report.peopleAdded} people, ${report.feedsAdded} sources, ${report.yipsAdded} cached yips${report.shelfAdded ? `, ${report.shelfAdded} Shelf links` : ''}${report.referencesAdded ? `, ${report.referencesAdded} things you kept from creators’ pages` : ''}${skipped ? `; skipped ${skipped} conflicts` : ''}.`
+				`Restored ${report.peopleAdded} people, ${report.feedsAdded} sources, ${report.yipsAdded} cached yips${report.shelfAdded ? `, ${report.shelfAdded} Shelf links` : ''}${report.referencesAdded ? `, ${report.referencesAdded} things you kept from creators’ pages` : ''}${report.forumsAdded ? `, ${report.forumsAdded} forum follows` : ''}${skipped ? `; skipped ${skipped} conflicts` : ''}.`
 			);
 		} catch (cause) {
 			toast.show(
@@ -292,6 +296,18 @@
 						label="Open creators' sites in YipDen"
 						checked={prefs.sitesInApp}
 						onchange={(on) => prefs.setSitesInApp(on)}
+					/>
+				</div>
+				<div class="srow">
+					<span class="tt">
+						<b>Forum topics in Everything</b>
+						<small>Off: forum topics show only under Forums</small>
+					</span>
+					<Switch
+						id="forums-in-everything"
+						label="Show forum topics in Everything"
+						checked={prefs.forumsInEverything}
+						onchange={(on) => prefs.setForumsInEverything(on)}
 					/>
 				</div>
 				<div class="srow slider-row">

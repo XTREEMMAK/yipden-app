@@ -179,6 +179,60 @@ export interface VerdictRecord {
 	at: string;
 }
 
+/**
+ * A followed forum, or one category of it. Forums stand on their own: never a person's source,
+ * never in the ring. Following a whole forum and a category of it at once is not offered.
+ */
+export interface ForumFollow {
+	/** `forumUrl`, or `forumUrl#c<categoryId>` for one category. */
+	id: string;
+	/** The forum's root, no trailing slash. */
+	forumUrl: string;
+	title: string;
+	description?: string;
+	logoUrl?: string;
+	/** Null for the whole forum. */
+	categoryId: number | null;
+	categoryName?: string;
+	/** Names for the categories its topics come from, read when it was followed or edited. */
+	categoryNames?: Record<string, string>;
+	followedAt: string;
+	/** How often it is checked by itself. A pull to refresh on Forums checks it regardless. */
+	refreshHours: number;
+	lastCheckedAt?: string;
+	/** What the last check returned for the next one, unread here. */
+	cursor?: string;
+	status: 'ok' | 'members-only' | 'gone' | 'unreachable';
+	failures: number;
+}
+
+/**
+ * One topic in the forums digest, with what the reader has seen of it. Transient: dropped, with
+ * its read state, once it has been quiet for the reader's window (14 days unless changed).
+ */
+export interface ForumTopicRecord {
+	/** `forumUrl#<topicId>`. */
+	key: string;
+	forumUrl: string;
+	/** The follow whose check brought it in, so unfollowing takes it away. */
+	followId: string;
+	topicId: number;
+	title: string;
+	url: string;
+	categoryId: number | null;
+	replyCount: number;
+	highestPostNumber: number;
+	/** ISO. */
+	lastActivityAt: string | null;
+	pinned: boolean;
+	closed: boolean;
+	/** When YipDen first saw it. */
+	firstSeenAt: string;
+	/** The newest post the reader had when they last opened it; absent until they do. */
+	seenPostNumber?: number;
+	seenAt?: string;
+}
+
 export type SettingKey =
 	| 'lastRefreshAt'
 	| 'includeExplicit'
@@ -195,7 +249,9 @@ export type SettingKey =
 	| 'ringViews'
 	| 'readerTracks'
 	| 'layoutOverrides'
-	| 'sitesInApp';
+	| 'sitesInApp'
+	| 'forumsInEverything'
+	| 'forumQuietDays';
 
 /**
  * Cached waveform peaks, keyed by media URL and ETag so a track is decoded at most once.
@@ -267,6 +323,18 @@ export interface Store {
 	removeReference(id: string): Promise<void>;
 	/** What a re-check found. Leaves everything else about the reference as it was. */
 	updateReferenceCheck(id: string, check: ReferenceCheck): Promise<void>;
+
+	listForumFollows(): Promise<ForumFollow[]>;
+	putForumFollow(follow: ForumFollow): Promise<void>;
+	/** The follow and the topics its checks brought in. */
+	removeForumFollow(id: string): Promise<void>;
+	/** Newest activity first. */
+	listForumTopics(): Promise<ForumTopicRecord[]>;
+	/** A topic seen again keeps what the reader had seen of it, and when YipDen first saw it. */
+	putForumTopics(topics: ForumTopicRecord[]): Promise<void>;
+	markForumTopicSeen(key: string, postNumber: number, at: string): Promise<void>;
+	/** Drop topics quiet since before `cutoff` (ISO), and what was seen of them. */
+	pruneForumTopics(cutoff: string): Promise<number>;
 }
 
 export type ReferenceCheck = Pick<Reference, 'status' | 'checkedAt'> &

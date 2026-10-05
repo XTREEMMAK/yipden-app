@@ -23,6 +23,9 @@
 	import Toast from '$components/Toast.svelte';
 	import RingMemberCard from '$components/RingMemberCard.svelte';
 	import FeedsFilterSheet from '$components/FeedsFilterSheet.svelte';
+	import ForumTopicCard from '$components/ForumTopicCard.svelte';
+	import { forums, type DigestTopic } from '$lib/forums.svelte.js';
+	import { page } from '$app/state';
 
 	/**
 	 * Feeds: everything followed, merged and reverse chronological, in four panes a reader
@@ -32,14 +35,54 @@
 	 */
 
 	let scopeSheetOpen = $state(false);
-	let scopeButton: HTMLButtonElement | undefined;
+	let scopeButton = $state<HTMLButtonElement | undefined>(undefined);
 
 	function closeScopeSheet() {
 		scopeSheetOpen = false;
 		scopeButton?.focus();
 	}
 
-	let filterIndex = $derived(FEEDS_FILTERS.findIndex((filter) => filter.key === feeds.filter));
+	/**
+	 * Forums is a fifth pane beside the four yip filters: one card per topic of the forums followed,
+	 * a separate source with its own count. Its topics stay out of Everything unless the reader
+	 * turns that on in Settings.
+	 */
+	let onForums = $state(false);
+	const PILLS = [...FEEDS_FILTERS, { key: 'forums', label: 'Forums' }] as const;
+	let selectedPill = $derived(onForums ? 'forums' : feeds.filter);
+	let filterIndex = $derived(
+		onForums
+			? FEEDS_FILTERS.length
+			: FEEDS_FILTERS.findIndex((filter) => filter.key === feeds.filter)
+	);
+
+	function choosePill(key: (typeof PILLS)[number]['key']) {
+		if (key === 'forums') {
+			onForums = true;
+			return;
+		}
+		onForums = false;
+		feeds.setFilter(key);
+	}
+
+	$effect(() => {
+		if (page.url.searchParams.get('pane') === 'forums') onForums = true;
+	});
+
+	type PaneItem = { kind: 'yip'; yip: FeedYip } | { kind: 'topic'; topic: DigestTopic };
+
+	/** A pane's cards: its yips, and in Everything the forum topics too, when the reader asked. */
+	function itemsFor(key: FeedsFilterKey): PaneItem[] {
+		const yips: PaneItem[] = feeds.panes[key].map((yip) => ({ kind: 'yip', yip }));
+		if (key !== 'everything' || !prefs.forumsInEverything || !forums.topics.length) return yips;
+		const topics: PaneItem[] = forums.digest.map((topic) => ({ kind: 'topic', topic }));
+		const when = (item: PaneItem) =>
+			(item.kind === 'yip' ? item.yip.publishedAt : item.topic.record.lastActivityAt) ?? '';
+		// Merged by time alone: chronological, as everything in Feeds is.
+		return [...yips, ...topics].sort((a, b) => when(b).localeCompare(when(a)));
+	}
+
+	const itemKey = (item: PaneItem) => (item.kind === 'yip' ? item.yip.key : item.topic.record.key);
 	let viewport: HTMLDivElement | undefined;
 
 	/*
@@ -57,8 +100,8 @@
 	}
 
 	$effect(() => {
-		// feeds.filter is read so this effect reruns when the selection changes.
-		void feeds.filter;
+		// The selection is read so this effect reruns when it changes.
+		void selectedPill;
 		measureIndicator();
 	});
 
@@ -71,6 +114,8 @@
 
 	onMount(() => {
 		void feeds.loadAndCatchUp();
+		// Forums checked only when due: each has its own pace, slower than creators' feeds.
+		void forums.refresh();
 		void shelf.load();
 		void creatorNotes.load();
 		if (!ring.all.length) void ring.load();
@@ -88,7 +133,10 @@
 				hiddenAt = Date.now();
 				return;
 			}
-			if (hiddenAt && Date.now() - hiddenAt > 15 * 60 * 1000) void feeds.refresh();
+			if (hiddenAt && Date.now() - hiddenAt > 15 * 60 * 1000) {
+				void feeds.refresh();
+				void forums.refresh();
+			}
 			hiddenAt = null;
 		};
 		document.addEventListener('visibilitychange', onVisibility);
@@ -105,12 +153,13 @@
 
 	/** A card that scrolled off the top counts as read, when the reader turned that on. */
 	function markScrolledPast(key: string) {
+		if (onForums) return;
 		const yip = feeds.panes[feeds.filter].find((candidate) => candidate.key === key);
 		if (yip && !yip.readAt) void feeds.markRead(yip);
 	}
 
 	function activePane(): HTMLElement | null {
-		return viewport?.querySelector(`[data-pane="${feeds.filter}"]`) ?? null;
+		return viewport?.querySelector(`[data-pane="${selectedPill}"]`) ?? null;
 	}
 
 	function onPullStart(event: PointerEvent) {
@@ -138,7 +187,10 @@
 		pulling = false;
 		const shouldRefresh = pullY >= PULL_THRESHOLD;
 		pullY = 0;
-		if (shouldRefresh) await feeds.refresh();
+		if (!shouldRefresh) return;
+		// A pull on Forums checks every forum now; anywhere else, the forums that are due.
+		if (onForums) await forums.refresh({ force: true });
+		else await Promise.all([feeds.refresh(), forums.refresh()]);
 	}
 
 	function sourceHost(yip: StoredYip): string {
@@ -179,26 +231,43 @@
 						day: 'numeric'
 					})}{#if feeds.scopeLabel}{' · '}<span class="scope">{feeds.scopeLabel}</span>{/if}
 				</p>
-				<h2 class="screen-title">
-					{feeds.unreadCount} new <em>yips</em> from {feeds.peopleCount}
-					{feeds.peopleCount === 1 ? 'person' : 'people'}
-				</h2>
+				{#if onForums}
+					<h2 class="screen-title">
+						{forums.activeCount} active <em>{forums.activeCount === 1 ? 'topic' : 'topics'}</em>
+						{'·'}
+						{forums.forums.length}
+						{forums.forums.length === 1 ? 'forum' : 'forums'}
+					</h2>
+				{:else}
+					<h2 class="screen-title">
+						{feeds.unreadCount} new <em>yips</em> from {feeds.peopleCount}
+						{feeds.peopleCount === 1 ? 'person' : 'people'}
+					</h2>
+				{/if}
 			</div>
-			<button
-				bind:this={scopeButton}
-				class="scope-btn"
-				class:is-active={feeds.scope.kind !== 'all'}
-				onclick={() => (scopeSheetOpen = true)}
-				aria-haspopup="dialog"
-				aria-expanded={scopeSheetOpen}
-				aria-label={feeds.scopeLabel
-					? `Filter your feeds: ${feeds.scopeLabel}`
-					: 'Filter your feeds'}
-			>
-				<svg viewBox="0 0 24 24" aria-hidden="true">
-					<path d="M4 5h16M7 12h10M10 19h4" />
-				</svg>
-			</button>
+			{#if onForums}
+				<a class="scope-btn" href="/you/forums" aria-label="Manage your forums">
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M4 6h10M4 12h16M4 18h7M18 4v4M14 6h8" />
+					</svg>
+				</a>
+			{:else}
+				<button
+					bind:this={scopeButton}
+					class="scope-btn"
+					class:is-active={feeds.scope.kind !== 'all'}
+					onclick={() => (scopeSheetOpen = true)}
+					aria-haspopup="dialog"
+					aria-expanded={scopeSheetOpen}
+					aria-label={feeds.scopeLabel
+						? `Filter your feeds: ${feeds.scopeLabel}`
+						: 'Filter your feeds'}
+				>
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M4 5h16M7 12h10M10 19h4" />
+					</svg>
+				</button>
+			{/if}
 		</div>
 
 		<div class="pills" role="tablist" aria-label="Filter yips">
@@ -208,15 +277,15 @@
 				style:transform={`translateX(${indicator.left}px)`}
 				style:width={`${indicator.width}px`}
 			></span>
-			{#each FEEDS_FILTERS as filter, index (filter.key)}
+			{#each PILLS as filter, index (filter.key)}
 				<button
 					bind:this={pillEls[index]}
 					class="pill"
 					role="tab"
 					id="pill-{filter.key}"
 					aria-controls="pane-{filter.key}"
-					aria-selected={feeds.filter === filter.key}
-					onclick={() => feeds.setFilter(filter.key)}
+					aria-selected={selectedPill === filter.key}
+					onclick={() => choosePill(filter.key)}
 				>
 					{filter.label}
 				</button>
@@ -245,11 +314,11 @@
 					tabindex="0"
 					id="pane-{filter.key}"
 					aria-labelledby="pill-{filter.key}"
-					inert={feeds.filter !== filter.key}
-					use:cardStack={{ active: feeds.filter === filter.key }}
+					inert={selectedPill !== filter.key}
+					use:cardStack={{ active: selectedPill === filter.key }}
 					use:tuckMini
 					use:readOnScroll={{
-						enabled: () => prefs.markReadOnScroll && feeds.filter === filter.key,
+						enabled: () => prefs.markReadOnScroll && selectedPill === filter.key,
 						onRead: markScrolledPast
 					}}
 					onpointerdown={onPullStart}
@@ -259,7 +328,7 @@
 				>
 					{#if feeds.status === 'loading'}
 						<p class="empty">Loading{'…'}</p>
-					{:else if feeds.panes[filter.key].length === 0}
+					{:else if itemsFor(filter.key).length === 0}
 						<p class="empty">
 							{feeds.scopeLabel
 								? `Nothing from ${feeds.scopeLabel} here yet.`
@@ -269,55 +338,66 @@
 						</p>
 					{:else}
 						<div class="stack-list">
-							{#each feeds.panes[filter.key] as yip, index (yip.key)}
-								<div in:fly={flyIn({ delay: staggerDelay(index) })}>
-									<div class="yip-stack" data-key={yip.key}>
-										<div class="yip-rail">
-											<div class="yip-fold">
-												<YipCard {yip} />
-												{#if isDesktopFirst(yip)}
-													{@const saved = shelf.has(yip.url)}
-													<div class="shelf-bar">
-														<span class="shelf-label">Best on desktop</span>
-														<button
-															class="shelf-btn"
-															aria-pressed={saved}
-															aria-label={saved
-																? `Remove ${yip.title || 'this yip'} from Saved`
-																: `Save ${yip.title || 'this yip'} for later`}
-															onclick={() => saveForLater(yip)}
-														>
-															{saved ? 'Saved' : 'Save for later'}
-														</button>
-													</div>
-												{/if}
-												{#if yip.crosspostGroupId && yip.crossposts && yip.crossposts.length > 1}
-													<div class="crosspost-bar" aria-label="Copies of this post">
-														<span class="crosspost-label">Same post</span>
-														<div class="source-chips">
-															{#each yip.crossposts as copy (copy.key)}
-																<button
-																	class="source-chip"
-																	title={`Open on ${sourceHost(copy)}`}
-																	aria-label={`Open ${sourceLabel(copy)} copy on ${sourceHost(copy)}`}
-																	onclick={() => openCopy(yip, copy)}
-																>
-																	{sourceLabel(copy)}
-																</button>
-															{/each}
-														</div>
-														<button
-															class="separate"
-															onclick={() => feeds.showSeparately(yip.crosspostGroupId!)}
-														>
-															Show separately
-														</button>
-													</div>
-												{/if}
+							{#each itemsFor(filter.key) as item, index (itemKey(item))}
+								{#if item.kind === 'topic'}
+									<div in:fly={flyIn({ delay: staggerDelay(index) })}>
+										<div class="yip-stack" data-key={item.topic.record.key}>
+											<div class="yip-rail">
+												<div class="yip-fold"><ForumTopicCard topic={item.topic} /></div>
 											</div>
 										</div>
 									</div>
-								</div>
+								{:else}
+									{@const yip = item.yip}
+									<div in:fly={flyIn({ delay: staggerDelay(index) })}>
+										<div class="yip-stack" data-key={yip.key}>
+											<div class="yip-rail">
+												<div class="yip-fold">
+													<YipCard {yip} />
+													{#if isDesktopFirst(yip)}
+														{@const saved = shelf.has(yip.url)}
+														<div class="shelf-bar">
+															<span class="shelf-label">Best on desktop</span>
+															<button
+																class="shelf-btn"
+																aria-pressed={saved}
+																aria-label={saved
+																	? `Remove ${yip.title || 'this yip'} from Saved`
+																	: `Save ${yip.title || 'this yip'} for later`}
+																onclick={() => saveForLater(yip)}
+															>
+																{saved ? 'Saved' : 'Save for later'}
+															</button>
+														</div>
+													{/if}
+													{#if yip.crosspostGroupId && yip.crossposts && yip.crossposts.length > 1}
+														<div class="crosspost-bar" aria-label="Copies of this post">
+															<span class="crosspost-label">Same post</span>
+															<div class="source-chips">
+																{#each yip.crossposts as copy (copy.key)}
+																	<button
+																		class="source-chip"
+																		title={`Open on ${sourceHost(copy)}`}
+																		aria-label={`Open ${sourceLabel(copy)} copy on ${sourceHost(copy)}`}
+																		onclick={() => openCopy(yip, copy)}
+																	>
+																		{sourceLabel(copy)}
+																	</button>
+																{/each}
+															</div>
+															<button
+																class="separate"
+																onclick={() => feeds.showSeparately(yip.crosspostGroupId!)}
+															>
+																Show separately
+															</button>
+														</div>
+													{/if}
+												</div>
+											</div>
+										</div>
+									</div>
+								{/if}
 							{/each}
 							<div class="stack-tail" aria-hidden="true"></div>
 						</div>
@@ -338,6 +418,71 @@
 					{/if}
 				</div>
 			{/each}
+
+			<div
+				class="pane"
+				data-pane="forums"
+				role="tabpanel"
+				tabindex="0"
+				id="pane-forums"
+				aria-labelledby="pill-forums"
+				inert={!onForums}
+				use:cardStack={{ active: onForums }}
+				use:tuckMini
+				onpointerdown={onPullStart}
+				onpointermove={onPullMove}
+				onpointerup={onPullEnd}
+				onpointercancel={onPullEnd}
+			>
+				{#if !forums.loaded}
+					<p class="empty">Loading{'…'}</p>
+				{:else if forums.follows.length === 0}
+					<div class="forums-empty">
+						<p class="empty">
+							No forums yet. Paste a link to any page of a public forum in Follow (the front page, a
+							category, even one thread) to follow the forum or some of its categories.
+						</p>
+						<a class="forums-btn" href="/follow">Follow a forum</a>
+					</div>
+				{:else}
+					{#each forums.follows.filter((follow) => follow.status !== 'ok') as follow (follow.id)}
+						<p class="forum-note">
+							{follow.categoryName ? `${follow.title} · ${follow.categoryName}` : follow.title}
+							{follow.status === 'members-only'
+								? 'is members-only now, so YipDen cannot read it.'
+								: follow.status === 'gone'
+									? 'is not there any more.'
+									: 'could not be reached. Its topics stay until the next check.'}
+						</p>
+					{/each}
+					<div class="forums-bar">
+						<span>
+							{forums.activeCount === 0 ? 'You’re caught up.' : 'Newest activity first.'}
+						</span>
+						{#if forums.activeCount > 0}
+							<button class="forums-btn" onclick={() => forums.markAllSeen()}>Mark all read</button>
+						{/if}
+					</div>
+					{#if forums.digest.length === 0}
+						<p class="empty">
+							Nothing active in the last {forums.quietDays} days. Quieter topics leave the list by themselves.
+						</p>
+					{:else}
+						<div class="stack-list">
+							{#each forums.digest as topic, index (topic.record.key)}
+								<div in:fly={flyIn({ delay: staggerDelay(index) })}>
+									<div class="yip-stack" data-key={topic.record.key}>
+										<div class="yip-rail">
+											<div class="yip-fold"><ForumTopicCard {topic} /></div>
+										</div>
+									</div>
+								</div>
+							{/each}
+							<div class="stack-tail" aria-hidden="true"></div>
+						</div>
+					{/if}
+				{/if}
+			</div>
 		</div>
 	</div>
 
@@ -707,6 +852,52 @@
 		color: var(--muted);
 		font-size: 14.5px;
 		text-align: center;
+	}
+
+	.forums-empty {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 4px;
+	}
+
+	.forums-empty .empty {
+		margin-bottom: 8px;
+	}
+
+	.forum-note {
+		margin: 4px 4px 8px;
+		padding: 10px 12px;
+		border-radius: 12px;
+		background: var(--brand-soft);
+		color: var(--brand-ink);
+		font-size: 13.5px;
+		line-height: 1.4;
+	}
+
+	.forums-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+		margin: 0 4px 10px;
+		color: var(--muted);
+		font-size: 13.5px;
+	}
+
+	.forums-btn {
+		display: inline-flex;
+		align-items: center;
+		min-height: 44px;
+		padding: 0 16px;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		font-size: 13.5px;
+		font-weight: 600;
+		text-decoration: none;
 	}
 
 	.sec-h {

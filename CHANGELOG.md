@@ -22,6 +22,12 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- Forums. Paste a link to any page of a public forum in Follow (its front page, a category, even
+  one thread) and follow the whole forum or chosen categories. Feeds has a Forums pill with one
+  card per topic, "14 new replies · 3h ago", which opens at the first post you have not seen.
+  Quiet topics leave by themselves after 14 days. A forums screen under You changes what is
+  followed, how often each forum is checked, or unfollows it. Members-only forums are named as
+  such and never asked for a password.
 - Someone you follow from the IndieNodes ring now has their own picks on their row in You: their
   tracks, comic pages, artwork or writing sample, one tap away, the same as in Discover.
 - A Library at the top of You: everything you kept (tracks, pictures, screenshots, passages) and

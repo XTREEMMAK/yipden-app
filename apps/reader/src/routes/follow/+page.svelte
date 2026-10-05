@@ -1,7 +1,17 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { heroImage, type RingEntry } from '@yipden/ring-client';
-	import type { DiscoveredFeed, DiscoveryResult } from '@yipden/feeds';
+	import {
+		listCategories,
+		probeForum,
+		type DiscoveredFeed,
+		type DiscoveryResult,
+		type Forum,
+		type ForumCategory,
+		type ForumProbe
+	} from '@yipden/feeds';
+	import ForumPicker, { type ForumChoice } from '$components/ForumPicker.svelte';
+	import { forums, namesOf } from '$lib/forums.svelte.js';
 	import { onMount } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import Switch from '$components/Switch.svelte';
@@ -20,7 +30,7 @@
 	 * still a list the reader edits, never a list the app acts on by itself.
 	 */
 
-	type Phase = 'idle' | 'looking' | 'results' | 'followed';
+	type Phase = 'idle' | 'looking' | 'results' | 'followed' | 'forum' | 'forum-followed';
 
 	let phase = $state<Phase>('idle');
 	let input = $state('');
@@ -31,6 +41,14 @@
 	let ringMatches = $state<RingEntry[]>([]);
 	let chosen = $state<Set<string>>(new Set());
 	let busy = $state(false);
+	/** A pasted link that turned out to be on a forum: what it is, and its categories once read. */
+	let forumFound = $state<{
+		forum: Forum;
+		categories: ForumCategory[] | null;
+		categoryId: number | null;
+	} | null>(null);
+	let forumMembersOnly = $state<Forum | null>(null);
+	let forumFollowed = $state<{ title: string; count: number; whole: boolean } | null>(null);
 
 	let personName = $derived(
 		result?.title ?? (result ? hostOf(result.canonicalUrl) : 'this person')
@@ -93,12 +111,76 @@
 		phase = 'results';
 	}
 
+	/**
+	 * Whether a link is on a forum, within ten seconds: a forum is followed as a forum (whole or
+	 * by category), never as a person's feed. Anything else, a slow answer included, goes on to
+	 * ordinary discovery.
+	 */
+	async function probeWithDeadline(url: string): Promise<ForumProbe> {
+		const timeout = new Promise<ForumProbe>((resolve) =>
+			setTimeout(() => resolve({ status: 'not-a-forum' }), 10_000)
+		);
+		return Promise.race([
+			probeForum(url, forums.deps().http).catch((): ForumProbe => ({ status: 'not-a-forum' })),
+			timeout
+		]);
+	}
+
+	async function readCategories(forum: Forum) {
+		try {
+			const categories = await listCategories(forum, forums.deps().http);
+			if (!forumFound || forumFound.forum.baseUrl !== forum.baseUrl) return;
+			if (categories === 'members-only') {
+				forumMembersOnly = forum;
+				forumFound = null;
+			} else {
+				forumFound = { ...forumFound, categories };
+			}
+		} catch {
+			// The whole forum can still be followed; its categories just are not offered.
+			if (forumFound) forumFound = { ...forumFound, categories: [] };
+		}
+	}
+
+	async function followForum(choice: ForumChoice) {
+		if (!forumFound || busy) return;
+		busy = true;
+		try {
+			await forums.follow(forumFound.forum, choice, namesOf(forumFound.categories ?? []));
+			forumFollowed = {
+				title: forumFound.forum.title,
+				whole: choice.whole,
+				count: choice.whole ? 0 : choice.categories.length
+			};
+			phase = 'forum-followed';
+		} catch {
+			error = 'Could not save that follow. There may be no room left on this phone.';
+		} finally {
+			busy = false;
+		}
+	}
+
 	async function lookupUrl(url: string) {
 		error = null;
 		phase = 'looking';
 		result = null;
 		selectedRing = null;
 		resultOrigin = 'web';
+		forumFound = null;
+		forumMembersOnly = null;
+
+		const probe = await probeWithDeadline(url);
+		if (probe.status === 'forum') {
+			forumFound = { forum: probe.forum, categories: null, categoryId: probe.categoryId };
+			phase = 'forum';
+			void readCategories(probe.forum);
+			return;
+		}
+		if (probe.status === 'members-only') {
+			forumMembersOnly = probe.forum;
+			phase = 'forum';
+			return;
+		}
 
 		try {
 			const found = await discoverWithDeadline(url);
@@ -183,6 +265,9 @@
 
 	function again() {
 		followedPersonId = null;
+		forumFound = null;
+		forumMembersOnly = null;
+		forumFollowed = null;
 		phase = 'idle';
 		result = null;
 		selectedRing = null;
@@ -358,6 +443,57 @@
 			<p class="fine">
 				This follow stays on your phone. Nothing is posted anywhere, and {personName} is not notified.
 			</p>
+		{:else if phase === 'forum' && forumMembersOnly}
+			<div class="person" in:fly={flyIn()}>
+				<span
+					class="av"
+					style:background-image={forumMembersOnly.logoUrl
+						? `url(${forumMembersOnly.logoUrl})`
+						: ''}
+				></span>
+				<span class="person-copy">
+					<b>{forumMembersOnly.title}</b>
+					<small>This forum is members-only.</small>
+				</span>
+			</div>
+			<p class="fine">
+				YipDen reads only what anyone can read without an account, so it cannot follow this one. It
+				never asks for a forum’s password.
+			</p>
+			<button class="btn-quiet" type="button" onclick={again}>Find something else</button>
+		{:else if phase === 'forum' && forumFound}
+			<ForumPicker
+				forum={forumFound.forum}
+				categories={forumFound.categories}
+				initial={forumFound.categoryId
+					? { whole: false, ids: [forumFound.categoryId] }
+					: { whole: true, ids: [] }}
+				confirmLabel={(count, whole) =>
+					whole
+						? `Follow ${forumFound!.forum.title}`
+						: `Follow ${count} ${count === 1 ? 'category' : 'categories'}`}
+				{busy}
+				onconfirm={followForum}
+			/>
+		{:else if phase === 'forum-followed' && forumFollowed}
+			<div class="person done" in:fly={flyIn()}>
+				<span class="av"></span>
+				<span>
+					<b>Following {forumFollowed.title}</b>
+					<small>
+						{forumFollowed.whole
+							? 'The whole forum'
+							: `${forumFollowed.count} ${forumFollowed.count === 1 ? 'category' : 'categories'}`},
+						saved on this phone
+					</small>
+				</span>
+			</div>
+			<div class="row-btns" in:fly={flyIn({ delay: 40 })}>
+				<button class="btn-quiet" type="button" onclick={() => goto('/feeds?pane=forums')}>
+					See its topics in Feeds
+				</button>
+				<button class="btn-quiet" type="button" onclick={again}>Find something else</button>
+			</div>
 		{:else if phase === 'followed' && result}
 			<div class="person done" in:fly={flyIn()}>
 				<span class="av" style:background-image={result.iconUrl ? `url(${result.iconUrl})` : ''}

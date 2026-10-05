@@ -20,6 +20,9 @@ class Prefs {
 	/** Creators' sites open inside the app (Android), where audio on them can be found. On by default. */
 	sitesInApp = $state(true);
 
+	/** Forum topics also in Feeds' Everything, not only under Forums. Off by default. */
+	forumsInEverything = $state(false);
+
 	/** A little yip and a buzz when a creator is liked. On by default. */
 	sounds = $state(true);
 
@@ -36,6 +39,8 @@ class Prefs {
 		if (typeof sounds === 'boolean') this.sounds = sounds;
 		const inApp = await store.getSetting<boolean>('sitesInApp');
 		if (typeof inApp === 'boolean') this.sitesInApp = inApp;
+		const forumsToo = await store.getSetting<boolean>('forumsInEverything');
+		if (typeof forumsToo === 'boolean') this.forumsInEverything = forumsToo;
 		const enforce = await store.getSetting<boolean>('ageLimitEnabled');
 		// A release build always enforces it, whatever a debug build once saved on this phone.
 		if (__YIPDEN_DEBUG__ && typeof enforce === 'boolean') {
@@ -59,6 +64,11 @@ class Prefs {
 	setSitesInApp(on: boolean): void {
 		this.sitesInApp = on;
 		void store.setSetting('sitesInApp', on);
+	}
+
+	setForumsInEverything(on: boolean): void {
+		this.forumsInEverything = on;
+		void store.setSetting('forumsInEverything', on);
 	}
 
 	setSounds(on: boolean): void {

@@ -2850,3 +2850,75 @@ half follows in its own commit.
   own public forum, trimmed to a few entries each. The members-only variant is that file with
   `login_required` set, and the restricted category is a copy marked `read_restricted`.
 - **Not touched:** the ring, `ring.json` and `ring-client`.
+
+## 2026-10-05 (evening) — Forums, part 2: following them in the app
+
+The app half of the library and forums brief, Part 2.
+
+**Following a forum.** Follow's paste-a-link box checks, before ordinary discovery, whether a link
+is on a forum, with ten seconds to answer. This costs one extra page request for a pasted link
+that turns out not to be a forum.
+
+- If it is a forum, the result reads "This is a forum", with its name and logo, then the toggle
+  list: "Whole forum" first, then its categories, subcategories indented under their parent.
+  - The whole forum and its categories overlap, so turning one on turns the other off.
+  - A category link starts with that category chosen. A thread link only finds the forum and
+    never follows the thread.
+- A members-only forum says so and offers nothing to follow.
+- The reader never sees a feed address, or the word Discourse.
+- A Discourse feed already attached to a person stays as it is. Only new links take this path.
+
+**Storage.** Two collections in the encrypted store (SQLite schema step 3, encrypted IndexedDB
+version 3).
+
+- **Forum follows**, keyed by the forum's root, plus `#c<id>` for one category. Each keeps its
+  pace, last check, cursor and state (ok, members-only, gone, unreachable), and the forum's
+  category names, so a whole-forum follow can label its topics.
+- **Topics**, keyed by forum and topic id. Each carries the reader's state: the newest post they
+  had when they last opened it. A topic seen again keeps that, and keeps when YipDen first saw it.
+
+**Refresh.**
+
+- **Pace:** a forum is checked when it is due, every 6 hours by default and 3, 6, 12 or 24 per
+  forum, on opening Feeds, on returning to the app after a while, and on a pull to refresh
+  elsewhere in Feeds. A pull on Forums itself checks every forum now. That is slower than
+  creators' feeds on purpose: many forums are one small server.
+- **One fails, the rest go on:** a forum that fails says why on its follow, and its topics stay
+  until the next check.
+- **Quiet topics:** a topic quiet longer than the reader's window (14 days by default, 3 to 60, on
+  the forums screen) is dropped with its read state, on every refresh.
+
+**Reading: Forums in Feeds.** A fifth pill, after Listen, holds one card per topic, newest
+activity first. Chronological, never ranked.
+
+- **The card:** "14 new replies · 3h ago" (or "New topic · 6 replies"), with the forum and its
+  category as the source chip, and pinned or closed flagged. It opens on the forum at the first
+  post not yet seen, which then counts as seen.
+- **The header:** "5 active topics · 2 forums", where active means something not yet seen.
+- **Around the cards:** "You’re caught up" when nothing is, Mark all read, a note for any forum
+  that is members-only now, gone or unreachable, and an empty state pointing to Follow.
+- **Everything:** forum topics stay out of it by default. Settings, Feeds, "Forum topics in
+  Everything" merges them in by time alone.
+- **Opening:** the system browser, not the in-app one. The in-app browser keeps things for
+  creators, and a forum is not one.
+
+**The forums screen** (You, Following, Forums) lists each forum with what of it is followed and
+when it was last checked. There it can change categories (the same toggle list), set its pace, or
+be unfollowed, with an inline confirm.
+
+**OPML.** Each forum follow is written as the RSS another reader can follow (`/latest.rss` or
+`/c/<id>.rss`), in a "Forums" group marked `yipdenForums`. YipDen reads that group back as forums,
+never as people.
+
+**What OPML cannot carry:** the forum's logo, the read state, and the category names of a whole
+forum. These come back on the next check, except read state, which a forum follow does not need.
+The full backup carries forum follows (not their topics, which are transient) and the two new
+settings.
+
+**On the web build, forums cannot work.** A browser will not let one site read another's JSON
+without CORS headers, and v0.9 has no proxy, so they work on Android only until v2.0's proxy.
+There, the check on a pasted link is blocked, so a forum is not recognized and the link goes on
+to ordinary discovery, as any other site would.
+
+**Not touched, as the brief requires:** the ring, `ring.json` and `ring-client`. Forums are never a
+creator's source, and creator discovery never adds one.

@@ -13,6 +13,7 @@ import { store as defaultStore } from './store/index.js';
 import { rekeyAll } from './store/rekey.js';
 import type {
 	Feed,
+	ForumFollow,
 	Person,
 	SettingKey,
 	ShelfItem,
@@ -40,7 +41,9 @@ const SETTING_KEYS: SettingKey[] = [
 	'sounds',
 	'sitesInApp',
 	'explored',
-	'layoutOverrides'
+	'layoutOverrides',
+	'forumsInEverything',
+	'forumQuietDays'
 ];
 
 export interface YipDenBackup {
@@ -63,6 +66,8 @@ export interface YipDenBackup {
 	 * import still reads.
 	 */
 	references?: Reference[];
+	/** Followed forums, without their topics: those are transient, and refetched. Additive. */
+	forums?: ForumFollow[];
 	settings: Partial<Record<SettingKey, unknown>>;
 	appearance: BackupAppearance;
 }
@@ -75,6 +80,7 @@ export interface BackupPreview {
 	shelf: number;
 	verdicts: number;
 	references: number;
+	forums: number;
 }
 
 export interface RestoreReport {
@@ -88,6 +94,7 @@ export interface RestoreReport {
 	shelfAdded: number;
 	verdictsAdded: number;
 	referencesAdded: number;
+	forumsAdded: number;
 	settingsRestored: number;
 }
 
@@ -205,6 +212,36 @@ function validReference(value: unknown): value is Reference {
 		text(value.createdAt, 100) &&
 		optionalText(value.checkedAt, 100)
 	);
+}
+
+function validForumFollow(value: unknown): value is ForumFollow {
+	return (
+		record(value) &&
+		text(value.id, 4_096) &&
+		https(value.forumUrl) &&
+		(value.id === value.forumUrl ||
+			value.id === `${String(value.forumUrl)}#c${String(value.categoryId)}`) &&
+		text(value.title, 300) &&
+		optionalText(value.description, 1_000) &&
+		optionalHttps(value.logoUrl) &&
+		(value.categoryId === null ||
+			(typeof value.categoryId === 'number' &&
+				Number.isInteger(value.categoryId) &&
+				value.categoryId > 0)) &&
+		optionalText(value.categoryName, 300) &&
+		text(value.followedAt, 100) &&
+		typeof value.refreshHours === 'number' &&
+		value.refreshHours >= 1 &&
+		value.refreshHours <= 168
+	);
+}
+
+/** What is followed of a forum and how often; the check state (cursor, status) is this phone's. */
+function portableForum(follow: ForumFollow): ForumFollow {
+	const copy = { ...follow };
+	delete copy.cursor;
+	delete copy.lastCheckedAt;
+	return { ...copy, status: 'ok', failures: 0 };
 }
 
 /**
@@ -370,15 +407,17 @@ function readAppearance(): BackupAppearance {
 /** Build a plain, versioned file containing the local reader state. */
 export async function createBackup(store: Store = defaultStore): Promise<YipDenBackup> {
 	await store.init();
-	const [people, feeds, yips, shelf, verdicts, references, settingValues] = await Promise.all([
-		store.listPeople(),
-		store.listFeeds(),
-		store.listAllYips(),
-		store.listShelf(),
-		store.listVerdicts(),
-		store.listReferences(),
-		Promise.all(SETTING_KEYS.map((key) => store.getSetting<unknown>(key)))
-	]);
+	const [people, feeds, yips, shelf, verdicts, references, forumFollows, settingValues] =
+		await Promise.all([
+			store.listPeople(),
+			store.listFeeds(),
+			store.listAllYips(),
+			store.listShelf(),
+			store.listVerdicts(),
+			store.listReferences(),
+			store.listForumFollows(),
+			Promise.all(SETTING_KEYS.map((key) => store.getSetting<unknown>(key)))
+		]);
 	const settings: Partial<Record<SettingKey, unknown>> = {};
 	SETTING_KEYS.forEach((key, index) => {
 		const value = settingValues[index];
@@ -394,6 +433,8 @@ export async function createBackup(store: Store = defaultStore): Promise<YipDenB
 		shelf,
 		verdicts,
 		references: references.map(exportable),
+		// What is followed and how often; the check state (cursor, status) is this phone's own.
+		forums: forumFollows.map(portableForum),
 		settings,
 		appearance: readAppearance()
 	};
@@ -432,6 +473,10 @@ export function parseBackup(source: string): BackupPreview {
 			(!Array.isArray(value.references) ||
 				value.references.length > 10_000 ||
 				!value.references.every(validReference))) ||
+		(value.forums !== undefined &&
+			(!Array.isArray(value.forums) ||
+				value.forums.length > 1_000 ||
+				!value.forums.every(validForumFollow))) ||
 		!record(value.settings) ||
 		!record(value.appearance) ||
 		!['system', 'light', 'dark'].includes(String(value.appearance.theme)) ||
@@ -451,7 +496,8 @@ export function parseBackup(source: string): BackupPreview {
 		yips: backup.yips.length,
 		shelf: backup.shelf?.length ?? 0,
 		verdicts: backup.verdicts?.length ?? 0,
-		references: incomingReferences(backup).length
+		references: incomingReferences(backup).length,
+		forums: backup.forums?.length ?? 0
 	};
 }
 
@@ -488,6 +534,7 @@ export async function restoreBackup(
 		shelfAdded: 0,
 		verdictsAdded: 0,
 		referencesAdded: 0,
+		forumsAdded: 0,
 		settingsRestored: 0
 	};
 
@@ -576,6 +623,16 @@ export async function restoreBackup(
 		keptIds.add(reference.id);
 		counts.set(slot, (counts.get(slot) ?? 0) + 1);
 		report.referencesAdded += 1;
+	}
+
+	// Forums merge too; one already followed here keeps its own settings. A restored one is
+	// checked at its next due time, which for it is the next refresh.
+	const followedForums = new Set((await store.listForumFollows()).map((follow) => follow.id));
+	for (const follow of backup.forums ?? []) {
+		if (followedForums.has(follow.id)) continue;
+		await store.putForumFollow({ ...follow, status: 'ok', failures: 0 });
+		followedForums.add(follow.id);
+		report.forumsAdded += 1;
 	}
 
 	for (const key of SETTING_KEYS) {

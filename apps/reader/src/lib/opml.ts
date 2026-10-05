@@ -1,7 +1,7 @@
 import { parseXml, XmlElement } from '@rgrove/parse-xml';
 import { safeUrl } from '@yipden/ring-client';
 import { cleanFolder, folderList } from './folders.js';
-import type { Feed, Person, ShelfItem } from './store/index.js';
+import type { Feed, ForumFollow, Person, ShelfItem } from './store/index.js';
 
 /**
  * A reader's follow list as OPML, in and out.
@@ -82,10 +82,44 @@ function personOutline(person: Person, feeds: Feed[], indent: string): string {
 	);
 }
 
+/**
+ * Marks the group of followed forums. Each forum follow is also an ordinary RSS outline (the
+ * forum's or the category's own `.rss`), so another reader follows the same topics; the
+ * `yipdenForum*` attributes let YipDen read it back as a forum rather than as a person.
+ */
+const FORUM_GROUP = 'yipdenForums';
+
+function forumRss(follow: ForumFollow): string {
+	return `${follow.forumUrl}${follow.categoryId === null ? '/latest' : `/c/${follow.categoryId}`}.rss`;
+}
+
+function forumsOutline(follows: ForumFollow[]): string {
+	if (!follows.length) return '';
+	const outlines = follows
+		.map((follow) => {
+			const title = follow.categoryName ? `${follow.title} · ${follow.categoryName}` : follow.title;
+			return (
+				`\t\t\t<outline type="rss" text="${escapeAttribute(title)}" title="${escapeAttribute(title)}" ` +
+				`xmlUrl="${escapeAttribute(forumRss(follow))}" htmlUrl="${escapeAttribute(follow.forumUrl)}" ` +
+				`yipdenForum="${escapeAttribute(follow.forumUrl)}" yipdenForumTitle="${escapeAttribute(follow.title)}"` +
+				(follow.categoryId === null
+					? ''
+					: ` yipdenCategory="${follow.categoryId}"` +
+						(follow.categoryName
+							? ` yipdenCategoryName="${escapeAttribute(follow.categoryName)}"`
+							: '')) +
+				` yipdenRefreshHours="${follow.refreshHours}"/>`
+			);
+		})
+		.join('\n');
+	return `\t\t<outline text="Forums" title="Forums" ${FORUM_GROUP}="true">\n${outlines}\n\t\t</outline>`;
+}
+
 export function exportOpml(
 	people: Person[],
 	feedsByPerson: Map<string, Feed[]>,
-	shelf: ShelfItem[] = []
+	shelf: ShelfItem[] = [],
+	forums: ForumFollow[] = []
 ): string {
 	const outlineFor = (person: Person, indent: string) =>
 		personOutline(person, feedsByPerson.get(person.id) ?? [], indent);
@@ -105,7 +139,7 @@ export function exportOpml(
 		.filter((person) => !person.folder)
 		.map((person) => outlineFor(person, '\t\t'));
 	const outlines = [...folders, ...unfiled].join('\n');
-	const body = [outlines, shelfOutline(shelf)].filter(Boolean).join('\n');
+	const body = [outlines, forumsOutline(forums), shelfOutline(shelf)].filter(Boolean).join('\n');
 
 	return (
 		'<?xml version="1.0" encoding="UTF-8"?>\n' +
@@ -192,8 +226,9 @@ export function parseOpml(xml: string): ImportedPerson[] {
 	};
 
 	const read = (outline: XmlElement, folder: string | undefined): void => {
-		// The Shelf is not a person; `parseOpmlShelf` reads it.
+		// The Shelf and the forums are not people; `parseOpmlShelf` and `parseOpmlForums` read them.
 		if (outline.attributes[SHELF_GROUP] === 'true') return;
+		if (outline.attributes[FORUM_GROUP] === 'true') return;
 		const nested = outlineChildren(outline);
 		const inFolder = folder ? { folder } : {};
 
@@ -279,4 +314,42 @@ export function parseOpmlShelf(xml: string): ImportedShelfItem[] {
 		}
 	}
 	return items;
+}
+
+export interface ImportedForumFollow {
+	forumUrl: string;
+	title: string;
+	categoryId: number | null;
+	categoryName?: string;
+	refreshHours?: number;
+}
+
+/** Followed forums out of an OPML file YipDen wrote. Every address through `safeUrl`, as always. */
+export function parseOpmlForums(xml: string): ImportedForumFollow[] {
+	const document = parseXml(xml.trim(), { ignoreUndefinedEntities: true });
+	const body = document.root?.children.find(
+		(child): child is XmlElement =>
+			child instanceof XmlElement && child.name.toLowerCase() === 'body'
+	);
+	if (!body) return [];
+	const follows: ImportedForumFollow[] = [];
+	for (const group of outlineChildren(body)) {
+		if (group.attributes[FORUM_GROUP] !== 'true') continue;
+		for (const outline of outlineChildren(group)) {
+			const forumUrl = safeUrl(outline.attributes.yipdenForum)?.toString().replace(/\/+$/, '');
+			if (!forumUrl) continue;
+			const category = Number(outline.attributes.yipdenCategory);
+			const hours = Number(outline.attributes.yipdenRefreshHours);
+			follows.push({
+				forumUrl,
+				title: outline.attributes.yipdenForumTitle || new URL(forumUrl).hostname,
+				categoryId: Number.isInteger(category) && category > 0 ? category : null,
+				...(outline.attributes.yipdenCategoryName
+					? { categoryName: outline.attributes.yipdenCategoryName.slice(0, 200) }
+					: {}),
+				...(Number.isFinite(hours) && hours >= 1 && hours <= 168 ? { refreshHours: hours } : {})
+			});
+		}
+	}
+	return follows;
 }

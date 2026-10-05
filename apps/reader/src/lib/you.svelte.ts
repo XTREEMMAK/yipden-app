@@ -1,7 +1,8 @@
 import type { DiscoveredFeed, DiscoveryResult } from '@yipden/feeds';
 import { discoverWithDeadline } from './discovery.js';
 import { cleanFolder, folderList, matchFolder, type FolderSummary } from './folders.js';
-import { exportOpml, parseOpml, parseOpmlShelf } from './opml.js';
+import { exportOpml, parseOpml, parseOpmlForums, parseOpmlShelf } from './opml.js';
+import { DEFAULT_REFRESH_HOURS, followIdFor, forums } from './forums.svelte.js';
 import { player } from './player.svelte.js';
 import { pruneToMaxAge, refreshAll, type FeedRefreshResult } from './refresh.js';
 import { ringPlayer } from './ringPlayer.svelte.js';
@@ -258,7 +259,8 @@ class YouState {
 		return exportOpml(
 			this.rows.map((row) => row.person),
 			feedsByPerson,
-			shelf.items
+			shelf.items,
+			forums.follows
 		);
 	}
 
@@ -269,7 +271,9 @@ class YouState {
 	 * feeds directly, and re-discovering them would be slower and could find something
 	 * different than what the reader had before.
 	 */
-	async importOpml(xml: string): Promise<{ people: number; feeds: number; saved: number }> {
+	async importOpml(
+		xml: string
+	): Promise<{ people: number; feeds: number; saved: number; forums: number }> {
 		const imported = parseOpml(xml);
 		let feedCount = 0;
 
@@ -312,8 +316,32 @@ class YouState {
 			saved += 1;
 		}
 
+		// Forums YipDen wrote come back as forums. Already followed is kept as it is; the rest are
+		// checked at their next due time, which for a new follow is the next refresh.
+		let forumCount = 0;
+		await forums.load();
+		const followedForums = new Set(forums.follows.map((follow) => follow.id));
+		for (const entry of parseOpmlForums(xml)) {
+			const id = followIdFor(entry.forumUrl, entry.categoryId);
+			if (followedForums.has(id)) continue;
+			await store.putForumFollow({
+				id,
+				forumUrl: entry.forumUrl,
+				title: entry.title,
+				categoryId: entry.categoryId,
+				...(entry.categoryName ? { categoryName: entry.categoryName } : {}),
+				followedAt: new Date().toISOString(),
+				refreshHours: entry.refreshHours ?? DEFAULT_REFRESH_HOURS,
+				status: 'ok',
+				failures: 0
+			});
+			followedForums.add(id);
+			forumCount += 1;
+		}
+		if (forumCount) await forums.reload();
+
 		await this.load();
-		return { people: imported.length, feeds: feedCount, saved };
+		return { people: imported.length, feeds: feedCount, saved, forums: forumCount };
 	}
 }
 

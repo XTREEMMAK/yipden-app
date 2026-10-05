@@ -474,11 +474,11 @@ From [docs/briefs/library-and-forums.md](docs/briefs/library-and-forums.md).
 
 1. **The Library (Part 1).** The audit is in [docs/you-page-audit.md](docs/you-page-audit.md).
    **Built 2026-10-04** (DECISIONS.md), to see on a phone.
-2. **Forums (Part 2).** Follow public Discourse forums, or chosen categories, as a calm digest
-   with one card per topic, on a Forums pill in Feeds. Standalone: not tied to creators or the
-   ring. Next. Discourse feeds already attached to people stay as they are; only new forum links
-   take the forum path. On Android only until v2.0's proxy, because a browser cannot read another
-   site's forum JSON.
+2. **Forums (Part 2). Built 2026-10-05** (DECISIONS.md), to see on a phone: follow public Discourse
+   forums whole or by category, a Forums pill in Feeds with one card per topic, a forums screen
+   under You, OPML and backup. On Android only until v2.0's proxy (a browser cannot read another
+   site's forum JSON). Still open: a forum's own new-topic notifications belong with v2.0's
+   notifications.
 
 ## Later: v0.9 release
 

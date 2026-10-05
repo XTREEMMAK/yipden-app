@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { exportOpml, parseOpml, parseOpmlShelf } from './opml.js';
+import { exportOpml, parseOpml, parseOpmlShelf, parseOpmlForums } from './opml.js';
+import type { ForumFollow } from './store/types.js';
 import type { Feed, Person, ShelfItem } from './store/index.js';
 
 function person(overrides: Partial<Person> = {}): Person {
@@ -285,5 +286,52 @@ describe('the Shelf in OPML', () => {
 
 	it('finds nothing in an OPML file that has no shelf', () => {
 		expect(parseOpmlShelf(exportOpml([person()], new Map([['p1', [feed()]]])))).toEqual([]);
+	});
+});
+
+describe('forums in OPML', () => {
+	const follows: ForumFollow[] = [
+		{
+			id: 'https://forum.example',
+			forumUrl: 'https://forum.example',
+			title: 'A Forum',
+			categoryId: null,
+			followedAt: '2026-10-05T00:00:00.000Z',
+			refreshHours: 12,
+			status: 'ok',
+			failures: 0
+		},
+		{
+			id: 'https://club.example/forum#c7',
+			forumUrl: 'https://club.example/forum',
+			title: 'The Club',
+			categoryId: 7,
+			categoryName: 'Help & advice',
+			followedAt: '2026-10-05T00:00:00.000Z',
+			refreshHours: 6,
+			status: 'ok',
+			failures: 0
+		}
+	];
+	const xml = exportOpml([], new Map(), [], follows);
+
+	it('writes each forum follow as the RSS another reader can follow', () => {
+		expect(xml).toContain('xmlUrl="https://forum.example/latest.rss"');
+		expect(xml).toContain('xmlUrl="https://club.example/forum/c/7.rss"');
+		expect(xml).toContain('text="The Club · Help &amp; advice"');
+	});
+
+	it('reads them back as forums, never as people', () => {
+		expect(parseOpml(xml)).toEqual([]);
+		expect(parseOpmlForums(xml)).toEqual([
+			{ forumUrl: 'https://forum.example', title: 'A Forum', categoryId: null, refreshHours: 12 },
+			{
+				forumUrl: 'https://club.example/forum',
+				title: 'The Club',
+				categoryId: 7,
+				categoryName: 'Help & advice',
+				refreshHours: 6
+			}
+		]);
 	});
 });
