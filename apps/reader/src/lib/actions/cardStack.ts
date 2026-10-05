@@ -10,8 +10,8 @@ import '../styles/card-stack.css';
  * what the three boxes of a card are for), and this action sets its tip, sink and fade on its
  * `.yip-fold` each frame: a passive scroll listener schedules one `requestAnimationFrame`, and
  * only cards near the viewport are touched. Because the scroller does the pinning, a frame's lag
- * here cannot make a card shake. It also marks whichever card is pinned as `behind`, so it stops
- * taking taps, with an `IntersectionObserver`.
+ * here cannot make a card shake. It also marks a card `behind` once it is more than half folded
+ * away, so it stops taking taps (see `isBehind`).
  *
  * The same fold exists as scroll-driven CSS (`animation-timeline: view()`), which costs no
  * JavaScript per frame. It is not what ships: on a phone (WebView 153) it juddered on every
@@ -98,6 +98,17 @@ export function cardPlacement(relative: number, height: number, viewport: number
 	return { transformOrigin: '50% 0%', transform: 'none', opacity: 1, dim: 0 };
 }
 
+/**
+ * Whether a card has gone behind: folded more than halfway, so mostly faded, tipped and dimmed.
+ * Only then does it stop taking taps. A card that has just pinned at the top is still the front
+ * card and wholly readable, and a card rising from the bottom is on its way to the front: both
+ * keep their buttons. Where the next card overlaps a pinned one, the next card is drawn on top
+ * and takes the tap anyway, so nothing else needs refusing.
+ */
+export function isBehind(relative: number, height: number): boolean {
+	return height > 0 && relative < -height / 2;
+}
+
 /** The box that is drawn and folded; the card's own place in the list is never moved. */
 function foldOf(card: HTMLElement): HTMLElement {
 	return card.querySelector<HTMLElement>('.yip-fold') ?? card;
@@ -118,6 +129,7 @@ function layoutFallback(pane: HTMLElement): void {
 		const height = card.offsetHeight;
 		const relative = card.offsetTop - scrollTop;
 		const placement = cardPlacement(relative, height, viewport);
+		card.classList.toggle('behind', isBehind(relative, height));
 
 		/*
 		 * Folded away. Its place has left the top of the pane, but the drawn card is still held
@@ -176,10 +188,17 @@ export function cardStack(pane: HTMLElement, options: CardStackOptions = {}) {
 		if (useScrollDriven) return;
 		if (active) layoutFallback(pane);
 		else
-			for (const card of pane.querySelectorAll<HTMLElement>('.yip-stack')) resetCard(foldOf(card));
+			for (const card of pane.querySelectorAll<HTMLElement>('.yip-stack')) {
+				resetCard(foldOf(card));
+				card.classList.remove('behind');
+			}
 	}
 
-	// The front card takes taps; anything pinned at the top and tipping back does not.
+	/*
+	 * The scroll-driven path (debug only) has no per-frame JavaScript to mark cards, so it keeps
+	 * the observer, and the stricter rule it can express: behind as soon as the card's place leaves
+	 * the top. The shipping path marks cards in `layoutFallback`, by `isBehind`.
+	 */
 	const observer = new IntersectionObserver(
 		(entries) => {
 			for (const entry of entries) {
@@ -228,7 +247,7 @@ export function cardStack(pane: HTMLElement, options: CardStackOptions = {}) {
 		observed = cards;
 		observer.disconnect();
 		tailObserver.disconnect();
-		for (const card of cards) observer.observe(card);
+		if (useScrollDriven) for (const card of cards) observer.observe(card);
 		const last = cards[cards.length - 1];
 		if (last) tailObserver.observe(last);
 		tailObserver.observe(pane);

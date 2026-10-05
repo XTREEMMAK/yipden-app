@@ -12,15 +12,28 @@ import { verdictKey } from './verdicts.svelte.js';
 /** Explored creators: key to when they were first marked. */
 export type ExploredMap = Record<string, string>;
 
+/** Whom a ring's list shows, by what the reader has explored. */
+export type ExploredFilter = 'all' | 'unexplored' | 'explored';
+
 /** Where a reader was in one ring's member list. */
 export interface RingView {
 	query: string;
 	genre: string | null;
 	scrollTop: number;
-	hideExplored: boolean;
+	show: ExploredFilter;
+	/** How `show` was saved before it had three choices: true meant "not explored yet". */
+	hideExplored?: boolean;
 }
 
-export const EMPTY_VIEW: RingView = { query: '', genre: null, scrollTop: 0, hideExplored: false };
+export const EMPTY_VIEW: RingView = { query: '', genre: null, scrollTop: 0, show: 'all' };
+
+/** A saved view's explored filter, reading one saved before the third choice existed. */
+export function showOf(view: Partial<RingView>): ExploredFilter {
+	if (view.show === 'all' || view.show === 'unexplored' || view.show === 'explored') {
+		return view.show;
+	}
+	return view.hideExplored ? 'unexplored' : 'all';
+}
 
 class ExploredState {
 	marks = $state<ExploredMap>({});

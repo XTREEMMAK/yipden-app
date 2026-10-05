@@ -198,11 +198,11 @@ export function groupByDate(items: readonly LibraryItem[], now: Date = new Date(
 	return [...groups.values()];
 }
 
-/** Where a "View" goes: You, at the Library, showing one creator or one type. */
+/** Where a "View" goes: You's Library tab, showing one creator or one type. */
 export function libraryHref(show: { creatorId: string } | { type: LibraryType }): string {
 	const params =
 		'creatorId' in show
-			? new URLSearchParams({ library: 'creator', of: show.creatorId })
-			: new URLSearchParams({ library: 'type', of: show.type });
+			? new URLSearchParams({ tab: 'library', library: 'creator', of: show.creatorId })
+			: new URLSearchParams({ tab: 'library', library: 'type', of: show.type });
 	return `/you?${params.toString()}#library`;
 }

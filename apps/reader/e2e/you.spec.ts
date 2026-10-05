@@ -157,6 +157,29 @@ test.describe('You', () => {
 		await expect(page.getByRole('button', { name: /^Replace the address/ })).toHaveCount(0);
 	});
 
+	test('opens on Following, with the Library and the lists one tab away', async ({ page }) => {
+		await page.goto('/you');
+		const tabs = page.getByRole('tablist', { name: 'Your den' });
+		await expect(tabs.getByRole('tab', { name: /^Following/ })).toHaveAttribute(
+			'aria-selected',
+			'true'
+		);
+		await expect(page.getByRole('tabpanel', { name: /^Following/ })).toBeVisible();
+		await expect(page.getByRole('region', { name: /^Library/ })).toHaveCount(0);
+
+		await tabs.getByRole('tab', { name: /^Library/ }).click();
+		await expect(page.getByRole('region', { name: /^Library/ })).toBeVisible();
+
+		// Arrow keys move along the tabs, as a tablist should.
+		await tabs.getByRole('tab', { name: /^Library/ }).press('ArrowRight');
+		await expect(tabs.getByRole('tab', { name: /^Liked & not for me/ })).toBeFocused();
+		await expect(page.getByRole('tab', { name: /^Not for me/ })).toBeVisible();
+
+		for (const tab of await tabs.getByRole('tab').all()) {
+			expect((await tab.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+		}
+	});
+
 	test('Liked shows badges and the first 25, then more in place, with a filter', async ({
 		page
 	}) => {
@@ -184,16 +207,16 @@ test.describe('You', () => {
 			at: '2026-09-01T00:00:00.000Z'
 		} as (typeof records)[number]);
 		await seedOldStore(page, { verdicts: records });
-		await page.goto('/you');
-		await expect(page.getByRole('tab', { name: /^Liked/ })).toBeVisible();
+		await page.goto('/you?tab=lists');
+		await expect(page.getByRole('tab', { name: /^Liked \d/ })).toBeVisible();
 		// Moved into the encrypted store, and the plaintext database is gone.
 		await expect
 			.poll(() => page.evaluate(async () => (await indexedDB.databases()).map((db) => db.name)))
 			.toEqual(['yipden-sealed']);
 
 		const panel = page.getByRole('tabpanel');
-		await page.getByRole('tab', { name: /^Liked/ }).click();
-		await expect(page.getByRole('tab', { name: /^Liked/ })).toHaveAttribute(
+		await page.getByRole('tab', { name: /^Liked \d/ }).click();
+		await expect(page.getByRole('tab', { name: /^Liked \d/ })).toHaveAttribute(
 			'aria-selected',
 			'true'
 		);
@@ -229,7 +252,7 @@ test.describe('You', () => {
 				}
 			]
 		});
-		await page.goto('/you');
+		await page.goto('/you?tab=library');
 		await expect(page.getByRole('region', { name: /^Library/ })).toBeVisible();
 		// Headless Chromium has no share sheet; take it away explicitly so this tests the fallback.
 		await page.evaluate(() =>

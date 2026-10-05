@@ -28,8 +28,9 @@
 	import { ring } from '$lib/ring.svelte.js';
 	import { ringPlayer } from '$lib/ringPlayer.svelte.js';
 	import type { Person } from '$lib/store/types.js';
-	import { verdictKey } from '$lib/verdicts.svelte.js';
+	import { verdictKey, verdicts } from '$lib/verdicts.svelte.js';
 	import { explored } from '$lib/explored.svelte.js';
+	import { page } from '$app/state';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 
 	/**
@@ -78,6 +79,38 @@
 		}
 		const site = verdictKey(person.siteUrl);
 		return ring.all.find((entry) => verdictKey(entry.source_url) === site) ?? null;
+	}
+
+	/**
+	 * You's three tabs. Following is first and where You opens; a View link into the Library
+	 * (`?tab=library`, or any `library=` narrowing) opens that tab instead.
+	 */
+	type YouTab = 'following' | 'library' | 'lists';
+	const YOU_TABS: Array<{ key: YouTab; label: string }> = [
+		{ key: 'following', label: 'Following' },
+		{ key: 'library', label: 'Library' },
+		{ key: 'lists', label: 'Liked & not for me' }
+	];
+	let tab = $state<YouTab>('following');
+	$effect(() => {
+		const asked = page.url.searchParams.get('tab');
+		if (asked === 'following' || asked === 'library' || asked === 'lists') tab = asked;
+		else if (page.url.searchParams.get('library')) tab = 'library';
+	});
+	const tabCounts = $derived({
+		following: you.rows.length,
+		library: creatorNotes.references.length + shelf.items.length,
+		lists: verdicts.liked.length + verdicts.hidden.length
+	});
+
+	/** Arrow keys move between tabs, as a tablist should. */
+	function onYouTabKey(event: KeyboardEvent) {
+		if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+		event.preventDefault();
+		const at = YOU_TABS.findIndex((entry) => entry.key === tab);
+		const step = event.key === 'ArrowRight' ? 1 : YOU_TABS.length - 1;
+		tab = YOU_TABS[(at + step) % YOU_TABS.length]!.key;
+		document.getElementById(`you-tab-${tab}`)?.focus();
 	}
 
 	/** Open for "Read a preview", "View artwork" or "Read a sample". */
@@ -470,282 +503,326 @@
 	</header>
 
 	<div class="groups">
-		<Library />
+		<!-- Three intents, one at a time: who you read, what you kept, whom you have judged. -->
+		<div
+			class="you-tabs"
+			role="tablist"
+			aria-label="Your den"
+			tabindex="-1"
+			onkeydown={onYouTabKey}
+			in:fly={flyIn()}
+		>
+			{#each YOU_TABS as entry (entry.key)}
+				<button
+					id={`you-tab-${entry.key}`}
+					class="you-tab"
+					role="tab"
+					aria-selected={tab === entry.key}
+					aria-controls={`you-panel-${entry.key}`}
+					tabindex={tab === entry.key ? 0 : -1}
+					onclick={() => (tab = entry.key)}
+				>
+					{entry.label}
+					<span class="count">{tabCounts[entry.key]}</span>
+				</button>
+			{/each}
+		</div>
 
-		<section class="grp" in:fly={flyIn({ delay: staggerDelay(1) })}>
-			<h3 class="grp-h">
-				Following
-				<span>
-					{you.rows.length}
-					{you.rows.length === 1 ? 'person' : 'people'}
-					{'·'}
-					{you.rows.reduce((sum, row) => sum + row.feeds.length, 0)} feeds
-				</span>
-			</h3>
-			<div class="rows">
-				{#if !you.loaded}
-					<p class="empty">Loading{'…'}</p>
-				{:else if you.rows.length === 0}
-					<p class="empty">You are not following anyone yet. Discover is a good place to start.</p>
-				{:else}
-					{#each you.rows as row, personIndex (row.person.id)}
-						{@const entry = ringEntryFor(row.person)}
-						{@const own = entry ? previewFor(entry) : null}
-						<div class="follow-person">
-							<div class="srow person-row">
-								<button
-									class="person-toggle"
-									aria-expanded={expandedIds.has(row.person.id)}
-									aria-controls={`feeds-${personIndex}`}
-									onclick={() => toggleExpanded(row.person.id)}
-								>
-									<span
-										class="av"
-										style:background-image={row.person.iconUrl ? `url(${row.person.iconUrl})` : ''}
-									></span>
-									<span class="tt">
-										<b>{row.person.name}</b>
-										<small>
-											{row.feeds.filter((feed) => feed.enabled).length} of {row.feeds.length} sources
-											active
-											{'·'}
-											{new URL(row.person.siteUrl).hostname.replace(/^www\./, '')}
-										</small>
-										{#if feeds.fetching.has(row.person.id)}
-											<small class="fetching"><Spinner size={11} /> Fetching posts{'…'}</small>
-										{/if}
-									</span>
-									<svg
-										class="chevron"
-										class:open={expandedIds.has(row.person.id)}
-										viewBox="0 0 24 24"
-										aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg
-									>
-								</button>
-								{#if entry && own && confirmingId !== row.person.id}
+		{#if tab === 'library'}
+			<div id="you-panel-library" role="tabpanel" aria-labelledby="you-tab-library">
+				<Library />
+			</div>
+		{:else if tab === 'lists'}
+			<div id="you-panel-lists" role="tabpanel" aria-labelledby="you-tab-lists">
+				<YouLists />
+			</div>
+		{:else}
+			<div
+				id="you-panel-following"
+				class="grp"
+				role="tabpanel"
+				aria-labelledby="you-tab-following"
+				in:fly={flyIn({ delay: staggerDelay(1) })}
+			>
+				<h3 class="grp-h">
+					Following
+					<span>
+						{you.rows.length}
+						{you.rows.length === 1 ? 'person' : 'people'}
+						{'·'}
+						{you.rows.reduce((sum, row) => sum + row.feeds.length, 0)} feeds
+					</span>
+				</h3>
+				<div class="rows">
+					{#if !you.loaded}
+						<p class="empty">Loading{'…'}</p>
+					{:else if you.rows.length === 0}
+						<p class="empty">
+							You are not following anyone yet. Discover is a good place to start.
+						</p>
+					{:else}
+						{#each you.rows as row, personIndex (row.person.id)}
+							{@const entry = ringEntryFor(row.person)}
+							{@const own = entry ? previewFor(entry) : null}
+							<div class="follow-person">
+								<div class="srow person-row">
 									<button
-										class="picks-btn"
-										aria-label={`${own.label}: ${row.person.name}’s own picks`}
-										onclick={(event) => openPicks(entry, own, event.currentTarget)}
+										class="person-toggle"
+										aria-expanded={expandedIds.has(row.person.id)}
+										aria-controls={`feeds-${personIndex}`}
+										onclick={() => toggleExpanded(row.person.id)}
 									>
-										<svg viewBox="0 0 24 24" aria-hidden="true">
-											{#if own.kind === 'play'}
-												<path d="M8 5v14l11-7z" />
-											{:else if own.kind === 'view'}
-												<path d="M4 6h16v12H4zM4 15l5-4 4 3 3-2 4 3" />
-											{:else}
-												<path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5" />
+										<span
+											class="av"
+											style:background-image={row.person.iconUrl
+												? `url(${row.person.iconUrl})`
+												: ''}
+										></span>
+										<span class="tt">
+											<b>{row.person.name}</b>
+											<small>
+												{row.feeds.filter((feed) => feed.enabled).length} of {row.feeds.length} sources
+												active
+												{'·'}
+												{new URL(row.person.siteUrl).hostname.replace(/^www\./, '')}
+											</small>
+											{#if feeds.fetching.has(row.person.id)}
+												<small class="fetching"><Spinner size={11} /> Fetching posts{'…'}</small>
 											{/if}
-										</svg>
+										</span>
+										<svg
+											class="chevron"
+											class:open={expandedIds.has(row.person.id)}
+											viewBox="0 0 24 24"
+											aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg
+										>
 									</button>
-								{/if}
-								{#if confirmingId === row.person.id}
-									<span class="confirm">
+									{#if entry && own && confirmingId !== row.person.id}
 										<button
-											class="mini-btn danger"
-											onclick={() => confirmUnfollow(row.person.id, row.person.name)}
+											class="picks-btn"
+											aria-label={`${own.label}: ${row.person.name}’s own picks`}
+											onclick={(event) => openPicks(entry, own, event.currentTarget)}
+										>
+											<svg viewBox="0 0 24 24" aria-hidden="true">
+												{#if own.kind === 'play'}
+													<path d="M8 5v14l11-7z" />
+												{:else if own.kind === 'view'}
+													<path d="M4 6h16v12H4zM4 15l5-4 4 3 3-2 4 3" />
+												{:else}
+													<path d="M14 5h5v5M19 5l-8 8M18 14v5H5V6h5" />
+												{/if}
+											</svg>
+										</button>
+									{/if}
+									{#if confirmingId === row.person.id}
+										<span class="confirm">
+											<button
+												class="mini-btn danger"
+												onclick={() => confirmUnfollow(row.person.id, row.person.name)}
+											>
+												Unfollow
+											</button>
+											<button class="mini-btn" onclick={() => (confirmingId = null)}>Keep</button>
+										</span>
+									{:else}
+										<button
+											class="mini-btn"
+											aria-label={`Unfollow ${row.person.name}`}
+											onclick={() => (confirmingId = row.person.id)}
 										>
 											Unfollow
 										</button>
-										<button class="mini-btn" onclick={() => (confirmingId = null)}>Keep</button>
-									</span>
-								{:else}
-									<button
-										class="mini-btn"
-										aria-label={`Unfollow ${row.person.name}`}
-										onclick={() => (confirmingId = row.person.id)}
-									>
-										Unfollow
-									</button>
-								{/if}
-							</div>
-							{#if expandedIds.has(row.person.id)}
-								{#if entry && own}
-									<div class="their-picks">
-										<span class="tt">
-											<b>Their own picks</b>
-											<small>Chosen by {row.person.name} for the IndieNodes ring</small>
-										</span>
-										<button
-											class="mini-btn"
-											onclick={(event) => openPicks(entry, own, event.currentTarget)}
-											>{own.label}</button
-										>
-									</div>
-								{/if}
-								<div class="feed-list" id={`feeds-${personIndex}`}>
-									{#each row.feeds as feed, feedIndex (feed.id)}
-										<div class:feed-problem={feed.failures > 0} class="feed-row">
-											<span class="feed-mark" aria-hidden="true"
-												>{feedKindLabel(feed.kind).slice(0, 1)}</span
-											>
-											<span class="feed-copy">
-												<b>{feedKindLabel(feed.kind)}</b>
-												<small>
-													{feed.title !== row.person.name ? `${feed.title} · ` : ''}
-													{hostOf(feed.url)}
-													{feed.provenance === 'manual' ? ' · Added manually' : ''}
-												</small>
-												<small class:problem={feed.failures > 0}>{sourceStatus(feed)}</small>
+									{/if}
+								</div>
+								{#if expandedIds.has(row.person.id)}
+									{#if entry && own}
+										<div class="their-picks">
+											<span class="tt">
+												<b>Their own picks</b>
+												<small>Chosen by {row.person.name} for the IndieNodes ring</small>
 											</span>
-											<span class="feed-actions">
-												{#if feed.failures > 0 && feed.enabled}
-													<button
-														class="source-btn"
-														disabled={busyFeedIds.has(feed.id)}
-														onclick={() =>
-															retrySource(row.person.id, feed.id, feedKindLabel(feed.kind))}
-														>Retry</button
-													>
-												{/if}
-												{#if suggestReplace(feed)}
-													<button
-														class="source-btn"
-														aria-expanded={replacingFeedId === feed.id}
-														aria-label={`Replace the address for ${feedKindLabel(feed.kind)}`}
-														onclick={() => beginReplace(feed.id, row.person.siteUrl)}
-														>{replacingFeedId === feed.id ? 'Cancel' : 'Replace'}</button
-													>
-												{/if}
-												{#if feed.provenance === 'manual'}
-													{#if confirmingSourceId === feed.id}
-														<button
-															class="source-btn danger"
-															onclick={() =>
-																removeManualSource(
-																	row.person.id,
-																	feed.id,
-																	feedKindLabel(feed.kind)
-																)}>Remove</button
-														>
-														<button class="source-btn" onclick={() => (confirmingSourceId = null)}
-															>Keep</button
-														>
-													{:else}
+											<button
+												class="mini-btn"
+												onclick={(event) => openPicks(entry, own, event.currentTarget)}
+												>{own.label}</button
+											>
+										</div>
+									{/if}
+									<div class="feed-list" id={`feeds-${personIndex}`}>
+										<h4 class="row-sub">Sources</h4>
+										{#each row.feeds as feed, feedIndex (feed.id)}
+											<div class:feed-problem={feed.failures > 0} class="feed-row">
+												<span class="feed-mark" aria-hidden="true"
+													>{feedKindLabel(feed.kind).slice(0, 1)}</span
+												>
+												<span class="feed-copy">
+													<b>{feedKindLabel(feed.kind)}</b>
+													<small>
+														{feed.title !== row.person.name ? `${feed.title} · ` : ''}
+														{hostOf(feed.url)}
+														{feed.provenance === 'manual' ? ' · Added manually' : ''}
+													</small>
+													<small class:problem={feed.failures > 0}>{sourceStatus(feed)}</small>
+												</span>
+												<span class="feed-actions">
+													{#if feed.failures > 0 && feed.enabled}
 														<button
 															class="source-btn"
-															onclick={() => (confirmingSourceId = feed.id)}>Remove</button
+															disabled={busyFeedIds.has(feed.id)}
+															onclick={() =>
+																retrySource(row.person.id, feed.id, feedKindLabel(feed.kind))}
+															>Retry</button
 														>
 													{/if}
-												{/if}
-												<Switch
-													id={`feed-${personIndex}-${feedIndex}`}
-													label={`${feed.enabled ? 'Pause' : 'Enable'} ${feedKindLabel(feed.kind)} for ${row.person.name}`}
-													checked={feed.enabled}
-													disabled={busyFeedIds.has(feed.id)}
-													onchange={(enabled) =>
-														setFeedEnabled(
-															row.person.id,
-															feed.id,
-															feedKindLabel(feed.kind),
-															enabled
-														)}
-												/>
-											</span>
-										</div>
-										{#if replacingFeedId === feed.id}
-											{@render sourceForm(
-												`replace-${personIndex}-${feedIndex}`,
-												'Where it moved: a feed, website or profile link',
-												'Use this',
-												(source) => replaceSource(row.person.id, feed, source)
-											)}
-										{/if}
-									{/each}
-									<div class="source-manage">
-										<FolderPicker
-											id={`folder-${personIndex}`}
-											value={row.person.folder}
-											folders={you.folders}
-											onchange={(folder) => you.setPersonFolder(row.person.id, folder)}
-										/>
-										<LayoutPicker
-											id={`layout-${personIndex}`}
-											creatorUrl={row.person.siteUrl}
-											declared={row.person.layout}
-										/>
-										<ReaderTracks
-											id={`tracks-${personIndex}`}
-											creator={{
-												url: row.person.siteUrl,
-												name: row.person.name,
-												artUrl: row.person.iconUrl ?? null,
-												// Followed from IndieNodes (`ringId` is their entry there), or found another way.
-												ring: row.person.ringId ? { source: 'own', id: 'indienodes' } : null
-											}}
-										/>
-										<ReaderFinds
-											creator={{
-												url: row.person.siteUrl,
-												name: row.person.name,
-												ring: row.person.ringId ? { source: 'own', id: 'indienodes' } : null
-											}}
-										/>
-										<div class="age-limit">
-											<label for={`age-${personIndex}`}>
-												Keep posts from the last
-												<b>{row.person.maxAgeDays ?? prefs.maxAgeDays} days</b>
-												{#if row.person.maxAgeDays === undefined}<small>(default)</small>{/if}
-											</label>
-											<input
-												id={`age-${personIndex}`}
-												type="range"
-												min={MIN_MAX_AGE_DAYS}
-												max={MAX_MAX_AGE_DAYS}
-												value={row.person.maxAgeDays ?? prefs.maxAgeDays}
-												onchange={(event) =>
-													you.setPersonMaxAge(row.person.id, Number(event.currentTarget.value))}
-											/>
-											{#if row.person.maxAgeDays !== undefined}
+													{#if suggestReplace(feed)}
+														<button
+															class="source-btn"
+															aria-expanded={replacingFeedId === feed.id}
+															aria-label={`Replace the address for ${feedKindLabel(feed.kind)}`}
+															onclick={() => beginReplace(feed.id, row.person.siteUrl)}
+															>{replacingFeedId === feed.id ? 'Cancel' : 'Replace'}</button
+														>
+													{/if}
+													{#if feed.provenance === 'manual'}
+														{#if confirmingSourceId === feed.id}
+															<button
+																class="source-btn danger"
+																onclick={() =>
+																	removeManualSource(
+																		row.person.id,
+																		feed.id,
+																		feedKindLabel(feed.kind)
+																	)}>Remove</button
+															>
+															<button class="source-btn" onclick={() => (confirmingSourceId = null)}
+																>Keep</button
+															>
+														{:else}
+															<button
+																class="source-btn"
+																onclick={() => (confirmingSourceId = feed.id)}>Remove</button
+															>
+														{/if}
+													{/if}
+													<Switch
+														id={`feed-${personIndex}-${feedIndex}`}
+														label={`${feed.enabled ? 'Pause' : 'Enable'} ${feedKindLabel(feed.kind)} for ${row.person.name}`}
+														checked={feed.enabled}
+														disabled={busyFeedIds.has(feed.id)}
+														onchange={(enabled) =>
+															setFeedEnabled(
+																row.person.id,
+																feed.id,
+																feedKindLabel(feed.kind),
+																enabled
+															)}
+													/>
+												</span>
+											</div>
+											{#if replacingFeedId === feed.id}
+												{@render sourceForm(
+													`replace-${personIndex}-${feedIndex}`,
+													'Where it moved: a feed, website or profile link',
+													'Use this',
+													(source) => replaceSource(row.person.id, feed, source)
+												)}
+											{/if}
+										{/each}
+										<div class="source-manage">
+											<div class="source-toolbar">
 												<button
 													class="source-btn"
-													onclick={() => you.setPersonMaxAge(row.person.id, null)}
-													>Use default</button
+													disabled={busyPersonIds.has(row.person.id) ||
+														!row.feeds.some((feed) => feed.enabled)}
+													onclick={() => catchUpCreator(row.person.id, row.person.name)}
+													>Check now</button
 												>
-											{/if}
-										</div>
-										<div class="source-toolbar">
-											<button
-												class="source-btn"
-												disabled={busyPersonIds.has(row.person.id) ||
-													!row.feeds.some((feed) => feed.enabled)}
-												onclick={() => catchUpCreator(row.person.id, row.person.name)}
-												>Check now</button
-											>
-											<button
-												class="source-btn"
-												disabled={busyPersonIds.has(row.person.id) || row.feeds.length === 0}
-												onclick={() =>
-													setCreatorSources(
-														row.person.id,
-														row.person.name,
-														!row.feeds.every((feed) => feed.enabled)
-													)}
-											>
-												{row.feeds.every((feed) => feed.enabled) ? 'Pause all' : 'Enable all'}
+												<button
+													class="source-btn"
+													disabled={busyPersonIds.has(row.person.id) || row.feeds.length === 0}
+													onclick={() =>
+														setCreatorSources(
+															row.person.id,
+															row.person.name,
+															!row.feeds.every((feed) => feed.enabled)
+														)}
+												>
+													{row.feeds.every((feed) => feed.enabled) ? 'Pause all' : 'Enable all'}
+												</button>
+											</div>
+											<button class="add-source" onclick={() => beginAddSource(row.person.id)}>
+												{addingForId === row.person.id ? 'Cancel' : '+ Add source'}
 											</button>
+											{#if addingForId === row.person.id}
+												{@render sourceForm(
+													`source-${personIndex}`,
+													'Feed, website, or profile link',
+													'Add',
+													(source) => attachSource(row.person.id, source)
+												)}
+											{/if}
+											<h4 class="row-sub">Kept from them</h4>
+											<ReaderTracks
+												id={`tracks-${personIndex}`}
+												creator={{
+													url: row.person.siteUrl,
+													name: row.person.name,
+													artUrl: row.person.iconUrl ?? null,
+													// Followed from IndieNodes (`ringId` is their entry there), or found another way.
+													ring: row.person.ringId ? { source: 'own', id: 'indienodes' } : null
+												}}
+											/>
+											<ReaderFinds
+												creator={{
+													url: row.person.siteUrl,
+													name: row.person.name,
+													ring: row.person.ringId ? { source: 'own', id: 'indienodes' } : null
+												}}
+											/>
+											<h4 class="row-sub">Your settings for them</h4>
+											<FolderPicker
+												id={`folder-${personIndex}`}
+												value={row.person.folder}
+												folders={you.folders}
+												onchange={(folder) => you.setPersonFolder(row.person.id, folder)}
+											/>
+											<LayoutPicker
+												id={`layout-${personIndex}`}
+												creatorUrl={row.person.siteUrl}
+												declared={row.person.layout}
+											/>
+											<div class="age-limit">
+												<label for={`age-${personIndex}`}>
+													Keep posts from the last
+													<b>{row.person.maxAgeDays ?? prefs.maxAgeDays} days</b>
+													{#if row.person.maxAgeDays === undefined}<small>(default)</small>{/if}
+												</label>
+												<input
+													id={`age-${personIndex}`}
+													type="range"
+													min={MIN_MAX_AGE_DAYS}
+													max={MAX_MAX_AGE_DAYS}
+													value={row.person.maxAgeDays ?? prefs.maxAgeDays}
+													onchange={(event) =>
+														you.setPersonMaxAge(row.person.id, Number(event.currentTarget.value))}
+												/>
+												{#if row.person.maxAgeDays !== undefined}
+													<button
+														class="source-btn"
+														onclick={() => you.setPersonMaxAge(row.person.id, null)}
+														>Use default</button
+													>
+												{/if}
+											</div>
 										</div>
-										<button class="add-source" onclick={() => beginAddSource(row.person.id)}>
-											{addingForId === row.person.id ? 'Cancel' : '+ Add source'}
-										</button>
-										{#if addingForId === row.person.id}
-											{@render sourceForm(
-												`source-${personIndex}`,
-												'Feed, website, or profile link',
-												'Add',
-												(source) => attachSource(row.person.id, source)
-											)}
-										{/if}
 									</div>
-								</div>
-							{/if}
-						</div>
-					{/each}
-				{/if}
+								{/if}
+							</div>
+						{/each}
+					{/if}
+				</div>
 			</div>
-		</section>
-
-		<YouLists />
+		{/if}
 	</div>
 
 	<Toast />
@@ -851,6 +928,66 @@
 		flex-direction: column;
 		gap: 24px;
 		padding: 4px 16px 0;
+	}
+
+	/* You's own tabs: the same pill as the lists' tabs, sized to its labels rather than equal. */
+	.you-tabs {
+		display: flex;
+		gap: 4px;
+		margin-bottom: -8px;
+		padding: 4px;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+	}
+
+	.you-tab {
+		display: flex;
+		flex: 1 1 auto;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		min-height: 44px;
+		padding: 0 10px;
+		border: 0;
+		border-radius: 999px;
+		background: none;
+		color: var(--muted);
+		font: inherit;
+		font-size: 13.5px;
+		font-weight: 600;
+		white-space: nowrap;
+		transition:
+			background var(--dur-s) var(--ease),
+			color var(--dur-s) var(--ease);
+	}
+
+	.you-tab[aria-selected='true'] {
+		background: var(--brand-soft);
+		color: var(--brand-ink);
+	}
+
+	.you-tab .count {
+		font-family: var(--mono);
+		font-size: 11px;
+		font-weight: 400;
+	}
+
+	/* What an open row holds, in three named parts rather than one long run. */
+	.row-sub {
+		margin: 14px 0 2px;
+		font-family: var(--mono);
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.you-tab {
+			transition: none;
+		}
 	}
 
 	.grp {

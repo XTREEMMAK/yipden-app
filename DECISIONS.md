@@ -2787,3 +2787,35 @@ theirs.
 - **Partner rings are not covered,** because their members cannot be followed yet (a ROADMAP open
   question).
 - **Not in the Library.** That holds what the reader kept; these are the creator's.
+
+## 2026-10-05 — Four adjustments from phone use
+
+- **You has tabs.** Following comes first and is where You opens. The Library and "Liked & not for
+  me" are a tab each, which follows what a reader came for: who they read, what they kept, whom
+  they have judged. The Library's View links open its tab (`?tab=library`), and arrow keys move
+  along the tabs. An open follow row is split into three named parts, Sources, Kept from them and
+  Your settings for them, instead of one long run.
+- **Pinch to zoom in the in-app browser** (the plugin's `enableZoom`, with its on-screen zoom
+  buttons hidden). A site built for a desktop is unreadable on a phone without it. A page that
+  forbids zoom in its own viewport tag (`user-scalable=no`) still gets its way. Overriding that
+  would mean changing the page, which the injected script deliberately never does.
+- **A card takes taps until it is really going behind.** The card stack used to mark a card
+  `behind` (no taps) as soon as its place passed the top of the pane. That was the moment it
+  pinned, while it was still the front card and wholly readable, so its buttons only worked at
+  certain scroll positions.
+  - A card now refuses taps only past halfway folded (`isBehind`), worked out each frame alongside
+    the fold itself.
+  - Where the next card overlaps a pinned one, the next card is drawn on top and takes the tap, so
+    nothing else needs refusing.
+  - Feeds and partner rings share the fix. The debug-only scroll-driven path keeps the old
+    observer.
+- **A partner ring's filters live in a sheet.**
+  - **The sheet:** a filter icon beside its search opens a Show choice (Everyone, Not explored yet,
+    Explored) and its genres. The icon is filled while any filter is on, and says which to a screen
+    reader.
+  - **What it replaced:** the genre chips and the Hide explored button.
+  - **The new filter:** "Explored" shows only the members already looked at.
+  - **The count:** "x of y explored" became the count beside each Show choice.
+  - **Resume** moved to the ring's name row.
+  - **Saved views:** a view saved before this is read the same as before (`showOf`, which maps the
+    old `hideExplored`).

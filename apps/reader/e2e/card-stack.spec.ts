@@ -86,6 +86,36 @@ test.describe('The card stack', () => {
 		await expect(firstCard).toHaveClass(/\bbehind\b/, { timeout: 5000 });
 	});
 
+	test('a card just pinned at the top still takes taps; only one folded away does not', async ({
+		page,
+		context
+	}) => {
+		await seed(page);
+		const pane = page.locator('#pane-everything');
+		const firstCard = pane.locator(`.yip-stack[data-key="${FIRST_KEY}"]`);
+
+		const { top, height } = await firstCard.evaluate((el) => ({
+			top: (el as HTMLElement).offsetTop,
+			height: (el as HTMLElement).offsetHeight
+		}));
+		// A little past the top: pinned, barely tipped, still the card in front.
+		await pane.evaluate((el, to) => el.scrollTo({ top: to, behavior: 'instant' }), top + 40);
+		await page.waitForTimeout(200);
+		await expect(firstCard).not.toHaveClass(/\bbehind\b/);
+		const [popup] = await Promise.all([
+			context.waitForEvent('page'),
+			firstCard.getByRole('button', { name: /Post 0\b/ }).click({ timeout: 5000 })
+		]);
+		await popup.close();
+
+		// Most of the way folded: behind, and out of the way.
+		await pane.evaluate(
+			(el, to) => el.scrollTo({ top: to, behavior: 'instant' }),
+			top + height * 0.75
+		);
+		await expect(firstCard).toHaveClass(/\bbehind\b/, { timeout: 5000 });
+	});
+
 	test('the front card still opens on tap after scrolling', async ({ page, context }) => {
 		await seed(page);
 		const pane = page.locator('#pane-everything');

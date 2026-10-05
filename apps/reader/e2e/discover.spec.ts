@@ -236,7 +236,7 @@ test.describe('Discover', () => {
 		await (await openActions(page)).getByRole('button', { name: 'Not for me' }).click();
 		await expect(heading).not.toHaveText(first!);
 
-		await page.goto('/you');
+		await page.goto('/you?tab=lists');
 		await page.getByRole('tab', { name: /^Not for me/ }).click();
 		const row = page.getByRole('button', { name: `Open ${first}` });
 		await expect(row).toBeVisible();
@@ -251,8 +251,8 @@ test.describe('Discover', () => {
 		await expect(await openActions(page)).toContainText('Liked');
 		await page.keyboard.press('Escape');
 
-		await page.goto('/you');
-		await page.getByRole('tab', { name: /^Liked/ }).click();
+		await page.goto('/you?tab=lists');
+		await page.getByRole('tab', { name: /^Liked \d/ }).click();
 		await expect(page.getByRole('button', { name: `Open ${first}` })).toBeVisible();
 	});
 
@@ -267,8 +267,8 @@ test.describe('Discover', () => {
 		await page.mouse.click(at.x, at.y, { clickCount: 2, delay: 40 });
 
 		await expect(name.getByRole('img', { name: 'Liked' })).toBeVisible();
-		await page.goto('/you');
-		await page.getByRole('tab', { name: /^Liked/ }).click();
+		await page.goto('/you?tab=lists');
+		await page.getByRole('tab', { name: /^Liked \d/ }).click();
 		await expect(page.getByRole('button', { name: `Open ${first}` })).toBeVisible();
 	});
 

@@ -142,8 +142,8 @@ describe('arranging', () => {
 describe('libraryHref', () => {
 	it('opens You at the Library, narrowed to a creator or a type', () => {
 		expect(libraryHref({ creatorId: 'lena.example' })).toBe(
-			'/you?library=creator&of=lena.example#library'
+			'/you?tab=library&library=creator&of=lena.example#library'
 		);
-		expect(libraryHref({ type: 'links' })).toBe('/you?library=type&of=links#library');
+		expect(libraryHref({ type: 'links' })).toBe('/you?tab=library&library=type&of=links#library');
 	});
 });

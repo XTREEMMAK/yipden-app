@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardPlacement } from './cardStack.js';
+import { cardPlacement, isBehind } from './cardStack.js';
 
 /**
  * The rAF fallback's geometry, checked as plain numbers: `relative` is a card's offset from
@@ -97,5 +97,19 @@ describe('cardPlacement', () => {
 		const justOutside = cardPlacement(VIEWPORT - CARD_HEIGHT + 1, CARD_HEIGHT, VIEWPORT)!;
 		expect(justInside.opacity).toBeCloseTo(1, 1);
 		expect(justOutside.opacity).toBeCloseTo(1, 1);
+	});
+});
+
+describe('isBehind', () => {
+	it('lets a card that has just pinned, or is rising, keep taking taps', () => {
+		expect(isBehind(400, 300)).toBe(false);
+		expect(isBehind(0, 300)).toBe(false);
+		expect(isBehind(-10, 300)).toBe(false);
+		expect(isBehind(-150, 300)).toBe(false);
+	});
+
+	it('refuses taps once a card is more than half folded away', () => {
+		expect(isBehind(-151, 300)).toBe(true);
+		expect(isBehind(-300, 300)).toBe(true);
 	});
 });

@@ -150,7 +150,7 @@ test.describe('a desktop first member in Discover', () => {
 	test('a kept track is in the Library, reached from the toast, searchable and arranged', async ({
 		page
 	}) => {
-		await page.goto('/you');
+		await page.goto('/you?tab=library');
 		const library = page.getByRole('region', { name: /^Library/ });
 		await expect(library.getByText(/Everything you keep, in one place/)).toBeVisible();
 
@@ -167,7 +167,9 @@ test.describe('a desktop first member in Discover', () => {
 		await expect(toast).toContainText('Kept to Library');
 
 		await toast.getByRole('button', { name: 'View' }).click();
-		await expect(page).toHaveURL(/\/you\/?\?library=creator&of=wide\.example\.com#library$/);
+		await expect(page).toHaveURL(
+			/\/you\/?\?tab=library&library=creator&of=wide\.example\.com#library$/
+		);
 		await expect(library).toContainText('1 track');
 		await expect(library.getByText('Showing Wide Screen')).toBeVisible();
 		// Narrowed to one creator, so arranged by creator.
@@ -217,7 +219,7 @@ test.describe('a desktop first member in Discover', () => {
 
 		// The toast's View goes straight there, to the Library's links, with the new one picked out.
 		await page.getByRole('status').getByRole('button', { name: 'View' }).click();
-		await expect(page).toHaveURL(/\/you\/?\?library=type&of=links#library$/);
+		await expect(page).toHaveURL(/\/you\/?\?tab=library&library=type&of=links#library$/);
 		const shelf = page.getByRole('region', { name: /^Library/ });
 		await expect(shelf).toContainText('1 link');
 		await expect(shelf.getByText('Showing Links')).toBeVisible();
@@ -247,7 +249,7 @@ test.describe('a desktop first member in Discover', () => {
 			'https://wide.example.com/'
 		]);
 
-		await page.goto('/you');
+		await page.goto('/you?tab=library');
 		await shelf.getByRole('button', { name: /^Open Wide Screen/ }).click();
 		expect(await opened(page)).toEqual(['https://wide.example.com/']);
 
@@ -275,7 +277,7 @@ test.describe('a desktop first member in Discover', () => {
 			page.getByRole('button', { name: 'More actions' })
 		]);
 
-		await page.goto('/you');
+		await page.goto('/you?tab=library');
 		const shelf = page.getByRole('region', { name: /^Library/ });
 		await tall([
 			shelf.getByRole('button', { name: /^Open / }),
@@ -296,7 +298,7 @@ test.describe('a desktop first member in Discover', () => {
 			'true'
 		);
 
-		await page.goto('/you');
+		await page.goto('/you?tab=library');
 		await expect(
 			page.getByRole('region', { name: /^Library/ }).getByRole('button', { name: /^Open / })
 		).toHaveCount(1);
@@ -354,7 +356,7 @@ test.describe('a followed site that looks built for desktop', () => {
 		await everything.getByRole('button', { name: 'Save A long, wide post for later' }).click();
 		await expect(page.getByText('Saved for later, in your Library.')).toBeVisible();
 
-		await page.goto('/you');
+		await page.goto('/you?tab=library');
 		const shelf = page.getByRole('region', { name: /^Library/ });
 		await expect(shelf.getByText('A long, wide post')).toBeVisible();
 		await expect(shelf.getByText(/Wide Writer · wide-writer\.example/)).toBeVisible();
@@ -369,6 +371,31 @@ test.describe('a followed site that looks built for desktop', () => {
 		await expect(page.getByRole('button', { name: /for later/ })).toHaveCount(0);
 	});
 });
+
+/** The partner ring's Filter sheet: open it, do something, and close it with Done. */
+async function inPartnerFilter(
+	page: Page,
+	work: (sheet: ReturnType<Page['getByRole']>) => Promise<void>
+) {
+	await page.getByRole('button', { name: /^Filter Fixture Ring/ }).click();
+	const sheet = page.getByRole('dialog', { name: 'Filter Fixture Ring' });
+	await work(sheet);
+	await sheet.getByRole('button', { name: 'Done' }).click();
+	await expect(sheet).toHaveCount(0);
+}
+
+/** How many members are explored, as the Filter sheet counts them. */
+async function expectExplored(page: Page, count: number) {
+	await inPartnerFilter(page, async (sheet) => {
+		await expect(sheet.getByRole('radio', { name: /^Explored/ })).toContainText(String(count));
+	});
+}
+
+async function chooseShow(page: Page, label: string) {
+	await inPartnerFilter(page, (sheet) =>
+		sheet.getByRole('radio', { name: new RegExp(`^${label}`) }).click()
+	);
+}
 
 test.describe('partner rings in Discover', () => {
 	test('offer no ring switcher at all until a ring is registered', async ({ page }) => {
@@ -428,11 +455,11 @@ test.describe('partner rings in Discover', () => {
 			}
 			await page.mouse.up();
 
-			await expect(panel.getByText('1 of 2 explored')).toBeVisible();
+			await expectExplored(page, 1);
 			await expect(hint).toHaveCount(0);
 			const check = panel.getByRole('button', { name: 'Unmark Ash & Ember as explored' });
 			await check.click();
-			await expect(panel.getByText('0 of 2 explored')).toBeVisible();
+			await expectExplored(page, 0);
 
 			// Every action on a card fits one row: the icon buttons share one top edge.
 			const icons = card.locator('.acts').last().locator('button');
@@ -447,28 +474,34 @@ test.describe('partner rings in Discover', () => {
 			await expect(page.getByRole('note')).toHaveCount(0);
 		});
 
-		test('marks members explored, hides them on request, and keeps the search after leaving', async ({
+		test('marks members explored, filters by it either way, and keeps the search after leaving', async ({
 			page
 		}) => {
 			await page.goto('/');
 			await page.getByRole('button', { name: /^Switch ring/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
-			await expect(panel.getByText('0 of 2 explored')).toBeVisible();
+			await expectExplored(page, 0);
 
 			// Visiting someone counts as looking at them.
 			await panel
 				.getByRole('button', { name: /^Visit/ })
 				.first()
 				.click();
-			await expect(panel.getByText('1 of 2 explored')).toBeVisible();
+			await expectExplored(page, 1);
 			await expect(
 				panel.getByRole('button', { name: 'Unmark Ash & Ember as explored' })
 			).toHaveAttribute('aria-pressed', 'true');
 
-			await panel.getByRole('button', { name: 'Hide explored' }).click();
+			await chooseShow(page, 'Not explored yet');
 			await expect(panel.getByRole('heading', { level: 3 })).toHaveText(['Big Monitor Club']);
-			await panel.getByRole('button', { name: 'Hide explored' }).click();
+			await expect(
+				page.getByRole('button', { name: /^Filter Fixture Ring: not explored yet/ })
+			).toBeVisible();
+			// And the other way round: only the ones already explored.
+			await chooseShow(page, 'Explored');
+			await expect(panel.getByRole('heading', { level: 3 })).toHaveText(['Ash & Ember']);
+			await chooseShow(page, 'Everyone');
 
 			await panel.getByRole('searchbox').fill('monitor');
 			await expect(panel.getByRole('heading', { level: 3 })).toHaveText(['Big Monitor Club']);
@@ -479,14 +512,14 @@ test.describe('partner rings in Discover', () => {
 			const again = page.getByRole('region', { name: 'Fixture Ring members' });
 			await expect(again.getByRole('searchbox')).toHaveValue('monitor');
 			await expect(again.getByRole('heading', { level: 3 })).toHaveText(['Big Monitor Club']);
-			await expect(again.getByText('1 of 2 explored')).toBeVisible();
+			await expectExplored(page, 1);
 
 			// And after a relaunch.
 			await page.reload();
 			await page.getByRole('button', { name: /^Switch ring/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			await expect(page.getByRole('searchbox')).toHaveValue('monitor');
-			await expect(page.getByText('1 of 2 explored')).toBeVisible();
+			await expectExplored(page, 1);
 		});
 
 		test('the switcher sits next to Shuffle, on its own, not inside Filter', async ({ page }) => {
@@ -539,7 +572,7 @@ test.describe('partner rings in Discover', () => {
 			await panel.getByRole('button', { name: 'Save for later' }).click();
 			await expect(panel.getByRole('button', { name: 'Saved', exact: true })).toBeVisible();
 
-			await page.goto('/you');
+			await page.goto('/you?tab=library');
 			await expect(
 				page
 					.getByRole('region', { name: /^Library/ })
@@ -577,7 +610,7 @@ test.describe('partner rings in Discover', () => {
 			// does; on a phone both open in the app with this member as the creator.
 			await bmcCard.getByRole('button', { name: 'Open on SoundCloud' }).click();
 			expect(await opened(page)).toEqual(['https://soundcloud.com/bmc/a-track']);
-			await expect(panel.getByText('1 of 2 explored')).toBeVisible();
+			await expectExplored(page, 1);
 		});
 
 		test('folds and stands its cards the same way Feeds does, and turns off under reduced motion', async ({
@@ -658,7 +691,7 @@ test.describe('partner rings in Discover', () => {
 			expect(await page.evaluate(() => window.history.state?.yipdenRing ?? null)).toBeNull();
 		});
 
-		test('search and genre chips narrow the ring, generically', async ({ page }) => {
+		test('search and the genre filter narrow the ring, generically', async ({ page }) => {
 			await page.goto('/');
 			await page.getByRole('button', { name: /^Switch ring/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
@@ -670,14 +703,15 @@ test.describe('partner rings in Discover', () => {
 			await expect(names).toHaveText(['Big Monitor Club']);
 			await panel.getByRole('searchbox').fill('');
 
-			const genres = panel.getByRole('group', { name: 'Genre' });
-			await genres.getByRole('button', { name: /^Zines/ }).click();
+			await inPartnerFilter(page, (sheet) => sheet.getByRole('radio', { name: /^Zines/ }).click());
 			await expect(names).toHaveText(['Ash & Ember']);
 			await panel.getByRole('searchbox').fill('monitor');
 			await expect(names).toHaveCount(0);
 			await expect(panel.getByText(/Nobody here matches “monitor” in Zines/)).toBeVisible();
 
-			await genres.getByRole('button', { name: 'All', exact: true }).click();
+			await inPartnerFilter(page, (sheet) =>
+				sheet.getByRole('radio', { name: 'All genres' }).click()
+			);
 			await expect(names).toHaveText(['Big Monitor Club']);
 		});
 
@@ -690,7 +724,7 @@ test.describe('partner rings in Discover', () => {
 			await save.click();
 			await expect(save).toHaveAttribute('aria-pressed', 'true');
 
-			await page.goto('/you');
+			await page.goto('/you?tab=library');
 			await expect(
 				page
 					.getByRole('region', { name: /^Library/ })

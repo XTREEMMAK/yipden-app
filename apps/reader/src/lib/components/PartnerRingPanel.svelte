@@ -7,9 +7,10 @@
 	import { openExternal } from '$lib/platform/external.js';
 	import { goto } from '$app/navigation';
 	import { onMount, tick, untrack } from 'svelte';
-	import { explored, resumeIndex } from '$lib/explored.svelte.js';
+	import { explored, resumeIndex, showOf, type ExploredFilter } from '$lib/explored.svelte.js';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import CreatorNotesSheet from './CreatorNotesSheet.svelte';
+	import PartnerFilterSheet from './PartnerFilterSheet.svelte';
 	import { siteBrowser } from '$lib/platform/siteBrowser.svelte.js';
 	import { prefs } from '$lib/prefs.svelte.js';
 	import { shelf, toggleShelf } from '$lib/shelf.svelte.js';
@@ -74,7 +75,8 @@
 	// applied in onMount, once it has been read.
 	let query = $state('');
 	let genre = $state<string | null>(null);
-	let hideExplored = $state(false);
+	let show = $state<ExploredFilter>('all');
+	let filtersOpen = $state(false);
 	let scroller = $state<HTMLDivElement | undefined>(undefined);
 
 	let genres = $derived.by(() => {
@@ -92,7 +94,7 @@
 		return members.filter(
 			(member) =>
 				(!genre || member.tags?.includes(genre)) &&
-				(!hideExplored || !explored.has(member.url)) &&
+				(show === 'all' || explored.has(member.url) === (show === 'explored')) &&
 				(!needle ||
 					[member.name, member.blurb, hostOf(member.url), ...(member.tags ?? [])].some((field) =>
 						field?.toLowerCase().includes(needle)
@@ -107,13 +109,24 @@
 
 	let exploredCount = $derived(members.filter((member) => explored.has(member.url)).length);
 
+	let filtering = $derived(show !== 'all' || genre !== null);
+	/** What the filter button says is on, for a screen reader: the button is an icon. */
+	let filterSummary = $derived(
+		[
+			show === 'unexplored' ? 'not explored yet' : show === 'explored' ? 'explored' : '',
+			genre ? genreLabel(genre) : ''
+		]
+			.filter(Boolean)
+			.join(', ')
+	);
+
 	/*
-	 * A changed search, genre or "hide explored" starts the list from the top and is remembered.
+	 * A changed search, genre or explored filter starts the list from the top and is remembered.
 	 * The first run is the restored view itself, which keeps its own scroll position instead.
 	 */
 	let restored = false;
 	$effect(() => {
-		const view = { query, genre, hideExplored };
+		const view = { query, genre, show };
 		if (!restored) return;
 		// Untracked: setView reads the saved views it writes, and must not rerun this effect.
 		untrack(() => {
@@ -260,7 +273,7 @@
 			const view = explored.view(result.ring.id);
 			query = view.query;
 			genre = view.genre;
-			hideExplored = view.hideExplored;
+			show = showOf(view);
 			await tick();
 			requestAnimationFrame(() => {
 				if (scroller) scroller.scrollTop = view.scrollTop;
@@ -359,6 +372,15 @@
 				spellcheck="false"
 				bind:value={query}
 			/>
+			<button
+				class="filter-btn"
+				class:is-active={filtering}
+				aria-label={`Filter ${result.ring.name}${filtering ? `: ${filterSummary}` : ''}`}
+				aria-haspopup="dialog"
+				onclick={() => (filtersOpen = true)}
+			>
+				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4" /></svg>
+			</button>
 		</div>
 		<div class="ring-id">
 			{#if result.ring.iconUrl}
@@ -368,37 +390,15 @@
 			{#if result.ring.badgeUrl}
 				<img class="ring-badge" src={result.ring.badgeUrl} alt={`${result.ring.name} badge`} />
 			{/if}
-		</div>
-		<div class="progress">
-			<span class="count">{exploredCount} of {members.length} explored</span>
 			<button
-				class="mini"
-				aria-pressed={hideExplored}
-				onclick={() => (hideExplored = !hideExplored)}
+				class="mini resume"
+				onclick={resume}
+				disabled={exploredCount === members.length}
+				title="Jump to the next member you have not explored"
 			>
-				Hide explored
-			</button>
-			<button class="mini" onclick={resume} disabled={exploredCount === members.length}>
 				Resume
 			</button>
 		</div>
-		{#if genres.length > 1}
-			<div class="genres" role="group" aria-label="Genre">
-				<button class="genre" aria-pressed={genre === null} onclick={() => (genre = null)}>
-					All
-				</button>
-				{#each genres as entry (entry.tag)}
-					<button
-						class="genre"
-						aria-pressed={genre === entry.tag}
-						onclick={() => (genre = genre === entry.tag ? null : entry.tag)}
-					>
-						{genreLabel(entry.tag)}
-						<span>{entry.count}</span>
-					</button>
-				{/each}
-			</div>
-		{/if}
 	</header>
 
 	<div class="scroll" bind:this={scroller} use:stack use:tuckMini onscroll={onScroll}>
@@ -684,6 +684,24 @@
 	/>
 {/if}
 
+{#if filtersOpen}
+	<PartnerFilterSheet
+		ringName={result.ring.name}
+		{show}
+		{genre}
+		{genres}
+		counts={{
+			all: members.length,
+			explored: exploredCount,
+			unexplored: members.length - exploredCount
+		}}
+		{genreLabel}
+		onshow={(next) => (show = next)}
+		ongenre={(next) => (genre = next)}
+		onclose={() => (filtersOpen = false)}
+	/>
+{/if}
+
 {#if preview}
 	<ImagePreview src={preview.src} alt={preview.alt} onclose={() => (preview = null)} />
 {/if}
@@ -742,6 +760,11 @@
 		gap: 10px;
 	}
 
+	/* Resume sits at the end of the ring's own row, out of the way of its name. */
+	.resume {
+		margin-left: auto;
+	}
+
 	.search {
 		flex: 1;
 		min-width: 0;
@@ -761,47 +784,35 @@
 		color: rgba(255, 255, 255, 0.7);
 	}
 
-	/* One scrolling row, so ten genres never push the cards off a phone screen. */
-	.genres {
-		display: flex;
-		gap: 6px;
-		margin: 0 -20px;
-		padding: 0 20px 2px;
-		overflow-x: auto;
-		scrollbar-width: none;
-	}
-
-	.genres::-webkit-scrollbar {
-		display: none;
-	}
-
-	.genre {
-		flex: 0 0 auto;
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		min-height: 44px;
-		padding: 0 14px;
+	/* The filter sheet's door: an icon beside search, filled while any filter is on. */
+	.filter-btn {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		padding: 0;
 		border: 1px solid rgba(255, 255, 255, 0.28);
 		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.1);
+		background: rgba(255, 255, 255, 0.14);
 		color: #fff;
-		font: inherit;
-		font-size: 13.5px;
-		font-weight: 600;
-		white-space: nowrap;
+		transition:
+			background var(--dur-s) var(--ease),
+			color var(--dur-s) var(--ease);
 	}
 
-	.genre[aria-pressed='true'] {
+	.filter-btn.is-active {
 		background: #fff;
 		color: var(--deep);
 	}
 
-	.genre span {
-		font-family: var(--mono);
-		font-size: 11px;
-		font-weight: 400;
-		opacity: 0.75;
+	.filter-btn svg {
+		width: 20px;
+		height: 20px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
 	}
 
 	.ring-icon {
@@ -1001,21 +1012,6 @@
 		margin-top: 4px;
 	}
 
-	.progress {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-	}
-
-	.progress .count {
-		flex: 1;
-		min-width: 0;
-		font-family: var(--mono);
-		font-size: 11.5px;
-		letter-spacing: 0.04em;
-		color: rgba(255, 255, 255, 0.85);
-	}
-
 	.mini {
 		flex: none;
 		min-height: 44px;
@@ -1027,11 +1023,6 @@
 		font: inherit;
 		font-size: 13px;
 		font-weight: 600;
-	}
-
-	.mini[aria-pressed='true'] {
-		background: #fff;
-		color: var(--deep);
 	}
 
 	.mini:disabled {

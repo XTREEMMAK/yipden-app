@@ -123,6 +123,8 @@ class SiteBrowser {
 			// Back goes back a page on the site, and closes it only from the first page.
 			activeNativeNavigationForWebview: true,
 			ignoreUntrustedSSLError: false,
+			// Pinch to zoom: a site laid out for a desktop is unreadable on a phone without it.
+			enableZoom: true,
 			isInspectable: __YIPDEN_DEBUG__,
 			buttonNearDone: {
 				ios: { iconType: 'sf-symbol', icon: 'tray.and.arrow.down' },

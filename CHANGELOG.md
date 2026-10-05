@@ -125,6 +125,13 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- You opens on Following, with the Library and Liked & not for me as tabs beside it. A person's
+  open row is split into Sources, Kept from them, and Your settings for them.
+- Sites opened in the app can be pinch-zoomed.
+- A card in Feeds or a partner ring takes taps wherever it is on screen, until it is folding away
+  behind the next one. Before, its buttons only worked at some scroll positions.
+- A partner ring's genres and explored filters moved into a Filter sheet beside its search, which
+  can now show only the members you have explored. Resume sits beside the ring's name.
 - Saved links moved from their own tab on You into the Library. Liked and Not for me stay where
   they were.
 - The button in the in-app browser's toolbar is now a "keep" sign rather than a music note, since
