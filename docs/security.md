@@ -106,6 +106,11 @@ reader keep audio the page plays (see DECISIONS.md, 2026-10-02). What keeps that
   scan uses, so `pageMedia.ts` keeps only `safeUrl` addresses (https, no credentials, no private or
   loopback hosts) and bounded plain-text titles with control and direction-override characters
   stripped. Nothing found is stored until the reader taps Keep in the app's own sheet.
+- **What the injected script does to a page.** It reads the page, and touches it twice: a
+  pass-through wrapper on media `play()`, which notes a player built in script and lets the call go
+  through unchanged, and a pause of the page's media when the reader previews a track in the app.
+  It sends nothing anywhere but the bridge, and the app gains no new power over the page; the
+  wrapper runs with the page's own privileges, as any of the page's own script does.
 - **The trust anchor is native chrome.** Results reach that sheet only through YipDen's toolbar
   button (`buttonNearDoneClick`), which a page cannot press. No account action, and nothing beyond
   offering candidates, may ever be driven by `messageFromWebview`.

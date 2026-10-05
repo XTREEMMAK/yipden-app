@@ -2964,3 +2964,27 @@ their own page was refused for not being on their domain.
   `<fieldset>` is otherwise as wide as its widest unbroken line, and the descriptions were on a
   single unwrapped line. The fieldset now has `min-width: 0`. Descriptions sit on their own
   wrapping line, cut at 200 characters with an ellipsis, as is the forum's own description.
+
+## 2026-10-05 (night, later) — Hearing a found track, and finding ones a page plays from script
+
+Phone feedback: a found track could not be heard before keeping it, and a creator's audio hosted
+on another site was not found while it played.
+
+- **Why it was missed.** A page that builds its player in script (`new Audio(url).play()`, common
+  for custom players and for files on hosts like File Garden) never puts the element in the
+  document, so its `play` event never reached the scan's listener.
+- **The fix: a hook on `play()`.** The scan now wraps `HTMLMediaElement.prototype.play` with a
+  pass-through hook that records the element, rescans, and makes the call unchanged. It also looks
+  inside same-origin frames.
+  - This is the script's first touch on the page beyond reading, and it is the least one that
+    works. A cross-origin frame's player still cannot be seen; that is the browser's line, not
+    ours to cross.
+- **Hear before keeping.** Each found track that is a file, or that the page played or had in a
+  player (its address may have no extension), now has a round play button in "Found on their
+  page".
+  - **Where it plays:** a queue of one, through the app's one shared audio element, with the
+    player kept small (`player.preview`) rather than opening over the sheet. A second tap pauses.
+- **The page goes quiet first.** A page keeps playing while hidden behind the sheet, so a preview
+  first pauses the page's media (`PAUSE_SCRIPT`): in the document, in same-origin frames, and
+  whatever the hook saw. It is paused rather than muted, so nothing starts again by itself; the
+  reader plays it on the page again if they want it.

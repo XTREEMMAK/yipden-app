@@ -1,6 +1,7 @@
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { safeUrl, type SiteLayout } from '@yipden/ring-client';
 import {
+	PAUSE_SCRIPT,
 	readFound,
 	SCAN_SCRIPT,
 	type FoundImage,
@@ -142,6 +143,16 @@ class SiteBrowser {
 		await new Promise((resolve) => setTimeout(resolve, 250));
 		await InAppBrowser.hide().catch(() => {});
 		this.reviewing = { ...session, found: [...session.found] };
+	}
+
+	/**
+	 * Quiet the page, which keeps playing while it is hidden behind the app's sheet, so a preview
+	 * there can be heard. Paused, not muted: it stays paused until the reader plays it again.
+	 */
+	async pausePage(): Promise<void> {
+		if (!this.session) return;
+		const { InAppBrowser } = await import('@capgo/capacitor-inappbrowser');
+		await InAppBrowser.executeScript({ code: PAUSE_SCRIPT }).catch(() => {});
 	}
 
 	/** The sheet closed: back to the page, as the reader left it. */

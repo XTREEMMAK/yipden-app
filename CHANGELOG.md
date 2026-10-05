@@ -131,6 +131,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- In "Found on their page", a track can be heard before you keep it; the page's own audio pauses
+  so the preview is not drowned out.
+- Audio a creator's page plays from its own script player (often files on another host, like File
+  Garden) is now found while it plays.
 - Feeds has a People | Forums switch at the top instead of a fifth pill: People keeps Everything,
   Posts, Watch and Listen; Forums shows the topic digest. Forum topics no longer mix into
   Everything.

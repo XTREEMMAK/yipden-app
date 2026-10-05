@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { MESSAGE_TYPE, readFound, readFoundMedia, SCAN_SCRIPT } from './pageMedia.js';
+import { MESSAGE_TYPE, PAUSE_SCRIPT, readFound, readFoundMedia, SCAN_SCRIPT } from './pageMedia.js';
 
 const message = (items: unknown[]) => ({ type: MESSAGE_TYPE, items });
 
@@ -210,5 +210,47 @@ describe('readFound', () => {
 		const found = readFound({ type: MESSAGE_TYPE, passage: { exact: 'word '.repeat(150), page } });
 		expect(found.passage).toBeNull();
 		expect(found.passageTooLong).toBe(true);
+	});
+});
+
+describe('SCAN_SCRIPT and media a page builds in script', () => {
+	it('sees a track played with new Audio(), which never joins the document', () => {
+		const posted: Array<{ detail: Record<string, unknown> }> = [];
+		(window as unknown as { mobileApp: unknown }).mobileApp = {
+			postMessage: (value: { detail: Record<string, unknown> }) => posted.push(value)
+		};
+		// Installed already by the suite above, or installed now: either way the hook is there.
+		new Function(SCAN_SCRIPT)();
+		vi.useFakeTimers();
+		const audio = new Audio('https://file.garden/abc/night-drive');
+		try {
+			void audio.play();
+		} catch {
+			// jsdom does not play media; the hook records it before the call either way.
+		}
+		vi.advanceTimersByTime(5);
+		vi.useRealTimers();
+		const urls = posted.flatMap((message) =>
+			readFoundMedia(message.detail).map((item) => item.url)
+		);
+		expect(urls).toContain('https://file.garden/abc/night-drive');
+	});
+
+	it('pauses what the page is playing, in the document and out of it, and nothing else', () => {
+		const inDocument = document.createElement('audio');
+		document.body.append(inDocument);
+		const detached = new Audio();
+		const pauses: string[] = [];
+		for (const [name, el] of [
+			['in document', inDocument],
+			['detached', detached]
+		] as const) {
+			Object.defineProperty(el, 'paused', { value: false, configurable: true });
+			el.pause = () => void pauses.push(name);
+		}
+		(window as unknown as { __yipdenMedia: Set<HTMLMediaElement> }).__yipdenMedia.add(detached);
+		new Function(PAUSE_SCRIPT)();
+		expect(pauses.sort()).toEqual(['detached', 'in document']);
+		inDocument.remove();
 	});
 });

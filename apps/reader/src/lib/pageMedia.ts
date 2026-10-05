@@ -6,8 +6,11 @@ import { previewKindOf, safeUrl, type PreviewKind } from '@yipden/ring-client';
  * `SCAN_SCRIPT` runs inside the page and reports what it can see: what is playing, audio and
  * video elements, links to audio files, files the page already loaded, and players embedded from
  * a platform. It also notes the last picture the reader long-pressed and the last passage they
- * selected, each with the page it was on. It only reads; it changes nothing on the page, stops
- * none of the page's own handling, and fetches nothing.
+ * selected, each with the page it was on. It reads, stops none of the page's own handling, and
+ * fetches nothing. Its one touch on the page is a pass-through wrapper on media `play()`, so a
+ * player built in script (`new Audio(url)`, never in the document) is seen when it plays; the
+ * call itself goes through unchanged. `PAUSE_SCRIPT` pauses the page's media when the reader
+ * previews something in the app, and only then.
  *
  * Everything it sends back is untrusted. The page's own code can read and fake the same message,
  * so `readFoundMedia` keeps only public https addresses and plain bounded text, and nothing found
@@ -176,6 +179,22 @@ export function readFoundMedia(detail: unknown): FoundMedia[] {
 }
 
 /**
+ * Runs in the creator's page: pause whatever it is playing, so a preview in the app can be heard.
+ * Media in the document, in same-origin frames, and anything the play hook saw. Nothing resumes
+ * by itself afterwards; the reader presses play on the page again if they want it.
+ */
+export const PAUSE_SCRIPT = `(() => {
+	try {
+		const pause = (el) => { try { if (!el.paused) el.pause(); } catch (e) {} };
+		document.querySelectorAll('audio, video').forEach(pause);
+		document.querySelectorAll('iframe').forEach((frame) => {
+			try { frame.contentDocument && frame.contentDocument.querySelectorAll('audio, video').forEach(pause); } catch (e) {}
+		});
+		(window.__yipdenMedia || []).forEach(pause);
+	} catch (e) {}
+})();`;
+
+/**
  * Runs in the creator's page. Installed once per page; running it again rescans. Reports through
  * the in-app browser's own bridge, the only way a page there can reach the app.
  */
@@ -190,10 +209,19 @@ export const SCAN_SCRIPT = `(() => {
 			const items = [];
 			const add = (url, title, how) => { url = absolute(url); if (usable(url)) items.push({ url, title, how }); };
 			if (playing) add(playing.currentSrc || playing.src, text(playing), 'playing');
-			document.querySelectorAll('audio, video').forEach((el) => {
+			// Media the page made in script and never put in the document: seen by the play hook.
+			(window.__yipdenMedia || []).forEach((el) => {
+				add(el.currentSrc || el.src, text(el), el.paused ? 'element' : 'playing');
+			});
+			const documents = [document];
+			// A same-origin frame's player too (a cross-origin one cannot be read, by design).
+			document.querySelectorAll('iframe').forEach((frame) => {
+				try { if (frame.contentDocument) documents.push(frame.contentDocument); } catch (e) {}
+			});
+			documents.forEach((doc) => doc.querySelectorAll('audio, video').forEach((el) => {
 				add(el.currentSrc || el.src, text(el), el.paused ? 'element' : 'playing');
 				el.querySelectorAll('source[src]').forEach((s) => add(s.getAttribute('src'), text(el), 'element'));
-			});
+			}));
 			document.querySelectorAll('a[href]').forEach((a) => {
 				const href = a.getAttribute('href') || '';
 				if (AUDIO.test(href)) add(href, text(a), 'link');
@@ -214,7 +242,16 @@ export const SCAN_SCRIPT = `(() => {
 		if (!window.__yipdenScan) {
 			window.__yipdenScan = scan;
 			window.__yipdenPick = {};
+			window.__yipdenMedia = new Set();
 			document.addEventListener('play', (event) => scan(event.target), true);
+			// A player built with \`new Audio(url)\` never joins the document, so its play event never
+			// reaches the listener above. Noticing it at play() is the only way to see it. The call
+			// goes through untouched: this records the element and the page plays as it would have.
+			const play = HTMLMediaElement.prototype.play;
+			HTMLMediaElement.prototype.play = function () {
+				try { window.__yipdenMedia.add(this); setTimeout(() => scan(this), 0); } catch (e) {}
+				return play.apply(this, arguments);
+			};
 			// A long press on a picture. The page's own handling is left alone: nothing here
 			// prevents a default or stops an event. Chrome on Android fires contextmenu for a long
 			// press; the timer covers a page or WebView that does not.

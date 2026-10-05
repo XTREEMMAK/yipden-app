@@ -8,7 +8,8 @@
 	import { explored } from '$lib/explored.svelte.js';
 	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
 	import { openExternal } from '$lib/platform/external.js';
-	import type { SiteSession } from '$lib/platform/siteBrowser.svelte.js';
+	import { player } from '$lib/player.svelte.js';
+	import { siteBrowser, type SiteSession } from '$lib/platform/siteBrowser.svelte.js';
 	import { titleFromUrl } from '$lib/readerTracks.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import LayoutPicker from './LayoutPicker.svelte';
@@ -117,6 +118,29 @@
 			next.delete(key);
 			checking = next;
 		}
+	}
+
+	/**
+	 * Hear a track before keeping it. The page goes quiet first (it keeps playing while hidden
+	 * behind this sheet), and the track plays in the app's one player, which stays small. A second
+	 * tap pauses it.
+	 */
+	async function preview(item: SiteSession['found'][number]) {
+		const id = `preview:${item.url}`;
+		if (player.current?.id === id) {
+			player.toggle();
+			return;
+		}
+		await siteBrowser.pausePage();
+		player.preview({
+			id,
+			title: titleOf(item),
+			creator: session.creator.name,
+			url: session.pageUrl,
+			siteUrl: session.creator.url,
+			artUrl: session.creator.artUrl ?? null,
+			mediaUrl: item.url
+		});
 	}
 
 	/** A passage's name in lists: its opening words. */
@@ -259,7 +283,24 @@
 					{@const kept = added.has(item.url)}
 					{@const busy = checking.has(item.url)}
 					<li class="item">
-						<span class="icon"><PlatformIcon kind={item.kind} /></span>
+						<!-- A file, or anything the page itself played or had in a player, address or not. -->
+						{#if item.kind === 'file' || item.how === 'playing' || item.how === 'element'}
+							{@const hearing = player.current?.id === `preview:${item.url}` && player.playing}
+							<button
+								class="icon preview"
+								aria-label={`${hearing ? 'Pause' : 'Hear'} ${titleOf(item)}`}
+								aria-pressed={hearing}
+								onclick={() => preview(item)}
+							>
+								<svg viewBox="0 0 24 24" aria-hidden="true">
+									{#if hearing}<path d="M8 5h3v14H8zM13 5h3v14h-3z" />{:else}<path
+											d="M8 5v14l11-7z"
+										/>{/if}
+								</svg>
+							</button>
+						{:else}
+							<span class="icon"><PlatformIcon kind={item.kind} /></span>
+						{/if}
 						<span class="text">
 							<b>{titleOf(item)}</b>
 							<small
@@ -467,6 +508,23 @@
 		height: 36px;
 		border-radius: 10px;
 		background: var(--surface);
+	}
+
+	/* A real button: 44px, and round like every play button in the app. */
+	.icon.preview {
+		width: 44px;
+		height: 44px;
+		padding: 0;
+		border: 0;
+		border-radius: 999px;
+		background: var(--brand);
+		color: #fff;
+	}
+
+	.icon.preview svg {
+		width: 18px;
+		height: 18px;
+		fill: currentColor;
 	}
 
 	.text {

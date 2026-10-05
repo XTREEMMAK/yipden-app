@@ -370,7 +370,18 @@ class PlayerState {
 			});
 	}
 
-	private load(index: number): void {
+	/**
+	 * Hear one track before keeping it, from a screen that has to stay where it is (the in-app
+	 * browser's "Found on their page"). The same one shared audio element as everything else, a
+	 * queue of one, and the player stays small rather than opening over the screen.
+	 */
+	preview(item: QueueItem): void {
+		this.loop = false;
+		this.queue = [item];
+		this.load(0, false);
+	}
+
+	private load(index: number, open = true): void {
 		const item = this.queue[index];
 		if (!item) return;
 		this.currentIndex = index;
@@ -385,7 +396,8 @@ class PlayerState {
 		audio.playbackRate = this.rate;
 		safePlay(audio, () => this.reportUnplayable());
 
-		this.sheet = 'full';
+		if (open) this.sheet = 'full';
+		else if (this.sheet === 'hidden') this.sheet = 'mini';
 		this.setMediaSessionMetadata(item);
 	}
 
