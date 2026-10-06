@@ -102,6 +102,19 @@ describe('suggest', () => {
 		expect(ringPlayer.suggest(ring)?.id).toBe('bo');
 	});
 
+	it('forgets an earlier session once a queue from elsewhere (the Library) has replaced it', () => {
+		const talk = member({ id: 'talk', form: 'spoken' });
+		// An old session of spoken word, then the Library: its queue holds none of those members.
+		ringPlayer.play(talk);
+		player.play([queueItem({ id: 'reader:x', batchKey: 'reader:lena' })], 0, undefined, {
+			loop: false
+		});
+		expect(ringPlayer.suggest([...ring, talk])?.form).toBe('music');
+		ringPlayer.add(ada);
+		expect(ringPlayer.playedEntryIds).toEqual(['ada']);
+		expect(ringPlayer.suggest([...ring, talk])?.id).toBe('bo');
+	});
+
 	it('returns null once everyone playable has been played', () => {
 		ringPlayer.play(ada);
 		ringPlayer.add(bo);

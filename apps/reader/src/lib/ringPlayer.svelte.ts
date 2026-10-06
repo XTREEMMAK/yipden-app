@@ -85,10 +85,20 @@ class RingPlayerState {
 
 	/** Appends one member's tracks without disturbing playback: +Queue, or accepting a suggestion. */
 	add(entry: RingEntry): void {
+		// A queue started elsewhere (the Library) is a new session for the ring, not the last one's.
+		const session = this.inQueue();
 		player.addToQueue(this.itemsFor(entry));
-		if (!this.playedEntryIds.includes(entry.id)) {
-			this.playedEntryIds = [...this.playedEntryIds, entry.id];
-		}
+		this.playedEntryIds = session.includes(entry.id) ? session : [...session, entry.id];
+	}
+
+	/**
+	 * The members this session played, in order: only those still in the queue. A list left over
+	 * from an earlier session would anchor suggestions to the wrong kind of member, or have none
+	 * left at all, which stopped a Library queue after one ring member (phone feedback).
+	 */
+	private inQueue(): string[] {
+		const queued = new Set(player.queue.map((item) => item.batchKey));
+		return this.playedEntryIds.filter((id) => queued.has(id));
 	}
 
 	/** Drops one member's tracks from the queue entirely, wherever they currently sit. */
@@ -99,7 +109,7 @@ class RingPlayerState {
 
 	/** Who to suggest next, given everyone already in this session, or `null` if no one is left. */
 	suggest(ring: RingEntry[]): RingEntry | null {
-		const played = this.playedEntryIds
+		const played = this.inQueue()
 			.map((id) => ring.find((entry) => entry.id === id))
 			.filter((entry): entry is RingEntry => entry !== undefined);
 		return suggestNextEntry(ring, played);

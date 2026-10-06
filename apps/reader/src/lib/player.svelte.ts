@@ -124,6 +124,11 @@ class PlayerState {
 	/** True once playback has run off the end of a non-looping queue. Reset by anything that
 	 *  starts, extends or replaces the queue. */
 	ended = $state(false);
+	/**
+	 * The reader said Keep going once: from then on a finished queue carries on by itself (more
+	 * from the ring, or the Library) until they stop it or nothing is left. A new queue resets it.
+	 */
+	continuous = $state(false);
 
 	/** 'full' is the screen over every tab; 'mini' is the dock; 'hidden' is neither. */
 	sheet = $state<'hidden' | 'mini' | 'full'>('hidden');
@@ -236,6 +241,7 @@ class PlayerState {
 	): void {
 		this.loop = opts?.loop ?? true;
 		this.ended = false;
+		this.continuous = false;
 		const opening = this.sheet !== 'full';
 		if (opening && fromEl && !prefersReducedMotion() && typeof document !== 'undefined') {
 			this.morphOpen(queue, startIndex, fromEl);

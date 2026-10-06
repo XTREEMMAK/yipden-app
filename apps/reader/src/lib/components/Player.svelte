@@ -1,8 +1,9 @@
 <script lang="ts">
+	import { toast } from '$lib/toast.svelte.js';
 	import { hostOf } from '$lib/hosts.js';
 	import { App } from '@capacitor/app';
 	import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { swipe } from '$lib/actions/swipe.js';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
@@ -111,11 +112,33 @@
 		return { kind: 'none', fromLibrary };
 	}
 
-	function keepGoingFromLibrary(): void {
-		player.addToQueue(
-			creatorNotes.libraryQueue(new Set(player.queue.map((entry) => entry.mediaUrl)))
-		);
+	/**
+	 * Carry on with what `whatNext` offers. Saying Keep going once makes the session continuous:
+	 * after that, each finished queue carries on by itself (phone feedback, 2026-10-06).
+	 */
+	function keepGoing(next = whatNext()): boolean {
+		if (next.kind === 'ring') ringPlayer.add(next.entry);
+		else if (next.kind === 'library')
+			player.addToQueue(
+				creatorNotes.libraryQueue(new Set(player.queue.map((entry) => entry.mediaUrl)))
+			);
+		else return false;
+		player.continuous = true;
+		return true;
 	}
+
+	$effect(() => {
+		if (!player.ended || !player.continuous) return;
+		untrack(() => {
+			const next = whatNext();
+			if (!keepGoing(next)) return;
+			toast.show(
+				next.kind === 'ring'
+					? `Keep going: ${next.entry.creator}, from the ring.`
+					: 'Keep going: a shuffle of your Library.'
+			);
+		});
+	});
 
 	/** The slot a platform's player lives in while its track is current. See `player.attachEmbedHost`. */
 	function embedHost(node: HTMLElement) {
@@ -300,8 +323,7 @@
 						<p>Queue finished. Play more from <b>{suggestion.creator}</b> next?</p>
 						<div class="end-actions">
 							<button class="end-quiet" onclick={() => player.stop()}>Stop</button>
-							<button class="end-main" onclick={() => ringPlayer.add(suggestion)}>Keep going</button
-							>
+							<button class="end-main" onclick={() => keepGoing()}>Keep going</button>
 						</div>
 					{:else if next.kind === 'library'}
 						<p>
@@ -310,7 +332,7 @@
 						</p>
 						<div class="end-actions">
 							<button class="end-quiet" onclick={() => player.stop()}>Stop</button>
-							<button class="end-main" onclick={keepGoingFromLibrary}>Keep going</button>
+							<button class="end-main" onclick={() => keepGoing()}>Keep going</button>
 						</div>
 					{:else}
 						<p>

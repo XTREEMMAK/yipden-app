@@ -78,13 +78,23 @@
 	 * else by their site, for a follow made another way. Null for someone not in the ring, or who
 	 * has left it; then there is simply nothing of theirs to show.
 	 */
-	function ringEntryFor(person: Person): RingEntry | null {
-		if (person.ringId) {
-			const byId = ring.all.find((entry) => entry.id === person.ringId);
-			if (byId) return byId;
+	/** The ring's entries by id and by site, built once per ring rather than searched per row. */
+	let ringIndex = $derived.by(() => {
+		const byId = new Map<string, RingEntry>();
+		const bySite = new Map<string, RingEntry>();
+		for (const entry of ring.all) {
+			byId.set(entry.id, entry);
+			bySite.set(verdictKey(entry.source_url), entry);
 		}
-		const site = verdictKey(person.siteUrl);
-		return ring.all.find((entry) => verdictKey(entry.source_url) === site) ?? null;
+		return { byId, bySite };
+	});
+
+	function ringEntryFor(person: Person): RingEntry | null {
+		return (
+			(person.ringId ? ringIndex.byId.get(person.ringId) : undefined) ??
+			ringIndex.bySite.get(verdictKey(person.siteUrl)) ??
+			null
+		);
 	}
 
 	/**
@@ -1100,6 +1110,16 @@
 
 	.srow:last-child {
 		border-bottom: 0;
+	}
+
+	/*
+	 * A long follow list lays out and paints only the rows near the screen, as Feeds does with its
+	 * cards: scrolling a few hundred people dropped frames on a phone (2026-10-06). The size is
+	 * a collapsed row's; an open one is measured once it has been drawn.
+	 */
+	.follow-person {
+		content-visibility: auto;
+		contain-intrinsic-size: auto 64px;
 	}
 
 	.follow-person:not(:last-child) {
