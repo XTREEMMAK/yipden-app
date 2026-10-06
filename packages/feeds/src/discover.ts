@@ -2,7 +2,13 @@ import { safeUrl } from '@yipden/ring-client';
 import { FeedHttp, type FeedHttpOptions, type FetchLike } from './http.js';
 import { isFeedLink, layoutSignal, linksBackTo, scanPage, type ScannedPage } from './html.js';
 import { parseFeed } from './parse/index.js';
-import { channelIdFromPage, FALLBACK_PATHS, resolveProfile } from './profiles.js';
+import {
+	channelIdFromPage,
+	FALLBACK_PATHS,
+	neocitiesFeed,
+	neocitiesSiteName,
+	resolveProfile
+} from './profiles.js';
 import { feedKindFromUrl } from './kind.js';
 import { sameUrl } from './urls.js';
 import type { DiscoveredFeed, DiscoveryResult } from './types.js';
@@ -261,6 +267,24 @@ export async function discoverFeeds(
 			});
 			break;
 		}
+	}
+
+	// A Neocities site: Neocities' own feed of its updates, added after the fallback probe so it
+	// never stands in for the site's own feed. Picked by default only when the site has none.
+	const neocities = neocitiesSiteName(canonicalUrl);
+	if (neocities) {
+		const match = neocitiesFeed(neocities);
+		const hadOwn = feeds.length > 0;
+		addFeed(feeds, {
+			url: match.feedUrl,
+			kind: match.kind,
+			title: match.label,
+			via: 'known-pattern',
+			// Not proof of anything about neocities.org: verified feeds count as the creator's own
+			// sites in the capture rules, and the platform's host is never theirs.
+			verified: false,
+			...(hadOwn ? { optional: true } : {})
+		});
 	}
 
 	const layout = layoutSignal(page);

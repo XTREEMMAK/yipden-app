@@ -97,6 +97,11 @@ export interface DiscoveredFeed {
 	via: 'alternate-link' | 'rel-me' | 'known-pattern' | 'fallback-path' | 'direct';
 	/** The profile links back to the site it was discovered from: a two way rel=me. */
 	verified: boolean;
+	/**
+	 * Offered, but not picked by default: Neocities' "site updated" feed for a site that already
+	 * has a feed of its own, which would mostly repeat it.
+	 */
+	optional?: boolean;
 }
 
 export interface DiscoveryResult {

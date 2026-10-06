@@ -339,3 +339,21 @@ describe('parseFeed refuses what it cannot read', () => {
 		expect(() => parseFeed(huge, { feedUrl: 'https://example.com/feed' })).toThrow(/exceeds/);
 	});
 });
+
+describe('a post that shows its picture only in its body', () => {
+	it('takes the first real image there as its card picture, skipping pixels and icons', () => {
+		const feed = parseFeed(
+			`<?xml version="1.0"?><rss version="2.0"><channel><title>T</title><link>https://lena.example/</link>
+			<item><title>Page 12</title><link>https://lena.example/12</link>
+			<description><![CDATA[<img src="/pixel.gif" width="1" height="1"><p>New page!</p><img src="/comic/12.png" alt="Page twelve">]]></description></item>
+			<item><title>Words</title><link>https://lena.example/w</link><description>Just words</description></item>
+			</channel></rss>`,
+			{ feedUrl: 'https://lena.example/feed.xml' }
+		);
+		const page = feed.items.find((item) => item.title === 'Page 12');
+		expect(page?.media).toEqual([
+			{ url: 'https://lena.example/comic/12.png', kind: 'image', alt: 'Page twelve' }
+		]);
+		expect(feed.items.find((item) => item.title === 'Words')?.media).toEqual([]);
+	});
+});

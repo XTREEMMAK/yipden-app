@@ -359,3 +359,85 @@ describe('layout signal', () => {
 		expect('layout' in (await result)).toBe(false);
 	});
 });
+
+describe('a Neocities site', () => {
+	it('offers Neocities’ own feed of its updates, picked by default when the site has no feed', async () => {
+		const { result } = discover(
+			{ 'https://lena.neocities.org/': page('<title>Lena</title>') },
+			'https://lena.neocities.org/'
+		);
+		const found = await result;
+		expect(found.feeds).toEqual([
+			{
+				url: 'https://neocities.org/site/lena.rss',
+				kind: 'blog',
+				title: 'Neocities, lena site updates',
+				via: 'known-pattern',
+				verified: false
+			}
+		]);
+	});
+
+	it('offers it only as an extra when the site announces a feed of its own', async () => {
+		const { result } = discover(
+			{
+				'https://lena.neocities.org/': page(
+					'<link rel="alternate" type="application/rss+xml" href="/feed.xml">'
+				),
+				'https://lena.neocities.org/feed.xml': { body: MINIMAL_RSS, headers: XML }
+			},
+			'https://lena.neocities.org/'
+		);
+		const found = await result;
+		expect(found.feeds.map((feed) => [feed.url, feed.optional ?? false])).toEqual([
+			['https://lena.neocities.org/feed.xml', false],
+			['https://neocities.org/site/lena.rss', true]
+		]);
+	});
+
+	it('finds the feed of a site on its own domain through its Neocities badge', async () => {
+		const { result } = discover(
+			{
+				'https://lena.example/': page(
+					'<a href="https://neocities.org/site/lena-ofori">on Neocities</a>'
+				)
+			},
+			'https://lena.example/',
+			{ verifyBacklinks: false }
+		);
+		const found = await result;
+		expect(found.feeds.map((feed) => feed.url)).toContain(
+			'https://neocities.org/site/lena-ofori.rss'
+		);
+	});
+});
+
+describe('a YouTube channel’s own picture', () => {
+	it('finds the channel page behind its feed, and nothing else', async () => {
+		const { youtubeChannelPage } = await import('../src/profiles.js');
+		expect(
+			youtubeChannelPage(
+				'https://www.youtube.com/feeds/videos.xml?channel_id=UCabcdefghijklmnopqrstuv'
+			)
+		).toBe('https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv');
+		expect(
+			youtubeChannelPage('https://www.youtube.com/feeds/videos.xml?playlist_id=PL1')
+		).toBeNull();
+		expect(
+			youtubeChannelPage(
+				'https://evil.example/feeds/videos.xml?channel_id=UCabcdefghijklmnopqrstuv'
+			)
+		).toBeNull();
+	});
+
+	it('reads the avatar from the page’s og:image, and only a safe one', async () => {
+		const { channelIconFromPage } = await import('../src/profiles.js');
+		expect(
+			channelIconFromPage(
+				'<meta property="og:image" content="https://yt3.googleusercontent.com/abc=s900">'
+			)
+		).toBe('https://yt3.googleusercontent.com/abc=s900');
+		expect(channelIconFromPage('<meta property="og:image" content="javascript:x">')).toBeNull();
+		expect(channelIconFromPage('<title>No picture</title>')).toBeNull();
+	});
+});

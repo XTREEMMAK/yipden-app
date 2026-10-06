@@ -4,7 +4,9 @@ import { FeedParseError, localName, parseFeedXml } from '../xml.js';
 import { parseAtom } from './atom.js';
 import { parseJsonFeed } from './jsonfeed.js';
 import { parseRss } from './rss.js';
-import type { ParsedFeed } from '../types.js';
+import { safeUrl } from '@yipden/ring-client';
+import { tokenize } from '../tokenize.js';
+import type { Item, ParsedFeed } from '../types.js';
 
 export interface ParseOptions {
 	/** The address the feed was fetched from, after redirects. Identity and link base. */
@@ -53,6 +55,7 @@ export function parseFeed(body: string, options: ParseOptions): ParsedFeed {
 		}
 	}
 
+	for (const item of feed.items) addBodyImage(item);
 	feed.items.sort(byPublishedDescending);
 	feed.kind = refineKind(feedKindFromUrl(feedUrl), feed.items);
 	return feed;
@@ -61,3 +64,29 @@ export function parseFeed(body: string, options: ParseOptions): ParsedFeed {
 export { parseAtom } from './atom.js';
 export { parseJsonFeed } from './jsonfeed.js';
 export { parseRss } from './rss.js';
+
+/** Below this many pixels on a side, an image is a tracking pixel, an emoji or an icon. */
+const MIN_BODY_IMAGE_PX = 48;
+
+/**
+ * A post that declares no image of its own, but shows one in its body: that first real image
+ * becomes its card's picture. Plenty of blogs never use media tags, so without this a post
+ * with a photo drew as plain text. The body is already sanitized, so its addresses are
+ * absolute and checked; they are checked again here all the same.
+ */
+export function addBodyImage(item: Item): void {
+	if (!item.contentHtml || item.media.some((media) => media.kind === 'image')) return;
+	for (const token of tokenize(item.contentHtml)) {
+		if (token.type !== 'start' || token.name !== 'img') continue;
+		const { src, alt, width, height } = token.attributes;
+		const small = [width, height].some((side) => side && Number(side) < MIN_BODY_IMAGE_PX);
+		const url = src ? safeUrl(src) : null;
+		if (small || !url) continue;
+		item.media.push({
+			url: url.toString(),
+			kind: 'image',
+			...(alt?.trim() ? { alt: alt.trim() } : {})
+		});
+		return;
+	}
+}

@@ -1,5 +1,5 @@
 import type { SiteLayout } from '@yipden/ring-client';
-import { tokenize } from './tokenize.js';
+import { decodeEntities, tokenize } from './tokenize.js';
 import { absoluteUrl } from './urls.js';
 
 /**
@@ -29,6 +29,12 @@ export interface ScannedPage {
 	iconUrl: string | null;
 	/** The name from an h-card, when the page has one. */
 	cardName: string | null;
+	/** The h-card's own note (`p-note`): a person's bio in their own words. Plain text. */
+	cardNote: string | null;
+	/** The page's `meta name=description`, or its `og:description`. */
+	description: string | null;
+	/** A picture of them: the h-card's `u-photo`, else the page's `og:image`. */
+	photoUrl: string | null;
 	/** The document had an html, head or body tag: it was a page, not a feed or a fragment. */
 	isHtml: boolean;
 	/** The page carries a `meta name=viewport`, which is what a page built for phones declares. */
@@ -36,6 +42,8 @@ export interface ScannedPage {
 }
 
 const MAX_LINKS = 500;
+/** A bio, not an essay: longer text is cut at a word near this. */
+const MAX_BIO = 600;
 const MAX_JSON_LD_BYTES = 256 * 1024;
 
 function relTokens(value: string | undefined): string[] {
@@ -90,6 +98,14 @@ export function scanPage(html: string, baseUrl: string): ScannedPage {
 	let title: string | null = null;
 	let iconUrl: string | null = null;
 	let cardName: string | null = null;
+	let description: string | null = null;
+	let ogDescription: string | null = null;
+	let cardPhoto: string | null = null;
+	let ogImage: string | null = null;
+	let note = '';
+	let noteTag: string | null = null;
+	let noteDepth = 0;
+	let noteDone = false;
 	let isHtml = false;
 	let hasViewport = false;
 
@@ -106,10 +122,17 @@ export function scanPage(html: string, baseUrl: string): ScannedPage {
 			if (inTitle && !title) title = token.value.trim() || null;
 			if (pendingCardName && !cardName) cardName = token.value.trim() || null;
 			if (inAnchor) anchorText += token.value;
+			if (noteDepth > 0 && note.length < MAX_BIO * 2) note += token.value;
 			continue;
 		}
 
 		if (token.type === 'end') {
+			// Paragraphs and line breaks in a note stay apart as words.
+			if (noteDepth > 0) note += ' ';
+			if (noteDepth > 0 && token.name === noteTag) {
+				noteDepth -= 1;
+				if (noteDepth === 0) noteDone = true;
+			}
 			if (token.name === 'title') inTitle = false;
 			if (token.name === 'a') inAnchor = false;
 			if (token.name === 'script' && inJsonLd) {
@@ -144,6 +167,14 @@ export function scanPage(html: string, baseUrl: string): ScannedPage {
 		const classes = relTokens(attributes.class);
 		if (!cardName && (classes.includes('p-name') || classes.includes('fn'))) {
 			pendingCardName = true;
+		}
+		if (noteDepth > 0 && name === noteTag && !token.selfClosing) noteDepth += 1;
+		else if (!noteDone && noteDepth === 0 && classes.includes('p-note') && !token.selfClosing) {
+			noteTag = name;
+			noteDepth = 1;
+		}
+		if (!cardPhoto && classes.includes('u-photo')) {
+			cardPhoto = absoluteUrl(attributes.src ?? attributes.href, baseUrl);
 		}
 
 		if (name === 'link') {
@@ -190,15 +221,38 @@ export function scanPage(html: string, baseUrl: string): ScannedPage {
 			continue;
 		}
 
-		if (name === 'meta' && !title) {
+		if (name === 'meta') {
 			const property = (attributes.property ?? attributes.name ?? '').toLowerCase();
-			if (property === 'og:site_name' || property === 'og:title') {
-				title = attributes.content?.trim() || null;
-			}
+			const content = attributes.content?.trim() || null;
+			if (!title && (property === 'og:site_name' || property === 'og:title')) title = content;
+			if (property === 'description' && !description) description = content;
+			if (property === 'og:description' && !ogDescription) ogDescription = content;
+			if (property === 'og:image' && !ogImage) ogImage = absoluteUrl(content ?? '', baseUrl);
 		}
 	}
 
-	return { title, alternates, relMe, links, iconUrl, cardName, isHtml, hasViewport };
+	return {
+		title,
+		alternates,
+		relMe,
+		links,
+		iconUrl,
+		cardName,
+		cardNote: bioText(decodeEntities(note)),
+		description: bioText(description ?? ogDescription ?? ''),
+		photoUrl: cardPhoto ?? ogImage,
+		isHtml,
+		hasViewport
+	};
+}
+
+/** Text as a bio shows it: spaces collapsed, cut at a word past `MAX_BIO`. */
+function bioText(raw: string): string | null {
+	const text = raw.replace(/\s+/g, ' ').trim();
+	if (!text) return null;
+	if (text.length <= MAX_BIO) return text;
+	const cut = text.slice(0, MAX_BIO);
+	return `${cut.slice(0, cut.lastIndexOf(' ') > MAX_BIO * 0.7 ? cut.lastIndexOf(' ') : MAX_BIO).trimEnd()}…`;
 }
 
 /**

@@ -1,5 +1,6 @@
 import { safeUrl } from '@yipden/ring-client';
 import type { FeedKind } from './types.js';
+import { tokenize } from './tokenize.js';
 
 /**
  * Known profile to feed patterns.
@@ -114,6 +115,12 @@ export function resolveProfile(url: string): ProfileResolution {
 		return { status: 'unknown' };
 	}
 
+	// A Neocities profile (the "on Neocities" badge a hand-made site often carries).
+	if (host === 'neocities.org') {
+		const name = path.match(/^\/site\/([a-z0-9_-]{1,64})\/?$/i)?.[1];
+		if (name) return { status: 'resolved', match: neocitiesFeed(name) };
+	}
+
 	// Mastodon and the wider fediverse: any instance, always /@handle.
 	const mastodonHandle = path.match(MASTODON_PATH)?.[1];
 	if (mastodonHandle) {
@@ -185,4 +192,50 @@ export function channelIdFromPage(html: string): string | null {
 	const external = html.match(/"externalId"\s*:\s*"(UC[\w-]{22})"/);
 	if (external?.[1]) return external[1];
 	return html.match(/"channelId"\s*:\s*"(UC[\w-]{22})"/)?.[1] ?? null;
+}
+
+/**
+ * The site name of an address on `<name>.neocities.org`, or null. A site on its own domain is
+ * found through its badge's profile link instead (`resolveProfile`).
+ */
+export function neocitiesSiteName(url: string): string | null {
+	const parsed = safeUrl(url);
+	if (!parsed) return null;
+	const name = parsed.hostname.toLowerCase().match(/^([a-z0-9_-]{1,64})\.neocities\.org$/)?.[1];
+	return name && name !== 'www' ? name : null;
+}
+
+/**
+ * Neocities' own feed for a site: one item each time the site is updated, linking to the change
+ * on Neocities. It says that a site changed, not what, which is still the only signal a hand-made
+ * site with no feed of its own gives.
+ */
+export function neocitiesFeed(name: string): ProfileMatch {
+	return {
+		feedUrl: `https://neocities.org/site/${name.toLowerCase()}.rss`,
+		kind: 'blog',
+		label: `Neocities, ${name} site updates`
+	};
+}
+
+/** The channel page behind a YouTube channel feed (`videos.xml?channel_id=…`), or null. */
+export function youtubeChannelPage(feedUrl: string): string | null {
+	const url = safeUrl(feedUrl);
+	if (!url || url.hostname.toLowerCase().replace(/^www\./, '') !== 'youtube.com') return null;
+	const id = url.pathname === '/feeds/videos.xml' ? url.searchParams.get('channel_id') : null;
+	return id && /^UC[\w-]{22}$/.test(id) ? `https://www.youtube.com/channel/${id}` : null;
+}
+
+/**
+ * A YouTube channel's own picture, from its page's `og:image`. Its feed carries none, and a
+ * creator followed through their site shows the site's icon, which is not the channel's.
+ */
+export function channelIconFromPage(html: string): string | null {
+	for (const token of tokenize(html)) {
+		if (token.type !== 'start' || token.name !== 'meta') continue;
+		if (token.attributes.property?.toLowerCase() !== 'og:image') continue;
+		const url = safeUrl(token.attributes.content ?? '');
+		return url ? url.toString() : null;
+	}
+	return null;
 }

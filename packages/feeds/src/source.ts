@@ -1,4 +1,5 @@
 import { FeedHttp } from './http.js';
+import { addBlueskyPictures } from './bluesky.js';
 import { parseFeed } from './parse/index.js';
 import type { ParsedFeed } from './types.js';
 
@@ -115,6 +116,7 @@ export class DirectFetchSource implements FeedSource {
 				feedUrl: response.url,
 				contentType: response.contentType
 			});
+			await addBlueskyPictures(feed, response.url, this.http);
 			const cursor = directCursor(response);
 			// The header wins: WebSub discovery checks it before the document.
 			const hubUrl = response.hubUrl ?? feed.hubUrl;

@@ -42,9 +42,13 @@ export { absoluteUrl, sameUrl } from './urls.js';
 export { tokenize, type Token } from './tokenize.js';
 
 export {
+	channelIconFromPage,
 	channelIdFromPage,
 	FALLBACK_PATHS,
+	neocitiesFeed,
+	neocitiesSiteName,
 	resolveProfile,
+	youtubeChannelPage,
 	type ProfileMatch,
 	type ProfileResolution
 } from './profiles.js';
@@ -95,3 +99,5 @@ export {
 	type FeedResult,
 	type FeedSource
 } from './source.js';
+
+export { addBlueskyPictures, blueskyActor, picturesByPost } from './bluesky.js';
