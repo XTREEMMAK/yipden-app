@@ -1,17 +1,17 @@
 # Architecture
 
-## The shape of v0.9
+## The shape of it (0.8.0)
 
 ```text
-                       ring.indienodes.us/ring.json
+          ring.indienodes.us/ring.json, partner rings (adapters)
                                   |
                         packages/ring-client
                                   |
    creators' own sites   ---> packages/feeds --->  apps/reader (SvelteKit, adapter-static)
-   Bluesky, YouTube,                                       |
-   Mastodon, podcasts                            Capacitor Android host
-                                                          |
-                                              SQLite on device, behind Store
+   Bluesky (+ AppView),                                    |
+   Mastodon, YouTube,                            Capacitor Android host
+   PeerTube, podcasts,                                     |
+   Neocities, Discourse                     SQLCipher on device, behind Store
 ```
 
 There is no server. There is no account. There is no database anywhere but the phone. That is
@@ -40,6 +40,26 @@ SvelteKit with `adapter-static`, Svelte 5 runes, TypeScript in strict mode. Capa
 the built files from the device, so **the reader app has no server routes, ever**. A
 `+server.js` in this app could not run in production even if someone wrote one.
 
+The app's own layers, in `src/lib/`:
+
+- **`store/`**: the `Store` interface and its one implementation, `DocStore`, over named record
+  collections. SQLCipher on the phone, IndexedDB with every value encrypted on the web.
+- **Feeds and follows**: `refresh.ts` (the refresh pipeline over a `FeedSource`), `feeds.svelte.ts`
+  (Feeds' panes), `follow.ts`, `forums.svelte.ts`, `syndication.ts` (crosspost grouping).
+- **References** (`references/`, `creatorNotes.svelte.ts`): what a reader keeps from creators'
+  pages, as links only, under the capture rules in `references/capture.ts`.
+- **The Creator Database** (`creatorProfile.svelte.ts`, `creators.svelte.ts`): a creator's
+  profile, assembled from everything kept about them plus their own site, and the rare record
+  that links several addresses into one creator with a home. Keyed everywhere by `verdictKey`
+  of an address. The plan is in [ROADMAP.md](../ROADMAP.md).
+- **Playback** (`player.svelte.ts`, `embeds/`, `hear.svelte.ts`): one shared audio element or one
+  platform player at a time, and previews apart from both.
+- **The in-app browser** (`platform/siteBrowser.svelte.ts`, `pageMedia.ts`): a creator's page, and
+  the injected scan that finds what it plays or shows. Its trust rules are in
+  [security.md](security.md).
+- **Shared pieces**: `sources.ts` (each source's name and color), `hosts.ts`, and the
+  components `Sheet`, `Segmented` and `KeepByLink`.
+
 ## Boundaries that are load bearing
 
 **Nothing talks to storage directly.** Follows, read state, cached yips and cached waveform
@@ -55,11 +75,12 @@ HTTP client and in tests it has to go nowhere at all.
 **The ring contract is additive only.** Unknown fields survive a round trip untouched. See
 [ring-contract.md](ring-contract.md).
 
-## What v0.9 does not build
+## What is not built before v2.0
 
 `apps/api/` and `packages/db/` are reserved for v2.0 and must not be scaffolded. Also out of
-scope: clean reader view, forum digests, creator packs, claimed creator pages, payments, sync,
-sign in, webmentions, and any server at all.
+scope: clean reader view, creator packs, claimed creator pages, the shared Creator Database,
+payments, sync, sign in, webmentions, and any server at all. (Forum digests, once on this list,
+were built on the device in October 2026.)
 
 The v2.0 backend is already decided so that v0.9's interfaces fit it: Postgres reached only
 through a `DATABASE_URL`, Drizzle with `postgres.js`, Better Auth with its Drizzle adapter and

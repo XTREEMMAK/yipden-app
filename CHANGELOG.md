@@ -6,8 +6,34 @@ Every notable change to YipDen, newest first. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-06
+
+Everything built since 0.0.1, ahead of the first store release (0.9.0, which still needs a phone
+pass of the encrypted store and release signing). YipDen is now a **Creator Database** and a
+**Mobile Friendly IndieWeb Surfing Tool**:
+
+- **Discover** the IndieNodes webring and partner rings (Musicians Webring, Knifebeetle), with
+  previews, Liked and Not Liked, Save for later, and layout awareness.
+- **Follow** a person across their site, Bluesky, Mastodon, YouTube, PeerTube, podcasts and
+  Neocities, or a public Discourse forum, whole or by category.
+- **Feeds**: one chronological stream in a 3D card stack, with pictures from every source,
+  source colors, folders and a creator filter, and forum topics as a digest.
+- **The player**: files, and YouTube, SoundCloud and Bandcamp through their own players, with
+  a queue, waveforms, lock screen controls and background playback for files.
+- **The in-app browser** finds what a creator's page plays or shows, and keeps tracks,
+  pictures, screenshots and passages to the **Library**, under capture rules that only keep what
+  a creator's own site links.
+- **Creator profiles**: one screen per creator from everything kept about them and their own
+  site, with a home address and linked addresses for creators who live on more than one.
+- **Your data** stays on the phone in an encrypted store, with OPML and full backups.
+
+The detailed entries below are in the order they were made.
+
 ### Added
 
+- "Kept from them" starts from what it is: Track, Picture, Screenshot or Passage, as icon
+  buttons, and then the fields that kind needs (a passage takes its page and its words). On a
+  profile and in You.
 - A profile for every creator: who they are in their own words (from their site's h-card or
   description) and in the ring's, where they are (their site, the places it links, and what you
   follow), what they posted lately, their picks for the ring, what you kept from them, and your
@@ -26,6 +52,8 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- Back from a creator's profile to a partner ring now takes one Back to reach Discover, not two
+  or three. A partner ring also slides and fades in and out.
 - Pressing View on a "Kept" toast no longer pulls a paused player up from below the screen and
   pushes the tab bar up with it.
 - A ring queue restored from storage or a backup file is checked before it reaches the player.
@@ -352,9 +380,8 @@ Every notable change to YipDen, newest first. The format follows
 - Today: the merged, reverse chronological feed in four panes a reader pages between by pill or
   by swipe, with a measured sliding indicator, pull to refresh, a background catch-up on the
   first visit after following someone, and a "From the ring" section of ring tracks in Listen.
-  Media and text cards match the reference prototype. The 3D card stack and the full playback
-  experience (the shared audio element, the mini and full screen players, Media Session) are
-  deferred; see DECISIONS.md.
+  Media and text cards match the reference prototype. (The 3D card stack and the full playback
+  experience, first deferred here, shipped later in this release.)
 - You: the theme picker with a measured sliding indicator, the follow list with an inline
   Unfollow / Keep confirm, OPML export and import (with the same URL safety checks as
   everywhere else), and clearing cached yips without touching follows.

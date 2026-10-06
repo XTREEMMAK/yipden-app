@@ -10,6 +10,13 @@ animation or gesture library, a `ring.json` contract change, or anything needing
 
 ## Where we are
 
+**0.8.0 (2026-10-06).** Everything below the first store release is built: Discover with
+partner rings, Follow (people and forums), Feeds, the player with platform embeds, the in-app
+browser and the Library, the encrypted store, and creator profiles with home and aliases
+(Creator Database steps 1 and 2). What stands between this and **0.9.0** is the phone pass of
+the encrypted store and the release work under "Later: v0.9 release". The sections below are
+the history of how it got here, kept for the reasons they record.
+
 **Shipped and working on a device**
 
 - `packages/ring-client` and `packages/feeds`: ring fetch and validation, deadline-bounded feed
@@ -235,8 +242,8 @@ Open questions DECISIONS.md already flags as unverified, all needing a phone:
 
 ### 7. Housekeeping
 
-- CHANGELOG: the Feeds/Today line still says the 3D stack and full playback are deferred. Both
-  shipped. Cut a real `0.9.0` section out of Unreleased and correct that line.
+- ~~CHANGELOG: the Feeds/Today line still says the 3D stack and full playback are deferred.~~
+  Corrected, and 0.8.0 cut from Unreleased (2026-10-06); 0.9.0 is the first store release.
 - `tmp/` holds a git bundle, the handoff prompt and a prototype backup. Decide what is worth
   keeping, move it, or ignore it, so the repo root is not half scratch. The two briefs of
   2026-10-03 moved to `docs/briefs/`.
@@ -640,6 +647,7 @@ website-first, not website-only, and ranked by evidence, never by votes.
    4. added by you
 
    Filled in from their site's `rel=me` links automatically. A shop or commission place type.
+
 4. **v2.0: the shared contributions table**, mirroring step 3, ranked by evidence and liveness.
    Opt-out, claiming (IndieAuth), report and takedown ship with it, not after. This folds in the
    "shared community index" and "claimed creator pages" items under v2.0.
@@ -659,3 +667,30 @@ instead of accepting any JSON, one generic reader understands the three formats 
 3. a plain HTML members page, read as a list of links
 
 Every member passes the same address checks as a partner ring's.
+
+## Code audit at 0.8.0 (2026-10-06)
+
+Done in the audit:
+
+- **One `hostOf`** (`lib/hosts.ts`) in place of ten copies and a dozen inline host strippings.
+- **One list of sources** (`lib/sources.ts`): each feed kind's name and color, and the platform
+  hosts that profiles and homes both use. It replaced five label maps, two color sets and two
+  host lists.
+- **One `Sheet`** for the standalone bottom sheets (Feeds' filter, a partner ring's filter,
+  "Same person as…", "Found on their page"). It holds the backdrop, panel, title, close button,
+  Escape and Back that each repeated.
+- **One `Segmented`** for the People | Forums switches in Feeds and Follow.
+- **One `KeepByLink`**: keep by link starts from what it is, and the track list is only a list.
+
+Left for later, noted here so they are not lost:
+
+- Discover's own sheets (actions, filter, members, rings) and the player's queue sheet still draw
+  their own frame. Moving them onto `Sheet` needs care around Discover's swipe guards.
+- ESLint does not read `.svelte` files (no `eslint-plugin-svelte`). An unused import there is
+  only found by hand. Adding the plugin is a dev dependency: **ask first**.
+- The person glyph SVG is drawn in five places; a small icon component would hold it.
+- `routes/+page.svelte` (Discover, ~1,700 lines), `routes/you/+page.svelte` (~1,500) and
+  `PartnerRingPanel.svelte` (~1,200) are the largest files. Each has parts that could be
+  components (Discover's hero, You's person row).
+- The embed spike (`EmbedSpike.svelte`) and its CSP origins go once Spotify and background
+  playback are answered.

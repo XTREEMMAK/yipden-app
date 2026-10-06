@@ -3138,6 +3138,7 @@ row held only a followed person's.
   - "Their site links it", "You follow it" or "Listed by the ring" on each place.
 
   A curator's note never reads as the creator's own.
+
 - **Hints from where it was opened.** Discover and partner rings know things the store does not
   (a partner blurb, the ring's name). They pass these through `creatorProfiles.open`, remembered
   for the session. A profile opened by address alone still works.
@@ -3145,7 +3146,7 @@ row held only a followed person's.
   follows a ring entry in place; anyone else goes to Follow with their address filled in.
 - **It replaces the "Your notes" sheet** (deleted), which was a subset of it.
 - **The address carries its trailing slash** (`/creator/?site=`). The app's `trailingSlash:
-  'always'` otherwise redirects after the page has mounted, and that remount wiped a half-typed
+'always'` otherwise redirects after the page has mounted, and that remount wiped a half-typed
   track link.
 - **Follow: People | Forums.** "Follow a person, not a platform" over copy that also explained
   forums said two things at once. Each now has its own heading, copy, field and button, and
@@ -3177,6 +3178,7 @@ row held only a followed person's.
   merges, and losing it to an unlink falls back to the strongest. A platform-only creator is a
   full entry, labelled "No site of their own". This is the website-first, not website-only rule
   of the Creator Database.
+
 - **Merging brings the other side along.** Linking a creator who was already linked to others
   joins every address into one record and removes the other record. Linking an address already
   theirs, or one that is not safe https, does nothing.
@@ -3187,3 +3189,24 @@ row held only a followed person's.
   rest of the card still opens the post. Media cards without a picture show a plain person there,
   so the way in is always in the same place.
 
+## 2026-10-06 (audit) — Version 0.8.0, a consolidation pass, keep-by-link by kind
+
+- **0.8.0, not 0.9.0.** SemVer before 1.0 bumps the minor version for features. The roadmap
+  reserves 0.9.0 for the first store release, which still waits on a phone pass of the
+  encrypted store and on release signing. Everything since 0.0.1 is 0.8.0: every package, the
+  app, and Android's `versionName`. The Android `versionCode` follows major * 10000 + minor *
+  100 + patch (800), so later releases always sort above earlier ones.
+- **Consolidation, behaviour unchanged.** The details are in ROADMAP.md under "Code audit at
+  0.8.0": `hostOf`, `sources.ts`, `Sheet`, `Segmented`. One label difference is kept on
+  purpose. A site's feed is a "Blog" on a card (what the post is) and the "Website" in You's
+  source list (where it comes from).
+- **Keep by link starts from what it is.** The profile's "Kept from them" offered only "Add a
+  track by link", which does not fit a comic artist or a writer (phone feedback). `KeepByLink`
+  asks first, with icon buttons (Track, Picture, Screenshot, Passage), and then shows the fields
+  for that kind. A passage takes its page and its words, checked against the page like one
+  selected in the browser. The track list lost its own form, and You's row uses the same
+  component.
+- **Partner ring and Back.** Coming back from a profile opened over a partner ring landed on the
+  ring's history entry, and the panel, mounting again, pushed a second one. One Back then did
+  nothing. The panel now reuses the entry it lands on. It also slides and fades in and out (from
+  the right), a local transition, so leaving for a profile is not delayed by it.

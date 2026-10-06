@@ -1,8 +1,16 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { seedOldStore } from './support.js';
+
+/** The version About must show: the app's own, read the way the build reads it. */
+const APP_VERSION = (
+	JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+		version: string;
+	}
+).version;
 
 const LENA_PAGE = `<!doctype html><html><head>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -526,7 +534,7 @@ test.describe('You', () => {
 		expect(errors).toEqual([]);
 		const dialog = page.getByRole('dialog', { name: 'YipDen' });
 		await expect(dialog).toBeVisible();
-		await expect(dialog.getByText(/v0\.0\.1 · build/)).toBeVisible();
+		await expect(dialog.getByText(`v${APP_VERSION} · build`, { exact: false })).toBeVisible();
 		await expect(
 			dialog.getByText(/Everyone in Discover comes from the IndieNodes webring/)
 		).toBeVisible();

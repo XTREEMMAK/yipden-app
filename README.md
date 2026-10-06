@@ -5,8 +5,11 @@
 <h1 align="center">YipDen</h1>
 
 <p align="center">
-  A mobile reader for the indie web. Follow people, not platforms.
+  A Creator Database and a Mobile Friendly IndieWeb Surfing Tool.<br>
+  Follow people, not platforms.
 </p>
+
+<p align="center"><b>Version 0.8.0</b>, ahead of the first store release (0.9.0).</p>
 
 <p align="center">
   <a href="#what-this-is">What this is</a> ·
@@ -19,11 +22,28 @@
 
 One person publishes on their own site, on Bluesky, and on YouTube. YipDen pulls all of it
 into one feed, in the order it was published, with no ranking and no account. Discovery comes
-from the [IndieNodes](https://ring.indienodes.us) webring.
+from the [IndieNodes](https://ring.indienodes.us) webring and other webrings.
+
+Creative people are scattered across a site, a Bandcamp, an Instagram and three other places.
+YipDen gathers that into **one profile per creator**, from what their own site says about them
+and what you keep from it, even where the app cannot read: a **Creator Database** that lives on
+your phone. It is website-first, not website-only, so someone who only has a Bluesky account is
+still a full entry.
 
 Everything a followed feed produces is a **yip**, whatever its format: a post, a video, an
 episode, a track. Following a person is still called following. What shows up afterward in
 Feeds is a yip.
+
+### What is in the app
+
+- **Discover**: the IndieNodes ring and partner rings, one creator at a time.
+- **Follow**: a person across their site and profiles, or a public forum.
+- **Feeds**: everything followed, newest first, with forum topics as a digest.
+- **The player**: audio files, and YouTube, SoundCloud and Bandcamp through their own players.
+- **The in-app browser**: visit a creator's site and keep what it plays or shows to your
+  **Library**: tracks, comic pages, game screenshots and passages, kept as links, never copies.
+- **Creator profiles**: who they are in their own words, where they are, what you kept.
+- **You**: who you follow, your Library, Liked and Not Liked, forums, settings and backups.
 
 ### Rules that do not bend
 
@@ -34,11 +54,13 @@ Feeds is a yip.
 - **Accessibility is not a later pass.** Real buttons and links, 44px touch targets, 4.5:1
   contrast including on images and on orange, works at 390px wide, reduced motion honored.
 
-### Scope of v0.9
+### Scope until v2.0
 
-No server, no accounts, no database. Everything runs on the device against public feeds and
-the ring's `ring.json`. The v2.0 backend is decided but deliberately unbuilt, and nothing in
-v0.9 may depend on it. See [docs/architecture.md](docs/architecture.md).
+No server, no accounts, no server database. Everything runs on the device against public feeds,
+public pages and the rings' own files, and is kept in an encrypted database on the phone. The
+v2.0 backend (sync, a shared feed cache, and the shared side of the Creator Database) is decided
+but deliberately unbuilt, and nothing before it may depend on it. See
+[docs/architecture.md](docs/architecture.md) and [ROADMAP.md](ROADMAP.md).
 
 ## Run it locally
 
@@ -75,12 +97,13 @@ consumed by other clients, so it must never import from SvelteKit, Svelte or the
 | Document                                           | What is in it                                             |
 | -------------------------------------------------- | --------------------------------------------------------- |
 | [docs/architecture.md](docs/architecture.md)       | How the pieces fit, and what v0.9 refuses to depend on    |
+| [ROADMAP.md](ROADMAP.md)                           | Where things stand, and what comes next                   |
 | [docs/android-testing.md](docs/android-testing.md) | Setting up the toolchain and running on a real phone      |
 | [docs/security.md](docs/security.md)               | The OWASP and Mozilla checks applied, and where they live |
 | [docs/ring-contract.md](docs/ring-contract.md)     | What the app needs from `ring.json`, and the changes owed |
 | [docs/ci-cd.md](docs/ci-cd.md)                     | What CI runs, and where Semaphore fits later              |
 | [DECISIONS.md](DECISIONS.md)                       | Every choice that differs from the brief, and why         |
-| [CHANGELOG.md](CHANGELOG.md)                       | Released versions                                         |
+| [CHANGELOG.md](CHANGELOG.md)                       | What changed, by version                                  |
 
 ## License
 

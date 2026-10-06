@@ -1,6 +1,6 @@
 {
   "name": "@yipden/ring-client",
-  "version": "0.0.1",
+  "version": "0.8.0",
   "description": "Framework-agnostic client for the IndieNodes ring.json document. Zero runtime dependencies.",
   "license": "GPL-3.0-or-later",
   "type": "module",
