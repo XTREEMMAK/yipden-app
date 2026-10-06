@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Segmented from '$components/Segmented.svelte';
+	import { hostOf } from '$lib/hosts.js';
 	import { profileHref } from '$lib/creatorProfile.svelte.js';
 	import { onMount } from 'svelte';
 	import { cardStack } from '$lib/actions/cardStack.js';
@@ -8,13 +10,7 @@
 	import { fly } from 'svelte/transition';
 	import { flyIn, staggerDelay } from '$lib/motion.js';
 	import { ring } from '$lib/ring.svelte.js';
-	import {
-		displayAuthor,
-		feeds,
-		FEEDS_FILTERS,
-		sourceLabel,
-		type FeedsFilterKey
-	} from '$lib/feeds.svelte.js';
+	import { displayAuthor, feeds, FEEDS_FILTERS, sourceLabel } from '$lib/feeds.svelte.js';
 	import { shelf, toggleShelf } from '$lib/shelf.svelte.js';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
@@ -175,7 +171,7 @@
 	}
 
 	function sourceHost(yip: StoredYip): string {
-		return new URL(yip.url).hostname.replace(/^www\./, '');
+		return hostOf(yip.url);
 	}
 
 	/** A yip from a site that declared, or was found to be, built for a bigger screen. */
@@ -203,24 +199,16 @@
 
 <div class="feeds">
 	<header class="head">
-		<div class="source-switch" role="radiogroup" aria-label="What to read">
-			<button
-				role="radio"
-				aria-checked={!onForums}
-				class:on={!onForums}
-				onclick={() => (onForums = false)}
-			>
-				People
-			</button>
-			<button
-				role="radio"
-				aria-checked={onForums}
-				class:on={onForums}
-				onclick={() => (onForums = true)}
-			>
-				Forums
-				{#if forums.activeCount}<span class="badge">{forums.activeCount}</span>{/if}
-			</button>
+		<div class="source-switch">
+			<Segmented
+				label="What to read"
+				options={[
+					{ value: 'people', label: 'People' },
+					{ value: 'forums', label: 'Forums', badge: forums.activeCount }
+				]}
+				value={onForums ? 'forums' : 'people'}
+				onchange={(next) => (onForums = next === 'forums')}
+			/>
 		</div>
 		<div class="head-row">
 			<div class="head-text">
@@ -854,55 +842,8 @@
 
 	/* People or Forums: a quiet pill above the title, the same shape as You's tabs. */
 	.source-switch {
-		display: inline-flex;
-		align-self: flex-start;
-		gap: 4px;
+		display: flex;
 		margin-bottom: 10px;
-		padding: 3px;
-		border: 1px solid var(--line);
-		border-radius: 999px;
-		background: var(--surface);
-	}
-
-	.source-switch button {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		min-height: 44px;
-		padding: 0 16px;
-		border: 0;
-		border-radius: 999px;
-		background: none;
-		color: var(--muted);
-		font: inherit;
-		font-size: 14px;
-		font-weight: 600;
-		transition:
-			background var(--dur-s) var(--ease),
-			color var(--dur-s) var(--ease);
-	}
-
-	.source-switch button.on {
-		background: var(--brand-soft);
-		color: var(--brand-ink);
-	}
-
-	.badge {
-		min-width: 20px;
-		padding: 1px 6px;
-		border-radius: 999px;
-		background: var(--brand);
-		color: #fff;
-		font-family: var(--mono);
-		font-size: 11px;
-		font-weight: 500;
-		text-align: center;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.source-switch button {
-			transition: none;
-		}
 	}
 
 	.forums-empty {

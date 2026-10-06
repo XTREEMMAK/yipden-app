@@ -95,6 +95,14 @@ test.describe('A creator’s profile', () => {
 		await places.getByRole('button', { name: 'Unlink lena.itch.io' }).click();
 		await expect(places.getByText('Same person, linked by you')).toHaveCount(0);
 
+		// Keeping by link starts from what it is: a passage asks for the page and the words.
+		const kept = page.getByRole('region', { name: 'Kept from them' });
+		await kept.getByRole('radio', { name: 'Passage' }).click();
+		await expect(kept.getByLabel('The page it is on')).toBeVisible();
+		await expect(kept.getByLabel('The passage, as it appears on the page')).toBeVisible();
+		await kept.getByRole('radio', { name: 'Picture' }).click();
+		await expect(kept.getByLabel('A picture by link')).toBeVisible();
+
 		await page.getByRole('button', { name: 'Back' }).click();
 		await expect(page).toHaveURL(/\/you/);
 	});

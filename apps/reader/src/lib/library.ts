@@ -1,3 +1,4 @@
+import { hostOf } from './hosts.js';
 import type { Reference } from './references/types.js';
 import type { Person, ShelfItem } from './store/types.js';
 import { verdictKey } from './verdicts.svelte.js';
@@ -64,14 +65,6 @@ const TYPE_OF_KIND: Record<Reference['kind'], LibraryType> = {
 	image: 'pictures',
 	screenshot: 'screenshots'
 };
-
-function hostOf(url: string): string {
-	try {
-		return new URL(url).hostname.replace(/^www\./, '');
-	} catch {
-		return url;
-	}
-}
 
 /** Everything kept, newest first. */
 export function libraryItems(

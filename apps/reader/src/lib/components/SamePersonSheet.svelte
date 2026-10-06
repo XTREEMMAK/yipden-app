@@ -1,12 +1,10 @@
 <script lang="ts">
+	import Sheet from './Sheet.svelte';
 	import { onMount } from 'svelte';
-	import { fade, fly } from 'svelte/transition';
 	import { safeUrl } from '@yipden/ring-client';
-	import { closeOnBack } from '$lib/closeOnBack.js';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import { placeLabel } from '$lib/creatorProfile.svelte.js';
 	import { creators } from '$lib/creators.svelte.js';
-	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
 	import { store, type Person } from '$lib/store/index.js';
 	import { verdictKey, verdicts } from '$lib/verdicts.svelte.js';
 
@@ -26,7 +24,6 @@
 
 	let { url, name, onclose }: Props = $props();
 
-	let closeButton = $state<HTMLButtonElement | undefined>(undefined);
 	let pasted = $state('');
 	let query = $state('');
 	let error = $state<string | null>(null);
@@ -34,11 +31,9 @@
 	let people = $state<Person[]>([]);
 
 	onMount(() => {
-		closeButton?.focus();
 		void store.listPeople().then((list) => (people = list));
 		void creatorNotes.load();
 		if (!verdicts.loaded) void verdicts.load();
-		return closeOnBack('samePerson', onclose);
 	});
 
 	/** Everyone YipDen knows by name, once each, not already this creator. */
@@ -110,35 +105,13 @@
 	});
 </script>
 
-<svelte:window
-	onkeydown={(event) => {
-		if (event.key === 'Escape') onclose();
-	}}
-/>
-
-<button
-	type="button"
-	class="sheet-backdrop"
-	tabindex="-1"
-	aria-label="Close"
-	onclick={onclose}
-	transition:fade={{ duration: prefersReducedMotion() ? 0 : duration.s }}
-></button>
-<div
+<Sheet
+	title={`Same person as ${name}`}
+	{onclose}
+	historyKey="samePerson"
+	maxHeight="80vh"
 	class="same-sheet"
-	role="dialog"
-	aria-modal="true"
-	aria-label={`Same person as ${name}`}
-	in:fly={flyIn({ y: 40 })}
-	out:fly={flyIn({ y: 40 })}
 >
-	<div class="sheet-head">
-		<h2>Same person as {name}</h2>
-		<button bind:this={closeButton} class="sheet-close" onclick={onclose} aria-label="Close">
-			<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
-		</button>
-	</div>
-
 	<form class="paste" onsubmit={linkPasted} novalidate>
 		<label for="same-address">Another address of theirs</label>
 		<div class="field">
@@ -186,73 +159,9 @@
 	<p class="note">
 		Only on this phone, as you said it. Unlink an address from their profile at any time.
 	</p>
-</div>
+</Sheet>
 
 <style>
-	.sheet-backdrop {
-		position: fixed;
-		inset: 0;
-		z-index: 34;
-		border: 0;
-		padding: 0;
-		background: rgba(15, 6, 2, 0.5);
-		cursor: default;
-	}
-
-	.same-sheet {
-		position: fixed;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		z-index: 35;
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-		max-height: 80vh;
-		padding: 18px 8px calc(20px + env(safe-area-inset-bottom, 0px));
-		border-radius: 24px 24px 0 0;
-		background: var(--ground);
-		color: var(--ink);
-		box-shadow: 0 -12px 30px -10px rgba(0, 0, 0, 0.3);
-		overflow-y: auto;
-	}
-
-	.sheet-head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 12px;
-		padding: 0 12px 6px;
-	}
-
-	.sheet-head h2 {
-		margin: 0;
-		font-size: 17px;
-		font-weight: 650;
-		overflow-wrap: anywhere;
-	}
-
-	.sheet-close {
-		display: grid;
-		place-items: center;
-		flex: none;
-		width: 44px;
-		height: 44px;
-		border: 0;
-		border-radius: 999px;
-		background: var(--surface);
-		color: var(--ink);
-	}
-
-	.sheet-close svg {
-		width: 18px;
-		height: 18px;
-		fill: none;
-		stroke: currentColor;
-		stroke-width: 2;
-		stroke-linecap: round;
-	}
-
 	.paste {
 		display: flex;
 		flex-direction: column;

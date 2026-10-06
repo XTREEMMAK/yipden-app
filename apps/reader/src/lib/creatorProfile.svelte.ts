@@ -1,7 +1,9 @@
 import { goto } from '$app/navigation';
 import { FeedHttp, resolveProfile, scanPage } from '@yipden/feeds';
 import { safeUrl, type SiteLayout } from '@yipden/ring-client';
+import { hostOf } from './hosts.js';
 import { httpFetch } from './platform/http.js';
+import { kindLabel, platformName } from './sources.js';
 import type { RingOrigin } from './references/types.js';
 import { verdictKey } from './verdicts.svelte.js';
 
@@ -54,37 +56,6 @@ export function profileHref(url: string): string {
 	return `/creator/?site=${encodeURIComponent(url)}`;
 }
 
-const PLATFORM_HOSTS: Record<string, string> = {
-	'bsky.app': 'Bluesky',
-	'instagram.com': 'Instagram',
-	'tiktok.com': 'TikTok',
-	'x.com': 'X',
-	'twitter.com': 'X',
-	'youtube.com': 'YouTube',
-	'twitch.tv': 'Twitch',
-	'soundcloud.com': 'SoundCloud',
-	'bandcamp.com': 'Bandcamp',
-	'spotify.com': 'Spotify',
-	'patreon.com': 'Patreon',
-	'ko-fi.com': 'Ko-fi',
-	'etsy.com': 'Etsy',
-	'itch.io': 'itch.io',
-	'github.com': 'GitHub',
-	'tumblr.com': 'Tumblr',
-	'neocities.org': 'Neocities',
-	'linktr.ee': 'Linktree',
-	'cara.app': 'Cara',
-	'artstation.com': 'ArtStation',
-	'deviantart.com': 'DeviantArt'
-};
-
-const KIND_NAMES: Record<string, string> = {
-	bluesky: 'Bluesky',
-	mastodon: 'Mastodon',
-	youtube: 'YouTube',
-	peertube: 'PeerTube'
-};
-
 /** A name for a place: its platform when known, else its host. */
 export function placeLabel(url: string): Pick<Place, 'label' | 'kind'> {
 	const resolved = resolveProfile(url);
@@ -94,16 +65,9 @@ export function placeLabel(url: string): Pick<Place, 'label' | 'kind'> {
 			: resolved.status === 'needs-page'
 				? resolved.kind
 				: undefined;
-	let host = '';
-	try {
-		host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
-	} catch {
-		return { label: url };
-	}
-	const platform = Object.entries(PLATFORM_HOSTS).find(
-		([name]) => host === name || host.endsWith(`.${name}`)
-	)?.[1];
-	const label = (kind && KIND_NAMES[kind]) ?? platform ?? host;
+	const host = hostOf(url);
+	const platform = platformName(host);
+	const label = (kind && kind !== 'blog' ? kindLabel(kind) : undefined) ?? platform ?? host;
 	return kind && kind !== 'blog' ? { label, kind } : { label };
 }
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hostOf } from '$lib/hosts.js';
 	import { App } from '@capacitor/app';
 	import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 	import { onMount } from 'svelte';
@@ -257,7 +258,7 @@
 			<span class="src">{item.creator}</span>
 			<h2 class="pl-title">{item.title}</h2>
 			<p class="pl-host">
-				{new URL(item.siteUrl).hostname.replace(/^www\./, '')}
+				{hostOf(item.siteUrl)}
 				{#if player.source?.provider === 'soundcloud'}
 					<span class="pl-via">{'·'} via SoundCloud</span>
 				{/if}

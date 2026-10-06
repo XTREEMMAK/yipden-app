@@ -1,4 +1,7 @@
 <script lang="ts">
+	import KeepByLink from '$components/KeepByLink.svelte';
+	import { kindLabel } from '$lib/sources.js';
+	import { hostOf } from '$lib/hosts.js';
 	import { profileHref } from '$lib/creatorProfile.svelte.js';
 	import { onMount } from 'svelte';
 	import type { DiscoveredFeed } from '@yipden/feeds';
@@ -149,30 +152,9 @@
 		expandedIds = next;
 	}
 
+	/** A source by where it comes from: a site's own feed is its Website here, not a Blog. */
 	function feedKindLabel(kind: string): string {
-		return (
-			{
-				blog: 'Website',
-				bluesky: 'Bluesky',
-				mastodon: 'Mastodon',
-				youtube: 'YouTube',
-				peertube: 'PeerTube',
-				podcast: 'Podcast',
-				forum: 'Forum',
-				rss: 'RSS',
-				atom: 'Atom',
-				json: 'JSON Feed',
-				jsonfeed: 'JSON Feed'
-			}[kind] ?? kind
-		);
-	}
-
-	function hostOf(url: string): string {
-		try {
-			return new URL(url).hostname.replace(/^www\./, '');
-		} catch (cause) {
-			return url;
-		}
+		return kind === 'blog' ? 'Website' : (kindLabel(kind) ?? kind);
 	}
 
 	function asUrl(raw: string): string | null {
@@ -587,7 +569,7 @@
 												{row.feeds.filter((feed) => feed.enabled).length} of {row.feeds.length} sources
 												active
 												{'·'}
-												{new URL(row.person.siteUrl).hostname.replace(/^www\./, '')}
+												{hostOf(row.person.siteUrl)}
 											</small>
 											{#if feeds.fetching.has(row.person.id)}
 												<small class="fetching"><Spinner size={11} /> Fetching posts{'…'}</small>
@@ -773,7 +755,6 @@
 											{/if}
 											<h4 class="row-sub">Kept from them</h4>
 											<ReaderTracks
-												id={`tracks-${personIndex}`}
 												creator={{
 													url: row.person.siteUrl,
 													name: row.person.name,
@@ -783,6 +764,14 @@
 												}}
 											/>
 											<ReaderFinds
+												creator={{
+													url: row.person.siteUrl,
+													name: row.person.name,
+													ring: row.person.ringId ? { source: 'own', id: 'indienodes' } : null
+												}}
+											/>
+											<KeepByLink
+												id={`keep-${personIndex}`}
 												creator={{
 													url: row.person.siteUrl,
 													name: row.person.name,

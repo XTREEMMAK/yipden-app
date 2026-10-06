@@ -1,18 +1,16 @@
 <script lang="ts">
+	import Sheet from './Sheet.svelte';
+	import { hostOf } from '$lib/hosts.js';
 	import { onMount, untrack } from 'svelte';
-	import { fade, fly } from 'svelte/transition';
 	import { type PreviewKind } from '@yipden/ring-client';
-	import { closeOnBack } from '$lib/closeOnBack.js';
 	import { showKept } from '$lib/references/messages.js';
 	import { creatorNotes, type AddTrackResult } from '$lib/creatorNotes.svelte.js';
 	import { explored } from '$lib/explored.svelte.js';
-	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
 	import { openExternal } from '$lib/platform/external.js';
 	import { hear } from '$lib/hear.svelte.js';
 	import { isPlatformLink } from '$lib/references/capture.js';
 	import { siteBrowser, type SiteSession } from '$lib/platform/siteBrowser.svelte.js';
 	import { titleFromUrl } from '$lib/readerTracks.js';
-	import { toast } from '$lib/toast.svelte.js';
 	import LayoutPicker from './LayoutPicker.svelte';
 	import PlatformIcon from './PlatformIcon.svelte';
 
@@ -32,7 +30,6 @@
 
 	let { session, onback, ondone }: Props = $props();
 	const onclose = () => onback();
-	let closeButton = $state<HTMLButtonElement | undefined>(undefined);
 
 	const HOW_LABELS = {
 		playing: 'Playing on the page',
@@ -159,7 +156,6 @@
 	onMount(() => {
 		void creatorNotes.load();
 		void explored.mark(session.creator.url);
-		closeButton?.focus();
 		creatorNotes
 			.precheckTracks(
 				session.creator,
@@ -168,11 +164,7 @@
 			.then((refused) => (refusals = refused))
 			// Could not check: offer Keep, which checks again and says why if it refuses.
 			.catch(() => (refusals = new Map()));
-		const release = closeOnBack('foundOnPage', onclose);
-		return () => {
-			hear.stop();
-			release();
-		};
+		return () => hear.stop();
 	});
 
 	function titleOf(item: SiteSession['found'][number]): string {
@@ -202,41 +194,14 @@
 	}
 </script>
 
-<svelte:window
-	onkeydown={(event) => {
-		if (event.key === 'Escape') onclose();
-	}}
-/>
-
-<button
-	type="button"
-	class="sheet-backdrop"
-	data-noswipe
-	tabindex="-1"
-	aria-label="Close"
-	onclick={onclose}
-	transition:fade={{ duration: prefersReducedMotion() ? 0 : duration.s }}
-></button>
-<div
+<Sheet
+	title={`Found on ${session.creator.name}'s page`}
+	{onclose}
+	historyKey="foundOnPage"
+	maxHeight="80vh"
 	class="found-sheet"
-	data-noswipe
-	role="dialog"
-	aria-modal="true"
-	aria-label={`Found on ${session.creator.name}'s page`}
-	in:fly={flyIn({ y: 40 })}
-	out:fly={flyIn({ y: 40 })}
+	closeLabel="Back to their page"
 >
-	<div class="sheet-head">
-		<h2>Found on {session.creator.name}'s page</h2>
-		<button
-			bind:this={closeButton}
-			class="sheet-close"
-			onclick={onclose}
-			aria-label="Back to their page"
-		>
-			<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
-		</button>
-	</div>
 	<div class="body">
 		{#if !nothing}
 			<p class="note">
@@ -327,9 +292,7 @@
 						{/if}
 						<span class="text">
 							<b>{titleOf(item)}</b>
-							<small
-								>{HOW_LABELS[item.how]} · {new URL(item.url).hostname.replace(/^www\./, '')}</small
-							>
+							<small>{HOW_LABELS[item.how]} · {hostOf(item.url)}</small>
 							{#if refused && !kept}
 								<small class="refused"
 									>{REFUSED[refused] ?? 'Cannot be kept'}{keepPage
@@ -397,72 +360,9 @@
 			</button>
 		</div>
 	</div>
-</div>
+</Sheet>
 
 <style>
-	.sheet-backdrop {
-		position: fixed;
-		inset: 0;
-		z-index: 34;
-		border: 0;
-		padding: 0;
-		background: rgba(15, 6, 2, 0.5);
-		cursor: default;
-	}
-
-	.found-sheet {
-		position: fixed;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		z-index: 35;
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-		max-height: 80vh;
-		padding: 18px 8px calc(20px + env(safe-area-inset-bottom, 0px));
-		border-radius: 24px 24px 0 0;
-		background: var(--ground);
-		color: var(--ink);
-		box-shadow: 0 -12px 30px -10px rgba(0, 0, 0, 0.3);
-		overflow-y: auto;
-	}
-
-	.sheet-head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 12px;
-		padding: 0 12px 10px;
-	}
-
-	.sheet-head h2 {
-		margin: 0;
-		font-size: 17px;
-		font-weight: 650;
-	}
-
-	.sheet-close {
-		display: grid;
-		flex: none;
-		place-items: center;
-		width: 44px;
-		height: 44px;
-		border: 0;
-		border-radius: 999px;
-		background: var(--surface);
-		color: var(--ink);
-	}
-
-	.sheet-close svg {
-		width: 18px;
-		height: 18px;
-		fill: none;
-		stroke: currentColor;
-		stroke-width: 2;
-		stroke-linecap: round;
-	}
-
 	.body {
 		display: flex;
 		flex-direction: column;

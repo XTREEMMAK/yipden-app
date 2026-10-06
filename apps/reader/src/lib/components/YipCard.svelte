@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { sourceColor as sourceColorOf } from '$lib/sources.js';
+	import { hostOf } from '$lib/hosts.js';
 	import { Capacitor } from '@capacitor/core';
 	import { youtubeVideoId } from '@yipden/feeds';
 	import { player } from '$lib/player.svelte.js';
@@ -50,19 +52,7 @@
 	let isMedia = $derived(isAudio || isVideo || image !== null);
 	let authorName = $derived(displayAuthor(yip, feeds.personFor(yip)?.name));
 	let icon = $derived(feeds.iconFor(yip));
-	const SOURCE_COLORS = new Set([
-		'blog',
-		'bluesky',
-		'mastodon',
-		'youtube',
-		'peertube',
-		'podcast',
-		'forum'
-	]);
-	/** The source's color, for the chip and a text card's edge (tokens.css, `--src-*`). */
-	let sourceColor = $derived(
-		`var(--src-${SOURCE_COLORS.has(yip.feedKind) ? yip.feedKind : 'other'})`
-	);
+	let sourceColor = $derived(sourceColorOf(yip.feedKind));
 	let duration = $derived(formatDuration(mediaDuration(yip)));
 	let age = $derived(relativeAge(yip.publishedAt));
 	let revealed = $state(false);
@@ -201,7 +191,7 @@
 				<span class="link">Show post</span>
 			{:else}
 				<span class="link">
-					Open on {new URL(yip.url).hostname.replace(/^www\./, '')}
+					Open on {hostOf(yip.url)}
 					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
 				</span>
 			{/if}

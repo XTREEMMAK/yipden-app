@@ -1,3 +1,4 @@
+import { kindLabel } from './sources.js';
 import { folderList, type FolderSummary } from './folders.js';
 import { refreshAll } from './refresh.js';
 import { groupCrossposts, type FeedYip } from './syndication.js';
@@ -296,16 +297,7 @@ const SOURCE_LABELS: Record<YipCategory | 'default', string> = {
 
 /** The source chip's label. Feed kind wins over category, since it is the more specific fact. */
 export function sourceLabel(yip: StoredYip): string {
-	const byKind: Record<string, string> = {
-		blog: 'Blog',
-		bluesky: 'Bluesky',
-		mastodon: 'Mastodon',
-		youtube: 'YouTube',
-		peertube: 'PeerTube',
-		podcast: 'Podcast',
-		forum: 'Forum'
-	};
-	return byKind[yip.feedKind] ?? SOURCE_LABELS[yip.category] ?? SOURCE_LABELS.default;
+	return kindLabel(yip.feedKind) ?? SOURCE_LABELS[yip.category] ?? SOURCE_LABELS.default;
 }
 
 /** Prefer the post's own byline; a followed person's name is only a missing-byline fallback. */

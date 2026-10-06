@@ -121,6 +121,9 @@ test.describe('a desktop first member in Discover', () => {
 		const notes = page;
 		await notes.getByLabel('Reads best on').selectOption('mobile-friendly');
 
+		// What it is comes first: nothing to fill in until a kind is picked.
+		await expect(notes.getByLabel('Add a track by link')).toHaveCount(0);
+		await notes.getByRole('radio', { name: 'Track' }).click();
 		await notes.getByLabel('Add a track by link').fill('http://wide.example.com/a.mp3');
 		await notes.getByRole('button', { name: 'Add track' }).click();
 		await expect(page.getByText('That link cannot be used.', { exact: false })).toBeVisible();
@@ -161,6 +164,7 @@ test.describe('a desktop first member in Discover', () => {
 		const actions = await openActions(page);
 		await actions.getByRole('button', { name: 'Their profile' }).click();
 		const notes = page;
+		await notes.getByRole('radio', { name: 'Track' }).click();
 		await notes
 			.getByLabel('Add a track by link')
 			.fill('https://wide.example.com/audio/night_drive.mp3');
@@ -691,6 +695,23 @@ test.describe('partner rings in Discover', () => {
 			await page.getByRole('button', { name: 'Back to IndieNodes Webring' }).click();
 			await expect(panel).toHaveCount(0);
 			expect(await page.evaluate(() => window.history.state?.yipdenRing ?? null)).toBeNull();
+		});
+
+		test('back from a member’s profile, one Back still returns to Discover', async ({ page }) => {
+			await page.goto('/');
+			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
+			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
+			await expect(panel).toBeVisible();
+
+			await panel.getByRole('button', { name: "Ash & Ember's profile" }).click();
+			await expect(page.getByRole('heading', { level: 1, name: 'Ash & Ember' })).toBeVisible();
+			await page.getByRole('button', { name: 'Back' }).click();
+			await expect(panel).toBeVisible();
+
+			await page.goBack();
+			await expect(panel).toHaveCount(0);
+			expect(new URL(page.url()).pathname).toBe('/');
 		});
 
 		test('search and the genre filter narrow the ring, generically', async ({ page }) => {

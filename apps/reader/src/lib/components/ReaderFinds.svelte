@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hostOf } from '$lib/hosts.js';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import { siteBrowser } from '$lib/platform/siteBrowser.svelte.js';
 	import { prefs } from '$lib/prefs.svelte.js';
@@ -93,9 +94,9 @@
 						>
 							<blockquote>{passage.selector?.exact ?? passage.title}</blockquote>
 							<small
-								>{passage.status === 'gone' ? 'No longer on their page' : 'Added by you'} · {new URL(
+								>{passage.status === 'gone' ? 'No longer on their page' : 'Added by you'} · {hostOf(
 									passage.url
-								).hostname.replace(/^www\./, '')}</small
+								)}</small
 							>
 						</button>
 						<button

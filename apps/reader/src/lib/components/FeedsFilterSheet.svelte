@@ -1,9 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { fade, fly } from 'svelte/transition';
-	import { closeOnBack } from '$lib/closeOnBack.js';
+	import Sheet from './Sheet.svelte';
 	import { feeds, type FeedsScope } from '$lib/feeds.svelte.js';
-	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
 
 	/**
 	 * Feeds' Filter sheet: everyone, one folder, or one person. The same shape as Discover's
@@ -19,7 +16,6 @@
 	/** Past this many people the list gets a box to narrow it. */
 	const SEARCH_FROM = 12;
 
-	let closeButton = $state<HTMLButtonElement | undefined>(undefined);
 	let query = $state('');
 
 	let people = $derived(
@@ -32,46 +28,19 @@
 		return needle ? people.filter((person) => person.name.toLowerCase().includes(needle)) : people;
 	});
 
-	onMount(() => {
-		closeButton?.focus();
-		return closeOnBack('feedsFilter', onclose);
-	});
-
 	function choose(scope: FeedsScope) {
 		void feeds.setScope(scope);
 		onclose();
 	}
 </script>
 
-<svelte:window
-	onkeydown={(event) => {
-		if (event.key === 'Escape') onclose();
-	}}
-/>
-
-<button
-	type="button"
-	class="sheet-backdrop"
-	tabindex="-1"
-	aria-label="Close"
-	onclick={onclose}
-	transition:fade={{ duration: prefersReducedMotion() ? 0 : duration.s }}
-></button>
-<div
+<Sheet
+	title="Filter your feeds"
+	{onclose}
+	historyKey="feedsFilter"
+	maxHeight="70vh"
 	class="filter-sheet"
-	role="dialog"
-	aria-modal="true"
-	aria-label="Filter your feeds"
-	in:fly={flyIn({ y: 40 })}
-	out:fly={flyIn({ y: 40 })}
 >
-	<div class="sheet-head">
-		<h2>Filter your feeds</h2>
-		<button bind:this={closeButton} class="sheet-close" onclick={onclose} aria-label="Close">
-			<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
-		</button>
-	</div>
-
 	<div class="sheet-list" role="radiogroup" aria-label="Filter your feeds">
 		<button
 			class="sheet-row"
@@ -148,73 +117,9 @@
 			{/each}
 		{/if}
 	</div>
-</div>
+</Sheet>
 
 <style>
-	.sheet-backdrop {
-		position: fixed;
-		inset: 0;
-		z-index: 34;
-		border: 0;
-		padding: 0;
-		background: rgba(15, 6, 2, 0.5);
-		/* A mouse/touch convenience only: the dialog's own Close button and Escape are the
-		   real keyboard path, so this stays out of tab order. */
-		cursor: default;
-	}
-
-	.filter-sheet {
-		position: fixed;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		z-index: 35;
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-		max-height: 70vh;
-		padding: 18px 8px calc(20px + env(safe-area-inset-bottom, 0px));
-		border-radius: 24px 24px 0 0;
-		background: var(--ground);
-		color: var(--ink);
-		box-shadow: 0 -12px 30px -10px rgba(0, 0, 0, 0.3);
-		overflow-y: auto;
-	}
-
-	.sheet-head {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0 12px 10px;
-	}
-
-	.sheet-head h2 {
-		margin: 0;
-		font-size: 17px;
-		font-weight: 650;
-	}
-
-	.sheet-close {
-		display: grid;
-		place-items: center;
-		flex: none;
-		width: 44px;
-		height: 44px;
-		border: 0;
-		border-radius: 999px;
-		background: var(--surface);
-		color: var(--ink);
-	}
-
-	.sheet-close svg {
-		width: 18px;
-		height: 18px;
-		fill: none;
-		stroke: currentColor;
-		stroke-width: 2;
-		stroke-linecap: round;
-	}
-
 	.sheet-list {
 		display: flex;
 		flex-direction: column;

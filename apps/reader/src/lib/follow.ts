@@ -1,3 +1,4 @@
+import { hostOf } from './hosts.js';
 import type { DiscoveredFeed, DiscoveryResult } from '@yipden/feeds';
 import { discoverWithDeadline } from './discovery.js';
 import { heroImage, type RingEntry } from '@yipden/ring-client';
@@ -117,7 +118,7 @@ export async function followDiscovered(
 ): Promise<FollowOutcome> {
 	const person: Person = {
 		id: `site:${result.canonicalUrl}`,
-		name: result.title ?? new URL(result.canonicalUrl).hostname.replace(/^www\./, ''),
+		name: result.title ?? hostOf(result.canonicalUrl),
 		siteUrl: result.canonicalUrl,
 		...(result.iconUrl ? { iconUrl: result.iconUrl } : {}),
 		// The one place a layout is inferred rather than declared: a heuristic from the page that

@@ -1,3 +1,4 @@
+import { hostOf } from './hosts.js';
 import { htmlToText } from '@yipden/feeds';
 import type { StoredYip } from './store/index.js';
 
@@ -162,8 +163,8 @@ function ownedByPerson(yip: StoredYip, siteUrl: string | undefined): boolean {
 	const item = normalizedUrl(yip.url);
 	const site = normalizedUrl(siteUrl);
 	if (!item || !site) return false;
-	const itemHost = new URL(item).hostname.replace(/^www\./, '');
-	const siteHost = new URL(site).hostname.replace(/^www\./, '');
+	const itemHost = hostOf(item);
+	const siteHost = hostOf(site);
 	return itemHost === siteHost;
 }
 

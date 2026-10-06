@@ -1,4 +1,7 @@
 <script lang="ts">
+	import Segmented from '$components/Segmented.svelte';
+	import { kindLabel } from '$lib/sources.js';
+	import { hostOf } from '$lib/hosts.js';
 	import { goto } from '$app/navigation';
 	import { heroImage, type RingEntry } from '@yipden/ring-client';
 	import {
@@ -89,14 +92,6 @@
 		}, 180);
 		return () => clearTimeout(timer);
 	});
-
-	function hostOf(url: string): string {
-		try {
-			return new URL(url).hostname.replace(/^www\./, '');
-		} catch {
-			return url;
-		}
-	}
 
 	/** A person pastes "lenaofori.com", not "https://lenaofori.com/". Meet them there. */
 	function asUrl(raw: string): string | null {
@@ -306,16 +301,7 @@
 	}
 
 	function labelFor(feed: DiscoveredFeed): string {
-		const labels: Record<string, string> = {
-			blog: 'Blog',
-			bluesky: 'Bluesky',
-			mastodon: 'Mastodon',
-			youtube: 'YouTube',
-			peertube: 'PeerTube',
-			podcast: 'Podcast',
-			forum: 'Forum'
-		};
-		return labels[feed.kind] ?? feed.kind;
+		return kindLabel(feed.kind) ?? feed.kind;
 	}
 
 	function shortUrl(url: string): string {
@@ -327,24 +313,15 @@
 
 <div class="scroll">
 	<header class="head" in:fly={flyIn()}>
-		<div class="mode-switch" role="radiogroup" aria-label="What to follow">
-			<button
-				role="radio"
-				aria-checked={mode === 'people'}
-				class:on={mode === 'people'}
-				onclick={() => setMode('people')}
-			>
-				People
-			</button>
-			<button
-				role="radio"
-				aria-checked={mode === 'forums'}
-				class:on={mode === 'forums'}
-				onclick={() => setMode('forums')}
-			>
-				Forums
-			</button>
-		</div>
+		<Segmented
+			label="What to follow"
+			options={[
+				{ value: 'people', label: 'People' },
+				{ value: 'forums', label: 'Forums' }
+			]}
+			value={mode}
+			onchange={setMode}
+		/>
 		<p class="eyebrow">Follow</p>
 		{#if mode === 'people'}
 			<h2 class="screen-title">Follow a <em>person</em>, not a platform.</h2>
@@ -752,36 +729,6 @@
 		margin: 0;
 		font-size: 13px;
 		color: var(--error);
-	}
-
-	.mode-switch {
-		display: inline-flex;
-		align-self: flex-start;
-		gap: 4px;
-		padding: 3px;
-		border: 1px solid var(--line);
-		border-radius: 999px;
-		background: var(--surface);
-	}
-
-	.mode-switch button {
-		min-height: 44px;
-		padding: 0 16px;
-		border: 0;
-		border-radius: 999px;
-		background: none;
-		color: var(--muted);
-		font: inherit;
-		font-size: 14px;
-		font-weight: 600;
-		transition:
-			background var(--dur-s) var(--ease),
-			color var(--dur-s) var(--ease);
-	}
-
-	.mode-switch button.on {
-		background: var(--brand-soft);
-		color: var(--brand-ink);
 	}
 
 	.results {

@@ -1,13 +1,12 @@
 <script lang="ts">
+	import { hostOf } from '$lib/hosts.js';
 	import { previewKindOf, type PreviewKind } from '@yipden/ring-client';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import type { RingOrigin } from '$lib/references/types.js';
-	import { showKept } from '$lib/references/messages.js';
-	import { toast } from '$lib/toast.svelte.js';
 	import PlatformIcon from './PlatformIcon.svelte';
 
 	/**
-	 * Tracks a reader added to a creator themselves, and a form to add one by link.
+	 * Tracks a reader added to a creator themselves. Adding one by link is `KeepByLink`'s.
 	 *
 	 * Always labelled as the reader's own: the creator never chose these. A real audio file plays
 	 * in the app's one player; a platform page opens on its own site.
@@ -15,18 +14,12 @@
 
 	interface Props {
 		creator: { url: string; name: string; artUrl?: string | null; ring?: RingOrigin | null };
-		/** Distinguishes form fields when several of these are on one screen. */
-		id: string;
 		/** Called as a track starts, so a sheet holding this list can get out of the player's way. */
 		onplay?: () => void;
-		/** False lists the tracks without the form to add one: a second address on a profile. */
-		addable?: boolean;
 	}
 
-	let { creator, id, onplay, addable = true }: Props = $props();
+	let { creator, onplay }: Props = $props();
 
-	let link = $state('');
-	let title = $state('');
 	let tracks = $derived(creatorNotes.tracksFor(creator.url));
 
 	const PLAY_LABELS: Record<PreviewKind, string> = {
@@ -38,23 +31,6 @@
 		'apple-music': 'Open on Apple Music',
 		external: 'Open'
 	};
-
-	let adding = $state(false);
-
-	async function add(event: SubmitEvent) {
-		event.preventDefault();
-		adding = true;
-		try {
-			const result = await creatorNotes.addTrack(creator, { url: link, title });
-			if (result === 'added') {
-				link = '';
-				title = '';
-			}
-			showKept(result, creator);
-		} finally {
-			adding = false;
-		}
-	}
 </script>
 
 <div class="reader-tracks">
@@ -79,9 +55,9 @@
 					<span class="text">
 						<b>{track.title}</b>
 						<small
-							>{track.gone ? 'No longer on their site' : 'Added by you'} · {new URL(
+							>{track.gone ? 'No longer on their site' : 'Added by you'} · {hostOf(
 								track.url
-							).hostname.replace(/^www\./, '')}</small
+							)}</small
 						>
 					</span>
 					<button
@@ -94,33 +70,6 @@
 				</li>
 			{/each}
 		</ul>
-	{/if}
-	{#if addable}
-		<form class="add" onsubmit={add}>
-			<label for={`${id}-link`}>Add a track by link</label>
-			<input
-				id={`${id}-link`}
-				type="url"
-				inputmode="url"
-				placeholder="https://… an audio file or a track page"
-				autocomplete="off"
-				spellcheck="false"
-				bind:value={link}
-			/>
-			<input
-				type="text"
-				aria-label="Track title (optional)"
-				placeholder="Title (optional)"
-				maxlength="200"
-				bind:value={title}
-			/>
-			<button type="submit" disabled={!link.trim() || adding} aria-busy={adding}
-				>{adding ? 'Checking…' : 'Add track'}</button
-			>
-			<small class="note"
-				>Only the link is kept, on this phone. {creator.name} did not choose it.</small
-			>
-		</form>
 	{/if}
 </div>
 
@@ -201,45 +150,5 @@
 	.text small {
 		color: var(--muted);
 		font-size: 12px;
-	}
-
-	.add {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-		font-size: 12.5px;
-	}
-
-	.add input {
-		box-sizing: border-box;
-		height: 44px;
-		padding: 0 12px;
-		border: 1px solid var(--line);
-		border-radius: 12px;
-		background: var(--surface);
-		color: var(--ink);
-		font-family: var(--body);
-		font-size: 14px;
-	}
-
-	.add button {
-		align-self: flex-start;
-		min-height: 44px;
-		padding: 0 16px;
-		border: 1px solid var(--line);
-		border-radius: 999px;
-		background: none;
-		color: var(--ink);
-		font-family: var(--body);
-		font-size: 13px;
-		font-weight: 600;
-	}
-
-	.add button:disabled {
-		opacity: 0.55;
-	}
-
-	.note {
-		color: var(--muted);
 	}
 </style>

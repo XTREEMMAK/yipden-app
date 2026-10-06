@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { sourceColor } from '$lib/sources.js';
+	import { hostOf } from '$lib/hosts.js';
 	import { onMount } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import { goto } from '$app/navigation';
@@ -6,6 +8,7 @@
 	import { heroImage, layoutOf, safeUrl, type RingEntry } from '@yipden/ring-client';
 	import LayoutPicker from '$components/LayoutPicker.svelte';
 	import ReaderFinds from '$components/ReaderFinds.svelte';
+	import KeepByLink from '$components/KeepByLink.svelte';
 	import ReaderTracks from '$components/ReaderTracks.svelte';
 	import SamePersonSheet from '$components/SamePersonSheet.svelte';
 	import Toast from '$components/Toast.svelte';
@@ -75,9 +78,9 @@
 			verdict?.name ??
 			references.find((reference) => reference.creatorName)?.creatorName ??
 			facts?.name ??
-			(site ? new URL(site).hostname.replace(/^www\./, '') : '')
+			(site ? hostOf(site) : '')
 	);
-	let host = $derived(home ? new URL(home).hostname.replace(/^www\./, '') : '');
+	let host = $derived(home ? hostOf(home) : '');
 	/** The wide picture behind the header: the ring's cover for them, else what opened this. */
 	let cover = $derived((entry ? heroImage(entry) : null) ?? hint?.artUrl ?? null);
 	/** Their own picture: what their site shows of them, else their icon. */
@@ -132,19 +135,6 @@
 		return rows;
 	});
 
-	const COLORED = new Set([
-		'blog',
-		'bluesky',
-		'mastodon',
-		'youtube',
-		'peertube',
-		'podcast',
-		'forum'
-	]);
-	function colorOf(kind?: string): string {
-		return `var(--src-${kind && COLORED.has(kind) ? kind : 'other'})`;
-	}
-
 	async function loadStored(target: string, targetKeys: ReadonlySet<string>) {
 		await store.init();
 		const [people, allFeeds] = await Promise.all([store.listPeople(), store.listFeeds()]);
@@ -187,10 +177,6 @@
 		if (!target) return;
 		if (homeIsSite) void siteBrowser.open(target, creator, prefs.sitesInApp);
 		else openExternal(target);
-	}
-
-	function hostOf(url: string): string {
-		return new URL(url).hostname.replace(/^www\./, '');
 	}
 
 	let busy = $state(false);
@@ -363,7 +349,7 @@
 				<button class="row" onclick={visit}>
 					<span
 						class="dot"
-						style:background={colorOf(homeIsSite || !home ? 'blog' : placeLabel(home).kind)}
+						style:background={sourceColor(homeIsSite || !home ? 'blog' : placeLabel(home).kind)}
 						aria-hidden="true"
 					></span>
 					<span class="row-text">
@@ -377,7 +363,7 @@
 						<button class="row-main" onclick={() => openExternal(address)}>
 							<span
 								class="dot"
-								style:background={colorOf(placeLabel(address).kind ?? 'blog')}
+								style:background={sourceColor(placeLabel(address).kind ?? 'blog')}
 								aria-hidden="true"
 							></span>
 							<span class="row-text">
@@ -401,7 +387,7 @@
 				{/each}
 				{#each places as place (place.url)}
 					<button class="row" onclick={() => openExternal(place.url)}>
-						<span class="dot" style:background={colorOf(place.kind)} aria-hidden="true"></span>
+						<span class="dot" style:background={sourceColor(place.kind)} aria-hidden="true"></span>
 						<span class="row-text">
 							<b>{place.label}</b>
 							<small>{place.note}</small>
@@ -420,7 +406,8 @@
 				<div class="rows">
 					{#each recent as yip (yip.key)}
 						<button class="row" class:unread={!yip.readAt} onclick={() => openYip(yip)}>
-							<span class="dot" style:background={colorOf(yip.feedKind)} aria-hidden="true"></span>
+							<span class="dot" style:background={sourceColor(yip.feedKind)} aria-hidden="true"
+							></span>
 							<span class="row-text">
 								<b>{yip.title && yip.title !== 'Untitled' ? yip.title : yip.summary}</b>
 								<small>{sourceLabel(yip)} · {relativeAge(yip.publishedAt)}</small>
@@ -445,20 +432,15 @@
 
 		<section class="block kept" aria-labelledby="kept-h">
 			<h2 id="kept-h">Kept from them</h2>
-			<ReaderTracks {creator} id="profile-tracks" />
+			<ReaderTracks {creator} />
 			<ReaderFinds {creator} />
-			{#each keptElsewhere as address, index (address)}
+			{#each keptElsewhere as address (address)}
 				{@const other = { ...creator, url: address }}
 				<p class="kept-under">Kept under {hostOf(address)}</p>
-				<ReaderTracks creator={other} id={`profile-tracks-${index}`} addable={false} />
+				<ReaderTracks creator={other} />
 				<ReaderFinds creator={other} />
 			{/each}
-			{#if !references.length}
-				<p class="quiet">
-					Nothing yet. Visit their site and use YipDen's button to keep a track, a picture or a
-					passage.
-				</p>
-			{/if}
+			<KeepByLink {creator} id="profile-keep" />
 		</section>
 
 		<section class="block" aria-labelledby="yours-h">

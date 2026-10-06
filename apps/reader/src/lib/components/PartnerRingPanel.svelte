@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { fly } from 'svelte/transition';
+	import { flyIn } from '$lib/motion.js';
+	import { hostOf } from '$lib/hosts.js';
 	import { creatorProfiles } from '$lib/creatorProfile.svelte.js';
 	import { previewKindOf, type PartnerRingResult, type PreviewKind } from '@yipden/ring-client';
 	import { cardStack } from '$lib/actions/cardStack.js';
@@ -292,11 +295,15 @@
 			});
 		});
 
-		window.history.pushState(
-			{ ...window.history.state, yipdenRing: true },
-			'',
-			window.location.href
-		);
+		// Back from a page opened above it (a creator's profile) lands on the ring's own entry, still
+		// there: reuse it. Pushing a second meant one Back did nothing (phone feedback, 2026-10-06).
+		if (!window.history.state?.yipdenRing) {
+			window.history.pushState(
+				{ ...window.history.state, yipdenRing: true },
+				'',
+				window.location.href
+			);
+		}
 		historyOpen = true;
 
 		const onPopState = () => {
@@ -324,10 +331,6 @@
 		else onback();
 	}
 
-	function hostOf(url: string): string {
-		return new URL(url).hostname.replace(/^www\./, '');
-	}
-
 	/**
 	 * What the Listen button actually says, so a reader knows what they are about to open before
 	 * they tap it: a file plays in a second, a platform page may ask for an account, and a
@@ -350,7 +353,13 @@
 	}
 </script>
 
-<section class="partner" data-noswipe aria-label={`${result.ring.name} members`}>
+<section
+	class="partner"
+	data-noswipe
+	aria-label={`${result.ring.name} members`}
+	in:fly={flyIn({ x: 40 })}
+	out:fly={flyIn({ x: 40 })}
+>
 	<!--
 		Background art: a soft mosaic of the ring's own members' pictures, dimmed under the ring's
 		mark, so each ring feels like its own place. Decorative, and absent when there is none.

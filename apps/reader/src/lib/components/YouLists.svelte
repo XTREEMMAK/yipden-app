@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hostOf } from '$lib/hosts.js';
 	import { verdicts } from '$lib/verdicts.svelte.js';
 	import VerdictList from './VerdictList.svelte';
 
@@ -37,14 +38,6 @@
 	});
 	const current = $derived(TABS.find((entry) => entry.key === tab)!);
 	const loaded = $derived(verdicts.loaded);
-
-	function hostOf(url: string): string {
-		try {
-			return new URL(url).hostname.replace(/^www\./, '');
-		} catch {
-			return url;
-		}
-	}
 
 	function matches(...fields: Array<string | undefined>): boolean {
 		const needle = query.trim().toLowerCase();

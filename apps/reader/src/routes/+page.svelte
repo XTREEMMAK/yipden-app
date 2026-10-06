@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hostOf } from '$lib/hosts.js';
 	import { creatorProfiles } from '$lib/creatorProfile.svelte.js';
 	import { onMount } from 'svelte';
 	import { swipe } from '$lib/actions/swipe.js';
@@ -516,14 +517,6 @@
 			art: 'Art'
 		};
 		return labels[type] ?? type;
-	}
-
-	function hostOf(url: string): string {
-		try {
-			return new URL(url).hostname.replace(/^www\./, '');
-		} catch {
-			return url;
-		}
 	}
 </script>
 

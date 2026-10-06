@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hostOf } from '$lib/hosts.js';
 	import { goto } from '$app/navigation';
 	import { openExternal } from '$lib/platform/external.js';
 	import type { VerdictRecord } from '$lib/store/index.js';
@@ -18,14 +19,6 @@
 	let { kind, items }: Props = $props();
 	/** Badges that failed to load, so a broken one leaves the row as if it had none. */
 	let broken = $state<Set<string>>(new Set());
-
-	function hostOf(url: string): string {
-		try {
-			return new URL(url).hostname.replace(/^www\./, '');
-		} catch {
-			return url;
-		}
-	}
 </script>
 
 {#each items as item (item.id)}

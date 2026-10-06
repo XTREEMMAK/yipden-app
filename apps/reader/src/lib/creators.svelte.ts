@@ -1,5 +1,6 @@
 import { resolveProfile } from '@yipden/feeds';
 import { safeUrl } from '@yipden/ring-client';
+import { isUnder, PLATFORM_NAMES } from './sources.js';
 import { store } from './store/index.js';
 import type { CreatorRecord, HomeKind } from './store/types.js';
 import { verdictKey } from './verdicts.svelte.js';
@@ -39,31 +40,13 @@ const SITE_HOSTS = [
 	'sdf.org'
 ];
 
-/** Platforms a creator can post to but cannot take their readers away from. */
-const CLOSED_HOSTS = [
-	'instagram.com',
-	'tiktok.com',
-	'x.com',
-	'twitter.com',
-	'facebook.com',
-	'threads.net',
-	'youtube.com',
-	'twitch.tv',
-	'etsy.com',
-	'patreon.com',
-	'ko-fi.com',
-	'linktr.ee',
-	'bandcamp.com',
-	'soundcloud.com',
-	'spotify.com',
-	'tumblr.com',
-	'deviantart.com',
-	'artstation.com',
-	'cara.app',
-	'itch.io',
-	'github.com',
-	'gumroad.com'
-];
+/**
+ * Platforms a creator can post to but cannot take their readers away from: every known platform
+ * but the hosts of hand-made sites and Bluesky (an open protocol, ranked by `resolveProfile`).
+ */
+const CLOSED_HOSTS = Object.keys(PLATFORM_NAMES).filter(
+	(host) => !SITE_HOSTS.includes(host) && host !== 'bsky.app'
+);
 
 const HOME_ORDER: readonly HomeKind[] = [
 	'own-site',
@@ -77,8 +60,7 @@ function hostOf(url: string): string | null {
 	return parsed ? parsed.hostname.toLowerCase().replace(/^www\./, '') : null;
 }
 
-const under = (host: string, names: readonly string[]) =>
-	names.some((name) => host === name || host.endsWith(`.${name}`));
+const under = (host: string, names: readonly string[]) => names.some((name) => isUnder(host, name));
 
 /** What kind of home an address would make. */
 export function homeKindOf(url: string): HomeKind {

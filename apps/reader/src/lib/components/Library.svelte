@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hostOf } from '$lib/hosts.js';
 	import { creators } from '$lib/creators.svelte.js';
 	import { profileHref } from '$lib/creatorProfile.svelte.js';
 	import { page } from '$app/state';
@@ -119,14 +120,6 @@
 		void creatorNotes.load();
 		void shelf.load();
 	});
-
-	function hostOf(url: string): string {
-		try {
-			return new URL(url).hostname.replace(/^www\./, '');
-		} catch {
-			return url;
-		}
-	}
 
 	function when(iso: string): string {
 		const at = new Date(iso);
