@@ -40,6 +40,19 @@
 	--on-dark: #ffffff;
 
 	/*
+	 * Where a yip came from, as a color (the way Tapestry tells sources apart): a text card's edge
+	 * and every card's source chip. Mid tones, so the one set reads on every skin, light or dark.
+	 */
+	--src-blog: #e8711c;
+	--src-bluesky: #1185fe;
+	--src-mastodon: #6364ff;
+	--src-youtube: #e62117;
+	--src-peertube: #c99a06;
+	--src-podcast: #9b51e0;
+	--src-forum: #1f9d6b;
+	--src-other: #8a7f78;
+
+	/*
 	 * One easing, everywhere. A different curve written inline is a bug, not a variation:
 	 * the whole point is that every movement in the app feels like the same hand.
 	 */

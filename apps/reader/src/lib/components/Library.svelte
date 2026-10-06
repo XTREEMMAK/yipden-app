@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { creators } from '$lib/creators.svelte.js';
+	import { profileHref } from '$lib/creatorProfile.svelte.js';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { fly } from 'svelte/transition';
@@ -64,7 +66,9 @@
 	const narrowed = $derived(
 		only
 			? all.filter((item) =>
-					only!.kind === 'creator' ? item.creatorId === only!.value : item.type === only!.value
+					only!.kind === 'creator'
+						? creators.idFor(item.creatorUrl) === creators.idFor(`https://${only!.value}`)
+						: item.type === only!.value
 				)
 			: all
 	);
@@ -74,7 +78,7 @@
 		view === 'type'
 			? groupByType(visible)
 			: view === 'creator'
-				? groupByCreator(visible)
+				? groupByCreator(visible, (item) => creators.idFor(item.creatorUrl))
 				: groupByDate(visible)
 	);
 	const onlyLabel = $derived(
@@ -111,6 +115,7 @@
 	});
 
 	onMount(() => {
+		void creators.load();
 		void creatorNotes.load();
 		void shelf.load();
 	});
@@ -325,7 +330,14 @@
 		{:else}
 			{#each groups as group (group.key)}
 				<div class="group">
-					<h4 class="sub">{group.label} <span>{group.items.length}</span></h4>
+					<div class="sub-row">
+						<h4 class="sub">{group.label} <span>{group.items.length}</span></h4>
+						{#if view === 'creator' && group.items[0]}
+							<a class="profile-link" href={profileHref(group.items[0].creatorUrl)}
+								>{group.label}’s profile</a
+							>
+						{/if}
+					</div>
 					<ul class="items" aria-label={group.label}>
 						{#each group.items as item (item.key)}
 							<li id={`library-${item.key}`} class="item" class:marked={marked === item.key}>
@@ -422,6 +434,25 @@
 		letter-spacing: 0.02em;
 		color: var(--muted);
 		text-align: right;
+	}
+
+	.sub-row {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	.profile-link {
+		flex: none;
+		max-width: 50%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		color: var(--brand-text);
+		font-size: 13px;
+		font-weight: 600;
+		text-decoration: none;
 	}
 
 	.sub {

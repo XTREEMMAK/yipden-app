@@ -99,6 +99,11 @@ export interface Feed {
 	lastError?: FeedError;
 	/** False keeps the feed but stops fetching it. */
 	enabled: boolean;
+	/**
+	 * The feed's own picture where it differs from its person's: a YouTube channel's avatar,
+	 * shown on that channel's cards. Empty once looked for and not found, so it is asked once.
+	 */
+	iconUrl?: string;
 }
 
 /**
@@ -177,6 +182,43 @@ export interface VerdictRecord {
 	via?: string;
 	thumbUrl?: string;
 	at: string;
+}
+
+/**
+ * How strong a creator's home address is, strongest first: their own domain; a hand-made site on
+ * a host (Neocities and the like); a profile they control on an open platform (Bluesky,
+ * Mastodon, PeerTube); a profile on a closed one (Instagram, TikTok, Etsy).
+ */
+export type HomeKind = 'own-site' | 'hosted-site' | 'open-profile' | 'closed-profile';
+
+/** Another address that is the same creator, as the reader linked it. */
+export interface CreatorAlias {
+	url: string;
+	/** `verdictKey(url)`, how everything kept about that address is filed. */
+	key: string;
+	addedAt: string;
+}
+
+/**
+ * One creator known by more than one address, or whose home the reader chose (the Creator
+ * Database, step 2). Only written when that is so: a creator known by one address has no record,
+ * and is simply their `verdictKey`.
+ *
+ * `id` is the key they were first known by and never changes, so everything already filed under
+ * it (Liked, the Library, layout) stays where it is. Aliases are not moved under it either: a
+ * profile gathers what is filed under each, which keeps unlinking one exact.
+ */
+export interface CreatorRecord {
+	id: string;
+	/** The address `id` was made from. */
+	url: string;
+	/** The best address known for them, shown as theirs. */
+	home: string;
+	homeKind: HomeKind;
+	/** The reader picked the home, rather than it being the strongest address. */
+	homeChosen?: boolean;
+	aliases: CreatorAlias[];
+	updatedAt: string;
 }
 
 /**
@@ -311,6 +353,11 @@ export interface Store {
 	/** One verdict per creator: setting another replaces the first. */
 	setVerdict(record: VerdictRecord): Promise<void>;
 	removeVerdict(id: string): Promise<void>;
+
+	listCreators(): Promise<CreatorRecord[]>;
+	/** Replaces the record with the same id. */
+	putCreator(record: CreatorRecord): Promise<void>;
+	removeCreator(id: string): Promise<void>;
 
 	getSetting<T>(key: SettingKey): Promise<T | null>;
 	setSetting<T>(key: SettingKey, value: T): Promise<void>;

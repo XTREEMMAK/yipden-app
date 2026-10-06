@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { profileHref } from '$lib/creatorProfile.svelte.js';
 	import { onMount } from 'svelte';
 	import { cardStack } from '$lib/actions/cardStack.js';
 	import { readOnScroll } from '$lib/actions/readOnScroll.js';
@@ -48,6 +49,10 @@
 	 * never mix into the people's panes: a forum is a place, not a person (decided 2026-10-05).
 	 */
 	let onForums = $state(false);
+	/** The one person Feeds is narrowed to, whose name then opens their profile. */
+	let scopedPerson = $derived(
+		feeds.scope.kind === 'person' ? (feeds.people.get(feeds.scope.id) ?? null) : null
+	);
 	let filterIndex = $derived(
 		onForums
 			? FEEDS_FILTERS.length
@@ -224,7 +229,11 @@
 						weekday: 'short',
 						month: 'short',
 						day: 'numeric'
-					})}{#if feeds.scopeLabel}{' · '}<span class="scope">{feeds.scopeLabel}</span>{/if}
+					})}{#if feeds.scopeLabel}{' · '}{#if scopedPerson}<a
+								class="scope"
+								href={profileHref(scopedPerson.siteUrl)}
+								aria-label={`${feeds.scopeLabel}'s profile`}>{feeds.scopeLabel}</a
+							>{:else}<span class="scope">{feeds.scopeLabel}</span>{/if}{/if}
 				</p>
 				{#if onForums}
 					<h2 class="screen-title">
@@ -425,7 +434,7 @@
 							No forums yet. Paste a link to any page of a public forum in Follow (the front page, a
 							category, even one thread) to follow the forum or some of its categories.
 						</p>
-						<a class="forums-btn" href="/follow">Follow a forum</a>
+						<a class="forums-btn" href="/follow?mode=forums">Follow a forum</a>
 					</div>
 				{:else}
 					{#each forums.follows.filter((follow) => follow.status !== 'ok') as follow (follow.id)}
@@ -506,6 +515,7 @@
 
 	.scope {
 		color: var(--brand-text);
+		text-decoration: none;
 	}
 
 	.scope-btn {
@@ -997,7 +1007,7 @@
 
 	/* No backdrop-filter on anything inside a moving card: a solid tinted chip instead. */
 	:global(.pane.stack .yip .src) {
-		background: rgba(18, 6, 2, 0.5) !important;
+		background: color-mix(in srgb, var(--src, transparent) 78%, rgba(18, 6, 2, 0.5)) !important;
 		-webkit-backdrop-filter: none !important;
 		backdrop-filter: none !important;
 	}

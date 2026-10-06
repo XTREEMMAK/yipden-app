@@ -79,7 +79,13 @@
 			aria-checked={feeds.scope.kind === 'all'}
 			onclick={() => choose({ kind: 'all' })}
 		>
-			<span class="sheet-dot" aria-hidden="true"></span>
+			<span class="sheet-av" aria-hidden="true">
+				<svg viewBox="0 0 24 24"
+					><circle cx="9" cy="9" r="3.2" /><path
+						d="M3.5 19c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6"
+					/><circle cx="16.5" cy="9.5" r="2.6" /><path d="M15.5 14.6c2.6-.3 4.6 1.2 5 4.4" /></svg
+				>
+			</span>
 			Everyone
 		</button>
 
@@ -91,7 +97,9 @@
 				aria-checked={feeds.scope.kind === 'folder' && feeds.scope.name === folder.name}
 				onclick={() => choose({ kind: 'folder', name: folder.name })}
 			>
-				<span class="sheet-dot" aria-hidden="true"></span>
+				<span class="sheet-av" aria-hidden="true">
+					<svg viewBox="0 0 24 24"><path d="M3.5 7.5h6l2 2h9v9h-17z" /></svg>
+				</span>
 				<span class="sheet-name">{folder.name}</span>
 				<small class="sheet-hint">{folder.count}</small>
 			</button>
@@ -117,7 +125,21 @@
 					aria-checked={feeds.scope.kind === 'person' && feeds.scope.id === person.id}
 					onclick={() => choose({ kind: 'person', id: person.id })}
 				>
-					<span class="sheet-dot" aria-hidden="true"></span>
+					<!-- Their own picture when they have one; a plain person otherwise. -->
+					<span
+						class="sheet-av"
+						class:pic={Boolean(person.iconUrl)}
+						style:background-image={person.iconUrl ? `url(${person.iconUrl})` : ''}
+						aria-hidden="true"
+					>
+						{#if !person.iconUrl}
+							<svg viewBox="0 0 24 24"
+								><circle cx="12" cy="9" r="3.6" /><path
+									d="M5 19.5c.8-3.6 3.6-5.4 7-5.4s6.2 1.8 7 5.4"
+								/></svg
+							>
+						{/if}
+					</span>
 					<span class="sheet-name">{person.name}</span>
 					{#if person.folder}<small class="sheet-hint">{person.folder}</small>{/if}
 				</button>
@@ -264,16 +286,33 @@
 		font-weight: 650;
 	}
 
-	.sheet-dot {
+	/* Who or what a row is, as a small picture: ringed in the brand color when it is the choice. */
+	.sheet-av {
 		flex: none;
-		width: 10px;
-		height: 10px;
+		display: grid;
+		place-items: center;
+		width: 28px;
+		height: 28px;
 		border-radius: 999px;
-		border: 2px solid var(--muted);
+		background-color: var(--brand-soft);
+		background-size: cover;
+		background-position: center;
+		color: var(--brand-ink);
 	}
 
-	.sheet-row[aria-checked='true'] .sheet-dot {
-		border-color: var(--brand);
-		background: var(--brand);
+	.sheet-av svg {
+		width: 18px;
+		height: 18px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.8;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.sheet-row[aria-checked='true'] .sheet-av {
+		box-shadow:
+			0 0 0 2px var(--surface),
+			0 0 0 4px var(--brand);
 	}
 </style>

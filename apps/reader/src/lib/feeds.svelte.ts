@@ -46,6 +46,8 @@ class FeedsState {
 		listen: []
 	});
 	people = $state<Map<string, Person>>(new Map());
+	/** Each feed's own picture, where it has one (a YouTube channel's avatar). */
+	feedIcons = $state<Map<string, string>>(new Map());
 	/** Kept for the session only: a relaunch starts back at everyone. */
 	scope = $state<FeedsScope>({ kind: 'all' });
 	folders = $derived<FolderSummary[]>(folderList(this.people.values()));
@@ -101,6 +103,9 @@ class FeedsState {
 		const readKeys = new Set<string>();
 
 		this.people = new Map(people.map((person) => [person.id, person]));
+		this.feedIcons = new Map(
+			followedFeeds.flatMap((feed) => (feed.iconUrl ? [[feed.id, feed.iconUrl] as const] : []))
+		);
 		const next: Record<FeedsFilterKey, FeedYip[]> = {
 			everything: [],
 			posts: [],
@@ -248,6 +253,15 @@ class FeedsState {
 
 	personFor(yip: StoredYip): Person | null {
 		return this.people.get(yip.personId) ?? null;
+	}
+
+	/** The picture beside a yip: its feed's own (a YouTube channel's), else its person's. */
+	iconFor(yip: StoredYip): string | null {
+		return (
+			(yip.feedId ? this.feedIcons.get(yip.feedId) : undefined) ??
+			this.personFor(yip)?.iconUrl ??
+			null
+		);
 	}
 }
 

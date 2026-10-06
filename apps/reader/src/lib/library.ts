@@ -159,16 +159,21 @@ export function groupByType(items: readonly LibraryItem[]): LibraryGroup[] {
 }
 
 /** By person, the way Follow and You list people: by name. */
-export function groupByCreator(items: readonly LibraryItem[]): LibraryGroup[] {
+export function groupByCreator(
+	items: readonly LibraryItem[],
+	/** Which creator an item is: its own key, unless the reader linked addresses (`creators`). */
+	creatorOf: (item: LibraryItem) => string = (item) => item.creatorId
+): LibraryGroup[] {
 	const groups = new Map<string, LibraryGroup>();
 	for (const item of items) {
-		const group = groups.get(item.creatorId) ?? {
-			key: item.creatorId,
+		const id = creatorOf(item);
+		const group = groups.get(id) ?? {
+			key: id,
 			label: item.creatorName,
 			items: []
 		};
 		group.items.push(item);
-		groups.set(item.creatorId, group);
+		groups.set(id, group);
 	}
 	return [...groups.values()].sort((a, b) => a.label.localeCompare(b.label));
 }

@@ -13,6 +13,7 @@
 		relativeAge,
 		sourceLabel
 	} from '$lib/feeds.svelte.js';
+	import { creatorProfiles } from '$lib/creatorProfile.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
 	import type { StoredYip } from '$lib/store/index.js';
 
@@ -48,6 +49,20 @@
 	let embedding = $state(false);
 	let isMedia = $derived(isAudio || isVideo || image !== null);
 	let authorName = $derived(displayAuthor(yip, feeds.personFor(yip)?.name));
+	let icon = $derived(feeds.iconFor(yip));
+	const SOURCE_COLORS = new Set([
+		'blog',
+		'bluesky',
+		'mastodon',
+		'youtube',
+		'peertube',
+		'podcast',
+		'forum'
+	]);
+	/** The source's color, for the chip and a text card's edge (tokens.css, `--src-*`). */
+	let sourceColor = $derived(
+		`var(--src-${SOURCE_COLORS.has(yip.feedKind) ? yip.feedKind : 'other'})`
+	);
 	let duration = $derived(formatDuration(mediaDuration(yip)));
 	let age = $derived(relativeAge(yip.publishedAt));
 	let revealed = $state(false);
@@ -83,7 +98,7 @@
 </script>
 
 {#if embedding && videoId}
-	<div class="yip media embed" class:unread={!yip.readAt}>
+	<div class="yip media embed" style:--src={sourceColor} class:unread={!yip.readAt}>
 		<iframe
 			title={`${yip.title}, video player`}
 			src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&playsinline=1`}
@@ -98,90 +113,117 @@
 		</div>
 	</div>
 {:else if isMedia}
-	<button
-		class="yip media"
-		class:listen={isAudio}
-		class:concealed
-		class:unread={!yip.readAt}
-		onclick={open}
-		aria-label={concealed
-			? `Content warning: ${warning}. Show content.`
-			: `${yip.title} by ${authorName}${duration ? `, ${duration}` : ''}. ${isAudio ? 'Play audio.' : videoId ? 'Play video.' : youtubeId ? 'Plays on YouTube.' : `Opens on ${new URL(yip.url).hostname}.`}${imageAlt ? ` Image description: ${imageAlt}` : ''}`}
-	>
-		<span
-			class="art"
-			style:background-image={!concealed && image ? `url(${image})` : washFor(yip.key)}
-			aria-hidden="true"
-		></span>
-		<span class="shade" aria-hidden="true"></span>
-		<span class="top">
-			<span class="src">{sourceLabel(yip)}</span>
-			<span class="ago">{age}</span>
-		</span>
-		<span class="bottom">
-			<span class="txtcol">
-				<span class="ttl">{concealed ? warning : yip.title}</span>
-				<span class="meta">
-					{concealed ? 'Tap to show' : authorName}{!concealed && duration ? ` · ${duration}` : ''}
+	<div class="yip-wrap">
+		<button
+			class="yip media"
+			style:--src={sourceColor}
+			class:listen={isAudio}
+			class:concealed
+			class:unread={!yip.readAt}
+			onclick={open}
+			aria-label={concealed
+				? `Content warning: ${warning}. Show content.`
+				: `${yip.title} by ${authorName}${duration ? `, ${duration}` : ''}. ${isAudio ? 'Play audio.' : videoId ? 'Play video.' : youtubeId ? 'Plays on YouTube.' : `Opens on ${new URL(yip.url).hostname}.`}${imageAlt ? ` Image description: ${imageAlt}` : ''}`}
+		>
+			<span
+				class="art"
+				style:background-image={!concealed && image ? `url(${image})` : washFor(yip.key)}
+				aria-hidden="true"
+			></span>
+			<span class="shade" aria-hidden="true"></span>
+			<span class="top">
+				<span class="top-av" style:background-image={icon ? `url(${icon})` : ''} aria-hidden="true">
+					{#if !icon}
+						<svg viewBox="0 0 24 24"
+							><circle cx="12" cy="9" r="3.6" /><path
+								d="M5 19.5c.8-3.6 3.6-5.4 7-5.4s6.2 1.8 7 5.4"
+							/></svg
+						>
+					{/if}
+				</span>
+				<span class="src">{sourceLabel(yip)}</span>
+				<span class="ago">{age}</span>
+			</span>
+			<span class="bottom">
+				<span class="txtcol">
+					<span class="ttl">{concealed ? warning : yip.title}</span>
+					<span class="meta">
+						{concealed ? 'Tap to show' : authorName}{!concealed && duration ? ` · ${duration}` : ''}
+					</span>
+				</span>
+				<span
+					class="go"
+					class:play={(isAudio || youtubeId !== null) && !concealed}
+					class:warning={concealed}
+					aria-hidden="true"
+				>
+					{#if concealed}
+						<svg viewBox="0 0 24 24"
+							><path
+								d="M12 9v4M12 17h.01M10.3 4.2 2.6 18a1.5 1.5 0 0 0 1.3 2.2h16.2a1.5 1.5 0 0 0 1.3-2.2L13.7 4.2a2 2 0 0 0-3.4 0Z"
+							/></svg
+						>
+					{:else if isAudio || youtubeId}
+						<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+					{:else}
+						<svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8" /></svg>
+					{/if}
 				</span>
 			</span>
-			<span
-				class="go"
-				class:play={(isAudio || youtubeId !== null) && !concealed}
-				class:warning={concealed}
-				aria-hidden="true"
-			>
-				{#if concealed}
-					<svg viewBox="0 0 24 24"
-						><path
-							d="M12 9v4M12 17h.01M10.3 4.2 2.6 18a1.5 1.5 0 0 0 1.3 2.2h16.2a1.5 1.5 0 0 0 1.3-2.2L13.7 4.2a2 2 0 0 0-3.4 0Z"
-						/></svg
-					>
-				{:else if isAudio || youtubeId}
-					<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-				{:else}
-					<svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8" /></svg>
-				{/if}
-			</span>
-		</span>
-	</button>
+		</button>
+		{@render profileButton('media')}
+	</div>
 {:else}
-	<button
-		class="yip text"
-		class:concealed
-		class:unread={!yip.readAt}
-		onclick={open}
-		aria-label={concealed
-			? `Content warning: ${warning}. Show post.`
-			: `${yip.title && yip.title !== 'Untitled' ? `${yip.title}. ` : ''}Post by ${authorName} on ${sourceLabel(yip)}. Opens on ${new URL(yip.url).hostname}.`}
-	>
-		<span class="who">
-			<span
-				class="av"
-				style:background-image={feeds.personFor(yip)?.iconUrl
-					? `url(${feeds.personFor(yip)?.iconUrl})`
-					: ''}
-			></span>
-			<span class="wn">
-				<b>{authorName}</b>
-				<small>{sourceLabel(yip)} {'·'} {age}</small>
+	<div class="yip-wrap">
+		<button
+			class="yip text"
+			style:--src={sourceColor}
+			class:concealed
+			class:unread={!yip.readAt}
+			onclick={open}
+			aria-label={concealed
+				? `Content warning: ${warning}. Show post.`
+				: `${yip.title && yip.title !== 'Untitled' ? `${yip.title}. ` : ''}Post by ${authorName} on ${sourceLabel(yip)}. Opens on ${new URL(yip.url).hostname}.`}
+		>
+			<span class="who">
+				<span class="av" style:background-image={icon ? `url(${icon})` : ''}></span>
+				<span class="wn">
+					<b>{authorName}</b>
+					<small>{sourceLabel(yip)} {'·'} {age}</small>
+				</span>
+				<span class="src-light">{sourceLabel(yip)}</span>
 			</span>
-			<span class="src-light">{sourceLabel(yip)}</span>
-		</span>
-		{#if !concealed && yip.title && yip.title !== 'Untitled'}
-			<span class="ttl-text">{yip.title}</span>
-		{/if}
-		<span class="body">{concealed ? warning : yip.summary}</span>
-		{#if concealed}
-			<span class="link">Show post</span>
-		{:else}
-			<span class="link">
-				Open on {new URL(yip.url).hostname.replace(/^www\./, '')}
-				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
-			</span>
-		{/if}
-	</button>
+			{#if !concealed && yip.title && yip.title !== 'Untitled'}
+				<span class="ttl-text">{yip.title}</span>
+			{/if}
+			<span class="body">{concealed ? warning : yip.summary}</span>
+			{#if concealed}
+				<span class="link">Show post</span>
+			{:else}
+				<span class="link">
+					Open on {new URL(yip.url).hostname.replace(/^www\./, '')}
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
+				</span>
+			{/if}
+		</button>
+		{@render profileButton('text')}
+	</div>
 {/if}
+
+<!--
+	The creator's picture opens their profile. A sibling laid over the card's own picture, not a
+	button inside the card's, which a button cannot hold: the rest of the card still opens the post.
+-->
+{#snippet profileButton(shape: 'text' | 'media')}
+	{@const person = feeds.personFor(yip)}
+	{#if person}
+		<button
+			class="av-hit {shape}"
+			aria-label={`${person.name}'s profile`}
+			onclick={() => creatorProfiles.open({ url: person.siteUrl, name: person.name, artUrl: icon })}
+		></button>
+	{/if}
+{/snippet}
 
 <style>
 	.yip {
@@ -233,13 +275,71 @@
 		right: 16px;
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
+		gap: 8px;
+	}
+
+	.yip-wrap {
+		position: relative;
+	}
+
+	/* Over the card's own picture, at a full 44px target; the picture stays the card's to draw. */
+	.av-hit {
+		position: absolute;
+		z-index: 1;
+		width: 44px;
+		height: 44px;
+		border: 0;
+		border-radius: 999px;
+		padding: 0;
+		background: transparent;
+	}
+
+	.av-hit.text {
+		top: 13px;
+		left: 19px;
+	}
+
+	.av-hit.media {
+		top: 5px;
+		left: 7px;
+	}
+
+	.av-hit:focus-visible {
+		outline: 2px solid var(--brand);
+		outline-offset: -6px;
+	}
+
+	/* The channel's or creator's own picture, beside where it came from. */
+	.top-av {
+		display: grid;
+		place-items: center;
+		background-color: rgba(255, 255, 255, 0.22);
+		flex: none;
+		width: 26px;
+		height: 26px;
+		border-radius: 50%;
+		background-size: cover;
+		background-position: center;
+		box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.7);
+	}
+
+	.top-av svg {
+		width: 16px;
+		height: 16px;
+		fill: none;
+		stroke: #fff;
+		stroke-width: 2;
+		stroke-linecap: round;
+	}
+
+	.top .ago {
+		margin-left: auto;
 	}
 
 	.src {
 		padding: 5px 9px;
 		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.18);
+		background: color-mix(in srgb, var(--src, transparent) 78%, rgba(0, 0, 0, 0.25));
 		color: #fff;
 		font-family: var(--mono);
 		font-size: 10px;
@@ -444,6 +544,13 @@
 	.yip.text {
 		padding: 16px 18px;
 		border: 1px solid var(--line);
+		/*
+		 * The source's color down the leading edge, as the border itself: it always runs the
+		 * card's full height. A positioned stripe did not inside a button whose drawing Feeds
+		 * defers (content-visibility), where it sometimes stopped at the top (phone feedback).
+		 */
+		border-left: 4px solid var(--src, var(--src-other));
+		padding-left: 15px;
 		color: var(--ink);
 	}
 
@@ -484,8 +591,8 @@
 	.src-light {
 		padding: 5px 9px;
 		border-radius: 999px;
-		background: var(--brand-soft);
-		color: var(--brand-ink);
+		background: color-mix(in srgb, var(--src, var(--src-other)) 16%, transparent);
+		color: color-mix(in srgb, var(--src, var(--src-other)) 75%, var(--ink));
 		font-family: var(--mono);
 		font-size: 10px;
 		font-weight: 500;

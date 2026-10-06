@@ -5,7 +5,7 @@ import { stableYipId } from '@yipden/feeds';
 import { createBackup, parseBackup, restoreBackup } from './backup.js';
 import { testStore } from './store/testing/memory.js';
 import { reference } from './store/testing/fixtures.js';
-import type { Feed, Person, ShelfItem, StoredYip } from './store/types.js';
+import type { CreatorRecord, Feed, Person, ShelfItem, StoredYip } from './store/types.js';
 
 const PERSON: Person = {
 	id: 'person-lena',
@@ -283,6 +283,56 @@ describe('references in the backup', () => {
 		backup.references = [{ ...KEPT, url: 'http://lena.example.com/a.mp3' }];
 		expect(() => parseBackup(JSON.stringify(backup))).toThrow('not a supported YipDen backup');
 		backup.references = [{ ...KEPT, selector: { exact: 'only text may have one' } }];
+		expect(() => parseBackup(JSON.stringify(backup))).toThrow('not a supported YipDen backup');
+	});
+});
+
+describe('linked creators in the backup', () => {
+	const LINKED: CreatorRecord = {
+		id: 'lenaofori.com',
+		url: 'https://lenaofori.com/',
+		home: 'https://lenaofori.com/',
+		homeKind: 'own-site',
+		aliases: [
+			{
+				url: 'https://bsky.app/profile/lena.example',
+				key: 'bsky.app/profile/lena.example',
+				addedAt: '2026-10-06T00:00:00.000Z'
+			}
+		],
+		updatedAt: '2026-10-06T00:00:00.000Z'
+	};
+
+	it('travel through export and restore', async () => {
+		const source = testStore();
+		await source.init();
+		await source.putCreator(LINKED);
+		const preview = parseBackup(JSON.stringify(await createBackup(source)));
+		expect(preview.creators).toBe(1);
+
+		const target = testStore();
+		const report = await restoreBackup(preview.backup, target);
+		expect(report.creatorsAdded).toBe(1);
+		expect(await target.listCreators()).toEqual([LINKED]);
+	});
+
+	it('never join a person this phone already links differently', async () => {
+		const target = testStore();
+		await target.init();
+		await target.putCreator({ ...LINKED, id: 'bsky.app/profile/lena.example', aliases: [] });
+		const backup = parseBackup(
+			JSON.stringify({ ...(await createBackup(testStore())), creators: [LINKED] })
+		).backup;
+		const report = await restoreBackup(backup, target);
+		expect(report.creatorsAdded).toBe(0);
+		expect(await target.listCreators()).toHaveLength(1);
+	});
+
+	it('refuse a record with an unsafe address', async () => {
+		const backup = {
+			...(await createBackup(testStore())),
+			creators: [{ ...LINKED, home: 'javascript:x' }]
+		};
 		expect(() => parseBackup(JSON.stringify(backup))).toThrow('not a supported YipDen backup');
 	});
 });

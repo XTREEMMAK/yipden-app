@@ -19,9 +19,11 @@
 		id: string;
 		/** Called as a track starts, so a sheet holding this list can get out of the player's way. */
 		onplay?: () => void;
+		/** False lists the tracks without the form to add one: a second address on a profile. */
+		addable?: boolean;
 	}
 
-	let { creator, id, onplay }: Props = $props();
+	let { creator, id, onplay, addable = true }: Props = $props();
 
 	let link = $state('');
 	let title = $state('');
@@ -93,31 +95,33 @@
 			{/each}
 		</ul>
 	{/if}
-	<form class="add" onsubmit={add}>
-		<label for={`${id}-link`}>Add a track by link</label>
-		<input
-			id={`${id}-link`}
-			type="url"
-			inputmode="url"
-			placeholder="https://… an audio file or a track page"
-			autocomplete="off"
-			spellcheck="false"
-			bind:value={link}
-		/>
-		<input
-			type="text"
-			aria-label="Track title (optional)"
-			placeholder="Title (optional)"
-			maxlength="200"
-			bind:value={title}
-		/>
-		<button type="submit" disabled={!link.trim() || adding} aria-busy={adding}
-			>{adding ? 'Checking…' : 'Add track'}</button
-		>
-		<small class="note"
-			>Only the link is kept, on this phone. {creator.name} did not choose it.</small
-		>
-	</form>
+	{#if addable}
+		<form class="add" onsubmit={add}>
+			<label for={`${id}-link`}>Add a track by link</label>
+			<input
+				id={`${id}-link`}
+				type="url"
+				inputmode="url"
+				placeholder="https://… an audio file or a track page"
+				autocomplete="off"
+				spellcheck="false"
+				bind:value={link}
+			/>
+			<input
+				type="text"
+				aria-label="Track title (optional)"
+				placeholder="Title (optional)"
+				maxlength="200"
+				bind:value={title}
+			/>
+			<button type="submit" disabled={!link.trim() || adding} aria-busy={adding}
+				>{adding ? 'Checking…' : 'Add track'}</button
+			>
+			<small class="note"
+				>Only the link is kept, on this phone. {creator.name} did not choose it.</small
+			>
+		</form>
+	{/if}
 </div>
 
 <style>

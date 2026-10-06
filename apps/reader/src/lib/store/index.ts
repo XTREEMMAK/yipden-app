@@ -26,10 +26,13 @@ export const store: Store = new DocStore(
 
 export type {
 	AddFeedResult,
+	CreatorAlias,
+	CreatorRecord,
 	Feed,
 	FeedError,
 	FeedProblem,
 	FeedProvenance,
+	HomeKind,
 	ForumFollow,
 	ForumTopicRecord,
 	PeaksRecord,

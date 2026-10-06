@@ -115,8 +115,10 @@ test.describe('a desktop first member in Discover', () => {
 		await expect(page.getByRole('button', { name: 'Save for later' })).toBeVisible();
 
 		const actions = await openActions(page);
-		await actions.getByRole('button', { name: 'Your notes and keeps' }).click();
-		const notes = page.getByRole('dialog', { name: 'Your notes on Wide Screen' });
+		await actions.getByRole('button', { name: 'Their profile' }).click();
+		await expect(page).toHaveURL(/\/creator\/?\?site=https%3A%2F%2Fwide\.example\.com/);
+		await expect(page.getByRole('heading', { level: 1, name: 'Wide Screen' })).toBeVisible();
+		const notes = page;
 		await notes.getByLabel('Reads best on').selectOption('mobile-friendly');
 
 		await notes.getByLabel('Add a track by link').fill('http://wide.example.com/a.mp3');
@@ -130,8 +132,8 @@ test.describe('a desktop first member in Discover', () => {
 		await expect(notes.getByText('night drive')).toBeVisible();
 		await expect(notes.getByText(/Added by you/)).toBeVisible();
 
-		await page.keyboard.press('Escape');
-		await expect(notes).toHaveCount(0);
+		await page.getByRole('button', { name: 'Back' }).click();
+		await expect(page).not.toHaveURL(/\/creator/);
 		// Now read as fine on a phone: the usual actions, not Save for later.
 		await expect(page.getByText('Best on desktop', { exact: true })).toHaveCount(0);
 		await expect(page.getByRole('button', { name: 'Save for later' })).toHaveCount(0);
@@ -141,7 +143,7 @@ test.describe('a desktop first member in Discover', () => {
 		await chooseFilter(page, 'Comics');
 		await expect(page.getByText('Best on desktop', { exact: true })).toHaveCount(0);
 		const again = await openActions(page);
-		await again.getByRole('button', { name: 'Your notes and keeps' }).click();
+		await again.getByRole('button', { name: 'Their profile' }).click();
 		await expect(page.getByText('night drive')).toBeVisible();
 		await page.getByRole('button', { name: 'Remove night drive' }).click();
 		await expect(page.getByText('night drive')).toHaveCount(0);
@@ -157,8 +159,8 @@ test.describe('a desktop first member in Discover', () => {
 		await page.goto('/');
 		await chooseFilter(page, 'Comics');
 		const actions = await openActions(page);
-		await actions.getByRole('button', { name: 'Your notes and keeps' }).click();
-		const notes = page.getByRole('dialog', { name: 'Your notes on Wide Screen' });
+		await actions.getByRole('button', { name: 'Their profile' }).click();
+		const notes = page;
 		await notes
 			.getByLabel('Add a track by link')
 			.fill('https://wide.example.com/audio/night_drive.mp3');

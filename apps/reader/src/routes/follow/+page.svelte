@@ -32,6 +32,13 @@
 
 	type Phase = 'idle' | 'looking' | 'results' | 'followed' | 'forum' | 'forum-followed';
 
+	/**
+	 * Who or what is being followed. People and forums are different intents with different words,
+	 * so each has its own heading and field (phone feedback, 2026-10-06). A forum link pasted under
+	 * People is still recognized; that is a kindness, not the way in.
+	 */
+	let mode = $state<'people' | 'forums'>('people');
+
 	let phase = $state<Phase>('idle');
 	let input = $state('');
 	let error = $state<string | null>(null);
@@ -60,7 +67,9 @@
 			await ring.load();
 			// Arrived from a link (a partner ring's "Find feeds"): fill the address in and look it
 			// up, which checks the ring's own known feeds before it touches the site.
-			const prefill = new URL(location.href).searchParams.get('url')?.trim();
+			const params = new URL(location.href).searchParams;
+			if (params.get('mode') === 'forums') mode = 'forums';
+			const prefill = params.get('url')?.trim();
 			if (prefill && phase === 'idle') {
 				input = prefill;
 				await runFind();
@@ -106,7 +115,7 @@
 		selectedRing = entry;
 		resultOrigin = 'ring';
 		result = found;
-		chosen = new Set(found.feeds.map((feed) => feed.url));
+		chosen = new Set(found.feeds.filter((feed) => !feed.optional).map((feed) => feed.url));
 		error = null;
 		phase = 'results';
 	}
@@ -160,7 +169,7 @@
 		}
 	}
 
-	async function lookupUrl(url: string) {
+	async function lookupUrl(url: string, forumOnly = false) {
 		error = null;
 		phase = 'looking';
 		result = null;
@@ -181,11 +190,16 @@
 			phase = 'forum';
 			return;
 		}
+		if (forumOnly) {
+			phase = 'idle';
+			error = `${hostOf(url)} is not a public forum YipDen can read. Discourse forums work today. To follow a person's site or profile, switch to People.`;
+			return;
+		}
 
 		try {
 			const found = await discoverWithDeadline(url);
 			result = found;
-			chosen = new Set(found.feeds.map((feed) => feed.url));
+			chosen = new Set(found.feeds.filter((feed) => !feed.optional).map((feed) => feed.url));
 			phase = 'results';
 		} catch (cause) {
 			phase = 'idle';
@@ -204,6 +218,15 @@
 	}
 
 	async function runFind() {
+		if (mode === 'forums') {
+			const url = asUrl(input);
+			if (!url) {
+				error = 'Paste a link to the forum, or to any page on it, first.';
+				return;
+			}
+			await lookupUrl(url, true);
+			return;
+		}
 		const localMatches = searchRing(ring.all, input, 2);
 		const local =
 			localMatches.find((entry) => isExactRingMatch(entry, input)) ??
@@ -263,6 +286,12 @@
 		}
 	}
 
+	function setMode(next: 'people' | 'forums') {
+		if (mode === next) return;
+		mode = next;
+		again();
+	}
+
 	function again() {
 		followedPersonId = null;
 		forumFound = null;
@@ -298,16 +327,44 @@
 
 <div class="scroll">
 	<header class="head" in:fly={flyIn()}>
+		<div class="mode-switch" role="radiogroup" aria-label="What to follow">
+			<button
+				role="radio"
+				aria-checked={mode === 'people'}
+				class:on={mode === 'people'}
+				onclick={() => setMode('people')}
+			>
+				People
+			</button>
+			<button
+				role="radio"
+				aria-checked={mode === 'forums'}
+				class:on={mode === 'forums'}
+				onclick={() => setMode('forums')}
+			>
+				Forums
+			</button>
+		</div>
 		<p class="eyebrow">Follow</p>
-		<h2 class="screen-title">Follow a <em>person</em>, not a platform.</h2>
-		<p class="lede">
-			Type a creator name or paste any website or profile. YipDen checks the IndieNodes ring first,
-			then reads the web only when it needs to.
-		</p>
+		{#if mode === 'people'}
+			<h2 class="screen-title">Follow a <em>person</em>, not a platform.</h2>
+			<p class="lede">
+				Type a creator name or paste any website or profile. YipDen checks the IndieNodes ring
+				first, then reads the web only when it needs to.
+			</p>
+		{:else}
+			<h2 class="screen-title">Follow a <em>forum</em>, whole or in part.</h2>
+			<p class="lede">
+				Paste a link to a public forum, or to any page on it. Follow the whole forum or only the
+				categories you want; new topics arrive in Feeds under Forums.
+			</p>
+		{/if}
 	</header>
 
 	<form class="find" onsubmit={find} novalidate in:fly={flyIn({ delay: 40 })}>
-		<label for="followUrl">Creator, website, or profile</label>
+		<label for="followUrl"
+			>{mode === 'people' ? 'Creator, website, or profile' : 'Forum link'}</label
+		>
 		<div class="field">
 			<input
 				id="followUrl"
@@ -317,20 +374,20 @@
 				autocomplete="off"
 				autocapitalize="off"
 				spellcheck="false"
-				placeholder="Lena or lenaofori.com"
+				placeholder={mode === 'people' ? 'Lena or lenaofori.com' : 'forum.example.com'}
 				bind:value={input}
 				role="combobox"
 				aria-autocomplete="list"
 				aria-controls="ringMatches"
-				aria-expanded={phase === 'idle' && ringMatches.length > 0}
+				aria-expanded={mode === 'people' && phase === 'idle' && ringMatches.length > 0}
 				aria-describedby={error ? 'findErr' : undefined}
 				aria-invalid={error ? 'true' : undefined}
 			/>
 			<button class="btn-brand" type="submit" disabled={phase === 'looking'}>
-				{phase === 'looking' ? 'Looking…' : 'Find feeds'}
+				{phase === 'looking' ? 'Looking…' : mode === 'people' ? 'Find feeds' : 'Find forum'}
 			</button>
 		</div>
-		{#if phase === 'idle' && ringMatches.length > 0}
+		{#if mode === 'people' && phase === 'idle' && ringMatches.length > 0}
 			<div class="ring-matches" id="ringMatches" aria-label="People already in IndieNodes">
 				<p class="match-label">Already in IndieNodes</p>
 				{#each ringMatches as entry (entry.id)}
@@ -478,7 +535,7 @@
 		{:else if phase === 'forum-followed' && forumFollowed}
 			<div class="person done" in:fly={flyIn()}>
 				<span class="av"></span>
-				<span>
+				<span class="person-copy">
 					<b>Following {forumFollowed.title}</b>
 					<small>
 						{forumFollowed.whole
@@ -498,7 +555,7 @@
 			<div class="person done" in:fly={flyIn()}>
 				<span class="av" style:background-image={result.iconUrl ? `url(${result.iconUrl})` : ''}
 				></span>
-				<span>
+				<span class="person-copy">
 					<b>Following {personName}</b>
 					<small>
 						{chosenFeeds.length}
@@ -697,6 +754,36 @@
 		color: var(--error);
 	}
 
+	.mode-switch {
+		display: inline-flex;
+		align-self: flex-start;
+		gap: 4px;
+		padding: 3px;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+	}
+
+	.mode-switch button {
+		min-height: 44px;
+		padding: 0 16px;
+		border: 0;
+		border-radius: 999px;
+		background: none;
+		color: var(--muted);
+		font: inherit;
+		font-size: 14px;
+		font-weight: 600;
+		transition:
+			background var(--dur-s) var(--ease),
+			color var(--dur-s) var(--ease);
+	}
+
+	.mode-switch button.on {
+		background: var(--brand-soft);
+		color: var(--brand-ink);
+	}
+
 	.results {
 		display: flex;
 		flex-direction: column;
@@ -729,15 +816,14 @@
 		min-width: 0;
 	}
 
+	/* A long name wraps inside the card rather than running out of it. */
 	.person b {
 		display: block;
-		overflow: hidden;
 		font-family: var(--display);
 		font-size: 20px;
 		font-weight: 650;
 		letter-spacing: -0.01em;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		overflow-wrap: anywhere;
 	}
 
 	.person small {
@@ -806,6 +892,7 @@
 		display: block;
 		font-size: 15px;
 		font-weight: 600;
+		overflow-wrap: anywhere;
 	}
 
 	.frow code {

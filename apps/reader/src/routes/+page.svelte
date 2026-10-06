@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { creatorProfiles } from '$lib/creatorProfile.svelte.js';
 	import { onMount } from 'svelte';
 	import { swipe } from '$lib/actions/swipe.js';
 	import { tap } from '$lib/actions/tap.js';
@@ -22,7 +23,6 @@
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import { siteBrowser } from '$lib/platform/siteBrowser.svelte.js';
 	import { prefs } from '$lib/prefs.svelte.js';
-	import CreatorNotesSheet from '$components/CreatorNotesSheet.svelte';
 	import { partners } from '$lib/partnerRings.svelte.js';
 	import { shelf, toggleShelf } from '$lib/shelf.svelte.js';
 	import { verdicts } from '$lib/verdicts.svelte.js';
@@ -107,7 +107,19 @@
 			creatorNotes.layoutFor(ring.current.source_url, layoutOf(ring.current.layout)) ===
 				'desktop-first'
 	);
-	let notesOpen = $state(false);
+	/** The member on screen's profile, with what the ring knows of them. */
+	function openProfile() {
+		const entry = ring.current;
+		if (!entry) return;
+		creatorProfiles.open({
+			url: entry.source_url,
+			name: entry.creator,
+			artUrl: heroImage(entry) ?? null,
+			ring: { source: 'own', id: 'indienodes' },
+			ringName: 'IndieNodes',
+			layout: layoutOf(entry.layout)
+		});
+	}
 	let onShelf = $derived(ring.current ? shelf.has(ring.current.source_url) : false);
 
 	function saveForLater() {
@@ -539,7 +551,6 @@
 			ringSheetOpen ||
 			actionsSheetOpen ||
 			membersSheetOpen ||
-			notesOpen ||
 			partners.selected ||
 			ring.visible.length <= 1
 		)
@@ -981,15 +992,13 @@
 					{onShelf ? 'Saved for later' : 'Save for later'}
 				</button>
 			{/if}
-			<button class="sheet-row" onclick={() => fromActions(() => (notesOpen = true))}>
+			<button class="sheet-row" onclick={() => fromActions(openProfile)}>
 				<svg class="row-ic" viewBox="0 0 24 24" aria-hidden="true"
-					><path d="M9 18V6l10-2v12" /><circle cx="6.5" cy="18" r="2.5" /><circle
-						cx="16.5"
-						cy="16"
-						r="2.5"
+					><circle cx="12" cy="9" r="3.6" /><path
+						d="M5 19.5c.8-3.6 3.6-5.4 7-5.4s6.2 1.8 7 5.4"
 					/></svg
 				>
-				Your notes and keeps
+				Their profile
 				{#if creatorNotes.referencesFor(entry.source_url).length}<small class="sheet-hint"
 						>{creatorNotes.referencesFor(entry.source_url).length}</small
 					>{/if}
@@ -1143,19 +1152,6 @@
 			{/each}
 		</div>
 	</div>
-{/if}
-
-{#if notesOpen && ring.current}
-	<CreatorNotesSheet
-		creator={{
-			url: ring.current.source_url,
-			name: ring.current.creator,
-			artUrl: heroImage(ring.current) ?? null,
-			ring: { source: 'own', id: 'indienodes' }
-		}}
-		declared={layoutOf(ring.current.layout)}
-		onclose={() => (notesOpen = false)}
-	/>
 {/if}
 
 {#if previewOpen && ring.current && preview?.kind === 'view'}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { profileHref } from '$lib/creatorProfile.svelte.js';
 	import { onMount } from 'svelte';
 	import type { DiscoveredFeed } from '@yipden/feeds';
 	import { fly } from 'svelte/transition';
@@ -91,7 +92,7 @@
 	const YOU_TABS: Array<{ key: YouTab; label: string }> = [
 		{ key: 'following', label: 'Following' },
 		{ key: 'library', label: 'Library' },
-		{ key: 'lists', label: 'Liked & not for me' }
+		{ key: 'lists', label: 'Liked & Not Liked' }
 	];
 	let tab = $state<YouTab>('following');
 	$effect(() => {
@@ -637,6 +638,13 @@
 									{/if}
 								</div>
 								{#if expandedIds.has(row.person.id)}
+									<div class="profile-row">
+										<span class="tt">
+											<b>Their profile</b>
+											<small>About them, where they are, and what you kept</small>
+										</span>
+										<a class="mini-btn" href={profileHref(row.person.siteUrl)}>Open</a>
+									</div>
 									{#if entry && own}
 										<div class="their-picks">
 											<span class="tt">
@@ -1435,6 +1443,12 @@
 		font-weight: 600;
 	}
 
+	a.mini-btn {
+		display: inline-grid;
+		place-items: center;
+		text-decoration: none;
+	}
+
 	/* Their own picks, one tap from the row: the brand's round play button, as in Discover. */
 	.picks-btn {
 		display: grid;
@@ -1458,7 +1472,8 @@
 		stroke-linejoin: round;
 	}
 
-	.their-picks {
+	.their-picks,
+	.profile-row {
 		display: flex;
 		align-items: center;
 		gap: 10px;
@@ -1469,12 +1484,14 @@
 		color: var(--brand-ink);
 	}
 
-	.their-picks .tt {
+	.their-picks .tt,
+	.profile-row .tt {
 		flex: 1;
 		min-width: 0;
 	}
 
-	.their-picks small {
+	.their-picks small,
+	.profile-row small {
 		color: var(--brand-ink);
 	}
 

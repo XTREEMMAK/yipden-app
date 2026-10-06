@@ -95,7 +95,11 @@ export async function followRingEntry(entry: RingEntry): Promise<FollowOutcome> 
 	}
 
 	const found = await discoverWithDeadline(entry.source_url);
-	const feeds = feedsFrom(person.id, found.feeds, 'discovered');
+	const feeds = feedsFrom(
+		person.id,
+		found.feeds.filter((feed) => !feed.optional),
+		'discovered'
+	);
 	await store.follow(person, feeds);
 	return { person, feeds, discovered: true };
 }

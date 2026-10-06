@@ -19,7 +19,8 @@ import type {
 	ShelfItem,
 	Store,
 	StoredYip,
-	VerdictRecord
+	VerdictRecord,
+	CreatorRecord
 } from './store/types.js';
 
 const THEME_STORAGE_KEY = 'yipden:theme';
@@ -67,6 +68,8 @@ export interface YipDenBackup {
 	references?: Reference[];
 	/** Followed forums, without their topics: those are transient, and refetched. Additive. */
 	forums?: ForumFollow[];
+	/** Creators known by several addresses, and homes the reader chose. Additive. */
+	creators?: CreatorRecord[];
 	settings: Partial<Record<SettingKey, unknown>>;
 	appearance: BackupAppearance;
 }
@@ -79,6 +82,7 @@ export interface BackupPreview {
 	shelf: number;
 	verdicts: number;
 	references: number;
+	creators: number;
 	forums: number;
 }
 
@@ -92,6 +96,7 @@ export interface RestoreReport {
 	yipsAdded: number;
 	shelfAdded: number;
 	verdictsAdded: number;
+	creatorsAdded: number;
 	referencesAdded: number;
 	forumsAdded: number;
 	settingsRestored: number;
@@ -300,6 +305,26 @@ function validVerdict(value: unknown): value is VerdictRecord {
 	);
 }
 
+const HOME_KINDS = ['own-site', 'hosted-site', 'open-profile', 'closed-profile'];
+
+function validCreator(value: unknown): value is CreatorRecord {
+	return (
+		record(value) &&
+		text(value.id, 1_000) &&
+		https(value.url) &&
+		https(value.home) &&
+		HOME_KINDS.includes(String(value.homeKind)) &&
+		(value.homeChosen === undefined || typeof value.homeChosen === 'boolean') &&
+		Array.isArray(value.aliases) &&
+		value.aliases.length <= 100 &&
+		value.aliases.every(
+			(alias) =>
+				record(alias) && https(alias.url) && text(alias.key, 1_000) && text(alias.addedAt, 100)
+		) &&
+		text(value.updatedAt, 100)
+	);
+}
+
 function validFeed(value: unknown): value is Feed {
 	return (
 		record(value) &&
@@ -406,17 +431,27 @@ function readAppearance(): BackupAppearance {
 /** Build a plain, versioned file containing the local reader state. */
 export async function createBackup(store: Store = defaultStore): Promise<YipDenBackup> {
 	await store.init();
-	const [people, feeds, yips, shelf, verdicts, references, forumFollows, settingValues] =
-		await Promise.all([
-			store.listPeople(),
-			store.listFeeds(),
-			store.listAllYips(),
-			store.listShelf(),
-			store.listVerdicts(),
-			store.listReferences(),
-			store.listForumFollows(),
-			Promise.all(SETTING_KEYS.map((key) => store.getSetting<unknown>(key)))
-		]);
+	const [
+		people,
+		feeds,
+		yips,
+		shelf,
+		verdicts,
+		references,
+		forumFollows,
+		creatorRecords,
+		settingValues
+	] = await Promise.all([
+		store.listPeople(),
+		store.listFeeds(),
+		store.listAllYips(),
+		store.listShelf(),
+		store.listVerdicts(),
+		store.listReferences(),
+		store.listForumFollows(),
+		store.listCreators(),
+		Promise.all(SETTING_KEYS.map((key) => store.getSetting<unknown>(key)))
+	]);
 	const settings: Partial<Record<SettingKey, unknown>> = {};
 	SETTING_KEYS.forEach((key, index) => {
 		const value = settingValues[index];
@@ -434,6 +469,7 @@ export async function createBackup(store: Store = defaultStore): Promise<YipDenB
 		references: references.map(exportable),
 		// What is followed and how often; the check state (cursor, status) is this phone's own.
 		forums: forumFollows.map(portableForum),
+		creators: creatorRecords,
 		settings,
 		appearance: readAppearance()
 	};
@@ -476,6 +512,10 @@ export function parseBackup(source: string): BackupPreview {
 			(!Array.isArray(value.forums) ||
 				value.forums.length > 1_000 ||
 				!value.forums.every(validForumFollow))) ||
+		(value.creators !== undefined &&
+			(!Array.isArray(value.creators) ||
+				value.creators.length > 10_000 ||
+				!value.creators.every(validCreator))) ||
 		!record(value.settings) ||
 		!record(value.appearance) ||
 		!['system', 'light', 'dark'].includes(String(value.appearance.theme)) ||
@@ -496,7 +536,8 @@ export function parseBackup(source: string): BackupPreview {
 		shelf: backup.shelf?.length ?? 0,
 		verdicts: backup.verdicts?.length ?? 0,
 		references: incomingReferences(backup).length,
-		forums: backup.forums?.length ?? 0
+		forums: backup.forums?.length ?? 0,
+		creators: backup.creators?.length ?? 0
 	};
 }
 
@@ -532,6 +573,7 @@ export async function restoreBackup(
 		yipsAdded: 0,
 		shelfAdded: 0,
 		verdictsAdded: 0,
+		creatorsAdded: 0,
 		referencesAdded: 0,
 		forumsAdded: 0,
 		settingsRestored: 0
@@ -602,6 +644,20 @@ export async function restoreBackup(
 		await store.setVerdict(item);
 		decided.add(item.id);
 		report.verdictsAdded += 1;
+	}
+
+	// Linked addresses merge like verdicts, and more carefully: a record touching any address
+	// already linked here is left out, so a file never quietly joins two people this phone keeps
+	// apart.
+	const linked = new Set(
+		(await store.listCreators()).flatMap((item) => [item.id, ...item.aliases.map((a) => a.key)])
+	);
+	for (const item of backup.creators ?? []) {
+		const itemKeys = [item.id, ...item.aliases.map((alias) => alias.key)];
+		if (itemKeys.some((key) => linked.has(key))) continue;
+		await store.putCreator(item);
+		for (const key of itemKeys) linked.add(key);
+		report.creatorsAdded += 1;
 	}
 
 	// References merge like verdicts: one already kept here stays as it is, and a creator's limit

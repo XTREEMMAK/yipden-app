@@ -7,7 +7,9 @@ import {
 	type FeedRequest,
 	type FeedSource,
 	type FetchLike,
-	type Item
+	type Item,
+	channelIconFromPage,
+	youtubeChannelPage
 } from '@yipden/feeds';
 import { httpFetch } from './platform/http.js';
 import { store as defaultStore } from './store/index.js';
@@ -188,12 +190,14 @@ export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshR
 			const { added } = await store.putYips(yips);
 			totalAdded += added;
 
+			const iconUrl = feed.iconUrl ?? (await channelIcon(http, result.url));
 			await store.updateFeed({
 				...checked(feed, result.cursor, fetchedAt),
 				url: result.url,
 				kind: parsed.kind,
 				...(parsed.title ? { title: parsed.title } : {}),
-				...(result.hubUrl ? { hubUrl: result.hubUrl } : {})
+				...(result.hubUrl ? { hubUrl: result.hubUrl } : {}),
+				...(iconUrl !== undefined ? { iconUrl } : {})
 			});
 
 			results.push({ feedId: feed.id, status: 'updated', added });
@@ -220,6 +224,22 @@ export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshR
 	}
 
 	return { feeds: results, added: totalAdded };
+}
+
+/**
+ * A YouTube channel feed's avatar, read once from the channel page: '' when the page has none,
+ * so it is not asked again; undefined for any other feed, or when the page could not be reached.
+ */
+async function channelIcon(http: FeedHttp, feedUrl: string): Promise<string | undefined> {
+	const page = youtubeChannelPage(feedUrl);
+	if (!page) return undefined;
+	try {
+		const response = await http.get(page, { accept: 'text/html' });
+		return channelIconFromPage(response.body) ?? '';
+	} catch {
+		// Offline or refused: asked again on the next refresh.
+		return undefined;
+	}
 }
 
 /** Apply the age limits to what is already stored, after the reader changes one. */

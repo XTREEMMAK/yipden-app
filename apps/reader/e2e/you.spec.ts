@@ -172,7 +172,7 @@ test.describe('You', () => {
 
 		// Arrow keys move along the tabs, as a tablist should.
 		await tabs.getByRole('tab', { name: /^Library/ }).press('ArrowRight');
-		await expect(tabs.getByRole('tab', { name: /^Liked & not for me/ })).toBeFocused();
+		await expect(tabs.getByRole('tab', { name: /^Liked & Not Liked/ })).toBeFocused();
 		await expect(page.getByRole('tab', { name: /^Not for me/ })).toBeVisible();
 
 		for (const tab of await tabs.getByRole('tab').all()) {

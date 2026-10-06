@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { creatorProfiles } from '$lib/creatorProfile.svelte.js';
 	import { previewKindOf, type PartnerRingResult, type PreviewKind } from '@yipden/ring-client';
 	import { cardStack } from '$lib/actions/cardStack.js';
 	import { swipe } from '$lib/actions/swipe.js';
@@ -9,7 +10,6 @@
 	import { onMount, tick, untrack } from 'svelte';
 	import { explored, resumeIndex, showOf, type ExploredFilter } from '$lib/explored.svelte.js';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
-	import CreatorNotesSheet from './CreatorNotesSheet.svelte';
 	import PartnerFilterSheet from './PartnerFilterSheet.svelte';
 	import { siteBrowser } from '$lib/platform/siteBrowser.svelte.js';
 	import { prefs } from '$lib/prefs.svelte.js';
@@ -247,7 +247,18 @@
 	 * `PartnerThumb.svelte` for why a preview cannot be opened from inside one of those cards.
 	 */
 	let preview = $state<{ src: string; alt: string } | null>(null);
-	let notesFor = $state<(typeof result.members)[number] | null>(null);
+	/** A member's profile, carrying what the ring says of them. */
+	function openProfile(member: (typeof result.members)[number]) {
+		creatorProfiles.open({
+			url: member.url,
+			name: member.name,
+			artUrl: member.thumbUrl ?? null,
+			ring: { source: 'partner', id: result.ring.id },
+			ringName: result.ring.name,
+			layout: member.layout,
+			...(member.blurb ? { blurb: member.blurb } : {})
+		});
+	}
 
 	$effect(() => {
 		back?.focus();
@@ -632,12 +643,14 @@
 										</button>
 										<button
 											class="secondary icon-only"
-											aria-label={`Your notes on ${member.name}`}
-											title="Your notes: tracks and how their site reads"
-											onclick={() => (notesFor = member)}
+											aria-label={`${member.name}'s profile`}
+											title="Their profile: about them, where they are, what you kept"
+											onclick={() => openProfile(member)}
 										>
 											<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
-												<path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" />
+												<circle cx="12" cy="9" r="3.6" /><path
+													d="M5 19.5c.8-3.6 3.6-5.4 7-5.4s6.2 1.8 7 5.4"
+												/>
 											</svg>
 										</button>
 									</div>
@@ -669,19 +682,6 @@
 	<p class="meter" aria-live="polite">
 		{report.slow}/{report.frames} slow · worst {report.worst}ms · stack {report.stack}
 	</p>
-{/if}
-
-{#if notesFor}
-	<CreatorNotesSheet
-		creator={{
-			url: notesFor.url,
-			name: notesFor.name,
-			artUrl: notesFor.thumbUrl ?? null,
-			ring: { source: 'partner', id: result.ring.id }
-		}}
-		declared={notesFor.layout}
-		onclose={() => (notesFor = null)}
-	/>
 {/if}
 
 {#if filtersOpen}
