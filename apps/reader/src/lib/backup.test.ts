@@ -336,3 +336,43 @@ describe('linked creators in the backup', () => {
 		expect(() => parseBackup(JSON.stringify(backup))).toThrow('not a supported YipDen backup');
 	});
 });
+
+describe('places in the backup', () => {
+	const PLACE = {
+		id: 'lenaofori.com::etsy.com/shop/lenaofori',
+		creatorKey: 'lenaofori.com',
+		url: 'https://www.etsy.com/shop/lenaofori',
+		key: 'etsy.com/shop/lenaofori',
+		role: 'shop' as const,
+		evidence: 'their-site' as const,
+		addedAt: '2026-10-06T00:00:00.000Z'
+	};
+
+	it('travel through export and restore, a hidden one staying hidden', async () => {
+		const source = testStore();
+		await source.init();
+		await source.putPlace(PLACE);
+		await source.putPlace({
+			...PLACE,
+			id: 'lenaofori.com::instagram.com/lena',
+			key: 'instagram.com/lena',
+			url: 'https://www.instagram.com/lena',
+			role: 'profile',
+			hidden: true
+		});
+		const preview = parseBackup(JSON.stringify(await createBackup(source)));
+		expect(preview.places).toBe(2);
+		const target = testStore();
+		const report = await restoreBackup(preview.backup, target);
+		expect(report.placesAdded).toBe(2);
+		expect((await target.listPlaces()).find((p) => p.hidden)?.key).toBe('instagram.com/lena');
+	});
+
+	it('refuse a place whose id does not match what it says it is', async () => {
+		const backup = {
+			...(await createBackup(testStore())),
+			places: [{ ...PLACE, id: 'someone-else::x' }]
+		};
+		expect(() => parseBackup(JSON.stringify(backup))).toThrow('not a supported YipDen backup');
+	});
+});

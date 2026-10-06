@@ -222,6 +222,37 @@ export interface CreatorRecord {
 }
 
 /**
+ * How sure YipDen is that a place is a creator's, strongest first (the Creator Database, step 3):
+ * - `two-way`: their site names it as theirs (`rel=me`) and it names their site back.
+ * - `their-site`: their site names it as theirs.
+ * - `their-page`: their site links it, without saying it is theirs.
+ * - `you`: the reader added it, and their site says nothing either way.
+ * Ranked by this, never by how many people agree: the README's no-ranking rule.
+ */
+export type PlaceEvidence = 'two-way' | 'their-site' | 'their-page' | 'you';
+
+/** What a place is for a creator. */
+export type PlaceRole = 'profile' | 'site' | 'shop' | 'commissions' | 'support';
+
+/** Somewhere a creator is: a profile, a shop, a second site. Never their content, only the link. */
+export interface PlaceRecord {
+	/** `${creatorKey}::${key}`. */
+	id: string;
+	/** The creator it belongs to: `creators.idFor` of their address when it was found. */
+	creatorKey: string;
+	url: string;
+	/** `verdictKey(url)`. */
+	key: string;
+	role: PlaceRole;
+	evidence: PlaceEvidence;
+	/** The reader said it is not theirs: kept so their site cannot add it back. */
+	hidden?: boolean;
+	addedAt: string;
+	/** When a two-way link was last looked for. */
+	checkedAt?: string;
+}
+
+/**
  * A followed forum, or one category of it. Forums stand on their own: never a person's source,
  * never in the ring. Following a whole forum and a category of it at once is not offered.
  */
@@ -353,6 +384,12 @@ export interface Store {
 	/** One verdict per creator: setting another replaces the first. */
 	setVerdict(record: VerdictRecord): Promise<void>;
 	removeVerdict(id: string): Promise<void>;
+
+	/** One creator's places, or every place. */
+	listPlaces(creatorKey?: string): Promise<PlaceRecord[]>;
+	/** Replaces the place with the same id. */
+	putPlace(record: PlaceRecord): Promise<void>;
+	removePlace(id: string): Promise<void>;
 
 	listCreators(): Promise<CreatorRecord[]>;
 	/** Replaces the record with the same id. */

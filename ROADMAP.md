@@ -640,7 +640,7 @@ website-first, not website-only, and ranked by evidence, never by votes.
 2. **Home and aliases (built 2026-10-06; to see on a phone).** One creator, several addresses. Their home is the best address known:
    their own domain, then a hand-made hosted site, then an open-platform profile, then a closed
    one. A "these are the same person" merge. Existing keys stay as they are.
-3. **Places with an evidence level**, one stored list per creator. From strongest:
+3. **Places with an evidence level (built 2026-10-06; to see on a phone)**, one stored list per creator. From strongest:
    1. a two-way `rel=me`
    2. linked from their own site
    3. found on their page

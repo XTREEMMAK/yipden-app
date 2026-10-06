@@ -21,7 +21,8 @@ export type Collection =
 	| 'references'
 	| 'forums'
 	| 'forumTopics'
-	| 'creators';
+	| 'creators'
+	| 'places';
 
 export const COLLECTIONS: readonly Collection[] = [
 	'people',
@@ -36,7 +37,8 @@ export const COLLECTIONS: readonly Collection[] = [
 	'references',
 	'forums',
 	'forumTopics',
-	'creators'
+	'creators',
+	'places'
 ];
 
 /**
@@ -56,7 +58,8 @@ export const INDEXED = {
 	references: ['creatorId', 'kind'],
 	forums: ['forumUrl'],
 	forumTopics: ['forumUrl', 'followId', 'lastActivityAt'],
-	creators: []
+	creators: [],
+	places: ['creatorKey']
 } as const satisfies Record<Collection, readonly string[]>;
 
 export type IndexedField<C extends Collection> = (typeof INDEXED)[C][number];

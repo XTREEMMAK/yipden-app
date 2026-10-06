@@ -3210,3 +3210,33 @@ row held only a followed person's.
   ring's history entry, and the panel, mounting again, pushed a second one. One Back then did
   nothing. The panel now reuses the entry it lands on. It also slides and fades in and out (from
   the right), a local transition, so leaving for a profile is not delayed by it.
+
+## 2026-10-06 (step 3) — Places with an evidence level
+
+- **A stored list per creator** (`places`, SQL schema 5, IndexedDB version 5). One row per creator
+  and address, keyed `${creatorKey}::${verdictKey(url)}`, for any creator, linked or not. Kept
+  apart from step 2's aliases on purpose. An alias says an address _is_ the creator, and so
+  gathers what is filed under it. A place only says where they can be found.
+- **Evidence, strongest first:**
+  1. `two-way`: their site names it with `rel=me`, and it names their site back with `rel=me`.
+     This is the IndieWeb's own proof, checked with `linksBackTo`.
+  2. `their-site`: their site names it as theirs.
+  3. `their-page`: their site links it without claiming it.
+  4. `you`: only the reader says so.
+
+  Ordered by evidence, then role, never by agreement. This is what the v2.0 shared table will
+  mirror.
+
+- **Their site is asked first.** Reading a profile's site syncs what it names. A place it stops
+  naming drops to `their-page` if still linked, and is otherwise removed. A place the reader adds
+  is recorded at the strength the site gives it, so the reader's word only ever stands alone.
+  Two-way checks run after the sync: six places per visit at most, each again after 30 days.
+  Platforms that render with script (Bluesky's profile page) say nothing either way and keep
+  `their-site`; Mastodon, which prints `rel=me`, can reach `two-way`.
+- **Roles:** profile, site, shop, commissions, support. Guessed from the host (Etsy, itch.io and
+  the like are shops; Patreon and Ko-fi are support; VGen, or a path with "commission", is
+  commissions), and chosen when the reader adds one. This is the shop and commission place type
+  the Creator Database needs for crafters and artists, without a feature per creator type.
+- **Removing respects whose word it was.** One the reader added is deleted. One the site names
+  is kept as `hidden`, so the next sync cannot bring it back. Backups carry places, hidden ones
+  included.

@@ -6,6 +6,15 @@ Every notable change to YipDen, newest first. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Where a creator is, with how sure YipDen is of each place. A profile records the places their
+  own site names as theirs, and marks one **linked both ways** when it names their site back.
+  Places their site only links, and ones you add, come after. Each place is a Profile, Site,
+  Shop, Commissions or Support page, guessed from the address and yours to set when adding. One
+  you added can be removed, and one their site names can be marked **Not theirs** so it stays
+  gone. Places travel in the backup.
+
 ## [0.8.0] - 2026-10-06
 
 Everything built since 0.0.1, ahead of the first store release (0.9.0, which still needs a phone

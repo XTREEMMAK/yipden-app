@@ -40,6 +40,8 @@ export interface SiteFacts {
 	iconUrl: string | null;
 	/** The places their site says are also them (`rel=me`, h-card `u-url`, JSON-LD `sameAs`). */
 	places: Place[];
+	/** Every other address their page links, as `verdictKey`s: linked, but not claimed. */
+	linked: string[];
 }
 
 /** Somewhere a creator is, as their site links it. */
@@ -147,7 +149,8 @@ class CreatorProfiles {
 				bio,
 				photoUrl: page.photoUrl,
 				iconUrl: page.iconUrl,
-				places: placesFrom(page.relMe, response.url)
+				places: placesFrom(page.relMe, response.url),
+				linked: page.links.map(verdictKey)
 			};
 		} catch {
 			return null;

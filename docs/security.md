@@ -116,6 +116,12 @@ reader keep audio the page plays (see DECISIONS.md, 2026-10-02). What keeps that
   through unchanged, and a pause of the page's media when the reader previews a track in the app.
   It sends nothing anywhere but the bridge, and the app gains no new power over the page; the
   wrapper runs with the page's own privileges, as any of the page's own script does.
+- **Places a creator's site names (2026-10-06).** A profile records the `rel=me` places on a
+  creator's site, then fetches each to see whether it names the site back (a two-way link). Those
+  addresses come from the creator's page, so they are untrusted. They go through the same
+  `FeedHttp` as discovery: https only, no private or loopback hosts (`safeUrl`), robots.txt
+  honoured, polite per-host spacing. At most six are fetched per profile visit, each again only
+  after 30 days. Only the place's own `rel=me` links are read; nothing on it is run or kept.
 - **The trust anchor is native chrome.** Results reach that sheet only through YipDen's toolbar
   button (`buttonNearDoneClick`), which a page cannot press. No account action, and nothing beyond
   offering candidates, may ever be driven by `messageFromWebview`.

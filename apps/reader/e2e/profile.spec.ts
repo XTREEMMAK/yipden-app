@@ -73,7 +73,16 @@ test.describe('A creator’s profile', () => {
 		const places = page.getByRole('region', { name: 'Where they are' });
 		await expect(places.getByText('Bluesky')).toBeVisible();
 		await expect(places.getByText('Instagram')).toBeVisible();
-		await expect(places.getByText('Their site links it').first()).toBeVisible();
+		await expect(places.getByText('Their site says it is theirs').first()).toBeVisible();
+
+		// A place their site does not mention is the reader's word, ranked last; one it names
+		// can be marked not theirs, and stays gone.
+		await places.getByLabel('Add a place of theirs').fill('etsy.com/shop/lenaofori');
+		await places.getByLabel('What it is').selectOption('shop');
+		await places.getByRole('button', { name: 'Add', exact: true }).click();
+		await expect(places.getByText('Shop · Added by you')).toBeVisible();
+		await places.getByRole('button', { name: 'instagram.com is not theirs' }).click();
+		await expect(places.getByText('Instagram')).toHaveCount(0);
 
 		await expect(page.getByRole('region', { name: 'Lately' }).getByText('Low Tide')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Following' })).toBeVisible();

@@ -20,7 +20,8 @@ import type {
 	Store,
 	StoredYip,
 	VerdictRecord,
-	CreatorRecord
+	CreatorRecord,
+	PlaceRecord
 } from './store/types.js';
 
 const THEME_STORAGE_KEY = 'yipden:theme';
@@ -70,6 +71,8 @@ export interface YipDenBackup {
 	forums?: ForumFollow[];
 	/** Creators known by several addresses, and homes the reader chose. Additive. */
 	creators?: CreatorRecord[];
+	/** Where creators are, with the evidence for each, and what the reader said is not theirs. */
+	places?: PlaceRecord[];
 	settings: Partial<Record<SettingKey, unknown>>;
 	appearance: BackupAppearance;
 }
@@ -83,6 +86,7 @@ export interface BackupPreview {
 	verdicts: number;
 	references: number;
 	creators: number;
+	places: number;
 	forums: number;
 }
 
@@ -97,6 +101,7 @@ export interface RestoreReport {
 	shelfAdded: number;
 	verdictsAdded: number;
 	creatorsAdded: number;
+	placesAdded: number;
 	referencesAdded: number;
 	forumsAdded: number;
 	settingsRestored: number;
@@ -325,6 +330,25 @@ function validCreator(value: unknown): value is CreatorRecord {
 	);
 }
 
+const PLACE_ROLES = ['profile', 'site', 'shop', 'commissions', 'support'];
+const PLACE_EVIDENCE = ['two-way', 'their-site', 'their-page', 'you'];
+
+function validPlace(value: unknown): value is PlaceRecord {
+	return (
+		record(value) &&
+		text(value.id, 2_100) &&
+		text(value.creatorKey, 1_000) &&
+		https(value.url) &&
+		text(value.key, 1_000) &&
+		value.id === `${value.creatorKey}::${value.key}` &&
+		PLACE_ROLES.includes(String(value.role)) &&
+		PLACE_EVIDENCE.includes(String(value.evidence)) &&
+		(value.hidden === undefined || typeof value.hidden === 'boolean') &&
+		text(value.addedAt, 100) &&
+		optionalText(value.checkedAt, 100)
+	);
+}
+
 function validFeed(value: unknown): value is Feed {
 	return (
 		record(value) &&
@@ -440,6 +464,7 @@ export async function createBackup(store: Store = defaultStore): Promise<YipDenB
 		references,
 		forumFollows,
 		creatorRecords,
+		placeRecords,
 		settingValues
 	] = await Promise.all([
 		store.listPeople(),
@@ -450,6 +475,7 @@ export async function createBackup(store: Store = defaultStore): Promise<YipDenB
 		store.listReferences(),
 		store.listForumFollows(),
 		store.listCreators(),
+		store.listPlaces(),
 		Promise.all(SETTING_KEYS.map((key) => store.getSetting<unknown>(key)))
 	]);
 	const settings: Partial<Record<SettingKey, unknown>> = {};
@@ -470,6 +496,7 @@ export async function createBackup(store: Store = defaultStore): Promise<YipDenB
 		// What is followed and how often; the check state (cursor, status) is this phone's own.
 		forums: forumFollows.map(portableForum),
 		creators: creatorRecords,
+		places: placeRecords,
 		settings,
 		appearance: readAppearance()
 	};
@@ -512,6 +539,10 @@ export function parseBackup(source: string): BackupPreview {
 			(!Array.isArray(value.forums) ||
 				value.forums.length > 1_000 ||
 				!value.forums.every(validForumFollow))) ||
+		(value.places !== undefined &&
+			(!Array.isArray(value.places) ||
+				value.places.length > 50_000 ||
+				!value.places.every(validPlace))) ||
 		(value.creators !== undefined &&
 			(!Array.isArray(value.creators) ||
 				value.creators.length > 10_000 ||
@@ -537,7 +568,8 @@ export function parseBackup(source: string): BackupPreview {
 		verdicts: backup.verdicts?.length ?? 0,
 		references: incomingReferences(backup).length,
 		forums: backup.forums?.length ?? 0,
-		creators: backup.creators?.length ?? 0
+		creators: backup.creators?.length ?? 0,
+		places: backup.places?.length ?? 0
 	};
 }
 
@@ -574,6 +606,7 @@ export async function restoreBackup(
 		shelfAdded: 0,
 		verdictsAdded: 0,
 		creatorsAdded: 0,
+		placesAdded: 0,
 		referencesAdded: 0,
 		forumsAdded: 0,
 		settingsRestored: 0
@@ -658,6 +691,15 @@ export async function restoreBackup(
 		await store.putCreator(item);
 		for (const key of itemKeys) linked.add(key);
 		report.creatorsAdded += 1;
+	}
+
+	// Places merge like verdicts: what this phone already has for a place stays as it is.
+	const placed = new Set((await store.listPlaces()).map((item) => item.id));
+	for (const item of backup.places ?? []) {
+		if (placed.has(item.id)) continue;
+		await store.putPlace(item);
+		placed.add(item.id);
+		report.placesAdded += 1;
 	}
 
 	// References merge like verdicts: one already kept here stays as it is, and a creator's limit

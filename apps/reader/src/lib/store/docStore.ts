@@ -15,6 +15,7 @@ import type {
 	Store,
 	VerdictRecord,
 	CreatorRecord,
+	PlaceRecord,
 	YipQuery
 } from './types.js';
 
@@ -259,6 +260,22 @@ export class DocStore implements Store {
 
 	removeVerdict(id: string): Promise<void> {
 		return this.tx((tx) => tx.delete('verdicts', id));
+	}
+
+	// ---------- places ----------
+
+	listPlaces(creatorKey?: string): Promise<PlaceRecord[]> {
+		return this.tx((tx) =>
+			tx.all<PlaceRecord, 'places'>('places', creatorKey ? { eq: { creatorKey } } : {})
+		);
+	}
+
+	putPlace(record: PlaceRecord): Promise<void> {
+		return this.tx((tx) => tx.put('places', record.id, record));
+	}
+
+	removePlace(id: string): Promise<void> {
+		return this.tx((tx) => tx.delete('places', id));
 	}
 
 	// ---------- creators ----------

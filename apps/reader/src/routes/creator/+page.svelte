@@ -16,6 +16,8 @@
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import { creatorProfiles, placeLabel } from '$lib/creatorProfile.svelte.js';
 	import { creators, HOME_LABELS, homeKindOf } from '$lib/creators.svelte.js';
+	import { EVIDENCE_LABELS, places as placeStore, ROLE_LABELS } from '$lib/places.svelte.js';
+	import type { PlaceRole } from '$lib/store/index.js';
 	import { feeds, relativeAge, sourceLabel } from '$lib/feeds.svelte.js';
 	import { followRingEntry } from '$lib/follow.js';
 	import { flyIn } from '$lib/motion.js';
@@ -97,8 +99,8 @@
 		...(declared ? { layout: declared } : {})
 	});
 
-	/** Where they are: their site, the places their site names, and what you follow of them. */
-	let places = $derived.by(() => {
+	/** What you follow of them and what the ring lists for them: feeds, shown before places. */
+	let feedRows = $derived.by(() => {
 		const rows: Array<{ url: string; label: string; kind?: string; note: string }> = [];
 		const seen = new Set<string>(keys);
 		for (const feed of personFeeds) {
@@ -122,18 +124,59 @@
 				note: feed.verified ? 'Listed by the ring · Verified' : 'Listed by the ring'
 			});
 		}
-		// A profile whose feed is already listed above is the same place under another address.
-		const feedUrls = new Set([...personFeeds, ...(entry?.feeds ?? [])].map((feed) => feed.url));
-		for (const place of facts?.places ?? []) {
-			const k = verdictKey(place.url);
-			const resolved = resolveProfile(place.url);
-			if (resolved.status === 'resolved' && feedUrls.has(resolved.match.feedUrl)) continue;
-			if (seen.has(k)) continue;
-			seen.add(k);
-			rows.push({ ...place, note: 'Their site links it' });
-		}
 		return rows;
 	});
+
+	/**
+	 * Where else they are (Creator Database, step 3): stored places, strongest evidence first,
+	 * without a feed or an address already listed above under another form of the same place.
+	 */
+	let placeRows = $derived.by(() => {
+		const shown = new Set([...keys, ...feedRows.map((row) => verdictKey(row.url))]);
+		const feedUrls = new Set([...personFeeds, ...(entry?.feeds ?? [])].map((feed) => feed.url));
+		return placeStore.placesFor(keys).filter((place) => {
+			if (shown.has(place.key)) return false;
+			const resolved = resolveProfile(place.url);
+			return !(resolved.status === 'resolved' && feedUrls.has(resolved.match.feedUrl));
+		});
+	});
+
+	/** Their sites, which a place's own page would name to be linked both ways. */
+	let siteAddresses = $derived(
+		addresses.filter((address) => {
+			const kind = homeKindOf(address);
+			return kind === 'own-site' || kind === 'hosted-site';
+		})
+	);
+
+	// Their site's say, recorded once it is read, then the other half of each link looked for.
+	$effect(() => {
+		const read = facts;
+		const id = key;
+		const sites = siteAddresses;
+		if (!read || !id) return;
+		void placeStore.syncFromSite(id, read).then(() => placeStore.verify(id, sites));
+	});
+
+	let newPlace = $state('');
+	let newRole = $state<PlaceRole>('profile');
+	let placeError = $state<string | null>(null);
+	async function addPlace(event: SubmitEvent) {
+		event.preventDefault();
+		const raw = newPlace.trim();
+		const added = await placeStore.add(
+			key,
+			/^[a-z]+:/i.test(raw) ? raw : `https://${raw}`,
+			newRole,
+			facts
+		);
+		if (!added) {
+			placeError = 'That link cannot be used. It has to be a public https address.';
+			return;
+		}
+		placeError = null;
+		newPlace = '';
+	}
 
 	async function loadStored(target: string, targetKeys: ReadonlySet<string>) {
 		await store.init();
@@ -161,6 +204,7 @@
 
 	onMount(() => {
 		void creators.load();
+		void placeStore.load();
 		void creatorNotes.load();
 		if (!verdicts.loaded) void verdicts.load();
 		if (!ring.all.length) void ring.load();
@@ -385,7 +429,7 @@
 						{/if}
 					</div>
 				{/each}
-				{#each places as place (place.url)}
+				{#each feedRows as place (place.url)}
 					<button class="row" onclick={() => openExternal(place.url)}>
 						<span class="dot" style:background={sourceColor(place.kind)} aria-hidden="true"></span>
 						<span class="row-text">
@@ -394,10 +438,61 @@
 						</span>
 					</button>
 				{/each}
+				{#each placeRows as place (place.id)}
+					{@const label = placeLabel(place.url)}
+					<div class="row linked">
+						<button class="row-main" onclick={() => openExternal(place.url)}>
+							<span class="dot" style:background={sourceColor(label.kind)} aria-hidden="true"
+							></span>
+							<span class="row-text">
+								<b>{label.label}</b>
+								<small>
+									{ROLE_LABELS[place.role]} ·
+									<span class="evidence" class:strong={place.evidence === 'two-way'}
+										>{EVIDENCE_LABELS[place.evidence]}</span
+									>
+								</small>
+							</span>
+						</button>
+						<button
+							class="row-act"
+							aria-label={place.evidence === 'you'
+								? `Remove ${hostOf(place.url)}`
+								: `${hostOf(place.url)} is not theirs`}
+							onclick={() => placeStore.remove(place)}
+							>{place.evidence === 'you' ? 'Remove' : 'Not theirs'}</button
+						>
+					</div>
+				{/each}
 			</div>
 			{#if facts === undefined}
 				<p class="quiet">Looking for the places their site links…</p>
 			{/if}
+			<form class="add-place" onsubmit={addPlace} novalidate>
+				<label for="add-place">Add a place of theirs</label>
+				<div class="add-row">
+					<input
+						id="add-place"
+						type="text"
+						inputmode="url"
+						autocomplete="off"
+						autocapitalize="off"
+						spellcheck="false"
+						placeholder="Their shop, a profile, commissions…"
+						bind:value={newPlace}
+					/>
+					<select bind:value={newRole} aria-label="What it is">
+						{#each Object.entries(ROLE_LABELS) as [value, text] (value)}
+							<option {value}>{text}</option>
+						{/each}
+					</select>
+					<button class="row-act" type="submit" disabled={!newPlace.trim()}>Add</button>
+				</div>
+				{#if placeError}<p class="quiet err">{placeError}</p>{/if}
+				<p class="quiet">
+					Their site is asked first: what it names or links counts for more than your word.
+				</p>
+			</form>
 		</section>
 
 		{#if recent.length}
@@ -608,6 +703,60 @@
 		font: inherit;
 		font-size: 12.5px;
 		font-weight: 600;
+	}
+
+	.evidence.strong {
+		color: var(--ok);
+		font-weight: 650;
+	}
+
+	.add-place {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		margin-top: 6px;
+	}
+
+	.add-place label {
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--muted);
+	}
+
+	.add-row {
+		display: flex;
+		gap: 6px;
+	}
+
+	.add-row input,
+	.add-row select {
+		box-sizing: border-box;
+		min-width: 0;
+		height: 44px;
+		padding: 0 12px;
+		border: 1px solid var(--line);
+		border-radius: 12px;
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		font-size: 14px;
+	}
+
+	.add-row input {
+		flex: 1;
+	}
+
+	.add-row select {
+		flex: none;
+		max-width: 38%;
+	}
+
+	.add-row .row-act {
+		min-height: 44px;
+	}
+
+	.err {
+		color: var(--error);
 	}
 
 	.kept-under {
