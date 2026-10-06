@@ -476,19 +476,3 @@ describe('peaks caching', () => {
 		expect(await player.readPeaks('https://example.com/stale.mp3')).toBeNull();
 	});
 });
-
-describe('preview', () => {
-	it('plays one track with the player kept small, never opening over the screen', () => {
-		player.preview(item({ id: 'preview:x' }));
-		expect(player.queue.map((entry) => entry.id)).toEqual(['preview:x']);
-		expect(player.current?.id).toBe('preview:x');
-		expect(player.sheet).toBe('mini');
-		expect(player.loop).toBe(false);
-	});
-
-	it('leaves an already open full player as it is', () => {
-		player.sheet = 'full';
-		player.preview(item({ id: 'preview:y' }));
-		expect(player.sheet).toBe('full');
-	});
-});

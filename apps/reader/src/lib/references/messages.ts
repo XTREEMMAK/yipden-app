@@ -32,6 +32,8 @@ export function keepMessage(
 			return kind === 'text'
 				? 'That page is not there any more.'
 				: 'That file is not there any more.';
+		case 'temporary':
+			return 'That address only works for a while, so it cannot be kept. Keep their page for it instead.';
 		case 'unsafe':
 			return 'That link cannot be used. It has to be a public https address.';
 	}

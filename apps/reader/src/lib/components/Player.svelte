@@ -4,6 +4,8 @@
 	import { onMount } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { swipe } from '$lib/actions/swipe.js';
+	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
+	import { embedControllable, PROVIDER_NAMES } from '$lib/embeds/source.js';
 	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
 	import { formatTime, player } from '$lib/player.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
@@ -21,9 +23,8 @@
 	 * started the queue, the same reasoning `player.svelte.ts` itself follows: there is one
 	 * player, not a ring player and a separate everything else player, so there is one place
 	 * that shows what is queued and one place that asks what comes after it. `player.ended` only
-	 * ever becomes true for a continuous-play ring session today (the only caller that opts out
-	 * of the default looping queue), which is why the prompt reads for one without checking that
-	 * directly.
+	 * becomes true for a queue that does not loop: a ring session or a Library one. Either is
+	 * offered more from the ring or a shuffle of the Library (`whatNext`).
 	 */
 
 	let dragY = $state(0);
@@ -83,6 +84,42 @@
 	}
 
 	let remaining = $derived(Math.max(0, player.duration - player.currentTime));
+
+	/** Our buttons can drive this track: a file, or a platform player with an API (not Bandcamp). */
+	let controllable = $derived(!player.source || embedControllable(player.source.provider));
+
+	/**
+	 * What to offer once a queue has run out. The ring comes first for a ring session and the
+	 * Library first for a Library one, each falling back to the other: playing on is always offered
+	 * while anything is left (phone feedback, 2026-10-06).
+	 */
+	function whatNext():
+		| {
+				kind: 'ring';
+				entry: NonNullable<ReturnType<typeof ringPlayer.suggest>>;
+				fromLibrary: boolean;
+		  }
+		| { kind: 'library' | 'none'; fromLibrary: boolean } {
+		const fromLibrary = player.current?.id.startsWith('reader:') ?? false;
+		const heard = new Set(player.queue.map((entry) => entry.mediaUrl));
+		const more = creatorNotes.playableTracks(heard).length > 0;
+		const entry = ringPlayer.suggest(ring.shown);
+		if (fromLibrary && more) return { kind: 'library', fromLibrary };
+		if (entry) return { kind: 'ring', entry, fromLibrary };
+		if (more) return { kind: 'library', fromLibrary };
+		return { kind: 'none', fromLibrary };
+	}
+
+	function keepGoingFromLibrary(): void {
+		player.addToQueue(
+			creatorNotes.libraryQueue(new Set(player.queue.map((entry) => entry.mediaUrl)))
+		);
+	}
+
+	/** The slot a platform's player lives in while its track is current. See `player.attachEmbedHost`. */
+	function embedHost(node: HTMLElement) {
+		return { destroy: player.attachEmbedHost(node) };
+	}
 
 	/** A real history entry lets Android Back close this non-route overlay instead of the app. */
 	$effect(() => {
@@ -173,7 +210,7 @@
 	>
 		<div
 			class="pl-art"
-			style:background-image={item.artUrl ? `url(${item.artUrl})` : washFor(item.id)}
+			style:background-image={player.artUrl ? `url(${player.artUrl})` : washFor(item.id)}
 			aria-hidden="true"
 		></div>
 		<div class="pl-shade" aria-hidden="true"></div>
@@ -207,40 +244,79 @@
 			</span>
 		</header>
 
+		{#if player.source}
+			<div
+				class="pl-embed {player.source.provider}"
+				data-noswipe
+				use:embedHost
+				aria-label={`${PROVIDER_NAMES[player.source.provider]} player`}
+			></div>
+		{/if}
+
 		<div class="pl-body">
 			<span class="src">{item.creator}</span>
 			<h2 class="pl-title">{item.title}</h2>
-			<p class="pl-host">{new URL(item.siteUrl).hostname.replace(/^www\./, '')}</p>
+			<p class="pl-host">
+				{new URL(item.siteUrl).hostname.replace(/^www\./, '')}
+				{#if player.source?.provider === 'soundcloud'}
+					<span class="pl-via">{'·'} via SoundCloud</span>
+				{/if}
+			</p>
 			{#if player.error}
 				<p class="pl-error" role="alert">{player.error}</p>
 			{/if}
 
-			<Waveform />
+			{#if controllable}
+				<Waveform />
+			{:else}
+				<p class="pl-note">
+					Plays in {PROVIDER_NAMES[player.source?.provider ?? 'bandcamp']}'s own player above: use
+					its play button. It does not tell the app when it ends, so press Next when you are ready.
+				</p>
+			{/if}
 
-			<div class="times">
-				<span>{formatTime(player.currentTime)}</span>
-				<button
-					class="speed"
-					onclick={() => player.cycleRate()}
-					aria-label={`Speed ${player.rate}×`}
-				>
-					{player.rate}{'×'}
-				</button>
-				<span>-{formatTime(remaining)}</span>
-			</div>
+			{#if controllable}
+				<div class="times">
+					<span>{formatTime(player.currentTime)}</span>
+					{#if !player.source}
+						<button
+							class="speed"
+							onclick={() => player.cycleRate()}
+							aria-label={`Speed ${player.rate}×`}
+						>
+							{player.rate}{'×'}
+						</button>
+					{/if}
+					<span>-{formatTime(remaining)}</span>
+				</div>
+			{/if}
 
 			{#if player.ended}
-				{@const suggestion = ringPlayer.suggest(ring.shown)}
+				{@const next = whatNext()}
 				<div class="end-prompt" data-noswipe transition:fly={flyIn({ y: 12 })}>
-					{#if suggestion}
+					{#if next.kind === 'ring'}
+						{@const suggestion = next.entry}
 						<p>Queue finished. Play more from <b>{suggestion.creator}</b> next?</p>
 						<div class="end-actions">
 							<button class="end-quiet" onclick={() => player.stop()}>Stop</button>
 							<button class="end-main" onclick={() => ringPlayer.add(suggestion)}>Keep going</button
 							>
 						</div>
+					{:else if next.kind === 'library'}
+						<p>
+							{next.fromLibrary ? 'Queue finished.' : 'Nothing else in the ring to play.'} Keep going
+							with a shuffle of your Library?
+						</p>
+						<div class="end-actions">
+							<button class="end-quiet" onclick={() => player.stop()}>Stop</button>
+							<button class="end-main" onclick={keepGoingFromLibrary}>Keep going</button>
+						</div>
 					{:else}
-						<p>Nothing else in the ring to play.</p>
+						<p>
+							{next.fromLibrary
+								? 'That is everything here to play, from your Library and the ring.'
+								: 'Nothing else in the ring to play.'}
+						</p>
 						<div class="end-actions">
 							<button class="end-main" onclick={() => player.stop()}>Stop</button>
 						</div>
@@ -261,6 +337,7 @@
 				</button>
 				<button
 					class="bigplay"
+					disabled={!controllable && player.embedStarted}
 					onclick={() => player.toggle()}
 					aria-label={player.playing ? 'Pause' : 'Play'}
 				>
@@ -444,6 +521,59 @@
 		stroke-linejoin: round;
 	}
 
+	.pl-embed {
+		position: relative;
+		z-index: 1;
+		margin: 16px 20px 0;
+		border-radius: 14px;
+		overflow: hidden;
+		background: #000;
+	}
+
+	.pl-embed :global(iframe) {
+		display: block;
+		width: 100%;
+		border: 0;
+	}
+
+	.pl-embed.youtube :global(iframe) {
+		aspect-ratio: 16 / 9;
+		height: auto;
+	}
+
+	/*
+	 * SoundCloud's player runs out of sight: our controls drive it, and its artwork and waveform
+	 * are shown in the player's own. Kept rendered (a hidden frame can stop playing), only tiny
+	 * and transparent, with "via SoundCloud" crediting where it plays from.
+	 */
+	.pl-embed.soundcloud {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: 0;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.pl-embed.soundcloud :global(iframe) {
+		height: 166px;
+	}
+
+	.pl-embed.bandcamp {
+		background: #fff;
+	}
+
+	.pl-embed.bandcamp :global(iframe) {
+		height: 120px;
+	}
+
+	.pl-note {
+		margin: 0;
+		font-size: 13.5px;
+		line-height: 1.4;
+		color: rgba(255, 255, 255, 0.88);
+	}
+
 	.pl-body {
 		position: relative;
 		z-index: 1;
@@ -488,6 +618,10 @@
 		margin: 0;
 		font-size: 14px;
 		color: rgba(255, 255, 255, 0.85);
+	}
+
+	.pl-via {
+		color: rgba(255, 255, 255, 0.7);
 	}
 
 	.times {
@@ -594,6 +728,10 @@
 		place-items: center;
 		padding: 0;
 		box-shadow: 0 14px 30px -12px rgba(30, 8, 2, 0.6);
+	}
+
+	.bigplay:disabled {
+		opacity: 0.4;
 	}
 
 	.bigplay svg {

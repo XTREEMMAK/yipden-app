@@ -76,7 +76,18 @@
 
 	$effect(() => {
 		const item = player.current;
-		if (item) void loadTrack(item.mediaUrl);
+		if (!item) return;
+		if (player.source) {
+			// A platform's player: its own waveform when it gives one (SoundCloud), else the plain
+			// bar. Its audio is never ours to download and measure.
+			abort?.abort();
+			currentUrl = null;
+			const given = player.embedPeaks;
+			peaks = given?.length ? given : null;
+			status = given === null ? 'working' : given.length ? 'ready' : 'failed';
+			return;
+		}
+		void loadTrack(item.mediaUrl);
 	});
 
 	onDestroy(() => {

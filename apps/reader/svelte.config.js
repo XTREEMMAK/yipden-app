@@ -31,15 +31,31 @@ export default {
 			mode: 'hash',
 			directives: {
 				'default-src': ['self'],
-				'script-src': ['self'],
+				// The platform player APIs the player drives (embeds/engines.ts), loaded only once a reader
+				// presses play on such a track. The two Spotify origins are the embed spike's alone and go
+				// with it.
+				'script-src': [
+					'self',
+					'https://www.youtube.com',
+					'https://w.soundcloud.com',
+					'https://open.spotify.com',
+					'https://embed-cdn.spotifycdn.com'
+				],
 				'style-src': ['self', 'unsafe-inline'],
 				'img-src': ['self', 'https:', 'data:', 'blob:'],
 				'media-src': ['self', 'https:', 'blob:'],
 				'font-src': ['self'],
 				'connect-src': ['self', 'https:'],
-				// Only the privacy-enhanced YouTube player, and only after a reader taps play on a video: see
-				// YipCard. Nothing is contacted before that tap.
-				'frame-src': ['https://www.youtube-nocookie.com'],
+				// The platforms' own players, each only after a reader taps play: YouTube's privacy-enhanced
+				// one (YipCard, and the player), SoundCloud's and Bandcamp's (the player). www.youtube.com
+				// and Spotify are the embed spike's alone and go with it.
+				'frame-src': [
+					'https://www.youtube-nocookie.com',
+					'https://www.youtube.com',
+					'https://w.soundcloud.com',
+					'https://open.spotify.com',
+					'https://bandcamp.com'
+				],
 				'object-src': ['none'],
 				'base-uri': ['none'],
 				'form-action': ['none'],

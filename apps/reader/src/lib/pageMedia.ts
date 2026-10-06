@@ -233,6 +233,13 @@ export const SCAN_SCRIPT = `(() => {
 				const src = f.getAttribute('src') || '';
 				if (EMBED.test(src)) add(src, text(f), 'embed');
 			});
+			// A platform's own page names its player in og:video (Bandcamp, YouTube): the address
+			// of what it plays that lasts, unlike the stream it is playing.
+			document.querySelectorAll('meta[property="og:video"], meta[property="og:video:secure_url"]').forEach((m) => {
+				const src = m.getAttribute('content') || '';
+				const og = document.querySelector('meta[property="og:title"]');
+				if (EMBED.test(src)) add(src, (og && og.getAttribute('content')) || document.title || '', 'embed');
+			});
 			const bridge = window.mobileApp;
 			const pick = window.__yipdenPick || {};
 			if (bridge && bridge.postMessage) {

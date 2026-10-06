@@ -79,10 +79,30 @@ export async function creatorSites(creatorUrl: string, deps: CaptureDeps): Promi
 	if (person) {
 		sites.add(person.siteUrl);
 		for (const feed of await deps.store.listFeeds(person.id)) {
-			if (feed.verified && (feed.kind === 'blog' || feed.kind === 'podcast')) sites.add(feed.url);
+			if (
+				feed.verified &&
+				(feed.kind === 'blog' || feed.kind === 'podcast') &&
+				!onSharedHost(feed.url)
+			) {
+				sites.add(feed.url);
+			}
 		}
 	}
 	return [...sites];
+}
+
+/**
+ * Hosts whose feeds describe someone's site without being it: Neocities' update feed lives on
+ * `neocities.org` for every site there, so counting it would make all of Neocities theirs.
+ */
+const SHARED_FEED_HOSTS = new Set(['neocities.org']);
+
+function onSharedHost(url: string): boolean {
+	try {
+		return SHARED_FEED_HOSTS.has(new URL(url).hostname.toLowerCase().replace(/^www\./, ''));
+	} catch {
+		return true;
+	}
 }
 
 interface PageFindings {
@@ -122,7 +142,66 @@ async function readPage(
 	return { allowed, linked, gone: false };
 }
 
-export type CaptureRefusal = 'not-own-site' | 'missing';
+export type CaptureRefusal = 'not-own-site' | 'missing' | 'temporary';
+
+/** Query parameters that sign an address so it stops working: a token, or a cloud signature. */
+const SIGNING_PARAMS = new Set([
+	'token',
+	'x-amz-signature',
+	'x-goog-signature',
+	'signature',
+	'hdnts',
+	'hdnea'
+]);
+
+/**
+ * An address made to expire: a Bandcamp stream (`bcbits.com/stream/…`, re-signed on every page
+ * load), or any file address carrying a signature or token. It plays for a while, but kept, it
+ * would be dead within hours, so it is never kept (2026-10-06).
+ */
+export function isTemporaryAddress(url: string): boolean {
+	let parsed: URL;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return false;
+	}
+	const host = parsed.hostname.toLowerCase();
+	if (
+		(host === 'bcbits.com' || host.endsWith('.bcbits.com')) &&
+		parsed.pathname.startsWith('/stream/')
+	) {
+		return true;
+	}
+	for (const name of parsed.searchParams.keys()) {
+		if (SIGNING_PARAMS.has(name.toLowerCase())) return true;
+	}
+	return false;
+}
+
+/**
+ * Why Keep would refuse this, worked out before the reader taps it, so something that cannot be
+ * kept never looks as if it could. The same rules as `assessCapture` up to reading the page, with
+ * the creator's `sites` passed in, so a sheet of several finds looks them up once. Null: Keep can
+ * be offered; it can still refuse, as when the file turns out to be gone by then.
+ */
+export async function precheckCapture(
+	draft: { kind: ReferenceKind; url: string; foundOnPage?: string },
+	sites: string[],
+	deps: CaptureDeps = defaultDeps()
+): Promise<CaptureRefusal | null> {
+	if (isPlatformLink(draft.kind, draft.url)) return null;
+	if (draft.kind !== 'text' && isTemporaryAddress(draft.url)) return 'temporary';
+	if (draft.foundOnPage && isOnOwnSite(draft.foundOnPage, sites)) return null;
+	if (isOnOwnSite(draft.url, sites)) return null;
+	try {
+		// Only a redirect onto their own site could still make it theirs.
+		return isOnOwnSite((await deps.http.head(draft.url)).url, sites) ? null : 'not-own-site';
+	} catch (cause) {
+		if (cause instanceof HttpError && GONE_STATUSES.has(cause.status)) return 'missing';
+		return 'not-own-site';
+	}
+}
 
 export type CaptureResult =
 	| { ok: false; reason: CaptureRefusal }
@@ -145,6 +224,10 @@ export async function assessCapture(
 ): Promise<CaptureResult> {
 	if (isPlatformLink(draft.kind, draft.url)) {
 		return { ok: true, fields: { canonicalUrl: draft.url, hostVerified: false, sharable: false } };
+	}
+
+	if (draft.kind !== 'text' && isTemporaryAddress(draft.url)) {
+		return { ok: false, reason: 'temporary' };
 	}
 
 	const sites = await creatorSites(draft.creatorUrl, deps);

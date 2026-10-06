@@ -116,7 +116,7 @@
 		in:fade={{ duration: prefersReducedMotion() ? 0 : duration.s }}
 		onclick={() => (player.miniTucked = false)}
 		aria-label={`Show the player: ${item.title}`}
-		style:background-image={item.artUrl ? `url(${item.artUrl})` : washFor(item.id)}
+		style:background-image={player.artUrl ? `url(${player.artUrl})` : washFor(item.id)}
 	>
 		<span class="tucked-glyph" aria-hidden="true">
 			{#if player.playing}
@@ -149,7 +149,7 @@
 		<button class="mini-open" onclick={() => player.expand()} aria-label="Open the player">
 			<span
 				class="mthumb"
-				style:background-image={item.artUrl ? `url(${item.artUrl})` : washFor(item.id)}
+				style:background-image={player.artUrl ? `url(${player.artUrl})` : washFor(item.id)}
 			></span>
 			<span class="mini-t">
 				<b>{item.title}</b>

@@ -4,11 +4,12 @@
 	import { type PreviewKind } from '@yipden/ring-client';
 	import { closeOnBack } from '$lib/closeOnBack.js';
 	import { showKept } from '$lib/references/messages.js';
-	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
+	import { creatorNotes, type AddTrackResult } from '$lib/creatorNotes.svelte.js';
 	import { explored } from '$lib/explored.svelte.js';
 	import { duration, flyIn, prefersReducedMotion } from '$lib/motion.js';
 	import { openExternal } from '$lib/platform/external.js';
-	import { player } from '$lib/player.svelte.js';
+	import { hear } from '$lib/hear.svelte.js';
+	import { isPlatformLink } from '$lib/references/capture.js';
 	import { siteBrowser, type SiteSession } from '$lib/platform/siteBrowser.svelte.js';
 	import { titleFromUrl } from '$lib/readerTracks.js';
 	import { toast } from '$lib/toast.svelte.js';
@@ -48,6 +49,26 @@
 		spotify: 'Spotify',
 		'apple-music': 'Apple Music'
 	};
+
+	/** Why Keep would refuse a track, checked when the sheet opens; null until that is known. */
+	let refusals = $state<Map<string, AddTrackResult> | null>(null);
+
+	/** Said under a track that cannot be kept, in place of a Keep that would only refuse. */
+	const REFUSED: Partial<Record<AddTrackResult, string>> = {
+		temporary: 'Its address expires',
+		'not-own-site': 'Not on their site',
+		missing: 'Gone',
+		unsafe: 'Not a public link'
+	};
+
+	/**
+	 * What to keep for a track whose address expires: the platform's own player the page names
+	 * (it plays in the app), or else the page itself when it is a platform's (it opens there).
+	 */
+	let lasting = $derived(
+		session.found.find((item) => item.how === 'embed' && item.kind !== 'external')?.url ??
+			(isPlatformLink('audio', session.pageUrl) ? session.pageUrl : null)
+	);
 
 	let added = $derived(
 		new Set(creatorNotes.tracksFor(session.creator.url).map((track) => track.url))
@@ -122,25 +143,12 @@
 
 	/**
 	 * Hear a track before keeping it. The page goes quiet first (it keeps playing while hidden
-	 * behind this sheet), and the track plays in the app's one player, which stays small. A second
-	 * tap pauses it.
+	 * behind this sheet), and the track plays on its own, apart from the player (`hear`). A second
+	 * tap pauses it, and closing the sheet stops it.
 	 */
 	async function preview(item: SiteSession['found'][number]) {
-		const id = `preview:${item.url}`;
-		if (player.current?.id === id) {
-			player.toggle();
-			return;
-		}
-		await siteBrowser.pausePage();
-		player.preview({
-			id,
-			title: titleOf(item),
-			creator: session.creator.name,
-			url: session.pageUrl,
-			siteUrl: session.creator.url,
-			artUrl: session.creator.artUrl ?? null,
-			mediaUrl: item.url
-		});
+		if (hear.url !== item.url) await siteBrowser.pausePage();
+		hear.toggle(item.url);
 	}
 
 	/** A passage's name in lists: its opening words. */
@@ -152,7 +160,19 @@
 		void creatorNotes.load();
 		void explored.mark(session.creator.url);
 		closeButton?.focus();
-		return closeOnBack('foundOnPage', onclose);
+		creatorNotes
+			.precheckTracks(
+				session.creator,
+				session.found.map((item) => ({ url: item.url, foundOn: session.pageUrl }))
+			)
+			.then((refused) => (refusals = refused))
+			// Could not check: offer Keep, which checks again and says why if it refuses.
+			.catch(() => (refusals = new Map()));
+		const release = closeOnBack('foundOnPage', onclose);
+		return () => {
+			hear.stop();
+			release();
+		};
 	});
 
 	function titleOf(item: SiteSession['found'][number]): string {
@@ -164,18 +184,19 @@
 	/** Being checked against the capture rules, which can take a request or two. */
 	let checking = $state<Set<string>>(new Set());
 
-	async function keep(item: SiteSession['found'][number]) {
-		checking = new Set(checking).add(item.url);
+	/** Keep a track: the one found, or, for one whose address expires, the platform page it is on. */
+	async function keep(url: string, title: string) {
+		checking = new Set(checking).add(url);
 		try {
 			const result = await creatorNotes.addTrack(session.creator, {
-				url: item.url,
-				title: titleOf(item),
+				url,
+				title,
 				foundOn: session.pageUrl
 			});
 			showKept(result, session.creator, 'audio', ondone);
 		} finally {
 			const next = new Set(checking);
-			next.delete(item.url);
+			next.delete(url);
 			checking = next;
 		}
 	}
@@ -280,12 +301,15 @@
 			<h3 class="tracks-head">Tracks</h3>
 			<ul class="list">
 				{#each session.found as item (item.url)}
-					{@const kept = added.has(item.url)}
-					{@const busy = checking.has(item.url)}
+					{@const refused = refusals?.get(item.url)}
+					{@const keepPage = refused === 'temporary' && lasting !== null}
+					{@const keepUrl = keepPage && lasting ? lasting : item.url}
+					{@const kept = added.has(keepUrl)}
+					{@const busy = checking.has(keepUrl)}
 					<li class="item">
 						<!-- A file, or anything the page itself played or had in a player, address or not. -->
 						{#if item.kind === 'file' || item.how === 'playing' || item.how === 'element'}
-							{@const hearing = player.current?.id === `preview:${item.url}` && player.playing}
+							{@const hearing = hear.url === item.url && hear.playing}
 							<button
 								class="icon preview"
 								aria-label={`${hearing ? 'Pause' : 'Hear'} ${titleOf(item)}`}
@@ -306,21 +330,51 @@
 							<small
 								>{HOW_LABELS[item.how]} · {new URL(item.url).hostname.replace(/^www\./, '')}</small
 							>
+							{#if refused && !kept}
+								<small class="refused"
+									>{REFUSED[refused] ?? 'Cannot be kept'}{keepPage
+										? lasting === session.pageUrl
+											? '. Keep their page for it'
+											: '. Keep its player, which lasts'
+										: ', so it cannot be kept'}</small
+								>
+							{/if}
 						</span>
-						<button
-							class="keep"
-							aria-pressed={kept}
-							disabled={kept || busy}
-							aria-busy={busy}
-							aria-label={kept
-								? `${titleOf(item)} kept`
-								: busy
-									? `Checking ${titleOf(item)}`
-									: `Keep ${titleOf(item)}`}
-							onclick={() => keep(item)}
-						>
-							{kept ? 'Kept' : busy ? 'Checking…' : 'Keep'}
-						</button>
+						{#if !refusals}
+							<button
+								class="keep"
+								disabled
+								aria-busy="true"
+								aria-label={`Checking ${titleOf(item)}`}
+							>
+								Checking…
+							</button>
+						{:else if !refused || keepPage}
+							<button
+								class="keep"
+								aria-pressed={kept}
+								disabled={kept || busy}
+								aria-busy={busy}
+								aria-label={kept
+									? `${titleOf(item)} kept`
+									: busy
+										? `Checking ${titleOf(item)}`
+										: keepPage
+											? `Keep the lasting address for ${titleOf(item)}`
+											: `Keep ${titleOf(item)}`}
+								onclick={() => keep(keepUrl, titleOf(item))}
+							>
+								{kept
+									? 'Kept'
+									: busy
+										? 'Checking…'
+										: !keepPage
+											? 'Keep'
+											: lasting === session.pageUrl
+												? 'Keep page'
+												: 'Keep player'}
+							</button>
+						{/if}
 					</li>
 				{/each}
 			</ul>
@@ -545,6 +599,11 @@
 	.text small {
 		color: var(--muted);
 		font-size: 12px;
+	}
+
+	/* A reason, so it wraps rather than being cut. */
+	.text small.refused {
+		white-space: normal;
 	}
 
 	.keep,

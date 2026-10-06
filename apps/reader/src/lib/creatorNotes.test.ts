@@ -301,3 +301,46 @@ describe('keeping pictures and passages', () => {
 		);
 	});
 });
+
+describe('keep going from the Library', () => {
+	it('draws on every creator, files and platform players alike, skipping what was heard', () => {
+		const saved = creatorNotes.references;
+		const base = {
+			kind: 'audio' as const,
+			ringSource: 'none' as const,
+			ringId: null,
+			hostVerified: false,
+			sharable: false,
+			createdAt: '2026-10-06T00:00:00.000Z'
+		};
+		const ref = (id: string, creatorId: string, url: string, status: 'live' | 'gone' = 'live') => ({
+			...base,
+			id,
+			creatorId,
+			creatorName: creatorId,
+			title: id,
+			url,
+			canonicalUrl: url,
+			status
+		});
+		creatorNotes.references = [
+			ref('heard', 'a.example', 'https://a.example/heard.mp3'),
+			ref('file', 'a.example', 'https://a.example/next.mp3'),
+			ref('video', 'b.example', 'https://www.youtube.com/watch?v=M7lc1UVf-VE'),
+			ref('page', 'b.example', 'https://b.bandcamp.com/track/night'),
+			ref('gone', 'b.example', 'https://b.example/gone.mp3', 'gone')
+		];
+		try {
+			const queue = creatorNotes.libraryQueue(new Set(['https://a.example/heard.mp3']));
+			expect(queue.map((item) => item.title).sort()).toEqual(['file', 'video']);
+			expect(queue.find((item) => item.title === 'video')).toMatchObject({
+				id: 'reader:https://www.youtube.com/watch?v=M7lc1UVf-VE',
+				creator: 'b.example',
+				siteUrl: 'https://b.example',
+				batchKey: 'reader:b.example'
+			});
+		} finally {
+			creatorNotes.references = saved;
+		}
+	});
+});

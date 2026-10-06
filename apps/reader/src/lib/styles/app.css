@@ -73,7 +73,10 @@ button {
 	display: flex;
 	flex-direction: column;
 	height: 100dvh;
+	/* Clip, not hidden: a hidden box can still be scrolled by script, and scrollIntoView did
+	   exactly that, pulling the player parked below the screen up into view (2026-10-06). */
 	overflow: hidden;
+	overflow: clip;
 	background: var(--ground-art);
 	background-attachment: fixed;
 	isolation: isolate;

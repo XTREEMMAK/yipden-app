@@ -47,3 +47,22 @@ export function barsFrom(peaks: number[], count: number): number[] {
 	const top = Math.max(...bars);
 	return top > 0 ? bars.map((bar) => bar / top) : bars;
 }
+
+/**
+ * SoundCloud's own waveform (the `waveform_url` its player reports, `wave.sndcdn.com/….json`):
+ * bar heights out of `height`, turned into peaks like ours so it draws and saves the same way.
+ * Anything not shaped like that gives no peaks, and the plain bar is drawn instead.
+ */
+export function peaksFromWaveformJson(data: unknown, count = PEAK_COUNT): number[] {
+	if (!data || typeof data !== 'object') return [];
+	const { samples, height } = data as { samples?: unknown; height?: unknown };
+	if (!Array.isArray(samples) || typeof height !== 'number' || !(height > 0)) return [];
+	const values = samples
+		.slice(0, 20_000)
+		.map((value) =>
+			typeof value === 'number' && Number.isFinite(value)
+				? Math.min(1, Math.max(0, value / height))
+				: 0
+		);
+	return peaksFrom(Float32Array.from(values), Math.min(count, values.length));
+}

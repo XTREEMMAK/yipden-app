@@ -1,8 +1,17 @@
 import { flushSync } from 'svelte';
 import { MediaSession, type MediaSessionAction } from '@capgo/capacitor-media-session';
+import { mountEmbed, type EmbedEngine, type EmbedEvents } from './embeds/engines.js';
+import {
+	embedArtOf,
+	embedOf,
+	soundcloudArt,
+	soundcloudWaveform,
+	type EmbedSource
+} from './embeds/source.js';
 import { prefersReducedMotion } from './motion.js';
 import { store, type PeaksRecord } from './store/index.js';
 import { toast } from './toast.svelte.js';
+import { peaksFromWaveformJson } from './waveform.js';
 
 /**
  * The player: one shared `HTMLAudioElement` for the whole app, a queue, and the state every
@@ -119,10 +128,34 @@ class PlayerState {
 	/** 'full' is the screen over every tab; 'mini' is the dock; 'hidden' is neither. */
 	sheet = $state<'hidden' | 'mini' | 'full'>('hidden');
 
+	/**
+	 * The platform player the current track plays through (YouTube, SoundCloud, Bandcamp), or null
+	 * for a file on the app's own audio element. Read from the track's address; see `embeds/`.
+	 */
+	source = $state<EmbedSource | null>(null);
+	private engine: EmbedEngine | null = null;
+	/** The current embed has been asked to load (play was pressed for it). */
+	embedStarted = $state(false);
+	/** Artwork the platform gave for the current embed: a YouTube thumbnail, SoundCloud's art. */
+	embedArt = $state<string | null>(null);
+	/**
+	 * The current embed's waveform, when its platform has one (SoundCloud): null while it is
+	 * fetched, empty when there is none to draw, so the plain bar is drawn instead.
+	 */
+	embedPeaks = $state<number[] | null>(null);
+
+	/** Where the full player lets an embed's frame live. Null until it is on screen. */
+	private embedHost: HTMLElement | null = null;
+	/** Bumped on every load, so an embed that finishes loading for an older track is let go. */
+	private embedToken = 0;
+	private startListeners = new Set<() => void>();
+
 	/** The mini player shrunk to a small button while a list scrolls under it. See tuckMini. */
 	miniTucked = $state(false);
 
 	current = $derived(this.currentIndex >= 0 ? (this.queue[this.currentIndex] ?? null) : null);
+	/** What to show for the current track: the platform's own artwork first, then the queue's. */
+	artUrl = $derived(this.embedArt ?? this.current?.artUrl ?? null);
 	/** `null` past the last track of a non-looping queue, matching what `advance()` will actually
 	 *  do: nothing here promises a wrap the queue itself has stopped offering. */
 	next = $derived(
@@ -137,9 +170,11 @@ class PlayerState {
 			// Track media hosted on a member's own site; playing it spends their bandwidth.
 			element.preload = 'none';
 			element.addEventListener('timeupdate', () => {
+				if (this.source) return;
 				this.currentTime = element.currentTime;
 			});
 			element.addEventListener('durationchange', () => {
+				if (this.source) return;
 				if (Number.isFinite(element.duration)) this.duration = element.duration;
 				this.updateMediaSessionPosition();
 			});
@@ -150,17 +185,23 @@ class PlayerState {
 				this.seek(pending);
 			});
 			element.addEventListener('play', () => {
+				if (this.source) return;
+				this.started();
 				this.playing = true;
 				this.updateMediaSessionState();
 				this.updateMediaSessionPosition();
 			});
 			element.addEventListener('pause', () => {
+				if (this.source) return;
 				this.playing = false;
 				this.updateMediaSessionState();
 				this.updateMediaSessionPosition();
 			});
-			element.addEventListener('ended', () => this.advance());
+			element.addEventListener('ended', () => {
+				if (!this.source) this.advance();
+			});
 			element.addEventListener('error', () => {
+				if (this.source) return;
 				// An abort is the element switching sources on purpose, not a failure.
 				const code = element.error?.code;
 				if (!code || code === MediaError.MEDIA_ERR_ABORTED || !element.getAttribute('src')) return;
@@ -258,7 +299,7 @@ class PlayerState {
 		} else if (wasCurrent) {
 			if (this.currentIndex >= this.queue.length) {
 				this.currentIndex = this.queue.length - 1;
-				this.audio.pause();
+				this.pause();
 				this.ended = true;
 			} else {
 				this.load(this.currentIndex);
@@ -306,9 +347,14 @@ class PlayerState {
 		this.currentTime = 0;
 		this.duration = 0;
 
-		const audio = this.audio;
-		if (audio.src !== item.mediaUrl) audio.src = item.mediaUrl;
-		audio.playbackRate = this.rate;
+		this.releaseEmbed();
+		this.source = embedOf(item.mediaUrl);
+		// An embed waits for play to be pressed: a restored queue contacts no platform on launch.
+		if (!this.source) {
+			const audio = this.audio;
+			if (audio.src !== item.mediaUrl) audio.src = item.mediaUrl;
+			audio.playbackRate = this.rate;
+		}
 		this.sheet = 'mini';
 		this.setMediaSessionMetadata(item);
 	}
@@ -370,18 +416,7 @@ class PlayerState {
 			});
 	}
 
-	/**
-	 * Hear one track before keeping it, from a screen that has to stay where it is (the in-app
-	 * browser's "Found on their page"). The same one shared audio element as everything else, a
-	 * queue of one, and the player stays small rather than opening over the screen.
-	 */
-	preview(item: QueueItem): void {
-		this.loop = false;
-		this.queue = [item];
-		this.load(0, false);
-	}
-
-	private load(index: number, open = true): void {
+	private load(index: number): void {
 		const item = this.queue[index];
 		if (!item) return;
 		this.currentIndex = index;
@@ -391,19 +426,159 @@ class PlayerState {
 		this.ended = false;
 
 		this.error = null;
-		const audio = this.audio;
-		if (audio.src !== item.mediaUrl) audio.src = item.mediaUrl;
-		audio.playbackRate = this.rate;
-		safePlay(audio, () => this.reportUnplayable());
+		this.releaseEmbed();
+		this.source = embedOf(item.mediaUrl);
+		if (this.source) {
+			this._audio?.pause();
+			this.playing = false;
+			this.startEmbed(true);
+		} else {
+			const audio = this.audio;
+			if (audio.src !== item.mediaUrl) audio.src = item.mediaUrl;
+			audio.playbackRate = this.rate;
+			safePlay(audio, () => this.reportUnplayable());
+		}
 
-		if (open) this.sheet = 'full';
-		else if (this.sheet === 'hidden') this.sheet = 'mini';
+		this.sheet = 'full';
 		this.setMediaSessionMetadata(item);
 	}
 
 	toggle(): void {
+		if (this.source) {
+			if (!this.engine) this.startEmbed(true);
+			else if (this.playing) this.engine.pause();
+			else this.engine.play();
+			return;
+		}
 		if (this.playing) this.audio.pause();
 		else safePlay(this.audio);
+	}
+
+	/** Pause whatever is playing, file or embed. */
+	pause(): void {
+		if (this.source) this.engine?.pause();
+		else this._audio?.pause();
+	}
+
+	/** Called whenever playback starts, file or embed: a preview elsewhere stops for it. */
+	onStart(listener: () => void): () => void {
+		this.startListeners.add(listener);
+		return () => this.startListeners.delete(listener);
+	}
+
+	private started(): void {
+		for (const listener of this.startListeners) listener();
+	}
+
+	/**
+	 * The full player's embed slot, there for as long as an embed track is current. A track
+	 * loaded before the slot existed (the very first play) starts the moment it arrives.
+	 */
+	attachEmbedHost(host: HTMLElement): () => void {
+		this.embedHost = host;
+		if (this.source && !this.engine && this.wantEmbed) this.startEmbed(true);
+		return () => {
+			if (this.embedHost !== host) return;
+			this.releaseEmbed();
+			this.embedHost = null;
+		};
+	}
+
+	/** Play was asked for, but the slot was not there yet to load the embed into. */
+	private wantEmbed = false;
+
+	private startEmbed(autoplay: boolean): void {
+		const source = this.source;
+		const item = this.current;
+		if (!source || !item) return;
+		const host = this.embedHost;
+		if (!host) {
+			this.wantEmbed = autoplay;
+			return;
+		}
+		this.wantEmbed = false;
+		this.embedStarted = true;
+		const token = ++this.embedToken;
+		const live = () => token === this.embedToken;
+		this.embedArt = embedArtOf(source);
+		this.embedPeaks = source.provider === 'soundcloud' ? null : [];
+		if (source.provider === 'soundcloud') {
+			void this.readPeaks(item.mediaUrl).then((cached) => {
+				if (live() && cached?.peaks.length) this.embedPeaks = cached.peaks;
+			});
+		}
+		this.setMediaSessionMetadata(item);
+		const events: EmbedEvents = {
+			playing: (playing) => {
+				if (!live()) return;
+				if (playing) this.started();
+				this.playing = playing;
+				this.updateMediaSessionState();
+			},
+			time: (seconds) => {
+				if (live()) this.currentTime = seconds;
+			},
+			duration: (seconds) => {
+				if (!live() || !Number.isFinite(seconds)) return;
+				this.duration = seconds;
+				this.updateMediaSessionPosition();
+			},
+			ended: () => {
+				if (live()) this.advance();
+			},
+			error: () => {
+				if (live()) this.reportUnplayable();
+			},
+			meta: ({ artUrl, waveformUrl }) => {
+				if (!live()) return;
+				const art = artUrl ? soundcloudArt(artUrl) : null;
+				if (art) {
+					this.embedArt = art;
+					this.setMediaSessionMetadata(item);
+				}
+				const wave = waveformUrl ? soundcloudWaveform(waveformUrl) : null;
+				if (!wave) {
+					this.embedPeaks ??= [];
+					return;
+				}
+				if (this.embedPeaks?.length) return;
+				void this.fetchWaveform(wave, item.mediaUrl).then((peaks) => {
+					if (live()) this.embedPeaks = peaks;
+				});
+			}
+		};
+		mountEmbed(source, host, events, { autoplay, title: item.title }).then(
+			(engine) => {
+				if (live()) this.engine = engine;
+				else engine.destroy();
+			},
+			() => {
+				if (live()) this.reportUnplayable();
+			}
+		);
+	}
+
+	/** SoundCloud's own waveform for a track, saved like a measured one. Empty if it cannot be had. */
+	private async fetchWaveform(url: string, mediaUrl: string): Promise<number[]> {
+		try {
+			const response = await fetch(url);
+			if (!response.ok) return [];
+			const peaks = peaksFromWaveformJson(await response.json());
+			if (peaks.length) await this.writePeaks(mediaUrl, peaks, this.duration);
+			return peaks;
+		} catch {
+			return [];
+		}
+	}
+
+	private releaseEmbed(): void {
+		this.embedToken++;
+		this.embedStarted = false;
+		this.embedArt = null;
+		this.embedPeaks = null;
+		this.wantEmbed = false;
+		this.engine?.destroy();
+		this.engine = null;
 	}
 
 	/**
@@ -416,6 +591,12 @@ class PlayerState {
 	 */
 	seek(seconds: number): void {
 		if (!this.current) return;
+		if (this.source) {
+			const target = Math.max(0, Math.min(this.seekableEnd(), seconds));
+			this.engine?.seek(target);
+			this.currentTime = target;
+			return;
+		}
 		const audio = this.audio;
 		if (audio.readyState < HTMLMediaElement.HAVE_METADATA) {
 			this.pendingSeek = seconds;
@@ -446,12 +627,12 @@ class PlayerState {
 
 	advance(): void {
 		if (!this.loop && this.currentIndex >= this.queue.length - 1) {
-			this.audio.pause();
+			this.pause();
 			this.ended = true;
 			return;
 		}
 		if (this.queue.length < 2) {
-			this.audio.pause();
+			this.pause();
 			return;
 		}
 		this.load((this.currentIndex + 1) % this.queue.length);
@@ -496,6 +677,8 @@ class PlayerState {
 
 	/** Unloads everything, including native media-session state. */
 	clear(): void {
+		this.releaseEmbed();
+		this.source = null;
 		if (this._audio) {
 			this._audio.pause();
 			this._audio.removeAttribute('src');
@@ -518,7 +701,7 @@ class PlayerState {
 
 	/** Stops playback outright and dismisses the mini player, unlike `collapse`, which keeps it. */
 	stop(): void {
-		this.audio.pause();
+		this.pause();
 		this.sheet = 'hidden';
 		this.miniTucked = false;
 		void MediaSession.setPlaybackState({ playbackState: 'none' }).catch(() => {});
@@ -568,7 +751,10 @@ class PlayerState {
 		void MediaSession.setMetadata({
 			title: item.title,
 			artist: item.creator,
-			artwork: item.artUrl ? [{ src: item.artUrl, sizes: '512x512' }] : []
+			artwork:
+				(this.embedArt ?? item.artUrl)
+					? [{ src: this.embedArt ?? item.artUrl!, sizes: '512x512' }]
+					: []
 		}).catch(() => {});
 		this.updateMediaSessionState();
 		this.updateMediaSessionPosition();

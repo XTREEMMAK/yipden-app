@@ -254,3 +254,26 @@ describe('SCAN_SCRIPT and media a page builds in script', () => {
 		inDocument.remove();
 	});
 });
+
+describe('SCAN_SCRIPT on a platform page', () => {
+	it('offers the player a Bandcamp page names in og:video, the address that lasts', () => {
+		const posted: Array<{ detail: Record<string, unknown> }> = [];
+		(window as unknown as { mobileApp: unknown }).mobileApp = {
+			postMessage: (value: { detail: Record<string, unknown> }) => posted.push(value)
+		};
+		document.head.innerHTML = `
+			<meta property="og:title" content="Night Drive, by Lena">
+			<meta property="og:video" content="https://bandcamp.com/EmbeddedPlayer/v=2/track=5678/size=large/">`;
+		new Function(SCAN_SCRIPT)();
+		const scan = (window as unknown as { __yipdenScan: (playing: unknown) => void }).__yipdenScan;
+		scan(null);
+		const found = readFoundMedia(posted[posted.length - 1]!.detail);
+		expect(found).toContainEqual({
+			url: 'https://bandcamp.com/EmbeddedPlayer/v=2/track=5678/size=large/',
+			title: 'Night Drive, by Lena',
+			how: 'embed',
+			kind: 'bandcamp'
+		});
+		document.head.innerHTML = '';
+	});
+});

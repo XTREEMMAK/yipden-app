@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { barsFrom, peaksFrom } from './waveform.js';
+import { barsFrom, peaksFrom, peaksFromWaveformJson } from './waveform.js';
 
 describe('peaksFrom', () => {
 	it('takes the loudest sample of each slice, whatever its sign', () => {
@@ -31,5 +31,24 @@ describe('barsFrom', () => {
 
 	it('leaves silence flat rather than dividing by zero', () => {
 		expect(barsFrom([0, 0], 2)).toEqual([0, 0]);
+	});
+});
+
+describe('peaksFromWaveformJson', () => {
+	it("turns SoundCloud's bar heights into peaks from 0 to 1", () => {
+		expect(peaksFromWaveformJson({ width: 4, height: 100, samples: [10, 50, 100, 0] }, 2)).toEqual([
+			0.5, 1
+		]);
+	});
+
+	it('gives nothing for anything not shaped like a SoundCloud waveform', () => {
+		expect(peaksFromWaveformJson(null)).toEqual([]);
+		expect(peaksFromWaveformJson({ samples: [1, 2] })).toEqual([]);
+		expect(peaksFromWaveformJson({ height: 0, samples: [1] })).toEqual([]);
+		expect(peaksFromWaveformJson({ height: 10, samples: 'x' })).toEqual([]);
+	});
+
+	it('treats a bad sample as silence and never goes past full height', () => {
+		expect(peaksFromWaveformJson({ height: 10, samples: ['x', 50] }, 2)).toEqual([0, 1]);
 	});
 });

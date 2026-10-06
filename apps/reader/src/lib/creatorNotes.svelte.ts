@@ -1,6 +1,8 @@
 import { previewKindOf, safeUrl, type SiteLayout } from '@yipden/ring-client';
+import { embedOf } from './embeds/source.js';
 import { openExternal } from './platform/external.js';
 import { player, type QueueItem } from './player.svelte.js';
+import { shuffled } from './queue.js';
 import { store } from './store/index.js';
 import { MAX_TRACKS_PER_CREATOR, titleFromUrl, type ReaderTrack } from './readerTracks.js';
 import {
@@ -18,7 +20,9 @@ import { verdictKey } from './verdicts.svelte.js';
 import {
 	assessCapture,
 	canRecheck,
+	creatorSites,
 	defaultDeps,
+	precheckCapture,
 	recheck,
 	type CaptureDeps,
 	type CaptureRefusal
@@ -182,6 +186,36 @@ class CreatorNotes {
 		return 'added';
 	}
 
+	/**
+	 * Which of these tracks Keep would refuse, and why, before any Keep is offered. Missing from
+	 * the map: Keep can be tried. The creator's own sites are looked up once for all of them.
+	 */
+	async precheckTracks(
+		creator: TrackCreator,
+		drafts: { url: string; foundOn?: string }[]
+	): Promise<Map<string, AddTrackResult>> {
+		const refused = new Map<string, AddTrackResult>();
+		const deps = this.captureDeps();
+		const sites = await creatorSites(creator.url, deps);
+		await Promise.all(
+			drafts.map(async (draft) => {
+				const url = safeUrl(draft.url.trim())?.toString();
+				if (!url) {
+					refused.set(draft.url, 'unsafe');
+					return;
+				}
+				const foundOnPage = draft.foundOn ? safeUrl(draft.foundOn)?.toString() : undefined;
+				const why = await precheckCapture(
+					{ kind: 'audio', url, ...(foundOnPage ? { foundOnPage } : {}) },
+					sites,
+					deps
+				);
+				if (why) refused.set(draft.url, why);
+			})
+		);
+		return refused;
+	}
+
 	/** A track: an audio reference, kept the way every reference is. */
 	addTrack(
 		creator: TrackCreator,
@@ -260,8 +294,9 @@ class CreatorNotes {
 	}
 
 	/**
-	 * Play a reader's track: a real audio file plays here, through the one shared player; anything
-	 * else (a platform page) opens on its own site, the same as a ring's own sample.
+	 * Play a reader's track through the one shared player: a real audio file, or a platform's own
+	 * player (YouTube, SoundCloud, Bandcamp; see `embeds/`). Anything else, such as a Bandcamp
+	 * track page with no player address, opens on its own site.
 	 */
 	play(
 		creator: { url: string; name: string; artUrl?: string | null },
@@ -271,13 +306,15 @@ class CreatorNotes {
 		const opened = this.referencesFor(creator.url, 'audio').find((entry) => entry.url === trackUrl);
 		if (opened) void this.recheckOnOpen(opened.id);
 		const tracks = this.tracksFor(creator.url).filter((track) => !track.gone);
-		const files = tracks.filter((track) => previewKindOf(track.url) === 'file');
-		const start = files.findIndex((track) => track.url === trackUrl);
+		const playable = tracks.filter(
+			(track) => previewKindOf(track.url) === 'file' || embedOf(track.url) !== null
+		);
+		const start = playable.findIndex((track) => track.url === trackUrl);
 		if (start === -1) {
 			openExternal(trackUrl);
 			return;
 		}
-		const queue: QueueItem[] = files.map((track) => ({
+		const queue: QueueItem[] = playable.map((track) => ({
 			id: `reader:${track.url}`,
 			title: track.title,
 			creator: creator.name,
@@ -288,6 +325,43 @@ class CreatorNotes {
 			batchKey: `reader:${verdictKey(creator.url)}`
 		}));
 		player.play(queue, start, fromEl, { loop: false });
+	}
+
+	/**
+	 * Kept tracks from every creator that play here (a file, or a platform's player), other than
+	 * the addresses in `exclude`: what "keep going" can draw on once a queue has run out.
+	 */
+	playableTracks(exclude: ReadonlySet<string> = new Set()): Reference[] {
+		return this.references.filter(
+			(reference) =>
+				reference.kind === 'audio' &&
+				reference.status === 'live' &&
+				!exclude.has(reference.url) &&
+				(previewKindOf(reference.url) === 'file' || embedOf(reference.url) !== null)
+		);
+	}
+
+	/** A shuffled run of the Library's tracks, for "keep going" at the end of a queue. */
+	libraryQueue(
+		exclude: ReadonlySet<string> = new Set(),
+		limit = 25,
+		random: () => number = Math.random
+	): QueueItem[] {
+		return shuffled(this.playableTracks(exclude), random)
+			.slice(0, limit)
+			.map((reference) => {
+				const siteUrl = `https://${reference.creatorId}`;
+				return {
+					id: `reader:${reference.url}`,
+					title: reference.title,
+					creator: reference.creatorName ?? reference.creatorId,
+					url: reference.foundOnPage ?? siteUrl,
+					siteUrl,
+					artUrl: null,
+					mediaUrl: reference.url,
+					batchKey: `reader:${reference.creatorId}`
+				};
+			});
 	}
 
 	/** The reader's own call when there is one, otherwise what the ring or the page said. */

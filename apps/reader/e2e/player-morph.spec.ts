@@ -185,3 +185,35 @@ test.describe('The card to player morph', () => {
 		);
 	});
 });
+
+test.describe('The parked player', () => {
+	// Phone feedback 2026-10-06: Keep, then the toast's View, showed part of the paused player at
+	// the bottom with the tab bar pushed up. View scrolls the new Library item to the center, and
+	// `scrollIntoView` scrolls every ancestor it can, `overflow: hidden` ones included, so it
+	// scrolled the app shell down onto the player parked below the screen.
+	test('cannot be scrolled into view by scrolling something else to the center', async ({
+		page
+	}) => {
+		await seed(page);
+		await page
+			.locator('#pane-everything')
+			.getByRole('button', { name: /Low Tide/ })
+			.click();
+		await expect(page.getByRole('heading', { name: 'Low Tide' })).toBeVisible();
+		await page.getByRole('button', { name: 'Collapse the player' }).click();
+		await page.waitForTimeout(600);
+
+		const scrolled = await page.evaluate(() => {
+			const app = document.querySelector<HTMLElement>('.app')!;
+			// The last thing in the shell's normal flow, asked to sit at the center: as View does.
+			const probe = document.createElement('div');
+			probe.style.height = '1px';
+			app.querySelector('.player')!.appendChild(probe);
+			probe.scrollIntoView({ block: 'center' });
+			probe.remove();
+			app.scrollTop = 400;
+			return app.scrollTop;
+		});
+		expect(scrolled).toBe(0);
+	});
+});

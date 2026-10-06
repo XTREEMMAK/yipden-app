@@ -5,6 +5,9 @@
 	import Switch from './Switch.svelte';
 	import { diagnostics, type DiagKey } from '$lib/diagnostics.svelte.js';
 
+	// THROWAWAY: the Listen embeds spike, removed once its results are reported.
+	let spike = $state(false);
+
 	const DIAG: Array<{ key: DiagKey; title: string; note: string }> = [
 		{ key: 'meter', title: 'Frame meter', note: 'Slow frames after each partner ring scroll' },
 		{ key: 'noStack', title: 'Partner cards flat', note: 'No 3D stack; reopen the ring to apply' },
@@ -56,6 +59,16 @@
 			</div>
 		{/each}
 	</div>
+	<button class="srow" onclick={() => (spike = true)}>
+		<span class="tt"
+			><b>Embed spike</b><small>YouTube, SoundCloud, Spotify, Bandcamp test page</small></span
+		>
+	</button>
+	{#if spike}
+		{#await import('./EmbedSpike.svelte') then { default: EmbedSpike }}
+			<EmbedSpike onclose={() => (spike = false)} />
+		{/await}
+	{/if}
 	<p class="note">Only in debug builds. A release build has none of these.</p>
 </section>
 

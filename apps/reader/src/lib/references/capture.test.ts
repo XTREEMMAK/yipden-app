@@ -5,7 +5,14 @@ import { testStore } from '../store/testing/memory.js';
 import { reference } from '../store/testing/fixtures.js';
 import { feed, person } from '../store/testing/fixtures.js';
 import type { Store } from '../store/types.js';
-import { assessCapture, canRecheck, recheck, type CaptureDeps } from './capture.js';
+import {
+	assessCapture,
+	canRecheck,
+	isTemporaryAddress,
+	precheckCapture,
+	recheck,
+	type CaptureDeps
+} from './capture.js';
 
 /**
  * The capture rules against fixture pages. Every response is made up here; nothing reaches the
@@ -175,6 +182,25 @@ describe('keeping something', () => {
 			deps({ 'https://bsky.app/img/a.png': {} }, store)
 		);
 		expect(platform).toEqual({ ok: false, reason: 'not-own-site' });
+	});
+
+	it('never counts Neocities itself through a verified Neocities update feed', async () => {
+		const store = testStore();
+		await store.follow(person({ siteUrl: CREATOR }), [
+			feed({
+				id: 'https://neocities.org/site/lena.rss',
+				url: 'https://neocities.org/site/lena.rss',
+				kind: 'blog',
+				verified: true
+			})
+		]);
+		const stranger = 'https://someone-else.neocities.org/song.mp3';
+		expect(
+			await assessCapture(
+				{ kind: 'audio', url: stranger, creatorUrl: CREATOR },
+				deps({ [stranger]: {} }, store)
+			)
+		).toEqual({ ok: false, reason: 'not-own-site' });
 	});
 
 	it('refuses a file that is not there', async () => {
@@ -367,5 +393,71 @@ describe('passages', () => {
 		});
 		expect(canRecheck(linkOnly)).toBe(false);
 		expect(canRecheck({ ...linkOnly, selector })).toBe(true);
+	});
+});
+
+describe('addresses made to expire', () => {
+	const STREAM =
+		'https://t4.bcbits.com/stream/0f1e2d/mp3-128/123456?p=0&ts=1759780000&t=abc&token=1759780000_def';
+
+	it('knows a Bandcamp stream and a signed file address, and leaves a plain one alone', () => {
+		expect(isTemporaryAddress(STREAM)).toBe(true);
+		expect(isTemporaryAddress('https://bucket.s3.amazonaws.com/a.mp3?X-Amz-Signature=ff')).toBe(
+			true
+		);
+		expect(isTemporaryAddress(FILE)).toBe(false);
+		expect(isTemporaryAddress('https://f4.bcbits.com/img/a1_10.jpg')).toBe(false);
+	});
+
+	it('refuses one even when their own page plays it', async () => {
+		const page = 'https://lena.bandcamp.com/track/night';
+		expect(
+			await assessCapture(
+				{ kind: 'audio', url: STREAM, creatorUrl: 'https://lena.bandcamp.com/', foundOnPage: page },
+				deps({})
+			)
+		).toEqual({ ok: false, reason: 'temporary' });
+	});
+});
+
+describe('checking before Keep is offered', () => {
+	const sites = [CREATOR];
+
+	it('offers Keep for a file found on their page, without asking the network', async () => {
+		const d = deps({});
+		const garden = 'https://file.garden/abc123/night.mp3';
+		expect(await precheckCapture({ kind: 'audio', url: garden, foundOnPage: PAGE }, sites, d)).toBe(
+			null
+		);
+		expect(d.calls).toEqual([]);
+	});
+
+	it('says why for an expiring address and for one on someone else page', async () => {
+		const copy = 'https://reupload.example/night.mp3';
+		const elsewhere = 'https://aggregator.example/lena';
+		const d = deps({ [copy]: {} });
+		expect(
+			await precheckCapture(
+				{ kind: 'audio', url: 'https://t4.bcbits.com/stream/a/mp3-128/1?token=x' },
+				sites,
+				d
+			)
+		).toBe('temporary');
+		expect(
+			await precheckCapture({ kind: 'audio', url: copy, foundOnPage: elsewhere }, sites, d)
+		).toBe('not-own-site');
+	});
+
+	it('offers a platform link, and one that redirects onto their site', async () => {
+		const short = 'https://short.example/n';
+		const d = deps({ [short]: { status: 301, headers: { location: FILE } }, [FILE]: {} });
+		expect(
+			await precheckCapture(
+				{ kind: 'audio', url: 'https://lena.bandcamp.com/track/night' },
+				sites,
+				d
+			)
+		).toBe(null);
+		expect(await precheckCapture({ kind: 'audio', url: short }, sites, d)).toBe(null);
 	});
 });

@@ -77,12 +77,17 @@ These are not defensive measures; they are the reason the product is allowed to 
 Following Mozilla's web security guidance, adapted to an app whose origin is local files:
 
 - **https only**, everywhere, with no exception for development against real feeds.
-- **A Content Security Policy** on the app document: `default-src 'self'`, `script-src 'self'`,
-  `object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`, `form-action 'none'`, with
-  `img-src` and `media-src` allowing `https:` because creator media comes from everywhere, and
-  `frame-src` allowing only `https://www.youtube-nocookie.com`. A YouTube yip shows its thumbnail and
-  loads that player only when the reader taps play; the address is built from a validated video id,
-  never from markup a feed supplied.
+- **A Content Security Policy** on the app document: `default-src 'self'`, `object-src 'none'`,
+  `base-uri 'none'`, `frame-ancestors 'none'`, `form-action 'none'`, with `img-src` and `media-src`
+  allowing `https:` because creator media comes from everywhere.
+  - **Platform players** (2026-10-06): `script-src` adds YouTube's and SoundCloud's player APIs, and
+    `frame-src` their players and Bandcamp's (`www.youtube-nocookie.com`, `w.soundcloud.com`,
+    `bandcamp.com`). Each loads only when the reader presses play on such a track: a track sitting
+    in the queue, or restored on launch, contacts no platform. Every player address is rebuilt
+    from a validated id or page address (`embeds/source.ts`), never taken from markup as given,
+    and each frame is sandboxed with only the origin sent as referrer.
+  - The debug-only embed spike adds `www.youtube.com` frames and Spotify's two origins; those go
+    when the spike is deleted.
 - **`Referrer-Policy: strict-origin-when-cross-origin`**, so a creator's server never learns
   which yip the reader came from beyond the origin.
 - **Android cleartext traffic disabled** in the manifest, release builds not debuggable, and
