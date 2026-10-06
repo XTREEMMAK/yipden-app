@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browserGuide } from '$lib/browserGuide.svelte.js';
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { fly } from 'svelte/transition';
@@ -298,6 +299,13 @@
 						onchange={(on) => prefs.setSitesInApp(on)}
 					/>
 				</div>
+				<button class="srow guide-row" onclick={() => browserGuide.show()}>
+					<span class="tt">
+						<b>How finding works</b>
+						<small>Keeping tracks, comic pages, screenshots and passages from creators' sites</small
+						>
+					</span>
+				</button>
 				<div class="srow slider-row">
 					<span class="tt">
 						<b>Keep posts from the last {prefs.maxAgeDays} days</b>

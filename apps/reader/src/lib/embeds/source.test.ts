@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { embedOf, embedSrc } from './source.js';
+import { embedOf, embedSrc, youtubeLinkIn } from './source.js';
 
 describe('embedOf', () => {
 	it('reads a YouTube video from every address shape it comes in', () => {
@@ -66,5 +66,22 @@ describe('embedSrc', () => {
 		expect(embedSrc({ provider: 'bandcamp', track: '5678' }, '')).toMatch(
 			/^https:\/\/bandcamp\.com\/EmbeddedPlayer\/track=5678\/size=large\//
 		);
+	});
+});
+
+describe('youtubeLinkIn', () => {
+	it('finds the first video a post links or embeds, as a plain watch address', () => {
+		expect(
+			youtubeLinkIn(
+				'<p>New video!</p><iframe src="https://www.youtube-nocookie.com/embed/M7lc1UVf-VE?rel=0"></iframe>'
+			)
+		).toBe('https://www.youtube.com/watch?v=M7lc1UVf-VE');
+		expect(youtubeLinkIn(null, 'watch this youtu.be/x and https://youtu.be/M7lc1UVf-VE!')).toBe(
+			'https://www.youtube.com/watch?v=M7lc1UVf-VE'
+		);
+		expect(
+			youtubeLinkIn('<a href="https://www.youtube.com/watch?amp;v=M7lc1UVf-VE">x</a>')
+		).toBeNull();
+		expect(youtubeLinkIn('https://www.youtube.com/@channel', 'no video here')).toBeNull();
 	});
 });

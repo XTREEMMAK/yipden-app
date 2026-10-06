@@ -20,9 +20,11 @@
 		title: string;
 		slides: Slide[];
 		onclose: () => void;
+		/** The slide to open at: a page tapped among many. */
+		start?: number;
 	}
 
-	let { title, slides, onclose }: Props = $props();
+	let { title, slides, onclose, start = 0 }: Props = $props();
 
 	let strip = $state<HTMLElement | undefined>(undefined);
 	let closeButton = $state<HTMLButtonElement | undefined>(undefined);
@@ -33,7 +35,13 @@
 	});
 
 	// Phone Back closes this first, rather than leaving the screen underneath it.
-	onMount(() => closeOnBack('yipdenPreview', () => onclose()));
+	onMount(() => {
+		if (start > 0 && strip) {
+			strip.scrollLeft = start * strip.clientWidth;
+			at = start;
+		}
+		return closeOnBack('yipdenPreview', () => onclose());
+	});
 
 	function onScroll() {
 		if (strip) at = Math.round(strip.scrollLeft / Math.max(1, strip.clientWidth));

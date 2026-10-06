@@ -78,6 +78,8 @@
 			entry?.creator ??
 			hint?.name ??
 			verdict?.name ??
+			// Their own name for themselves before a name kept with something of theirs.
+			facts?.cardName ??
 			references.find((reference) => reference.creatorName)?.creatorName ??
 			facts?.name ??
 			(site ? hostOf(site) : '')
@@ -140,6 +142,13 @@
 			return !(resolved.status === 'resolved' && feedUrls.has(resolved.match.feedUrl));
 		});
 	});
+
+	/** Where to buy from, commission or support them: offered under what was kept. */
+	let supportPlaces = $derived(
+		placeStore
+			.placesFor(keys)
+			.filter((place) => ['shop', 'commissions', 'support'].includes(place.role))
+	);
 
 	/** Their sites, which a place's own page would name to be linked both ways. */
 	let siteAddresses = $derived(
@@ -536,6 +545,21 @@
 				<ReaderFinds creator={other} />
 			{/each}
 			<KeepByLink {creator} id="profile-keep" />
+			<div class="support">
+				<p>
+					<b>Links, not copies.</b> Everything here stays on {name}’s site and goes if they take it
+					down. Love their work? Support them where they make it.
+				</p>
+				{#if supportPlaces.length}
+					<div class="support-links">
+						{#each supportPlaces as place (place.id)}
+							<button class="row-act" onclick={() => openExternal(place.url)}>
+								{ROLE_LABELS[place.role]}: {placeLabel(place.url).label}
+							</button>
+						{/each}
+					</div>
+				{/if}
+			</div>
 		</section>
 
 		<section class="block" aria-labelledby="yours-h">
@@ -757,6 +781,29 @@
 
 	.err {
 		color: var(--error);
+	}
+
+	.support {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		margin-top: 10px;
+		padding: 12px 14px;
+		border-radius: 14px;
+		background: var(--brand-soft);
+		color: var(--brand-ink);
+		font-size: 13.5px;
+		line-height: 1.45;
+	}
+
+	.support p {
+		margin: 0;
+	}
+
+	.support-links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
 	}
 
 	.kept-under {

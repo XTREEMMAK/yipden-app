@@ -83,6 +83,29 @@ describe('picturesByPost', () => {
 		expect([...found.keys()]).toEqual(['at://x/1', 'at://x/2', 'at://x/3', 'at://x/4']);
 	});
 
+	it('keeps a YouTube link card as the video it is, not its picture', () => {
+		const found = picturesByPost({
+			feed: [
+				{
+					post: {
+						uri: 'at://x/yt',
+						embed: {
+							$type: 'app.bsky.embed.external#view',
+							external: {
+								uri: 'https://youtu.be/M7lc1UVf-VE',
+								title: 'The zine, explained',
+								thumb: 'https://cdn.bsky.app/yt.jpg'
+							}
+						}
+					}
+				}
+			]
+		});
+		expect(found.get('at://x/yt')?.media).toEqual([
+			{ url: 'https://youtu.be/M7lc1UVf-VE', kind: 'video', title: 'The zine, explained' }
+		]);
+	});
+
 	it('gives nothing for anything not shaped like a feed', () => {
 		expect(picturesByPost(null).size).toBe(0);
 		expect(picturesByPost({ feed: 'no' }).size).toBe(0);

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { sourceColor as sourceColorOf } from '$lib/sources.js';
+	import { youtubeLinkIn } from '$lib/embeds/source.js';
 	import { hostOf } from '$lib/hosts.js';
-	import { Capacitor } from '@capacitor/core';
 	import { youtubeVideoId } from '@yipden/feeds';
 	import { player } from '$lib/player.svelte.js';
 	import { buildListenQueue } from '$lib/queue.js';
@@ -40,16 +40,25 @@
 	let isAudio = $derived(yip.category === 'listen');
 	let isVideo = $derived(yip.category === 'watch');
 	/**
-	 * A YouTube video plays in the card, in the privacy-enhanced player, after the reader taps.
-	 *
-	 * Not inside the Android app: the WebView's own origin makes YouTube refuse the embed (error
-	 * 153), and a frame cannot report that to us, so the reader would be left with a dead player.
-	 * There the card opens the video in YouTube, as it always did. The browser build embeds.
+	 * A YouTube video plays in the app's own player, through YouTube's player (`embeds/`), after
+	 * the reader taps: on the phone too, where a card's own frame used to be refused (error 153).
 	 */
 	let youtubeId = $derived(isVideo ? youtubeVideoId(yip.url) : null);
-	let videoId = $derived(Capacitor.isNativePlatform() ? null : youtubeId);
-	let embedding = $state(false);
-	let isMedia = $derived(isAudio || isVideo || image !== null);
+	/**
+	 * A YouTube video the post links or embeds, without being one itself (a Bluesky post sharing a
+	 * video, a blog post embedding one): played from a strip under the card, which stays the post.
+	 */
+	let linkedVideo = $derived(
+		yip.feedKind === 'youtube' || youtubeId
+			? null
+			: (yip.media.find((media) => media.kind === 'video' && youtubeVideoId(media.url))?.url ??
+					youtubeLinkIn(yip.contentHtml, yip.summary))
+	);
+	let isMedia = $derived(isAudio || (isVideo && !linkedVideo) || image !== null);
+	/** A post with no title of its own (Bluesky, Mastodon) is named by its words. */
+	let heading = $derived(
+		yip.title && yip.title !== 'Untitled' ? yip.title : yip.summary.slice(0, 140) || 'Post'
+	);
 	let authorName = $derived(displayAuthor(yip, feeds.personFor(yip)?.name));
 	let icon = $derived(feeds.iconFor(yip));
 	let sourceColor = $derived(sourceColorOf(yip.feedKind));
@@ -69,10 +78,8 @@
 			return;
 		}
 		void feeds.markRead(yip);
-		if (videoId) {
-			// Only one thing plays at a time: a reader starting a video means the audio should stop.
-			if (player.playing) player.toggle();
-			embedding = true;
+		if (youtubeId) {
+			playVideo(yip.url, event.currentTarget as HTMLElement);
 			return;
 		}
 		if (isAudio) {
@@ -85,24 +92,31 @@
 		}
 		openExternal(yip.url);
 	}
+
+	/** One video through the player, as a queue of one: the card's art morphs into it. */
+	function playVideo(watchUrl: string, fromEl?: HTMLElement) {
+		const id = youtubeVideoId(watchUrl);
+		if (!id) return;
+		void feeds.markRead(yip);
+		player.play(
+			[
+				{
+					id: `video:${id}`,
+					title: heading,
+					creator: authorName,
+					url: yip.url,
+					siteUrl: feeds.personFor(yip)?.siteUrl ?? yip.url,
+					artUrl: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+					mediaUrl: watchUrl
+				}
+			],
+			0,
+			fromEl
+		);
+	}
 </script>
 
-{#if embedding && videoId}
-	<div class="yip media embed" style:--src={sourceColor} class:unread={!yip.readAt}>
-		<iframe
-			title={`${yip.title}, video player`}
-			src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&playsinline=1`}
-			allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-			allowfullscreen
-			referrerpolicy="strict-origin-when-cross-origin"
-			sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
-		></iframe>
-		<div class="embed-bar">
-			<button class="embed-btn" onclick={() => (embedding = false)}>Close video</button>
-			<button class="embed-btn" onclick={() => openExternal(yip.url)}>Open on YouTube</button>
-		</div>
-	</div>
-{:else if isMedia}
+{#if isMedia}
 	<div class="yip-wrap">
 		<button
 			class="yip media"
@@ -113,7 +127,7 @@
 			onclick={open}
 			aria-label={concealed
 				? `Content warning: ${warning}. Show content.`
-				: `${yip.title} by ${authorName}${duration ? `, ${duration}` : ''}. ${isAudio ? 'Play audio.' : videoId ? 'Play video.' : youtubeId ? 'Plays on YouTube.' : `Opens on ${new URL(yip.url).hostname}.`}${imageAlt ? ` Image description: ${imageAlt}` : ''}`}
+				: `${heading} by ${authorName}${duration ? `, ${duration}` : ''}. ${isAudio ? 'Play audio.' : youtubeId ? 'Play video.' : `Opens on ${new URL(yip.url).hostname}.`}${imageAlt ? ` Image description: ${imageAlt}` : ''}`}
 		>
 			<span
 				class="art"
@@ -136,7 +150,7 @@
 			</span>
 			<span class="bottom">
 				<span class="txtcol">
-					<span class="ttl">{concealed ? warning : yip.title}</span>
+					<span class="ttl">{concealed ? warning : heading}</span>
 					<span class="meta">
 						{concealed ? 'Tap to show' : authorName}{!concealed && duration ? ` · ${duration}` : ''}
 					</span>
@@ -162,6 +176,7 @@
 			</span>
 		</button>
 		{@render profileButton('media')}
+		{@render videoStrip()}
 	</div>
 {:else}
 	<div class="yip-wrap">
@@ -197,6 +212,7 @@
 			{/if}
 		</button>
 		{@render profileButton('text')}
+		{@render videoStrip()}
 	</div>
 {/if}
 
@@ -204,6 +220,30 @@
 	The creator's picture opens their profile. A sibling laid over the card's own picture, not a
 	button inside the card's, which a button cannot hold: the rest of the card still opens the post.
 -->
+<!-- A video the post shares, under it: a button of its own, beside the card's, not inside it. -->
+{#snippet videoStrip()}
+	{#if linkedVideo && !concealed}
+		{@const id = youtubeVideoId(linkedVideo)}
+		<button
+			class="video-strip"
+			aria-label={`Play the YouTube video ${authorName} shared`}
+			onclick={(event) => playVideo(linkedVideo!, event.currentTarget)}
+		>
+			<span
+				class="art video-thumb"
+				style:background-image={`url(https://i.ytimg.com/vi/${id}/mqdefault.jpg)`}
+				aria-hidden="true"
+			>
+				<svg viewBox="0 0 24 24"><path d="M9 7v10l8-5z" /></svg>
+			</span>
+			<span class="video-text">
+				<b>{yip.media.find((media) => media.kind === 'video')?.title ?? 'A video they shared'}</b>
+				<small>YouTube · Plays here</small>
+			</span>
+		</button>
+	{/if}
+{/snippet}
+
 {#snippet profileButton(shape: 'text' | 'media')}
 	{@const person = feeds.personFor(yip)}
 	{#if person}
@@ -270,6 +310,64 @@
 
 	.yip-wrap {
 		position: relative;
+	}
+
+	/* Tucked under its card, as one piece with it. */
+	.video-strip {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		width: calc(100% - 24px);
+		margin: -6px 12px 0;
+		padding: 14px 12px 10px;
+		border: 1px solid var(--line);
+		border-top: 0;
+		border-radius: 0 0 14px 14px;
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		text-align: left;
+	}
+
+	.video-thumb {
+		position: relative;
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 96px;
+		aspect-ratio: 16 / 9;
+		border-radius: 8px;
+		background-color: #000;
+		background-size: cover;
+		background-position: center;
+	}
+
+	.video-thumb svg {
+		width: 26px;
+		height: 26px;
+		padding: 4px;
+		border-radius: 999px;
+		background: rgba(0, 0, 0, 0.55);
+		fill: #fff;
+	}
+
+	.video-text {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+
+	.video-text b {
+		font-size: 14px;
+		font-weight: 600;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.video-text small {
+		color: var(--muted);
+		font-size: 12px;
 	}
 
 	/* Over the card's own picture, at a full 44px target; the picture stays the card's to draw. */
@@ -492,43 +590,6 @@
 			transform: scale(3);
 			opacity: 0;
 		}
-	}
-
-	.yip.embed {
-		height: auto;
-		aspect-ratio: 16 / 9;
-	}
-
-	.yip.embed iframe {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-		border: 0;
-	}
-
-	.embed-bar {
-		position: absolute;
-		left: 8px;
-		right: 8px;
-		top: 8px;
-		display: flex;
-		justify-content: space-between;
-		gap: 8px;
-		pointer-events: none;
-	}
-
-	.embed-btn {
-		pointer-events: auto;
-		min-height: 32px;
-		padding: 0 12px;
-		border: 0;
-		border-radius: 999px;
-		background: rgba(var(--deep-rgb), 0.72);
-		color: #fff;
-		font-family: var(--body);
-		font-size: 12px;
-		font-weight: 600;
 	}
 
 	.yip.text {

@@ -4,7 +4,9 @@
 	import { onMount } from 'svelte';
 	import MiniPlayer from '$components/MiniPlayer.svelte';
 	import Player from '$components/Player.svelte';
+	import BrowserGuide from '$components/BrowserGuide.svelte';
 	import FoundOnPageSheet from '$components/FoundOnPageSheet.svelte';
+	import { browserGuide } from '$lib/browserGuide.svelte.js';
 	import { siteBrowser } from '$lib/platform/siteBrowser.svelte.js';
 	import TabBar from '$components/TabBar.svelte';
 	import { directionBetween } from '$lib/navigation.js';
@@ -161,5 +163,8 @@
 			onback={() => void siteBrowser.resume()}
 			ondone={() => void siteBrowser.close()}
 		/>
+	{/if}
+	{#if browserGuide.visible}
+		<BrowserGuide />
 	{/if}
 </div>

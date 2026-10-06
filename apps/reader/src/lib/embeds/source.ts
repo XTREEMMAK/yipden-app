@@ -7,6 +7,8 @@
  * Spotify is not here yet: its player script would not load on the phone (2026-10-06).
  */
 
+import { youtubeVideoId } from '@yipden/feeds';
+
 export type EmbedSource =
 	| { provider: 'youtube'; videoId: string }
 	| { provider: 'soundcloud'; url: string }
@@ -14,7 +16,6 @@ export type EmbedSource =
 
 export type EmbedProvider = EmbedSource['provider'];
 
-const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
 const BANDCAMP_ID = /^\d{1,20}$/;
 
 function parse(url: string): URL | null {
@@ -24,16 +25,6 @@ function parse(url: string): URL | null {
 	} catch {
 		return null;
 	}
-}
-
-function youtubeId(url: URL, host: string): string | null {
-	const id =
-		host === 'youtu.be'
-			? url.pathname.slice(1).split('/')[0]
-			: url.pathname === '/watch'
-				? url.searchParams.get('v')
-				: url.pathname.match(/^\/(?:embed|shorts|live)\/([^/]+)/)?.[1];
-	return id && YOUTUBE_ID.test(id) ? id : null;
 }
 
 /** A SoundCloud track or playlist page: `/artist/track` or `/artist/sets/name`, nothing else. */
@@ -56,7 +47,8 @@ export function embedOf(address: string): EmbedSource | null {
 	const host = url.hostname.toLowerCase().replace(/^(www|m|music)\./, '');
 
 	if (host === 'youtube.com' || host === 'youtube-nocookie.com' || host === 'youtu.be') {
-		const videoId = youtubeId(url, host);
+		// youtube-nocookie.com is the privacy-enhanced player's own host for the same /embed/ path.
+		const videoId = youtubeVideoId(url.toString().replace('youtube-nocookie.com', 'youtube.com'));
 		return videoId ? { provider: 'youtube', videoId } : null;
 	}
 
@@ -166,3 +158,26 @@ export const PROVIDER_NAMES: Record<EmbedProvider, string> = {
 	soundcloud: 'SoundCloud',
 	bandcamp: 'Bandcamp'
 };
+
+const YOUTUBE_LINK =
+	/https?:\/\/(?:www\.|m\.)?(?:youtube(?:-nocookie)?\.com\/(?:watch\?[^\s"'<>]*|shorts\/|embed\/|live\/)|youtu\.be\/)[^\s"'<>]+/g;
+
+/**
+ * The first YouTube video a post links or embeds, as a plain watch address, from its body or
+ * its text. Built from the validated id alone, never from the markup it was found in.
+ */
+export function youtubeLinkIn(...texts: Array<string | null | undefined>): string | null {
+	for (const text of texts) {
+		for (const match of (text ?? '').matchAll(YOUTUBE_LINK)) {
+			const source = embedOf(
+				match[0]
+					.replace(/[.,!?;:)\]]+$/, '')
+					.replace(/&amp;/g, '&')
+					.replace(/^http:/, 'https:')
+			);
+			if (source?.provider === 'youtube')
+				return `https://www.youtube.com/watch?v=${source.videoId}`;
+		}
+	}
+	return null;
+}

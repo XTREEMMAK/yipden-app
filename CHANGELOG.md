@@ -8,6 +8,25 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- A YouTube video a post shares (a Bluesky link card, a blog post's embed or link) plays from a
+  strip under the post, in the app's player. YouTube videos in Feeds play there too, on the phone.
+- How finding works: a guide to the in-app browser, shown before the first site opens in the app,
+  and from "Found on their page", the Library and Settings. On the page itself, a held picture
+  is outlined and a short line says it was picked, as does a selected passage.
+- "Links, not copies": the guide, the Library, "Found on their page" and every profile say that
+  nothing is kept for good, and ask readers to support creators where they make their work. A
+  profile links straight to the creator's Shop, Commissions and Support places.
+- Pictures kept from a creator: a View button on their partner ring card, like Listen for a
+  track, and on their profile six at a time with pages, opening in a reader that pages through
+  them all.
+
+### Fixed
+
+- A Library queue that went on to the ring stopped after one ring member: a previous session's
+  members were still counted. Once Keep going is chosen, the queue now keeps going by itself.
+- Scrolling a long list of follows in You is smoother: rows off screen are no longer laid out.
+- A Bluesky post with a picture is headed by its words on its card, not "Untitled".
+
 - Where a creator is, with how sure YipDen is of each place. A profile records the places their
   own site names as theirs, and marks one **linked both ways** when it names their site back.
   Places their site only links, and ones you add, come after. Each place is a Profile, Site,

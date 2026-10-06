@@ -1,5 +1,6 @@
 import { safeUrl } from '@yipden/ring-client';
 import type { FeedHttp } from './http.js';
+import { youtubeVideoId } from './kind.js';
 import type { MediaAttachment, ParsedFeed } from './types.js';
 
 /**
@@ -65,6 +66,12 @@ function picturesOf(embed: Json | null): MediaAttachment[] {
 	}
 	if (type.startsWith('app.bsky.embed.external')) {
 		const external = record(embed.external);
+		// A YouTube link card is the video itself: the reader plays it, not its picture.
+		const link = typeof external?.uri === 'string' ? safeUrl(external.uri) : null;
+		if (link && youtubeVideoId(link.toString())) {
+			const title = text(external?.title);
+			return [{ url: link.toString(), kind: 'video', ...(title ? { title } : {}) }];
+		}
 		const thumb = external ? image(external.thumb, external.title) : null;
 		return thumb ? [thumb] : [];
 	}

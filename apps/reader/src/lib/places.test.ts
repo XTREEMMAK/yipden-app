@@ -13,6 +13,7 @@ const ETSY = 'https://www.etsy.com/shop/lenaofori';
 function facts(named: string[], linked: string[] = []): SiteFacts {
 	return {
 		name: 'Lena',
+		cardName: 'Lena',
 		bio: null,
 		photoUrl: null,
 		iconUrl: null,

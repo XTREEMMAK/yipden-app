@@ -23,6 +23,8 @@
 	import PlatformIcon from './PlatformIcon.svelte';
 	import PartnerThumb from './PartnerThumb.svelte';
 	import ImagePreview from './ImagePreview.svelte';
+	import PreviewSheet from './PreviewSheet.svelte';
+	import type { Slide } from '$lib/preview.js';
 
 	/**
 	 * One partner ring's members, on their own screen inside Discover.
@@ -250,6 +252,9 @@
 	 * `PartnerThumb.svelte` for why a preview cannot be opened from inside one of those cards.
 	 */
 	let preview = $state<{ src: string; alt: string } | null>(null);
+	/** Pictures a reader kept from a member, being read through. */
+	let reading = $state<{ title: string; slides: Slide[] } | null>(null);
+
 	/** A member's profile, carrying what the ring says of them. */
 	function openProfile(member: (typeof result.members)[number]) {
 		creatorProfiles.open({
@@ -444,6 +449,12 @@
 					{@const desktopFirst =
 						creatorNotes.layoutFor(member.url, member.layout) === 'desktop-first'}
 					{@const yours = creatorNotes.tracksFor(member.url)}
+					{@const yourPages = creatorNotes
+						.referencesFor(member.url)
+						.filter(
+							(entry) =>
+								(entry.kind === 'image' || entry.kind === 'screenshot') && entry.status === 'live'
+						)}
 					{@const onShelf = shelf.has(member.url)}
 					{@const seen = explored.has(member.url)}
 					<li class="yip-stack">
@@ -585,6 +596,29 @@
 												Your track
 											</button>
 										{/if}
+										{#if yourPages.length}
+											<!-- Pictures you kept, read like Listen plays a track: one tap, every page. -->
+											<button
+												class="secondary"
+												onclick={() => {
+													explore(member);
+													reading = {
+														title: `Kept from ${member.name}`,
+														slides: yourPages.map((page) => ({ image: page.url, alt: page.title }))
+													};
+												}}
+												title="Pictures you kept from their site"
+											>
+												<svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
+													<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12Z" /><circle
+														cx="12"
+														cy="12"
+														r="2.8"
+													/>
+												</svg>
+												View
+											</button>
+										{/if}
 									</div>
 									<div class="acts">
 										<button
@@ -713,6 +747,10 @@
 
 {#if preview}
 	<ImagePreview src={preview.src} alt={preview.alt} onclose={() => (preview = null)} />
+{/if}
+
+{#if reading}
+	<PreviewSheet title={reading.title} slides={reading.slides} onclose={() => (reading = null)} />
 {/if}
 
 <style>

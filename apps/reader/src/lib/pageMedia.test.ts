@@ -277,3 +277,18 @@ describe('SCAN_SCRIPT on a platform page', () => {
 		document.head.innerHTML = '';
 	});
 });
+
+describe('SCAN_SCRIPT says when something is picked', () => {
+	it('shows a short, text-only notice on the page for a long-pressed picture, once', () => {
+		(window as unknown as { mobileApp: unknown }).mobileApp = { postMessage: () => {} };
+		document.body.innerHTML = '<img id="pic" src="https://ash.example/comic/9.png" alt="Nine">';
+		new Function(SCAN_SCRIPT)();
+		const pic = document.getElementById('pic')!;
+		pic.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+		const notice = document.getElementById('__yipden-notice');
+		expect(notice?.textContent).toBe('Picture picked. Tap the YipDen button to keep it.');
+		expect(notice?.children).toHaveLength(0);
+		expect(notice?.style.pointerEvents).toBe('none');
+		expect(pic.style.outline).toContain('solid');
+	});
+});

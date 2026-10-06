@@ -262,13 +262,39 @@ export const SCAN_SCRIPT = `(() => {
 			// A long press on a picture. The page's own handling is left alone: nothing here
 			// prevents a default or stops an event. Chrome on Android fires contextmenu for a long
 			// press; the timer covers a page or WebView that does not.
+			// Say on the page that something was picked, so a long press is not a silent guess: a
+			// short line at the bottom, text only, that never takes a tap from the page under it.
+			let noticeTimer = null;
+			const notice = (message) => {
+				try {
+					let el = document.getElementById('__yipden-notice');
+					if (!el) {
+						el = document.createElement('div');
+						el.id = '__yipden-notice';
+						el.setAttribute('role', 'status');
+						el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483647;max-width:86vw;padding:10px 16px;border-radius:999px;background:#2a1d17;color:#fff;font:600 14px/1.3 system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35);pointer-events:none;transition:opacity .25s;opacity:0';
+						document.documentElement.appendChild(el);
+					}
+					el.textContent = message;
+					el.style.opacity = '1';
+					clearTimeout(noticeTimer);
+					noticeTimer = setTimeout(() => { el.style.opacity = '0'; }, 2600);
+					if (navigator.vibrate) navigator.vibrate(15);
+				} catch (e) {}
+			};
 			const pickImage = (target) => {
 				const img = target && target.closest ? target.closest('img') : null;
 				if (!img) return;
 				const url = absolute(img.currentSrc || img.src);
 				if (!usable(url)) return;
+				const again = window.__yipdenPick.image && window.__yipdenPick.image.url === url;
 				window.__yipdenPick.image = { url, alt: (img.getAttribute('alt') || '').trim().slice(0, 200), page: location.href };
 				scan(null);
+				if (again) return;
+				notice('Picture picked. Tap the YipDen button to keep it.');
+				const outline = img.style.outline;
+				img.style.outline = '3px solid #e8711c';
+				setTimeout(() => { img.style.outline = outline; }, 1200);
 			};
 			document.addEventListener('contextmenu', (event) => pickImage(event.target), true);
 			let press = null;
@@ -294,7 +320,9 @@ export const SCAN_SCRIPT = `(() => {
 					const range = selection.getRangeAt(0);
 					const before = range.startContainer.nodeType === 3 ? range.startContainer.textContent.slice(0, range.startOffset) : '';
 					const after = range.endContainer.nodeType === 3 ? range.endContainer.textContent.slice(range.endOffset) : '';
+					const previous = window.__yipdenPick.passage;
 					window.__yipdenPick.passage = { exact: exact.slice(0, 2400), prefix: before.slice(-64), suffix: after.slice(0, 64), page: location.href };
+					if (!previous || previous.exact !== exact) notice('Passage picked. Tap the YipDen button to keep it.');
 				}, 300);
 			});
 		}

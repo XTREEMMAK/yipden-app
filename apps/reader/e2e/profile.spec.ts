@@ -137,6 +137,37 @@ test.describe('A creator’s profile', () => {
 	});
 });
 
+test.describe('Comic pages kept from a creator', () => {
+	test('come a few at a time, and open in a reader that pages through them all', async ({
+		page
+	}) => {
+		await seed(page);
+		const PNG = Buffer.from(
+			'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+			'base64'
+		);
+		await page.route('https://lenaofori.com/comic/**', (route) =>
+			route.fulfill({ status: 200, contentType: 'image/png', body: PNG })
+		);
+		await page.goto('/creator/?site=https%3A%2F%2Flenaofori.com%2F');
+		const kept = page.getByRole('region', { name: 'Kept from them' });
+		await kept.getByRole('radio', { name: 'Picture' }).click();
+		for (let n = 1; n <= 7; n += 1) {
+			await kept.getByLabel('A picture by link').fill(`https://lenaofori.com/comic/${n}.png`);
+			await kept.getByLabel('Title (optional)').fill(`Page ${n}`);
+			await kept.getByRole('button', { name: 'Keep it' }).click();
+			await expect(kept.getByLabel('A picture by link')).toHaveValue('');
+		}
+
+		await expect(kept.getByText('Page 1 of 2')).toBeVisible();
+		await kept.getByRole('button', { name: 'Next pictures' }).click();
+		await expect(kept.getByText('Page 2 of 2')).toBeVisible();
+		await kept.getByRole('button', { name: 'Show Page 7 full screen' }).click();
+		const reader = page.getByRole('dialog', { name: 'Kept from Lena Ofori, preview' });
+		await expect(reader.getByText('7 / 7')).toBeVisible();
+	});
+});
+
 test.describe('Follow, People or Forums', () => {
 	test('a forum has its own heading and field, and a site that is not one is turned back', async ({
 		page

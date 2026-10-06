@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browserGuide } from '$lib/browserGuide.svelte.js';
 	import Sheet from './Sheet.svelte';
 	import { hostOf } from '$lib/hosts.js';
 	import { onMount, untrack } from 'svelte';
@@ -206,7 +207,8 @@
 		{#if !nothing}
 			<p class="note">
 				Keep what you want to come back to. Only its link is saved, on this phone, labelled as added
-				by you. It stays on {session.creator.name}’s site.
+				by you. It stays on {session.creator.name}’s site, so if you love it, support them there.
+				<button class="guide-link" onclick={() => browserGuide.show()}>How finding works</button>
 			</p>
 		{/if}
 		{#if session.image}
@@ -479,6 +481,18 @@
 		width: 18px;
 		height: 18px;
 		fill: currentColor;
+	}
+
+	.guide-link {
+		display: inline;
+		min-height: 44px;
+		padding: 0 4px;
+		border: 0;
+		background: none;
+		color: var(--brand-text);
+		font: inherit;
+		font-weight: 650;
+		text-decoration: underline;
 	}
 
 	.text {

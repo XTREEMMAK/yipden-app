@@ -8,6 +8,7 @@ import {
 	type FoundMedia,
 	type FoundPassage
 } from '../pageMedia.js';
+import { browserGuide } from '../browserGuide.svelte.js';
 import { openExternal } from './external.js';
 import type { RingOrigin } from '../references/types.js';
 
@@ -68,6 +69,8 @@ class SiteBrowser {
 			openExternal(target.toString());
 			return;
 		}
+		// The first time: how finding works, and that keeping keeps links (`browserGuide`).
+		await browserGuide.beforeFirstVisit();
 		await this.end();
 		const { InAppBrowser, ToolBarType } = await import('@capgo/capacitor-inappbrowser');
 		this.session = {

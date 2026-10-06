@@ -3240,3 +3240,32 @@ row held only a followed person's.
 - **Removing respects whose word it was.** One the reader added is deleted. One the site names
   is kept as `hidden`, so the next sync cannot bring it back. Backups carry places, hidden ones
   included.
+
+## 2026-10-06 (evening, phone feedback) — Shared videos, a browser guide, comics, continuous play
+
+- **Shared YouTube videos play in the app.** A Bluesky link card to YouTube is kept as the video
+  it is (`kind: 'video'`), not as its thumbnail. A blog post's YouTube iframe or link is found by
+  `youtubeLinkIn`, which rebuilds the address from the validated id only.
+  - **Under the card, not in it.** A strip under the card plays the video in the app's player,
+    which the embeds proved on the phone. The card stays the post and still opens it.
+  - **Channel videos too.** A YouTube channel's own videos now play in the player as well,
+    replacing the card's web-only frame and its error-153 workaround. The post is in Watch, as any
+    post with a video is.
+  - Media cards are headed by a post's words when it has no title, which Bluesky's never do.
+- **A guide to finding** (`browserGuide.svelte.ts`, `BrowserGuide`). Shown once before the first
+  in-app visit, and on request. The page now confirms a long-press or a selection itself (see
+  security.md), because the native toolbar button gives no sign that anything happened.
+- **Links, not copies, said everywhere a reader keeps things.** It also asks readers to support
+  the creator. A profile offers the Shop, Commissions and Support places from step 3 right there.
+- **Comics read like comics.** Kept pictures open in `PreviewSheet`, the same pager as a ring's
+  "Read a preview", at the page tapped. A profile shows six at a time with page controls. A
+  partner card has View beside Listen.
+- **A profile's name**: their h-card's own name now ranks above a name stored with something kept
+  from them. A bare page title still ranks below it.
+- **Continuous play.** `ringPlayer` counts only members still in the queue as this session's. A
+  list left over from an earlier ring session anchored suggestions to the wrong form, so a Library
+  queue that went on to the ring stopped after one member. Choosing Keep going once sets
+  `player.continuous`. Every later end then continues by itself, with a toast saying what plays,
+  until the reader stops or nothing is left. A new queue clears it.
+- **You's long lists.** Follow rows use `content-visibility: auto`, as Feeds' cards do, and ring
+  lookups per row are a map, not a scan with URL parsing.

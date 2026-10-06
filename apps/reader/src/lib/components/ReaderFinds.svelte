@@ -4,7 +4,7 @@
 	import { siteBrowser } from '$lib/platform/siteBrowser.svelte.js';
 	import { prefs } from '$lib/prefs.svelte.js';
 	import type { Reference, RingOrigin } from '$lib/references/types.js';
-	import ImagePreview from './ImagePreview.svelte';
+	import PreviewSheet from './PreviewSheet.svelte';
 
 	/**
 	 * Pictures and passages a reader kept from a creator's pages. Pointers, never copies: a picture
@@ -26,13 +26,30 @@
 			.filter((entry) => entry.kind === 'image' || entry.kind === 'screenshot')
 	);
 	let passages = $derived(creatorNotes.referencesFor(creator.url, 'text'));
-	let preview = $state<Reference | null>(null);
+	/** The page a reader opened, read in the pager with every other page they kept. */
+	let reading = $state<number | null>(null);
+
+	/** Comics run long: a few pages at a time here, every one in the reader. */
+	const PAGE_SIZE = 6;
+	let page = $state(0);
+	let pageCount = $derived(Math.max(1, Math.ceil(pictures.length / PAGE_SIZE)));
+	let shownPictures = $derived(
+		pictures.slice(
+			Math.min(page, pageCount - 1) * PAGE_SIZE,
+			(Math.min(page, pageCount - 1) + 1) * PAGE_SIZE
+		)
+	);
+	let live = $derived(pictures.filter((picture) => picture.status !== 'gone'));
+	let slides = $derived(live.map((picture) => ({ image: picture.url, alt: picture.title })));
 
 	const KIND_LABELS = { image: 'Picture', screenshot: 'Screenshot' } as const;
 
 	function show(picture: Reference) {
 		void creatorNotes.recheckOnOpen(picture.id);
-		preview = picture;
+		reading = Math.max(
+			0,
+			live.findIndex((entry) => entry.id === picture.id)
+		);
 	}
 
 	function open(passage: Reference) {
@@ -47,7 +64,7 @@
 	<div class="reader-finds">
 		{#if pictures.length}
 			<ul class="pictures" aria-label={`Pictures you kept from ${creator.name}`}>
-				{#each pictures as picture (picture.id)}
+				{#each shownPictures as picture (picture.id)}
 					<li class="picture" class:gone={picture.status === 'gone'}>
 						{#if picture.status === 'gone'}
 							<span class="missing">No longer on their site</span>
@@ -79,6 +96,19 @@
 					</li>
 				{/each}
 			</ul>
+			{#if pageCount > 1}
+				<div class="pager" role="group" aria-label="Pages of pictures">
+					<button disabled={page === 0} onclick={() => (page -= 1)} aria-label="Previous pictures"
+						>‹</button
+					>
+					<span>Page {page + 1} of {pageCount}</span>
+					<button
+						disabled={page >= pageCount - 1}
+						onclick={() => (page += 1)}
+						aria-label="Next pictures">›</button
+					>
+				</div>
+			{/if}
 		{/if}
 		{#if passages.length}
 			<ul class="passages" aria-label={`Passages you kept from ${creator.name}`}>
@@ -113,11 +143,39 @@
 	</div>
 {/if}
 
-{#if preview}
-	<ImagePreview src={preview.url} alt={preview.title} onclose={() => (preview = null)} />
+{#if reading !== null && slides.length}
+	<PreviewSheet
+		title={`Kept from ${creator.name}`}
+		{slides}
+		start={reading}
+		onclose={() => (reading = null)}
+	/>
 {/if}
 
 <style>
+	.pager {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 12px;
+		font-size: 13px;
+		color: var(--muted);
+	}
+
+	.pager button {
+		width: 44px;
+		height: 44px;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--ink);
+		font-size: 20px;
+	}
+
+	.pager button:disabled {
+		opacity: 0.4;
+	}
+
 	.reader-finds {
 		display: flex;
 		flex-direction: column;

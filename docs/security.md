@@ -116,6 +116,11 @@ reader keep audio the page plays (see DECISIONS.md, 2026-10-02). What keeps that
   through unchanged, and a pause of the page's media when the reader previews a track in the app.
   It sends nothing anywhere but the bridge, and the app gains no new power over the page; the
   wrapper runs with the page's own privileges, as any of the page's own script does.
+  Since 2026-10-06 it also says when it has picked something. A long-pressed picture gets a
+  brief outline, restored after a second, and a picture or passage shows one short line at the
+  bottom of the page. That line is set with `textContent`, never HTML, so nothing from the page or
+  the app is ever parsed as markup. It ignores touches, so it cannot take a tap meant for the
+  page.
 - **Places a creator's site names (2026-10-06).** A profile records the `rel=me` places on a
   creator's site, then fetches each to see whether it names the site back (a two-way link). Those
   addresses come from the creator's page, so they are untrusted. They go through the same

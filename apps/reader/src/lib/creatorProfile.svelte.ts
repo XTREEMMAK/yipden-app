@@ -33,7 +33,10 @@ export interface CreatorHint {
 
 /** What their own site says about them. */
 export interface SiteFacts {
+	/** Their h-card's name, else the page's title. */
 	name: string | null;
+	/** Only the h-card's: their own name for themselves, not a page title. */
+	cardName: string | null;
 	/** Their bio, and where it came from: an h-card note is their own words about themselves. */
 	bio: { text: string; from: 'h-card' | 'site' } | null;
 	photoUrl: string | null;
@@ -146,6 +149,7 @@ class CreatorProfiles {
 					: null;
 			return {
 				name: page.cardName ?? page.title,
+				cardName: page.cardName,
 				bio,
 				photoUrl: page.photoUrl,
 				iconUrl: page.iconUrl,

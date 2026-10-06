@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browserGuide } from '$lib/browserGuide.svelte.js';
 	import { hostOf } from '$lib/hosts.js';
 	import { creators } from '$lib/creators.svelte.js';
 	import { profileHref } from '$lib/creatorProfile.svelte.js';
@@ -256,8 +257,10 @@
 				and tap the keep button in the toolbar (a tray with an arrow).
 			</p>
 			<p class="small">
-				Only links are kept, on this phone. Everything stays on its creator’s site.
+				Only links are kept, on this phone. Everything stays on its creator’s site: if you love it,
+				support them there.
 			</p>
+			<button class="guide-btn" onclick={() => browserGuide.show()}>How finding works</button>
 		</div>
 	{:else}
 		<!-- Only once there is more than a row's worth: below that, everything is already in view. -->
@@ -427,6 +430,18 @@
 		letter-spacing: 0.02em;
 		color: var(--muted);
 		text-align: right;
+	}
+
+	.guide-btn {
+		min-height: 44px;
+		padding: 0 16px;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--ink);
+		font: inherit;
+		font-size: 13px;
+		font-weight: 600;
 	}
 
 	.sub-row {
