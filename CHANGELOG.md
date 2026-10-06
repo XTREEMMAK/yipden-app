@@ -8,8 +8,9 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
-- A YouTube video a post shares (a Bluesky link card, a blog post's embed or link) plays from a
-  strip under the post, in the app's player. YouTube videos in Feeds play there too, on the phone.
+- A YouTube video a post shares (a Bluesky link card, a blog post's embed or link) shows inside
+  the post as a preview with its picture and title, and opens on YouTube: its app when installed,
+  the browser otherwise. A channel's own videos in Feeds open there as well.
 - How finding works: a guide to the in-app browser, shown before the first site opens in the app,
   and from "Found on their page", the Library and Settings. On the page itself, a held picture
   is outlined and a short line says it was picked, as does a selected passage.

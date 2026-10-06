@@ -3269,3 +3269,17 @@ row held only a followed person's.
   until the reader stops or nothing is left. A new queue clears it.
 - **You's long lists.** Follow rows use `content-visibility: auto`, as Feeds' cards do, and ring
   lookups per row are a map, not a scan with URL parsing.
+
+## 2026-10-06 (night) — Videos open on YouTube; the app's player is for music
+
+Phone feedback reversed part of the evening's change.
+
+- **Videos open on YouTube.** A channel's own videos (Watch) and videos posts share open on
+  YouTube: the app when installed (Android hands it the link), the browser otherwise. The app's
+  player keeps playing what is music, including a YouTube track kept to the Library, as before.
+- **A shared video is part of the post.** It is a preview inside the card, under the post's words
+  (a 16:9 picture, a play mark, its title), not a strip hanging under the card.
+- **Text cards changed shape to hold it.** A button cannot hold another, so a text card is now a
+  container: a full-size button for the post sits under the card's words, which do not take
+  taps, and the video's own button sits over it. The card's label, tap and press effect are
+  unchanged.

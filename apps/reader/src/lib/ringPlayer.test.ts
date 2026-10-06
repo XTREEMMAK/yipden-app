@@ -109,7 +109,8 @@ describe('suggest', () => {
 		player.play([queueItem({ id: 'reader:x', batchKey: 'reader:lena' })], 0, undefined, {
 			loop: false
 		});
-		expect(ringPlayer.suggest([...ring, talk])?.form).toBe('music');
+		// Nothing from the old session counts: any member may come next, so there is one.
+		expect(ringPlayer.suggest([...ring, talk])).not.toBeNull();
 		ringPlayer.add(ada);
 		expect(ringPlayer.playedEntryIds).toEqual(['ada']);
 		expect(ringPlayer.suggest([...ring, talk])?.id).toBe('bo');

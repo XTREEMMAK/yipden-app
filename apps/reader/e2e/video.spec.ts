@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * A post that shares a YouTube video, without being one: the card stays the post, and a strip
- * under it plays the video in the app's own player. Nothing reaches the network.
+ * A post that shares a YouTube video, without being one: the card stays the post, and a preview
+ * inside it opens the video on YouTube (the app's player is for music). Nothing reaches the
+ * network; what would open outside the app is recorded instead.
  */
 
 const PAGE = `<!doctype html><html><head><title>Lena Ofori</title>
@@ -16,6 +17,13 @@ const FEED = `<?xml version="1.0"?><rss version="2.0"><channel>
 </channel></rss>`;
 
 async function seed(page: Page) {
+	await page.addInitScript(() => {
+		(window as unknown as { opened: string[] }).opened = [];
+		window.open = (url) => {
+			(window as unknown as { opened: string[] }).opened.push(String(url));
+			return null;
+		};
+	});
 	await page.route('https://**', (route) => route.fulfill({ status: 404, body: 'not mocked' }));
 	await page.route('**/robots.txt', (route) =>
 		route.fulfill({ status: 200, contentType: 'text/plain', body: 'User-agent: *\nAllow: /' })
@@ -40,7 +48,7 @@ async function seed(page: Page) {
 	await page.getByText('Following Lena Ofori').waitFor();
 }
 
-test('a shared YouTube video plays from a strip under the post, which stays the post', async ({
+test('a shared YouTube video shows inside the post and opens on YouTube, not in the player', async ({
 	page
 }) => {
 	await seed(page);
@@ -49,9 +57,18 @@ test('a shared YouTube video plays from a strip under the post, which stays the 
 	await expect(pane.getByText(/Made a little video about the zine/)).toBeVisible({
 		timeout: 10_000
 	});
-	const strip = pane.getByRole('button', { name: 'Play the YouTube video Lena Ofori shared' });
-	await expect(strip).toBeVisible();
-	await strip.click();
-	await expect(page.getByRole('region', { name: 'Now playing' })).toBeVisible();
-	await expect(page.locator('.pl-embed.youtube')).toBeAttached();
+	await pane.getByRole('button', { name: 'Watch the video Lena Ofori shared, on YouTube' }).click();
+	expect(await page.evaluate(() => (window as unknown as { opened: string[] }).opened)).toEqual([
+		'https://www.youtube.com/watch?v=M7lc1UVf-VE'
+	]);
+	await expect(page.getByRole('region', { name: 'Now playing' })).toBeHidden();
+
+	// The rest of the card is still the post.
+	await pane
+		.getByRole('button', { name: /Post by Lena Ofori/ })
+		.click({ position: { x: 120, y: 70 } });
+	expect(await page.evaluate(() => (window as unknown as { opened: string[] }).opened)).toEqual([
+		'https://www.youtube.com/watch?v=M7lc1UVf-VE',
+		'https://lenaofori.com/notes/1'
+	]);
 });
