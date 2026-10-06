@@ -603,3 +603,59 @@ Still open:
   the notes sheets.
 - Whether the in-app browser should also open Feeds' "Open on site" links. Today only Discover and
   partner rings use it (a partner card's Listen too, from 2026-10-03).
+
+## Listen embeds (branch `listen-embeds`, 2026-10-06)
+
+Built, to see on a phone (debug builds 26 to 31):
+
+- Kept YouTube, SoundCloud and Bandcamp tracks play in the app's player through each platform's
+  own player. SoundCloud's runs out of sight, with its artwork and waveform shown instead.
+  Bandcamp plays with its own controls.
+- Previews in "Found on their page" play apart from the player. Keep is offered only for what can
+  be kept, and an expiring Bandcamp stream offers its lasting player instead.
+- The end of a queue offers more from the ring or a shuffle of the Library.
+
+Still open:
+
+- Spotify: its player script would not load on the phone. The spike now logs why.
+- Whether an embed keeps playing with the app in the background.
+- Deleting the embed spike, and its CSP origins, once both are answered.
+
+## The Creator Database (decided 2026-10-06)
+
+YipDen is a **Creator Database** and a **Mobile Friendly IndieWeb Surfing Tool**. The aim is one
+profile per creator, gathered from wherever they are, even where the app cannot read. It is
+website-first, not website-only, and ranked by evidence, never by votes.
+
+1. **The creator profile (built 2026-10-06; to see on a phone).** A view over what is already
+   kept, plus their own site's h-card, description, picture and `rel=me` places. It replaces the
+   "Your notes" sheet. See DECISIONS.md.
+2. **Home and aliases (built 2026-10-06; to see on a phone).** One creator, several addresses. Their home is the best address known:
+   their own domain, then a hand-made hosted site, then an open-platform profile, then a closed
+   one. A "these are the same person" merge. Existing keys stay as they are.
+3. **Places with an evidence level**, one stored list per creator. From strongest:
+   1. a two-way `rel=me`
+   2. linked from their own site
+   3. found on their page
+   4. added by you
+
+   Filled in from their site's `rel=me` links automatically. A shop or commission place type.
+4. **v2.0: the shared contributions table**, mirroring step 3, ranked by evidence and liveness.
+   Opt-out, claiming (IndieAuth), report and takedown ship with it, not after. This folds in the
+   "shared community index" and "claimed creator pages" items under v2.0.
+
+Creator types (comics, cosplay, crafts, voice-over, video) are covered by kinds of media and
+place, plus the ring's `form` deciding what a profile shows first. No separate features per type.
+Comics are the first non-audio type to prove end to end.
+
+## Your own webrings (proposed 2026-10-06; ask before building)
+
+A reader pastes a webring's address and browses it like a partner ring. It stays on their
+phone, labelled as theirs. This changes the "an explicit adapter per ring" rule above, so
+instead of accepting any JSON, one generic reader understands the three formats real rings use:
+
+1. an IndieNodes-style `ring.json` (already validated by `ring-client`)
+2. an onionring `variables.js` member list, read as text and never run
+3. a plain HTML members page, read as a list of links
+
+Every member passes the same address checks as a partner ring's.

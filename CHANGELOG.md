@@ -6,8 +6,28 @@ Every notable change to YipDen, newest first. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- A profile for every creator: who they are in their own words (from their site's h-card or
+  description) and in the ring's, where they are (their site, the places it links, and what you
+  follow), what they posted lately, their picks for the ring, what you kept from them, and your
+  layout setting. Open it from Discover's actions, a partner ring card, a person's row in You,
+  the Library arranged by creator, or a person's name in Feeds when it is filtered to them. It
+  replaces the "Your notes" sheet.
+- Follow has a People | Forums switch, each with its own heading and field.
+- Tap a creator's picture on any card in Feeds to open their profile.
+- "Same person as…" on a profile: link another address of theirs (a Bluesky or Instagram profile,
+  a shop, a second site), pasted or picked from creators YipDen already knows. The profile then
+  gathers everything under all of them, and the Library groups them as one creator. Each linked
+  address can be made their home or unlinked.
+- A creator's home is their best address: their own site first. A creator with only a platform
+  profile is a full entry, shown as having no site of their own. Linked addresses travel in the
+  backup.
+
 ### Fixed
 
+- Pressing View on a "Kept" toast no longer pulls a paused player up from below the screen and
+  pushes the tab bar up with it.
 - A ring queue restored from storage or a backup file is checked before it reaches the player.
 - The 3D card stack in Feeds and partner rings no longer judders or shakes as a card folds at the
   top, and a partner ring's scroll keeps its fling.
@@ -131,8 +151,39 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- Long names in Follow wrap instead of running out of the card.
+- Bluesky posts show their pictures (images, video stills, link previews), read from Bluesky's
+  public API beside the text-only RSS. Bluesky's own adult-content labels mark them sensitive.
+- A blog post with no declared image shows the first real picture in its body on its card.
+- YouTube cards show the channel's own picture, and every media card shows its creator's.
+- Each source has its own color: down the full edge of a text card, and on every card's source
+  chip, in Feeds too.
+- Feeds' Filter sheet shows each person's picture (or a plain person) instead of a dot.
+- SoundCloud's own player is no longer shown; the app's player has its artwork and waveform, and
+  says "via SoundCloud".
+- You's "Liked & not for me" tab is now "Liked & Not Liked".
+- Following a Neocities site now also finds Neocities' own feed of the site's updates. It's picked
+  by default when the site has no feed of its own, and offered unpicked when it does. A site on its
+  own domain is matched through its "on Neocities" badge.
+- When a queue played from the Library runs out, the player offers to keep going with a shuffle of
+  everything in your Library that plays here, falling back to the ring. A ring session that runs
+  out of members offers the Library the same way.
+- A SoundCloud track shows its own artwork and waveform, and a YouTube one its thumbnail, in the
+  player, the mini player and on the lock screen.
+
+- A kept YouTube, SoundCloud or Bandcamp track now plays in the app's player, through that
+  platform's own player shown at the top of it, instead of opening outside the app. YouTube and
+  SoundCloud follow the app's play, pause, seek and Next, and move on when they end; Bandcamp
+  plays with its own controls and waits for Next.
+- On a Bandcamp or YouTube page in the in-app browser, "Found on their page" offers the page's own
+  player, which can be kept and lasts, rather than only the stream it is playing.
 - In "Found on their page", a track can be heard before you keep it; the page's own audio pauses
   so the preview is not drowned out.
+- Hearing a found track plays on its own, apart from the player: it no longer becomes the
+  player's track, and it stops when the sheet closes.
+- "Found on their page" checks each track before offering Keep. One that cannot be kept says why
+  instead; one whose address expires (a Bandcamp stream) offers "Keep page" for the Bandcamp page
+  it is on.
 - Audio a creator's page plays from its own script player (often files on another host, like File
   Garden) is now found while it plays.
 - Feeds has a People | Forums switch at the top instead of a fifth pill: People keeps Everything,

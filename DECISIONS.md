@@ -2988,3 +2988,202 @@ on another site was not found while it played.
   first pauses the page's media (`PAUSE_SCRIPT`): in the document, in same-origin frames, and
   whatever the hook saw. It is paused rather than muted, so nothing starts again by itself; the
   reader plays it on the page again if they want it.
+
+## 2026-10-06 — A preview plays apart from the player; Keep is only offered for what can be kept
+
+Phone feedback on the hear button from the night before:
+
+- **Part of the full player showing.** Not reproduced yet, but the likely route is clear.
+  `player.preview` made the previewed track the player's current track, which mounts the full
+  player (parked below the screen) behind the in-app browser. Back onto an older player history
+  entry calls `player.expand()`, which until then did nothing with no current track. The
+  full player could then slide up behind the in-app browser while Android had the app's WebView
+  paused, so it froze part way.
+  - **The fix:** previews are their own thing (`hear.svelte.ts`): their own audio element, no
+    queue, no mini or full player, no media session. `player.preview` is gone. Only one sound at a
+    time: a preview pauses the player, and the player starting stops the preview. Closing the
+    sheet stops it.
+- **Tracks that could be heard but not kept still showed Keep.** Keep ran the capture rules only
+  when tapped, so everything looked keepable until then.
+  - **The fix:** `precheckCapture` runs the same rules up to reading the page, once per track, when
+    the sheet opens (the creator's sites looked up once for all). Until it answers, Keep says
+    Checking; a track it refuses shows why in place of Keep.
+  - **A new refusal, `temporary`:** an address made to expire is never kept. That covers a Bandcamp
+    stream (`bcbits.com/stream/…`, signed on every page load) or any address carrying a token or
+    cloud signature. It still plays for a preview. When the page it was found on is a platform's
+    (a Bandcamp track page), the sheet offers "Keep page" instead: a platform link, which lasts.
+
+## 2026-10-06 — Platform players in the app's player (Listen embeds)
+
+The embed spike proved on the phone that YouTube and SoundCloud take play, pause and seek from
+our own buttons. So a kept track on those platforms, or on Bandcamp, now plays in the player
+instead of opening outside the app.
+
+- **No new field on a queue item.** `embeds/source.ts` reads the platform from `mediaUrl` (a
+  YouTube watch link, a SoundCloud track or set page, a Bandcamp `EmbeddedPlayer` address). A
+  saved queue and every existing caller work unchanged. The player address is rebuilt from the
+  validated id, never used as given.
+- **One player, two kinds of output.** `player.source` is the platform, or null for a file on the
+  audio element. `embeds/engines.ts` wraps each platform's API behind play, pause, seek and
+  destroy, and reports playing, time, duration, ended and error, which the player turns into the
+  same state its audio element feeds. A token per load drops reports from a player for a track
+  already gone.
+- **Where the frame lives.** In a slot under the full player's header, which stays mounted while
+  the track is current, so collapsing to the mini player keeps it playing. The frame is never
+  moved in the document, because moving an iframe reloads it.
+- **Contacted only on play.** A restored queue loads no platform until play is pressed, matching
+  the rule YouTube yips already follow.
+- **Bandcamp has no API.** It plays with its own controls, our play button greys out once it is
+  loaded, and it never reports an end, so the queue waits for Next. Its ids cannot be fetched
+  either: every request without a browser gets a bot check, from the phone or a server alike. So
+  the in-app browser's scan reads the `og:video` a Bandcamp (or YouTube) page names. That is its
+  stable player address, offered in "Found on their page" and preferred over the expiring stream.
+- **Not yet:**
+  - Spotify, whose API script would not load on the phone; the spike now probes why.
+  - Speed for embeds (the button is hidden for them).
+  - Playing on in the background: an embed lives in the WebView, which Android pauses once the
+    app is backgrounded. This needs testing on the phone before deciding anything.
+
+## 2026-10-06 (later) — The parked player found; keep going from the Library; SoundCloud's own waveform
+
+- **The partial player, found.** Phone repro: Keep, then the toast's View. View scrolls the new
+  Library item to the center with `scrollIntoView`, which scrolls every ancestor that can be
+  scrolled. `overflow: hidden` boxes count, because they still scroll by script. The app shell
+  `.app` was one, and the full player waits one screen below it (translated 100%) whenever a track
+  is loaded. So when the Library could not center the item itself, the shell scrolled down onto
+  the player and carried the tab bar up with it.
+  - **The fix:** `.app` is `overflow: clip`, which clips the same but is not a scroll container,
+    with `hidden` kept as the fallback before it.
+  - **The test:** `e2e/player-morph.spec.ts` "The parked player". It failed (shell scrolled 400px)
+    before the change and passes after.
+  - The earlier "preview" report was probably this too: a preview made a track current, which is
+    what parks the player there.
+- **Keep going from the Library.** The end-of-queue prompt asked only the ring, so a Library
+  queue ended with "Nothing else in the ring". `whatNext` in the player now offers the ring first
+  for a ring session and the Library first for a Library one, each falling back to the other.
+  The Library offer is a shuffle (`creatorNotes.libraryQueue`) of every kept track that plays here,
+  from every creator, other than ones already in the queue.
+- **Platform artwork and waveforms.**
+  - **SoundCloud:** its player reports `artwork_url` and `waveform_url` (`getCurrentSound`). The
+    artwork is shown at 500px. The waveform is SoundCloud's own JSON of bar heights, open to any
+    origin, turned into our peaks and saved like a measured track's, so the Waveform component
+    draws it and seeks on it.
+  - **YouTube:** its thumbnail, known from the video id, is the artwork. A YouTube player gives no
+    access to its audio, so it has no waveform; it gets the plain bar, which still seeks.
+  - **Fetched only on play.** Both are fetched once play is pressed, never for a track sitting in
+    the queue.
+
+## 2026-10-06 (evening) — Neocities' update feed as a default find
+
+Neocities publishes a feed for every site at `neocities.org/site/<name>.rss`. Each item only
+says "<site> has been updated", with the date and a link to that change on Neocities. It says
+that a hand-made site changed, not what. For a site with no feed of its own, that is the only
+signal there is.
+
+- **Found by discovery, so it is a default.** For an address on `<name>.neocities.org`, and
+  for a site on its own domain that links its Neocities profile (the "on Neocities" badge,
+  through `resolveProfile`).
+- **Picked only when the site has no feed of its own.** Otherwise it mostly repeats that feed, so
+  it is offered unpicked (`DiscoveredFeed.optional`). The ring follow, which takes everything
+  found, skips optional feeds.
+- **Never proof of whose site is whose.** It is kept `verified: false`, and the capture rules
+  ignore any feed on `neocities.org` even when it is verified through a two-way badge link. A
+  verified blog feed's host counts as the creator's own site, and `neocities.org` would then
+  make every Neocities site theirs.
+
+## 2026-10-06 (night) — Pictures on social cards, source colors, a quieter SoundCloud
+
+- **Bluesky's RSS has no pictures at all.** It sends text only, and a quote or link post as
+  "[contains quote post or other embedded content]".
+  - **The fix:** `addBlueskyPictures`, run after a Bluesky RSS is parsed, reads the same author's
+    recent posts from the public AppView (`app.bsky.feed.getAuthorFeed`, no account). It attaches
+    each post's images, video still or link thumbnail to the RSS item with the same `at://` guid.
+    Bluesky's own labels (porn, sexual, nudity, graphic-media, gore) mark the item sensitive.
+  - **The RSS stays the feed:** its ids, follow and dates are unchanged, and a failed AppView read
+    leaves it exactly as parsed. A refetch overwrites stored yips, so posts already cached gain
+    their pictures on the next refresh that is not a 304.
+- **Blog posts with a picture only in their body.** A post declaring no image now uses the first
+  `<img>` of its sanitized body. Anything under 48px on a side (tracking pixels, emoji) is
+  skipped.
+- **A YouTube channel's own picture.** Its feed carries none, so the channel page's `og:image` is
+  read once and kept on the feed (`Feed.iconUrl`). An empty value means the page had none, so it
+  is not asked again; an unreachable page is asked again next refresh. Cards use the feed's
+  picture before the person's, and media cards now show one at all.
+- **Source colors (`--src-*` in tokens.css),** the way Tapestry tells sources apart. One set of
+  mid tones that reads on every skin in light and dark. A text card's leading edge is drawn by a
+  pseudo-element, because the glass and forest skins set their own `box-shadow` on text cards.
+- **SoundCloud's player is out of sight.** It is kept rendered, tiny and transparent, because a
+  hidden frame can stop playing, and credited as "via SoundCloud".
+- **"Liked & Not Liked"** over "My Likes": the tab also holds Not for me, the only place to bring
+  a hidden creator back, and "My Likes" would hide that.
+
+## 2026-10-06 (late) — The creator profile, step 1 of the Creator Database
+
+The audit before building found what YipDen knows about one creator in six places: the follow
+and its feeds, Liked and Not Liked, the Library, layout overrides, explored marks, and the ring's
+entry. All of them can be joined by `verdictKey` of the creator's site. No single screen showed
+them together. The old "Your notes" sheet held only layout and kept items, and You's expanded
+row held only a followed person's.
+
+- **A view, not a new record.** `/creator/?site=…` assembles the profile from what is stored. Its
+  one addition is their own site, read once a session through the polite `FeedHttp` (robots
+  honoured). From the site it takes the h-card note, `meta description`, `u-photo` or
+  `og:image`, and `rel=me` places; `scanPage` now reports those. Building the view first shows
+  what the Creator Database's local record needs before any schema is committed to.
+- **Every piece says whose words it is:**
+  - "In their own words, from their site" for an h-card note.
+  - "From their site" for a description.
+  - "Why they are in IndieNodes" for the ring's `why`.
+  - "From <ring>" for a partner ring's blurb.
+  - "Their site links it", "You follow it" or "Listed by the ring" on each place.
+
+  A curator's note never reads as the creator's own.
+- **Hints from where it was opened.** Discover and partner rings know things the store does not
+  (a partner blurb, the ring's name). They pass these through `creatorProfiles.open`, remembered
+  for the session. A profile opened by address alone still works.
+- **Liked and Not Liked only for ring creators**, since that is what those lists filter. Follow
+  follows a ring entry in place; anyone else goes to Follow with their address filled in.
+- **It replaces the "Your notes" sheet** (deleted), which was a subset of it.
+- **The address carries its trailing slash** (`/creator/?site=`). The app's `trailingSlash:
+  'always'` otherwise redirects after the page has mounted, and that remount wiped a half-typed
+  track link.
+- **Follow: People | Forums.** "Follow a person, not a platform" over copy that also explained
+  forums said two things at once. Each now has its own heading, copy, field and button, and
+  `?mode=forums` opens Follow on Forums from the forum empty states. A forum link pasted under
+  People still works.
+- **The source edge is a border.** The positioned stripe on text cards sometimes stopped at the
+  top of the card (phone feedback). The card is a `<button>` whose drawing Feeds defers with
+  `content-visibility`, so the stripe is now `border-left`, which always runs the full height.
+  Feeds' own solid chip rule had been hiding the source tint on media cards there; it now mixes
+  the source color in.
+
+## 2026-10-06 (later still) — Home and aliases (Creator Database, step 2); profiles from Feeds
+
+- **A record only when needed.** `CreatorRecord` (store collection `creators`, SQL schema 4,
+  IndexedDB version 4) is written only when the reader links two addresses or chooses a home. A
+  creator with one address has no record and is just their `verdictKey`, as before.
+- **Nothing moves.** The record's `id` is the key the creator was first filed under, and linked
+  addresses keep their own keys (`aliases`). A profile, and the Library arranged by creator,
+  gather what is filed under every key. That keeps unlinking exact, and means no migration of
+  Liked, the Library or layout.
+- **Home, by evidence of ownership.** `homeKindOf` ranks an address:
+  1. own site
+  2. hand-made hosted site (Neocities, GitHub Pages, Carrd and the like; the host's own front
+     page does not count)
+  3. open profile (Bluesky, Mastodon, PeerTube)
+  4. closed profile (everything else known)
+
+  The home is the strongest address, unless the reader chose one. A chosen home survives later
+  merges, and losing it to an unlink falls back to the strongest. A platform-only creator is a
+  full entry, labelled "No site of their own". This is the website-first, not website-only rule
+  of the Creator Database.
+- **Merging brings the other side along.** Linking a creator who was already linked to others
+  joins every address into one record and removes the other record. Linking an address already
+  theirs, or one that is not safe https, does nothing.
+- **Backups carry the records.** Restoring skips any record that touches an address already
+  linked on this phone, so a file never quietly joins two people the reader keeps apart.
+- **Profiles from Feeds.** A card is one button, and a button cannot hold another, so the
+  creator's picture gets a sibling button laid over it (44px target), opening their profile. The
+  rest of the card still opens the post. Media cards without a picture show a plain person there,
+  so the way in is always in the same place.
+
