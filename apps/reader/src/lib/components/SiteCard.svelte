@@ -2,6 +2,8 @@
 	import { hostOf } from '$lib/hosts.js';
 	import { explored } from '$lib/explored.svelte.js';
 	import { shelf } from '$lib/shelf.svelte.js';
+	import { forums } from '$lib/forums.svelte.js';
+	import { goto } from '$app/navigation';
 	import { remoteThumb, saveSite, siteLayout, visitSite } from '$lib/siteActions.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import { verdicts } from '$lib/verdicts.svelte.js';
@@ -37,6 +39,20 @@
 	$effect(() => {
 		if (!playing) clipReady = false;
 	});
+
+	/**
+	 * A forum in the forum index: followed the way any forum is, through Follow's forum lookup
+	 * (whole forum or chosen categories), when YipDen can read it. Only Discourse, today.
+	 */
+	let isForum = $derived(typeof entry.software === 'string');
+	let followable = $derived(entry.software === 'discourse');
+	let forumFollowed = $derived(
+		followable && forums.follows.some((follow) => follow.forumUrl === entry.url.replace(/\/+$/, ''))
+	);
+
+	function followForum() {
+		void goto(`/follow?mode=forums&url=${encodeURIComponent(entry.url)}`);
+	}
 
 	const visit = () => visitSite(entry);
 	const save = () => saveSite(entry);
@@ -121,6 +137,9 @@
 		<h3>{entry.title}</h3>
 		{#if entry.blurb}<p class="blurb">{entry.blurb}</p>{/if}
 		<p class="host">{hostOf(entry.url)}</p>
+		{#if isForum && !followable && entry.follow_note}
+			<p class="follow-note">{entry.follow_note}</p>
+		{/if}
 		{#if entry.tags.length}
 			<p class="tags">
 				{#each entry.tags.slice(0, 4) as tag (tag)}
@@ -160,6 +179,20 @@
 						<path d="M6 4h12v16l-6-4-6 4z" />
 					</svg>
 				</button>
+			{/if}
+			{#if followable}
+				{#if forumFollowed}
+					<a class="secondary" href="/you/forums" aria-label={`Following ${entry.title}: manage`}
+						>Following</a
+					>
+				{:else}
+					<button class="secondary" onclick={followForum} aria-label={`Follow ${entry.title}`}>
+						<svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"
+							><path d="M12 5v14M5 12h14" /></svg
+						>
+						Follow
+					</button>
+				{/if}
 			{/if}
 			<button
 				class="secondary icon-only"
@@ -338,6 +371,14 @@
 		letter-spacing: 0.05em;
 	}
 
+	/* Why a forum has no Follow: said plainly, not left for the reader to wonder. */
+	.follow-note {
+		margin: 0;
+		color: rgba(255, 255, 255, 0.75);
+		font-size: 13px;
+		line-height: 1.4;
+	}
+
 	.tags {
 		display: flex;
 		flex-wrap: wrap;
@@ -394,6 +435,10 @@
 		flex-wrap: wrap;
 		gap: 8px;
 		margin-top: 4px;
+	}
+
+	a.secondary {
+		text-decoration: none;
 	}
 
 	.primary,

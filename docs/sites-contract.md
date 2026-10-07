@@ -58,6 +58,20 @@ real feed), `feeds[]`, `layout` (`mobile-friendly` or `desktop-first`, absent me
 
 Known categories: `shrines`, `fandom`, `personal`, `blogs`, `webrings`, `resources`.
 
+## The forum index
+
+A second document in the same shape lists **forums** (Discover's Forums side): indie web
+communities, gathered by hand. Seed: `apps/reader/src/lib/sites/forums-seed.json`, media in
+`apps/reader/static/forums/`. Two fields are its own:
+
+- `software`: what the forum runs (`discourse`, `smf`, `proboards`, …). It decides whether YipDen
+  can follow it. Only `discourse` can be followed today, through the app's existing forum follow.
+- `follow_note`: for a forum YipDen cannot follow, why, in a reader's words ("its robots.txt asks
+  apps not to read its feed"). Shown where Follow would be.
+
+The publisher works these out when it checks a forum (software, a readable feed or API, robots.txt,
+a bot wall) and should re-check them, since a forum's robots.txt can change.
+
 There is deliberately no owner field. Who made a site is worked out from the site itself, by the
 same evidence ladder the Creator Database uses; a submitter's claim may be added later as weak
 evidence.

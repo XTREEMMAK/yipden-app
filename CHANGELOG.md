@@ -15,6 +15,8 @@ Every notable change to YipDen, newest first. The format follows
   motion. Search and Filter sit in the bar, so the cards get the screen. Visit, Save, Like and
   Not for me work as they do for creators. "What to discover" splits into Webrings and Surf, and
   Surf's side goes straight to a category. Tapping a site's picture shows its whole page preview.
+  A third side, Forums, lists indie web forums; one that YipDen can read (Discourse) can be
+  followed from its card, and the others say why they can only be visited.
 
 ### Changed
 

@@ -404,14 +404,14 @@ async function chooseShow(page: Page, label: string) {
 }
 
 test.describe('partner rings in Discover', () => {
-	test('with no ring registered, the switcher offers IndieNodes, and Surf beside it', async ({
+	test('with no ring registered, the switcher offers IndieNodes, with Surf and Forums beside it', async ({
 		page
 	}) => {
 		await withRing(page);
 		await page.goto('/');
 		await page.getByRole('button', { name: /^What to discover/ }).click();
 		const kind = page.getByRole('radiogroup', { name: 'What to discover' });
-		await expect(kind.getByRole('radio')).toHaveText(['Webrings', 'Surf']);
+		await expect(kind.getByRole('radio')).toHaveText(['Webrings', 'Surf', 'Forums']);
 		await expect(page.getByRole('radiogroup', { name: 'Webrings' }).getByRole('radio')).toHaveText([
 			/IndieNodes Webring/
 		]);

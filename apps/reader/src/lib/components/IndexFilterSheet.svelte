@@ -1,15 +1,16 @@
 <script lang="ts">
 	import Sheet from './Sheet.svelte';
-	import { categoryLabel, sites, tagLabel } from '$lib/sites.svelte.js';
+	import { categoryLabel, tagLabel, type IndexState } from '$lib/sites.svelte.js';
 	import type { ExploredFilter } from '$lib/explored.svelte.js';
 
 	/**
-	 * Surf's Filter sheet: category, tag and what the reader has explored. Category is also the
+	 * An index's Filter sheet (Surf's, or the forums'): category, tag and what the reader has explored. Category is also the
 	 * row at the top of the list, which scrolls away with it; here it stays reachable from anywhere
 	 * in the list. Each choice applies as it is made, as in a partner ring's sheet.
 	 */
 
 	interface Props {
+		index: IndexState;
 		/** Tags within the chosen category, most used first. */
 		tags: Array<{ tag: string; count: number }>;
 		counts: { all: number; explored: number; unexplored: number };
@@ -17,7 +18,7 @@
 		onclose: () => void;
 	}
 
-	let { tags, counts, oncategory, onclose }: Props = $props();
+	let { index, tags, counts, oncategory, onclose }: Props = $props();
 
 	const SHOW: Array<{ key: ExploredFilter; label: string }> = [
 		{ key: 'all', label: 'Everything' },
@@ -26,33 +27,41 @@
 	];
 </script>
 
-<Sheet title="Filter sites" {onclose} historyKey="surfFilter" maxHeight="75vh" class="filter-sheet">
+<Sheet
+	title={`Filter ${index.noun}`}
+	{onclose}
+	historyKey="indexFilter"
+	maxHeight="75vh"
+	class="filter-sheet"
+>
 	<div class="sheet-list">
-		<h3 class="sheet-sec" id="surf-category">Category</h3>
-		<div role="radiogroup" aria-labelledby="surf-category">
-			<button
-				class="sheet-row"
-				role="radio"
-				aria-checked={sites.category === null}
-				onclick={() => oncategory(null)}
-			>
-				<span class="sheet-dot" aria-hidden="true"></span>
-				<span class="sheet-name">All sites</span>
-				<small class="sheet-hint">{sites.all.length}</small>
-			</button>
-			{#each sites.categories as entry (entry.key)}
+		{#if index.categories.length > 1}
+			<h3 class="sheet-sec" id="surf-category">Category</h3>
+			<div role="radiogroup" aria-labelledby="surf-category">
 				<button
 					class="sheet-row"
 					role="radio"
-					aria-checked={sites.category === entry.key}
-					onclick={() => oncategory(entry.key)}
+					aria-checked={index.category === null}
+					onclick={() => oncategory(null)}
 				>
 					<span class="sheet-dot" aria-hidden="true"></span>
-					<span class="sheet-name">{categoryLabel(entry.key)}</span>
-					<small class="sheet-hint">{entry.count}</small>
+					<span class="sheet-name">All {index.noun}</span>
+					<small class="sheet-hint">{index.all.length}</small>
 				</button>
-			{/each}
-		</div>
+				{#each index.categories as entry (entry.key)}
+					<button
+						class="sheet-row"
+						role="radio"
+						aria-checked={index.category === entry.key}
+						onclick={() => oncategory(entry.key)}
+					>
+						<span class="sheet-dot" aria-hidden="true"></span>
+						<span class="sheet-name">{categoryLabel(entry.key)}</span>
+						<small class="sheet-hint">{entry.count}</small>
+					</button>
+				{/each}
+			</div>
+		{/if}
 
 		<h3 class="sheet-sec" id="surf-show">Show</h3>
 		<div role="radiogroup" aria-labelledby="surf-show">
@@ -60,8 +69,8 @@
 				<button
 					class="sheet-row"
 					role="radio"
-					aria-checked={sites.show === entry.key}
-					onclick={() => (sites.show = entry.key)}
+					aria-checked={index.show === entry.key}
+					onclick={() => (index.show = entry.key)}
 				>
 					<span class="sheet-dot" aria-hidden="true"></span>
 					<span class="sheet-name">{entry.label}</span>
@@ -76,8 +85,8 @@
 				<button
 					class="sheet-row"
 					role="radio"
-					aria-checked={sites.tag === null}
-					onclick={() => (sites.tag = null)}
+					aria-checked={index.tag === null}
+					onclick={() => (index.tag = null)}
 				>
 					<span class="sheet-dot" aria-hidden="true"></span>
 					<span class="sheet-name">All tags</span>
@@ -86,8 +95,8 @@
 					<button
 						class="sheet-row"
 						role="radio"
-						aria-checked={sites.tag === entry.tag}
-						onclick={() => (sites.tag = entry.tag)}
+						aria-checked={index.tag === entry.tag}
+						onclick={() => (index.tag = entry.tag)}
 					>
 						<span class="sheet-dot" aria-hidden="true"></span>
 						<span class="sheet-name">{tagLabel(entry.tag)}</span>

@@ -8,41 +8,49 @@
 	import { explored, showOf } from '$lib/explored.svelte.js';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import { verdicts } from '$lib/verdicts.svelte.js';
-	import { categoryLabel, sites, tagLabel } from '$lib/sites.svelte.js';
-	import SurfFilterSheet from './SurfFilterSheet.svelte';
+	import { forums } from '$lib/forums.svelte.js';
+	import { categoryLabel, tagLabel, type IndexState } from '$lib/sites.svelte.js';
+	import IndexFilterSheet from './IndexFilterSheet.svelte';
 	import SiteCard from './SiteCard.svelte';
 	import SitePreview from './SitePreview.svelte';
 	import type { SiteEntry } from '$lib/sites/types.js';
 
 	/**
-	 * Discover's Surf side: the sites index, by category, as cards with a moving preview.
+	 * Discover's places: an index (Surf's sites, or the forums) by category, as cards with a moving
+	 * preview.
 	 *
-	 * Sites are places, not people (docs/sites-contract.md): nothing here touches the ring, its
-	 * rotation or anyone's follows.
+	 * Places, not people (docs/sites-contract.md): nothing here touches the ring, its rotation or
+	 * anyone's follows of creators.
 	 *
 	 * It takes no room of its own above the cards. Search and Filter are round buttons in Discover's
-	 * own bar (state in `sites`), and the category row is the first thing in the list, scrolling away
+	 * own bar (state on the index), and the category row is the first thing in the list, scrolling away
 	 * with it; the Filter sheet offers category too, from anywhere in the list. Below that it is a
 	 * partner ring's panel: the same `cardStack`, explored marks and remembered place.
 	 *
 	 * Order is newest added first, then by id: the index's own chronology, never a ranking.
 	 */
 
-	const VIEW_ID = 'surf';
+	interface Props {
+		index: IndexState;
+		/** The region's name, for screen readers: "Surf: sites", "Forums". */
+		label: string;
+	}
+
+	let { index, label }: Props = $props();
 
 	/** Sites the reader marked not for me are not shown again. */
 	let listed = $derived(
-		sites.all
+		index.all
 			.filter((entry) => !verdicts.isHidden(entry.url))
 			.slice()
 			.sort((a, b) => (b.added_at ?? '').localeCompare(a.added_at ?? '') || (a.id < b.id ? -1 : 1))
 	);
-	let hiddenCount = $derived(sites.all.length - listed.length);
+	let hiddenCount = $derived(index.all.length - listed.length);
 
 	let scroller = $state<HTMLDivElement | undefined>(undefined);
 
 	let inCategory = $derived(
-		sites.category ? listed.filter((entry) => entry.category === sites.category) : listed
+		index.category ? listed.filter((entry) => entry.category === index.category) : listed
 	);
 
 	/** Tags within the chosen category, most used first. */
@@ -57,11 +65,11 @@
 	});
 
 	let shown = $derived.by(() => {
-		const needle = sites.query.trim().toLowerCase();
+		const needle = index.query.trim().toLowerCase();
 		return inCategory.filter(
 			(entry) =>
-				(!sites.tag || entry.tags.includes(sites.tag)) &&
-				(sites.show === 'all' || explored.has(entry.url) === (sites.show === 'explored')) &&
+				(!index.tag || entry.tags.includes(index.tag)) &&
+				(index.show === 'all' || explored.has(entry.url) === (index.show === 'explored')) &&
 				(!needle ||
 					[entry.title, entry.blurb, hostOf(entry.url), ...entry.tags.map(tagLabel)].some((field) =>
 						field?.toLowerCase().includes(needle)
@@ -72,8 +80,8 @@
 	let exploredCount = $derived(inCategory.filter((entry) => explored.has(entry.url)).length);
 
 	function chooseCategory(next: string | null) {
-		sites.category = next;
-		const tag = sites.tag;
+		index.category = next;
+		const tag = index.tag;
 		// A tag from another category would leave the list empty for no visible reason.
 		if (
 			tag &&
@@ -81,7 +89,7 @@
 				entry.tags.includes(tag)
 			)
 		)
-			sites.tag = null;
+			index.tag = null;
 	}
 
 	/*
@@ -91,20 +99,20 @@
 	let restored = false;
 	$effect(() => {
 		const view = {
-			query: sites.query,
-			category: sites.category,
-			genre: sites.tag,
-			show: sites.show
+			query: index.query,
+			category: index.category,
+			genre: index.tag,
+			show: index.show
 		};
 		if (!restored) return;
 		untrack(() => {
-			explored.setView(VIEW_ID, { ...view, scrollTop: 0 });
+			explored.setView(index.viewId, { ...view, scrollTop: 0 });
 			if (scroller) scroller.scrollTop = 0;
 		});
 	});
 
 	function onScroll() {
-		if (restored && scroller) explored.setView(VIEW_ID, { scrollTop: scroller.scrollTop });
+		if (restored && scroller) explored.setView(index.viewId, { scrollTop: scroller.scrollTop });
 		schedulePick();
 	}
 
@@ -173,15 +181,17 @@
 	});
 
 	onMount(() => {
-		void sites.load();
+		void index.load();
 		void creatorNotes.load();
+		// A forum's card says whether it is already followed.
+		void forums.load();
 		void explored.load().then(async () => {
-			const view = explored.view(VIEW_ID);
-			sites.query = view.query;
-			sites.category = view.category ?? null;
-			sites.tag = view.genre;
-			sites.show = showOf(view);
-			if (sites.query) sites.searchOpen = true;
+			const view = explored.view(index.viewId);
+			index.query = view.query;
+			index.category = view.category ?? null;
+			index.tag = view.genre;
+			index.show = showOf(view);
+			if (index.query) index.searchOpen = true;
 			await tick();
 			requestAnimationFrame(() => {
 				if (scroller) scroller.scrollTop = view.scrollTop;
@@ -200,7 +210,7 @@
 			clearTimeout(pickTimer);
 			document.removeEventListener('visibilitychange', onHide);
 			explored.flush();
-			sites.filtersOpen = false;
+			index.filtersOpen = false;
 		};
 	});
 </script>
@@ -208,7 +218,7 @@
 <section
 	class="surf"
 	data-noswipe
-	aria-label="Surf: sites"
+	aria-label={label}
 	transition:fade={{ duration: prefersReducedMotion() ? 0 : duration.s }}
 >
 	<div
@@ -219,23 +229,25 @@
 		onscroll={onScroll}
 	>
 		<!-- Scrolls away with the cards: the Filter sheet keeps category in reach below it. -->
-		<div class="categories" role="radiogroup" aria-label="Category">
-			<button
-				class="cat"
-				role="radio"
-				aria-checked={sites.category === null}
-				onclick={() => chooseCategory(null)}>All</button
-			>
-			{#each sites.categories as entry (entry.key)}
+		{#if index.categories.length > 1}
+			<div class="categories" role="radiogroup" aria-label="Category">
 				<button
 					class="cat"
 					role="radio"
-					aria-checked={sites.category === entry.key}
-					onclick={() => chooseCategory(entry.key)}
-					>{categoryLabel(entry.key)}<small>{entry.count}</small></button
+					aria-checked={index.category === null}
+					onclick={() => chooseCategory(null)}>All</button
 				>
-			{/each}
-		</div>
+				{#each index.categories as entry (entry.key)}
+					<button
+						class="cat"
+						role="radio"
+						aria-checked={index.category === entry.key}
+						onclick={() => chooseCategory(entry.key)}
+						>{categoryLabel(entry.key)}<small>{entry.count}</small></button
+					>
+				{/each}
+			</div>
+		{/if}
 		<div class="stack-list">
 			<ul class="cards">
 				{#each shown as entry (entry.id)}
@@ -253,15 +265,15 @@
 					</li>
 				{/each}
 			</ul>
-			{#if sites.status === 'ready' && !shown.length && listed.length}
+			{#if index.status === 'ready' && !shown.length && listed.length}
 				<p class="hidden-note">
-					No sites match{sites.query.trim() ? ` “${sites.query.trim()}”` : ''}{sites.category
-						? ` in ${categoryLabel(sites.category)}`
-						: ''}{sites.tag ? ` tagged ${tagLabel(sites.tag)}` : ''}.
+					No {index.noun} match{index.query.trim() ? ` “${index.query.trim()}”` : ''}{index.category
+						? ` in ${categoryLabel(index.category)}`
+						: ''}{index.tag ? ` tagged ${tagLabel(index.tag)}` : ''}.
 				</p>
 			{/if}
-			{#if sites.status === 'ready' && !sites.all.length}
-				<p class="hidden-note">No sites to show yet.</p>
+			{#if index.status === 'ready' && !index.all.length}
+				<p class="hidden-note">No {index.noun} to show yet.</p>
 			{/if}
 			{#if hiddenCount}
 				<p class="hidden-note">
@@ -269,7 +281,7 @@
 					You.
 				</p>
 			{/if}
-			<p class="hidden-note">Sites, not people: places on the indie web. Nothing here is ranked.</p>
+			<p class="hidden-note">Places, not people. Nothing here is ranked.</p>
 			<div class="stack-tail" aria-hidden="true"></div>
 		</div>
 	</div>
@@ -285,8 +297,9 @@
 	/>
 {/if}
 
-{#if sites.filtersOpen}
-	<SurfFilterSheet
+{#if index.filtersOpen}
+	<IndexFilterSheet
+		{index}
 		{tags}
 		counts={{
 			all: inCategory.length,
@@ -294,7 +307,7 @@
 			unexplored: inCategory.length - exploredCount
 		}}
 		oncategory={chooseCategory}
-		onclose={() => (sites.filtersOpen = false)}
+		onclose={() => (index.filtersOpen = false)}
 	/>
 {/if}
 

@@ -29,8 +29,8 @@
 	import { verdicts } from '$lib/verdicts.svelte.js';
 	import { celebrateLike, tick } from '$lib/sound.js';
 	import PartnerRingPanel from '$components/PartnerRingPanel.svelte';
-	import SurfPanel from '$components/SurfPanel.svelte';
-	import { categoryLabel, sites } from '$lib/sites.svelte.js';
+	import IndexPanel from '$components/IndexPanel.svelte';
+	import { categoryLabel, discover, forumIndex, sites } from '$lib/sites.svelte.js';
 	import Segmented from '$components/Segmented.svelte';
 
 	/**
@@ -46,7 +46,9 @@
 	 * Discover's other side: the sites index (sites-surf experiment). People is the ring's hero,
 	 * untouched; Surf covers it the way a partner ring does, and pauses it the same way.
 	 */
-	let surfing = $derived(sites.view === 'surf');
+	/** The place index on screen (Surf's sites, or the forums), or null for People. */
+	let place = $derived(discover.index);
+	let surfing = $derived(place !== null);
 	/** Anything covering the hero: a partner ring, or Surf. */
 	let heroCovered = $derived(partners.selected !== null || surfing);
 	let fetchingCurrent = $derived(
@@ -194,28 +196,31 @@
 
 	function chooseRing(id: string | null) {
 		navDirection = 0;
-		sites.setView('people');
+		discover.setView('people');
 		partners.select(id);
 		closeRingSheet();
 	}
 
-	/** Surf, on one category or all of them: the sheet's Surf side lists them. */
-	function chooseSurf(category: string | null) {
+	/** Surf or Forums, on one category or all of them: the sheet's place sides list them. */
+	function choosePlace(kind: 'surf' | 'forums', category: string | null) {
+		const index = kind === 'surf' ? sites : forumIndex;
 		partners.select(null);
-		sites.category = category;
-		sites.tag = null;
-		// Surf restores its saved view as it opens: the choice has to be that view, or it is undone.
-		explored.setView('surf', { category, genre: null, scrollTop: 0 });
-		sites.setView('surf');
+		index.category = category;
+		index.tag = null;
+		// The panel restores its saved view as it opens: the choice has to be that view, or it is undone.
+		explored.setView(index.viewId, { category, genre: null, scrollTop: 0 });
+		discover.setView(kind);
 		closeRingSheet();
 	}
 
 	/** Which side of the sheet is showing: it opens on whichever side the reader is on. */
-	let sheetKind = $state<'webrings' | 'surf'>('webrings');
+	let sheetKind = $state<'webrings' | 'surf' | 'forums'>('webrings');
+	let sheetIndex = $derived(sheetKind === 'forums' ? forumIndex : sites);
 	$effect(() => {
 		if (!ringSheetOpen) return;
-		sheetKind = untrack(() => (surfing ? 'surf' : 'webrings'));
+		sheetKind = untrack(() => (discover.view === 'people' ? 'webrings' : discover.view));
 		void sites.load();
+		void forumIndex.load();
 	});
 
 	/** Surf's search field takes focus as it opens, so a tap on Search can be typed into at once. */
@@ -272,9 +277,7 @@
 		void ring.load();
 		void partners.load();
 		void shelf.load();
-		void sites.loadView().then(() => {
-			if (sites.view === 'surf') void sites.load();
-		});
+		void discover.loadView();
 	});
 
 	// Pull to refresh: re-check the ring on screen, IndieNodes and every registered partner ring
@@ -658,23 +661,24 @@
 	{/if}
 
 	<header class="top" class:over-surf={surfing} inert={partners.selected !== null}>
-		{#if surfing && sites.searchOpen}
+		{#if place && place.searchOpen}
 			<!-- Surf's search takes the whole bar while it is open, and gives it back on close. -->
 			<div class="surf-search">
 				<input
 					type="search"
-					placeholder={`Search ${sites.all.length} sites`}
-					aria-label="Search sites"
+					placeholder={`Search ${place.all.length} ${place.noun}`}
+					aria-label={`Search ${place.noun}`}
 					autocomplete="off"
 					spellcheck="false"
-					bind:value={sites.query}
+					bind:value={place.query}
 					use:focusOnMount
 				/>
 				<button
 					class="round"
 					onclick={() => {
-						sites.query = '';
-						sites.searchOpen = false;
+						if (!place) return;
+						place.query = '';
+						place.searchOpen = false;
 					}}
 					aria-label="Close search"
 				>
@@ -704,7 +708,7 @@
 					onclick={() => (ringSheetOpen = true)}
 					aria-haspopup="dialog"
 					aria-expanded={ringSheetOpen}
-					aria-label={`What to discover: ${surfing ? 'Surf' : ringLabel}`}
+					aria-label={`What to discover: ${discover.view === 'surf' ? 'Surf' : discover.view === 'forums' ? 'Forums' : ringLabel}`}
 				>
 					<svg viewBox="0 0 24 24" aria-hidden="true">
 						<circle cx="9.5" cy="12" r="6" />
@@ -714,13 +718,15 @@
 						<span class="filter-dot" aria-hidden="true"></span>
 					{/if}
 				</button>
-				{#if surfing}
+				{#if place}
 					<button
 						class="round"
-						class:is-active={sites.query.trim() !== ''}
+						class:is-active={place.query.trim() !== ''}
 						data-noswipe
-						onclick={() => (sites.searchOpen = true)}
-						aria-label="Search sites"
+						onclick={() => {
+							if (place) place.searchOpen = true;
+						}}
+						aria-label={`Search ${place.noun}`}
 					>
 						<svg viewBox="0 0 24 24" aria-hidden="true">
 							<circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4.4-4.4" />
@@ -728,17 +734,19 @@
 					</button>
 					<button
 						class="round"
-						class:is-active={sites.filtering}
+						class:is-active={place.filtering}
 						data-noswipe
-						onclick={() => (sites.filtersOpen = true)}
+						onclick={() => {
+							if (place) place.filtersOpen = true;
+						}}
 						aria-haspopup="dialog"
-						aria-expanded={sites.filtersOpen}
-						aria-label={sites.filtering ? 'Filter sites: on' : 'Filter sites'}
+						aria-expanded={place.filtersOpen}
+						aria-label={place.filtering ? `Filter ${place.noun}: on` : `Filter ${place.noun}`}
 					>
 						<svg viewBox="0 0 24 24" aria-hidden="true">
 							<path d="M4 5h16M7 12h10M10 19h4" />
 						</svg>
-						{#if sites.filtering}
+						{#if place.filtering}
 							<span class="filter-dot" aria-hidden="true"></span>
 						{/if}
 					</button>
@@ -926,8 +934,10 @@
 	-->
 	<div class="bottom" inert={heroCovered}></div>
 
-	{#if surfing && !partners.selected}
-		<SurfPanel />
+	{#if place && !partners.selected}
+		{#key place}
+			<IndexPanel index={place} label={place === sites ? 'Surf: sites' : 'Forums'} />
+		{/key}
 	{/if}
 
 	{#if partners.selected}
@@ -1167,15 +1177,17 @@
 			</button>
 		</div>
 		<!--
-			Two kinds of thing to discover, said plainly up front: webrings (people) and Surf (sites).
-			A segment rather than one long list, so Surf stays one tap away however many rings join.
+			Three kinds of thing to discover, said plainly up front: webrings (people), Surf (sites)
+			and forums. A segment rather than one long list, so each stays one tap away however many
+			rings join.
 		-->
 		<div class="sheet-switch">
 			<Segmented
 				label="What to discover"
 				options={[
 					{ value: 'webrings', label: 'Webrings' },
-					{ value: 'surf', label: 'Surf' }
+					{ value: 'surf', label: 'Surf' },
+					{ value: 'forums', label: 'Forums' }
 				]}
 				value={sheetKind}
 				onchange={(next) => (sheetKind = next)}
@@ -1214,31 +1226,39 @@
 			</div>
 		{:else}
 			<p class="sheet-about">
-				Indie web sites: shrines, fan pages, personal sites. Places, not people.
+				{sheetKind === 'forums'
+					? 'Indie web forums, gathered by hand. Places, not people.'
+					: 'Indie web sites: shrines, fan pages, personal sites. Places, not people.'}
 			</p>
-			<div class="sheet-list" role="radiogroup" aria-label="Surf">
+			<div
+				class="sheet-list"
+				role="radiogroup"
+				aria-label={sheetKind === 'forums' ? 'Forums' : 'Surf'}
+			>
 				<button
 					class="sheet-row"
 					role="radio"
-					aria-checked={surfing && sites.category === null}
-					onclick={() => chooseSurf(null)}
+					aria-checked={place === sheetIndex && sheetIndex.category === null}
+					onclick={() => choosePlace(sheetKind === 'forums' ? 'forums' : 'surf', null)}
 				>
 					<span class="sheet-dot" aria-hidden="true"></span>
-					All sites
-					<small class="sheet-hint">{sites.all.length}</small>
+					All {sheetIndex.noun}
+					<small class="sheet-hint">{sheetIndex.all.length}</small>
 				</button>
-				{#each sites.categories as entry (entry.key)}
-					<button
-						class="sheet-row"
-						role="radio"
-						aria-checked={surfing && sites.category === entry.key}
-						onclick={() => chooseSurf(entry.key)}
-					>
-						<span class="sheet-dot" aria-hidden="true"></span>
-						{categoryLabel(entry.key)}
-						<small class="sheet-hint">{entry.count}</small>
-					</button>
-				{/each}
+				{#if sheetIndex.categories.length > 1}
+					{#each sheetIndex.categories as entry (entry.key)}
+						<button
+							class="sheet-row"
+							role="radio"
+							aria-checked={place === sheetIndex && sheetIndex.category === entry.key}
+							onclick={() => choosePlace(sheetKind === 'forums' ? 'forums' : 'surf', entry.key)}
+						>
+							<span class="sheet-dot" aria-hidden="true"></span>
+							{categoryLabel(entry.key)}
+							<small class="sheet-hint">{entry.count}</small>
+						</button>
+					{/each}
+				{/if}
 			</div>
 		{/if}
 	</div>

@@ -1,5 +1,6 @@
 /**
- * Posters and scroll clips for the bundled sites seed (`src/lib/sites/seed.json`).
+ * Posters and scroll clips for a bundled index seed: the sites (`src/lib/sites/seed.json`, media
+ * in `static/sites/`) or, with `--index forums`, the forums (`forums-seed.json`, `static/forums/`).
  *
  * **Not part of the app or its build.** A developer runs it by hand, rarely, so that phones never
  * do: one capture per site here instead of every reader's phone rendering every site. The real
@@ -15,7 +16,7 @@
  * Polite: robots.txt is read first and a disallowed site is skipped, one site at a time, with an
  * honest user agent.
  *
- *   node scripts/capture-site-previews.mjs [--only id,id] [--posters-only]
+ *   node scripts/capture-site-previews.mjs [--index sites|forums] [--only id,id] [--posters-only]
  */
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
@@ -24,11 +25,17 @@ import { join } from 'node:path';
 import { chromium, devices } from '@playwright/test';
 
 const root = new URL('..', import.meta.url).pathname;
-const out = join(root, 'static', 'sites');
+const argv = process.argv.slice(2);
+const index = argv.includes('--index') ? argv[argv.indexOf('--index') + 1] : 'sites';
+if (index !== 'sites' && index !== 'forums') throw new Error(`unknown index: ${index}`);
+/** Where the seed's `/sites/…` or `/forums/…` media paths land on disk. */
+const prefix = `/${index}/`;
+const out = join(root, 'static', index);
 const work = join(root, 'tmp-capture');
-const seed = JSON.parse(readFileSync(join(root, 'src/lib/sites/seed.json'), 'utf8'));
+const seedFile = index === 'forums' ? 'forums-seed.json' : 'seed.json';
+const seed = JSON.parse(readFileSync(join(root, 'src/lib/sites', seedFile), 'utf8'));
 
-const args = process.argv.slice(2);
+const args = argv;
 const only = args.includes('--only') ? new Set(args[args.indexOf('--only') + 1].split(',')) : null;
 const postersOnly = args.includes('--posters-only');
 
@@ -148,12 +155,12 @@ async function settle(page, url) {
 }
 
 async function capture(browser, entry) {
-	const poster = entry.poster_url?.startsWith('/sites/')
-		? join(out, entry.poster_url.slice(7))
+	const poster = entry.poster_url?.startsWith(prefix)
+		? join(out, entry.poster_url.slice(prefix.length))
 		: null;
 	const clip =
-		!postersOnly && entry.preview_url?.startsWith('/sites/')
-			? join(out, entry.preview_url.slice(7))
+		!postersOnly && entry.preview_url?.startsWith(prefix)
+			? join(out, entry.preview_url.slice(prefix.length))
 			: null;
 	if (!poster && !clip) return;
 

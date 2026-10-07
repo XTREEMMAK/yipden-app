@@ -3432,3 +3432,24 @@ of characters and a final `$` as the end of the path; everything else in a rule 
 longest rule still decides, Allow winning a tie. The site preview capture script had the same gap
 and the same fix. The cost is that a feed some site disallows by wildcard, which the app used to
 read, now reports `blocked`, which is what that site asked for.
+
+## 2026-10-07 — Forums, a third kind of thing to discover
+
+"What to discover" is Webrings | Surf | Forums. Forums is a hand-gathered forum index in the sites
+index's own shape, plus `software` and `follow_note` (docs/sites-contract.md). Three forums were
+asked for, and checking them decided what each can be:
+
+- **32-Bit Cafe** (`discourse.32bit.cafe`) is Discourse, open to read. Its card's Follow opens the
+  app's existing forum follow with its address, so whole forum or chosen categories works as for
+  any forum. Checked live: 12 categories, topics read.
+- **MelonLand** is SMF with a working RSS feed, but its robots.txt keeps unnamed crawlers off
+  `/*action`, its feed included. Visit only, and the card says why. Asking MelonLand to allow
+  YipDen by name is the reader-friendly path, and is the maintainer's to make.
+- **treefor** is ProBoards, behind a proof-of-work check that also turns away headless browsers.
+  The app cannot read it and the capture script cannot photograph it: visit only, a color wash
+  for a picture, and a plain one-line blurb, since nothing of its own words could be read.
+
+Surf and Forums are one `IndexState` each, shown by one `IndexPanel` and `IndexFilterSheet`, and
+`discover` holds which of People, Surf or Forums is on screen. A category row or section with one
+category is not shown. A forum's card says Following when it already is, linking to its settings.
+An open search still has the whole bar: closing it gives What to discover back.

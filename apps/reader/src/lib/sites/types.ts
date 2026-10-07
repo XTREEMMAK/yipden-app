@@ -40,6 +40,13 @@ export interface SiteEntry {
 	layout?: SiteLayout;
 	explicit: boolean;
 	added_at?: string;
+	/**
+	 * Forum index only: the software a forum runs (`discourse`, `smf`, `proboards`), which decides
+	 * whether YipDen can follow it. Only `discourse` can be followed today.
+	 */
+	software?: string;
+	/** Forum index only: why this forum can be visited but not followed, in a reader's words. */
+	follow_note?: string;
 	/** Fields a newer index emits that this client does not model yet. */
 	[unknownField: string]: unknown;
 }

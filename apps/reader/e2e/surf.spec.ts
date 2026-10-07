@@ -41,7 +41,7 @@ async function openDiscover(page: Page) {
 const surf = (page: Page) => page.getByRole('region', { name: 'Surf: sites' });
 
 /** Discover's ring button is where the webrings and Surf are chosen, one segment each. */
-async function choose(page: Page, kind: 'Webrings' | 'Surf', name: RegExp) {
+async function choose(page: Page, kind: 'Webrings' | 'Surf' | 'Forums', name: RegExp) {
 	await page.getByRole('button', { name: /^What to discover/ }).click();
 	await page
 		.getByRole('radiogroup', { name: 'What to discover' })
@@ -170,4 +170,49 @@ test("a card's picture opens its whole preview, which Close and Back both shut",
 	await page.goBack();
 	await expect(preview).toBeHidden();
 	await expect(surf(page)).toBeVisible();
+});
+
+test.describe('Forums', () => {
+	const forumsPanel = (page: Page) => page.getByRole('region', { name: 'Forums' });
+
+	test('lists the forum index, following only what YipDen can read, and saying why not', async ({
+		page
+	}) => {
+		await openDiscover(page);
+		await choose(page, 'Forums', /^All forums/);
+		const panel = forumsPanel(page);
+		await expect(panel.getByRole('heading', { level: 3 })).toHaveText([
+			'32-Bit Cafe',
+			'MelonLand Forum',
+			'treefor'
+		]);
+		await expect(page.getByRole('button', { name: /^What to discover/ })).toHaveAttribute(
+			'aria-label',
+			'What to discover: Forums'
+		);
+
+		// Discourse can be followed; the others say why they can only be visited.
+		await expect(panel.getByRole('button', { name: 'Follow 32-Bit Cafe' })).toBeVisible();
+		await expect(panel.getByRole('button', { name: 'Follow MelonLand Forum' })).toHaveCount(0);
+		await expect(panel.getByText(/robots\.txt asks apps not to read its feed/)).toBeVisible();
+
+		await panel.getByRole('button', { name: 'Follow 32-Bit Cafe' }).click();
+		await expect(page).toHaveURL(
+			/\/follow\/?\?mode=forums&url=https%3A%2F%2Fdiscourse\.32bit\.cafe%2F/
+		);
+	});
+
+	test('keeps its own place apart from Surf', async ({ page }) => {
+		await openDiscover(page);
+		await choose(page, 'Forums', /^All forums/);
+		await page.getByRole('button', { name: 'Search forums' }).click();
+		await page.getByRole('searchbox', { name: 'Search forums' }).fill('melon');
+		await expect(forumsPanel(page).getByRole('heading', { level: 3 })).toHaveText([
+			'MelonLand Forum'
+		]);
+		// An open search has the whole bar; closing it gives back What to discover.
+		await page.getByRole('button', { name: 'Close search' }).click();
+		await choose(page, 'Surf', /^All sites/);
+		await expect(surf(page).getByRole('heading', { name: 'Medjed' })).toBeVisible();
+	});
 });

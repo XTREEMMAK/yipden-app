@@ -16,7 +16,7 @@ const ID_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
  * Media bundled with the app for the seed, served from the app itself. Only allowed when the
  * caller says the document is the bundled one: a fetched document must point at https.
  */
-const LOCAL_MEDIA = /^\/sites\/[a-z0-9-]+\.(jpg|jpeg|png|webp|webm|mp4)$/;
+const LOCAL_MEDIA = /^\/(sites|forums)\/[a-z0-9-]+\.(jpg|jpeg|png|webp|webm|mp4)$/;
 
 export interface ValidateSitesOptions {
 	/** True only for the seed bundled in the app, whose media lives under `/sites/`. */
@@ -86,7 +86,9 @@ function entryFrom(raw: Record<string, unknown>, localMedia: boolean): SiteEntry
 		preview_url: media(raw.preview_url, localMedia),
 		feeds: feeds(raw.feeds),
 		layout: KNOWN_LAYOUTS.find((layout) => layout === raw.layout),
-		added_at: text(raw.added_at, 40)
+		added_at: text(raw.added_at, 40),
+		software: text(raw.software, 40)?.toLowerCase(),
+		follow_note: text(raw.follow_note, 200)
 	};
 	for (const [key, value] of Object.entries(optional)) {
 		if (value === undefined) delete entry[key];

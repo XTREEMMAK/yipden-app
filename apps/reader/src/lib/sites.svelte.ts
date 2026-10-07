@@ -1,26 +1,22 @@
-import seed from './sites/seed.json';
+import sitesSeed from './sites/seed.json';
+import forumsSeed from './sites/forums-seed.json';
 import { SITE_CATEGORIES, type SiteEntry, type SitesDocument } from './sites/types.js';
 import { validateSites } from './sites/validate.js';
 import type { ExploredFilter } from './explored.svelte.js';
 import { store } from './store/index.js';
 
 /**
- * Discover's Surf side: the sites index, a place to wander rather than a ring of people.
+ * Discover's places: Surf (the sites index) and Forums (the forum index). Places to wander, not a
+ * ring of people.
  *
  * Kept apart from `ring.svelte.ts` and `partnerRings.svelte.ts` the same way partner rings are
- * kept apart from IndieNodes: a site is a different type from a ring entry, never enters the
- * rotation, and is never a person. See docs/sites-contract.md.
+ * kept apart from IndieNodes: a site or a forum is a different type from a ring entry, never enters
+ * the rotation, and is never a person. See docs/sites-contract.md.
  *
- * Experiment (branch `sites-surf`): the document is the seed bundled with the app. When the real
- * index is published, `loadDocument` becomes a fetch modelled on `ring-client`'s `fetchRing`, and
+ * Experiment (branch `sites-surf`): each document is a seed bundled with the app. When the real
+ * indexes are published, `load` becomes a fetch modelled on `ring-client`'s `fetchRing`, and
  * nothing else here changes.
  */
-
-export type DiscoverView = 'people' | 'surf';
-
-async function loadDocument(): Promise<{ document: unknown; localMedia: boolean }> {
-	return { document: seed, localMedia: true };
-}
 
 /** "personal" reads as "Personal sites": the chips name what a reader is choosing between. */
 const CATEGORY_LABELS: Record<string, string> = {
@@ -29,16 +25,17 @@ const CATEGORY_LABELS: Record<string, string> = {
 	personal: 'Personal sites',
 	blogs: 'Blogs',
 	webrings: 'Webrings',
-	resources: 'Resources'
+	resources: 'Resources',
+	community: 'Communities'
 };
 
 export function categoryLabel(category: string): string {
 	return CATEGORY_LABELS[category] ?? category.charAt(0).toUpperCase() + category.slice(1);
 }
 
-/** "fandom:sonic" reads as "Sonic": the namespace is for sorting, not for reading. */
+/** "fandom:sonic" reads as "Sonic", "net-art" as "Net art": tags are for sorting, not reading. */
 export function tagLabel(tag: string): string {
-	const bare = tag.includes(':') ? tag.slice(tag.indexOf(':') + 1) : tag;
+	const bare = (tag.includes(':') ? tag.slice(tag.indexOf(':') + 1) : tag).replace(/-/g, ' ');
 	return bare.charAt(0).toUpperCase() + bare.slice(1);
 }
 
@@ -57,8 +54,17 @@ export function categoriesOf(entries: readonly SiteEntry[]): Array<{ key: string
 		});
 }
 
-class SitesState {
-	/** Every site this reader may see: explicit ones only when they opted in. */
+interface IndexSource {
+	/** Where its list remembers its place (`explored.views`). */
+	viewId: string;
+	/** What one entry is called, for search and empty states: "sites", "forums". */
+	noun: string;
+	load(): Promise<{ document: unknown; localMedia: boolean }>;
+}
+
+/** One index Discover can show (Surf's sites, or the forums), and the controls over its list. */
+export class IndexState {
+	/** Every entry this reader may see: explicit ones only when they opted in. */
 	all = $state<SiteEntry[]>([]);
 	status = $state<'idle' | 'loading' | 'ready'>('idle');
 	generatedAt = $state<string | null>(null);
@@ -66,23 +72,8 @@ class SitesState {
 	categories = $derived(categoriesOf(this.all));
 
 	/**
-	 * Which side of Discover is showing: People (the ring's hero, the default) or Surf. Saved, so
-	 * a reader who lives in Surf comes back to it.
-	 */
-	view = $state<DiscoverView>('people');
-	private viewRead = false;
-
-	async loadView(): Promise<void> {
-		if (this.viewRead) return;
-		this.viewRead = true;
-		await store.init();
-		const saved = await store.getSetting<string>('discoverView');
-		if (saved === 'surf' || saved === 'people') this.view = saved;
-	}
-
-	/**
-	 * Surf's own controls, shared by Discover's bar (search and filter live there, so Surf takes no
-	 * room of its own above its cards) and the panel that lists what they choose.
+	 * The list's own controls, shared by Discover's bar (search and filter live there, so the index
+	 * takes no room of its own above its cards) and the panel that lists what they choose.
 	 */
 	query = $state('');
 	category = $state<string | null>(null);
@@ -94,13 +85,16 @@ class SitesState {
 	/** Whether anything in the filter sheet narrows the list, for the filter button's dot. */
 	filtering = $derived(this.category !== null || this.tag !== null || this.show !== 'all');
 
-	setView(view: DiscoverView): void {
-		this.view = view;
-		void store.setSetting('discoverView', view);
-		if (view === 'surf') void this.load();
-	}
-
+	readonly viewId: string;
+	readonly noun: string;
+	private readonly source: IndexSource;
 	private started: Promise<void> | null = null;
+
+	constructor(source: IndexSource) {
+		this.source = source;
+		this.viewId = source.viewId;
+		this.noun = source.noun;
+	}
 
 	load(): Promise<void> {
 		this.started ??= this.run();
@@ -120,10 +114,10 @@ class SitesState {
 		const includeExplicit = (await store.getSetting<boolean>('includeExplicit')) === true;
 		let document: SitesDocument = { version: '0', entries: [] };
 		try {
-			const loaded = await loadDocument();
+			const loaded = await this.source.load();
 			document = validateSites(loaded.document, { localMedia: loaded.localMedia }).document;
 		} catch {
-			// An index that cannot be read leaves Surf empty, never Discover broken.
+			// An index that cannot be read leaves its side empty, never Discover broken.
 		}
 		this.all = includeExplicit
 			? document.entries
@@ -131,10 +125,47 @@ class SitesState {
 		this.generatedAt = document.generated_at ?? null;
 		this.status = 'ready';
 	}
+}
 
-	byUrl(url: string): SiteEntry | null {
-		return this.all.find((entry) => entry.url === url) ?? null;
+export const sites = new IndexState({
+	viewId: 'surf',
+	noun: 'sites',
+	load: async () => ({ document: sitesSeed, localMedia: true })
+});
+
+export const forumIndex = new IndexState({
+	viewId: 'forums-index',
+	noun: 'forums',
+	load: async () => ({ document: forumsSeed, localMedia: true })
+});
+
+export type DiscoverView = 'people' | 'surf' | 'forums';
+
+/**
+ * Which side of Discover is showing: People (the ring's hero, the default), Surf or Forums. Saved,
+ * so a reader who lives in one comes back to it.
+ */
+class DiscoverState {
+	view = $state<DiscoverView>('people');
+	private viewRead = false;
+
+	/** The index on screen, or null for People. */
+	index = $derived(this.view === 'surf' ? sites : this.view === 'forums' ? forumIndex : null);
+
+	async loadView(): Promise<void> {
+		if (this.viewRead) return;
+		this.viewRead = true;
+		await store.init();
+		const saved = await store.getSetting<string>('discoverView');
+		if (saved === 'surf' || saved === 'forums' || saved === 'people') this.view = saved;
+		void this.index?.load();
+	}
+
+	setView(view: DiscoverView): void {
+		this.view = view;
+		void store.setSetting('discoverView', view);
+		void this.index?.load();
 	}
 }
 
-export const sites = new SitesState();
+export const discover = new DiscoverState();

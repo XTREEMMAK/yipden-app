@@ -1,0 +1,47 @@
+{
+  "version": "0.1",
+  "generated_at": "2026-10-07T00:00:00Z",
+  "entries": [
+    {
+      "id": "32bit-cafe",
+      "url": "https://discourse.32bit.cafe/",
+      "title": "32-Bit Cafe",
+      "category": "community",
+      "tags": ["personal-web", "web-making"],
+      "blurb": "A community of website hobbyists and professionals helping to make the web fruitful and bountiful again.",
+      "software": "discourse",
+      "poster_url": "/forums/32bit-cafe.jpg",
+      "preview_url": "/forums/32bit-cafe.webm",
+      "layout": "mobile-friendly",
+      "explicit": false,
+      "added_at": "2026-10-07"
+    },
+    {
+      "id": "melonland",
+      "url": "https://forum.melonland.net/",
+      "title": "MelonLand Forum",
+      "category": "community",
+      "tags": ["personal-web", "net-art", "virtual-worlds"],
+      "blurb": "A web project and online arts community celebrating homepages, virtual worlds and the digital lives netizens share.",
+      "software": "smf",
+      "follow_note": "Its robots.txt asks apps not to read its feed, so it can be visited, not followed.",
+      "poster_url": "/forums/melonland.jpg",
+      "preview_url": "/forums/melonland.webm",
+      "layout": "mobile-friendly",
+      "explicit": false,
+      "added_at": "2026-10-07"
+    },
+    {
+      "id": "treefor",
+      "url": "https://treefor.boards.net/",
+      "title": "treefor",
+      "category": "community",
+      "tags": ["proboards"],
+      "blurb": "A ProBoards forum.",
+      "software": "proboards",
+      "follow_note": "Its host checks every visitor is a person in a browser, so it can be visited, not followed.",
+      "explicit": false,
+      "added_at": "2026-10-07"
+    }
+  ]
+}
