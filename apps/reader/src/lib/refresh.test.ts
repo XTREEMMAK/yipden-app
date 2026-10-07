@@ -14,7 +14,15 @@ import {
 import { testStore } from './store/testing/memory.js';
 import type { Store } from './store/types.js';
 import { setAgeLimitActive } from './age.js';
-import { categorize, classifyFailure, pruneToMaxAge, refreshAll, toStoredYip } from './refresh.js';
+import {
+	autoChecksStopped,
+	categorize,
+	classifyFailure,
+	MAX_AUTO_FAILURES,
+	pruneToMaxAge,
+	refreshAll,
+	toStoredYip
+} from './refresh.js';
 import type { Feed, Item, Person } from './store/types.js';
 
 const PERSON: Person = {
@@ -418,6 +426,43 @@ describe('refreshAll', () => {
 	});
 });
 
+describe('a followed person without a picture', () => {
+	const PAGE = `<!doctype html><html><head><link rel="icon" href="/favicon.png"></head><body>
+		<div class="h-card"><img class="u-photo" src="/me.jpg" alt=""><span class="p-name">Lena</span></div>
+	</body></html>`;
+
+	it('gets the photo their own site names, once', async () => {
+		let pageReads = 0;
+		const http = fastHttp(
+			fakeFetch((url) => {
+				if (url === PERSON.siteUrl) {
+					pageReads += 1;
+					return response(200, PAGE, { 'content-type': 'text/html' }, PERSON.siteUrl);
+				}
+				return response(200, ONE_POST);
+			})
+		);
+		await refreshAll({ store, http });
+		const [person] = await store.listPeople();
+		expect(person?.iconUrl).toBe('https://lena.example.com/me.jpg');
+		await refreshAll({ store, http });
+		expect(pageReads).toBe(1);
+	});
+
+	it('is marked looked-for when their site has none, so it is not asked again', async () => {
+		const http = fastHttp(
+			fakeFetch((url) =>
+				url === PERSON.siteUrl
+					? response(200, '<html><body>hi</body></html>', { 'content-type': 'text/html' }, url)
+					: response(200, ONE_POST)
+			)
+		);
+		await refreshAll({ store, http });
+		const [person] = await store.listPeople();
+		expect(person?.iconUrl).toBe('');
+	});
+});
+
 describe('max age', () => {
 	// The limit is switched off app-wide while debugging (see age.ts); these tests turn it on.
 	beforeEach(() => setAgeLimitActive(true));
@@ -453,6 +498,35 @@ describe('max age', () => {
 		await store.setSetting('maxAgeDays', 30);
 		await pruneToMaxAge(store, () => NOW);
 		expect((await store.listAllYips()).map((yip) => yip.title)).toEqual(['Recent']);
+	});
+});
+
+describe("YouTube's own 404s", () => {
+	const YT = 'https://www.youtube.com/feeds/videos.xml?channel_id=UCBJycsmduvYEL83R_U4JriQ';
+
+	it('are a temporary problem, where any other 404 means the feed moved', () => {
+		expect(classifyFailure(new HttpError('nope', 404), YT)).toEqual({
+			kind: 'server',
+			status: 404
+		});
+		expect(
+			classifyFailure(new HttpError('nope', 404), 'https://lena.example.com/feed.xml')
+		).toEqual({ kind: 'gone', status: 404 });
+	});
+
+	it('never stop a YouTube feed being checked, even one stopped before the rule', () => {
+		const stopped = feed({
+			id: YT,
+			url: YT,
+			kind: 'youtube',
+			failures: MAX_AUTO_FAILURES,
+			lastError: { kind: 'gone', status: 404 }
+		});
+		expect(autoChecksStopped(stopped)).toBe(false);
+		expect(autoChecksStopped({ ...stopped, url: 'https://lena.example.com/feed.xml' })).toBe(true);
+		expect(autoChecksStopped({ ...stopped, lastError: { kind: 'server', status: 500 } })).toBe(
+			true
+		);
 	});
 });
 

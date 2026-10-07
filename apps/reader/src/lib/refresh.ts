@@ -1,4 +1,5 @@
 import {
+	scanPage,
 	DirectFetchSource,
 	directCursor,
 	FeedHttp,
@@ -13,7 +14,7 @@ import {
 } from '@yipden/feeds';
 import { httpFetch } from './platform/http.js';
 import { store as defaultStore } from './store/index.js';
-import type { Feed, FeedError, Store, StoredYip, YipCategory } from './store/types.js';
+import type { Feed, FeedError, Person, Store, StoredYip, YipCategory } from './store/types.js';
 import { ageCutoff, DEFAULT_MAX_AGE_DAYS, effectiveMaxAgeDays, isAgeLimitActive } from './age.js';
 
 /**
@@ -73,11 +74,31 @@ export interface FeedRefreshResult {
 const ROBOTS_STATUS = 999;
 
 /** Sort a failed check into what a reader can act on. See `FeedProblem`. */
-export function classifyFailure(cause: unknown): FeedError {
+/**
+ * YouTube's channel feeds answer 404 for hours at a time, for channels that are plainly there,
+ * and have since December 2025: a 404 from one is YouTube's bad moment, not the feed moving.
+ * It is a temporary problem, and never stops a feed being checked (phone feedback, 2026-10-07).
+ */
+function isYoutubeChannelFeed(url: string | undefined): boolean {
+	if (!url) return false;
+	try {
+		const parsed = new URL(url);
+		// Any of YouTube's own feeds (a channel's, a playlist's): the same server answers them all.
+		return (
+			parsed.hostname.replace(/^www\./, '') === 'youtube.com' &&
+			parsed.pathname === '/feeds/videos.xml'
+		);
+	} catch {
+		return false;
+	}
+}
+
+export function classifyFailure(cause: unknown, feedUrl?: string): FeedError {
 	if (cause instanceof FeedParseError) return { kind: 'not-a-feed' };
 	if (cause instanceof HttpError) {
 		const { status } = cause;
 		if (status === ROBOTS_STATUS) return { kind: 'blocked' };
+		if (status === 404 && isYoutubeChannelFeed(feedUrl)) return { kind: 'server', status };
 		if (status === 404 || status === 410) return { kind: 'gone', status };
 		if (status === 401 || status === 403 || status === 451) return { kind: 'refused', status };
 		if (status > 0) return { kind: 'server', status };
@@ -125,6 +146,19 @@ export interface RefreshResult {
 export const MAX_AUTO_FAILURES = 5;
 
 /**
+ * Whether checking this feed by itself has stopped. A YouTube channel feed whose failures are
+ * YouTube's own 404s never stops, including one stopped before this rule existed.
+ */
+export function autoChecksStopped(feed: Feed): boolean {
+	return feed.failures >= MAX_AUTO_FAILURES && !isYoutubeFlake(feed);
+}
+
+/** A YouTube channel feed whose last failure was YouTube's own 404. */
+export function isYoutubeFlake(feed: Feed): boolean {
+	return isYoutubeChannelFeed(feed.url) && feed.lastError?.status === 404;
+}
+
+/**
  * Refresh every followed feed, through the `FeedSource`.
  *
  * Results are stored as each arrives, so a refresh cut short keeps what it already fetched. One
@@ -158,7 +192,7 @@ export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshR
 
 	const due: Feed[] = [];
 	for (const feed of targets) {
-		if (feed.failures >= MAX_AUTO_FAILURES && !feedIds) {
+		if (autoChecksStopped(feed) && !feedIds) {
 			results.push({ feedId: feed.id, status: 'disabled', added: 0 });
 		} else {
 			due.push(feed);
@@ -202,7 +236,7 @@ export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshR
 
 			results.push({ feedId: feed.id, status: 'updated', added });
 		} catch (cause) {
-			const problem = classifyFailure(cause);
+			const problem = classifyFailure(cause, feed.url);
 			await store.updateFeed({
 				...feed,
 				lastFetchedAt: now().toISOString(),
@@ -223,7 +257,41 @@ export async function refreshAll(options: RefreshOptions = {}): Promise<RefreshR
 		for (const [personId, cutoff] of prunable) await store.pruneYips(personId, cutoff);
 	}
 
+	// Only people this refresh actually checked: one whose feeds have all given up is left alone.
+	const checkedPeople = new Set(due.map((feed) => feed.personId));
+	await backfillPersonIcons(
+		store,
+		http,
+		[...people.values()].filter((person) => checkedPeople.has(person.id))
+	);
+
 	return { feeds: results, added: totalAdded };
+}
+
+/** How many people's sites one refresh may read for a missing picture: a few, politely. */
+const ICONS_PER_REFRESH = 5;
+
+/**
+ * A followed person with no picture gets one from their own site: their h-card photo, else the
+ * site's icon. Some follows start without one (a pasted link whose page named none at the time),
+ * and their profile showed a picture that Feeds and You never had (phone feedback, 2026-10-07).
+ * '' is kept when the site has none, so it is asked once, as a channel's avatar is.
+ */
+async function backfillPersonIcons(store: Store, http: FeedHttp, people: Person[]): Promise<void> {
+	const missing = people
+		.filter((person) => person.iconUrl === undefined)
+		.slice(0, ICONS_PER_REFRESH);
+	for (const person of missing) {
+		try {
+			const response = await http.get(person.siteUrl, {
+				accept: 'text/html,application/xhtml+xml;q=0.9'
+			});
+			const page = scanPage(response.body, response.url);
+			await store.updatePerson({ ...person, iconUrl: page.photoUrl ?? page.iconUrl ?? '' });
+		} catch {
+			// Offline or refused: asked again on the next refresh.
+		}
+	}
 }
 
 /**

@@ -3567,3 +3567,29 @@ says exactly that: the link and never the file, and for a passage the words chos
 **Open, for the maintainer:** Surf's and Forums' bundled posters and clips (15 posters, 8 clips)
 are copies of other people's sites, distributed inside the APK. That is the capture permission the
 sites contract now describes, and it does not square with "links, not copies" in a store release.
+
+## 2026-10-07 (build 48 feedback) — Glass on the right card, missing pictures, YouTube's 404s
+
+- **The glass is the post's.** The blur had gone on the video, but what was asked for is the card
+  holding the text: with a video waiting behind, the post's surface is translucent and blurs what
+  is behind it, so the video reads as there without fighting the text. In front, the video is
+  sharp and its title band is the glass.
+- **The round play and open buttons on picture cards** (Bluesky's among them) are dark, in the
+  theme's deep color, with a white mark and a faint edge. White read as a hole in a dimmed card.
+- **You:** the settings button is a solid gear drawn for it (it was an outline that filled in
+  as a flower); "Their own picks" is gone from a person's settings, since their row and the player
+  already play them. A regex clean-up in the last commit had left `.their-picks` selectors stuck to
+  the red Unfollow style; removed with the block.
+- **A followed person's picture is kept.** Some follows began with none (AudioMocha's), so their
+  profile, which reads their site live, showed one that Feeds and Following never had. A profile
+  now keeps the picture it shows for a followed person who has none, and each refresh reads up to
+  five such people's sites for one (their h-card photo, else the site's icon), storing '' when
+  there is none so a site is asked once. Only people that refresh actually checked.
+- **YouTube's 404s are YouTube's.** The feed endpoint has answered 404 for hours at a time, for
+  active channels, since December 2025, and the app counted each as "moved", stopping a channel
+  after five. A 404 from `youtube.com/feeds/videos.xml` is now a temporary problem: it never stops
+  checks, says what it is, and does not offer Replace. Channels stopped that way before resume by
+  themselves. Fetches from this machine answered 200 throughout, so the phone's 404s fit the
+  outages rather than a wrong address.
+- **Surf's seed posters and clips must not ship in a release** (ROADMAP): they were temporary
+  seeds, and Surf gets its own opt-in procedure. The forum index's are fine as they are.

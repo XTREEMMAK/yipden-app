@@ -442,8 +442,17 @@
 	 * A card with a video carries two cards, the post on top. The one behind shows its top edge
 	 * above the post, so there is plainly something more here; `showVideo` swaps them.
 	 */
+	/*
+	 * The post as glass over the video waiting behind it: the card's own surface, translucent, with
+	 * what is behind it blurred, so the video reads as there without its picture fighting the
+	 * post's text (phone feedback, 2026-10-07: the blur belongs on the card holding the text, not
+	 * on the video). Once the video is in front, its title band is the glass instead.
+	 */
 	.has-video > .yip.text {
 		z-index: 3;
+		background: color-mix(in srgb, var(--surface) 72%, transparent);
+		-webkit-backdrop-filter: blur(22px) saturate(1.15);
+		backdrop-filter: blur(22px) saturate(1.15);
 	}
 
 	.has-video > .av-hit {
@@ -485,27 +494,13 @@
 		fill: #fff;
 	}
 
-	/*
-	 * The picture as glass: the thumbnail blurred and darkened under everything drawn on it. Heavy
-	 * while the video waits behind its post, where only a strip of it shows above the post and a
-	 * busy picture there pulled the eye off the post's text; light once it is in front, so the
-	 * picture still says what the video is (phone feedback, 2026-10-07). Scaled up a little so the
-	 * blur's soft edge stays outside the card.
-	 */
+	/* The thumbnail a little darker, so the play mark and Back read on any picture. */
 	.video-open::before {
 		content: '';
 		position: absolute;
 		inset: 0;
-		background-image: inherit;
-		background-size: cover;
-		background-position: center;
-		filter: blur(18px) brightness(0.55);
-		transform: scale(1.15);
+		background: rgba(0, 0, 0, 0.28);
 		pointer-events: none;
-	}
-
-	.video-card.in-front .video-open::before {
-		filter: blur(6px) brightness(0.6);
 	}
 
 	.video-open > :global(*) {
@@ -742,12 +737,17 @@
 		width: 46px;
 		height: 46px;
 		border-radius: 50%;
-		background: #fff;
-		color: var(--ink);
+		/*
+		 * Dark, in the theme's own deep color, with a white mark: white read as a hole in a card
+		 * already dimmed for its text (phone feedback, 2026-10-07). The edge keeps it on any picture.
+		 */
+		border: 1px solid rgba(255, 255, 255, 0.35);
+		background: rgba(var(--deep-rgb), 0.82);
+		color: #fff;
 	}
 
 	.go.play {
-		color: var(--brand);
+		color: #fff;
 	}
 
 	.go svg {

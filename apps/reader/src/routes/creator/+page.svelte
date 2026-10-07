@@ -89,6 +89,17 @@
 	let cover = $derived((entry ? heroImage(entry) : null) ?? hint?.artUrl ?? null);
 	/** Their own picture: what their site shows of them, else their icon. */
 	let avatar = $derived(facts?.photoUrl ?? person?.iconUrl ?? facts?.iconUrl ?? null);
+
+	// A followed person with no picture of their own keeps the one their site gave here, so Feeds
+	// and You show it too, not only this profile (phone feedback, 2026-10-07).
+	$effect(() => {
+		const followed = person;
+		const found = facts?.photoUrl ?? facts?.iconUrl ?? null;
+		if (!followed || followed.iconUrl || !found) return;
+		const updated = { ...followed, iconUrl: found };
+		person = updated;
+		void store.updatePerson(updated);
+	});
 	let declared = $derived(person?.layout ?? (entry ? layoutOf(entry.layout) : hint?.layout));
 	let ringOrigin = $derived(
 		hint?.ring ?? (entry ? ({ source: 'own', id: 'indienodes' } as const) : null)

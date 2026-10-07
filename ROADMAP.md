@@ -671,6 +671,9 @@ contract is [docs/sites-contract.md](docs/sites-contract.md); the reasoning is i
 3. **Following sites, the way forums are followed.** People | Sites | Forums in Follow and Feeds;
    Forums may fold into Sites later.
 4. **Search across both sides, and a site page with "Made by" from evidence only.**
+5. **Release blocker:** Surf's bundled seed posters and clips (`static/sites/`) must not ship in a
+   release: they were temporary seeds. Surf needs its own opt-in procedure for owners
+   (docs/sites-contract.md) before any capture ships. The forum index's media is fine.
 
 To judge on the phone: does Surf feel like YipDen or a second app inside it; does the hero still
 feel central; do clips judder in the stack, and what do they cost in data.

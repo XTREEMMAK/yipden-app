@@ -16,7 +16,7 @@
 	import { MAX_MAX_AGE_DAYS, MIN_MAX_AGE_DAYS } from '$lib/age.js';
 	import { shelf } from '$lib/shelf.svelte.js';
 	import { toast } from '$lib/toast.svelte.js';
-	import { MAX_AUTO_FAILURES } from '$lib/refresh.js';
+	import { autoChecksStopped, isYoutubeFlake } from '$lib/refresh.js';
 	import type { Feed, FeedError } from '$lib/store/index.js';
 	import Toast from '$components/Toast.svelte';
 	import YouLists from '$components/YouLists.svelte';
@@ -199,10 +199,12 @@
 	function sourceStatus(feed: Feed): string {
 		if (!feed.enabled) return 'Paused · cached yips hidden';
 		if (feed.failures > 0) {
-			const streak =
-				feed.failures >= MAX_AUTO_FAILURES
-					? 'automatic checks stopped'
-					: `${feed.failures} ${feed.failures === 1 ? 'failure' : 'failures'} in a row`;
+			if (isYoutubeFlake(feed)) {
+				return "YouTube's feed did not answer (404), which it does at times · checking again";
+			}
+			const streak = autoChecksStopped(feed)
+				? 'automatic checks stopped'
+				: `${feed.failures} ${feed.failures === 1 ? 'failure' : 'failures'} in a row`;
 			return `${problemLabel(feed.lastError)} · ${streak}`;
 		}
 		if (feed.lastFetchedAt) {
@@ -218,8 +220,10 @@
 	 */
 	function suggestReplace(feed: Feed): boolean {
 		if (!feed.enabled || feed.failures === 0) return false;
+		// YouTube's own 404s pass: the channel has not moved.
+		if (isYoutubeFlake(feed)) return false;
 		const kind = feed.lastError?.kind;
-		return kind === 'gone' || kind === 'not-a-feed' || feed.failures >= MAX_AUTO_FAILURES;
+		return kind === 'gone' || kind === 'not-a-feed' || autoChecksStopped(feed);
 	}
 
 	function resetSourceForm(input = '') {
@@ -585,9 +589,10 @@
 										aria-label={`Settings for ${row.person.name}`}
 										onclick={() => (settingsFor = row.person.id)}
 									>
-										<svg viewBox="0 0 24 24" aria-hidden="true"
-											><circle cx="12" cy="12" r="3" /><path
-												d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"
+										<svg class="gear" viewBox="0 0 24 24" aria-hidden="true"
+											><path
+												fill-rule="evenodd"
+												d="M10.05 4.65 L10.29 1.74 L13.71 1.74 L13.95 4.65 L15.82 5.43 L18.05 3.54 L20.46 5.95 L18.57 8.18 L19.35 10.05 L22.26 10.29 L22.26 13.71 L19.35 13.95 L18.57 15.82 L20.46 18.05 L18.05 20.46 L15.82 18.57 L13.95 19.35 L13.71 22.26 L10.29 22.26 L10.05 19.35 L8.18 18.57 L5.95 20.46 L3.54 18.05 L5.43 15.82 L4.65 13.95 L1.74 13.71 L1.74 10.29 L4.65 10.05 L5.43 8.18 L3.54 5.95 L5.95 3.54 L8.18 5.43 Z M15.20 12 A3.2 3.2 0 1 0 8.80 12 A3.2 3.2 0 1 0 15.20 12 Z"
 											/></svg
 										>
 									</button>
@@ -658,8 +663,6 @@
 {#if settingsRow}
 	{@const row = settingsRow}
 	{@const personIndex = you.rows.indexOf(settingsRow)}
-	{@const entry = ringEntryFor(row.person)}
-	{@const own = entry ? previewFor(entry) : null}
 	<!--
 		Settings for one person, in a sheet of its own: their sources and how YipDen treats them.
 		Tapping their row opens their profile instead (phone feedback, 2026-10-07); what you kept from
@@ -672,17 +675,6 @@
 		maxHeight="85vh"
 	>
 		<div class="person-settings">
-			{#if entry && own}
-				<div class="their-picks">
-					<span class="tt">
-						<b>Their own picks</b>
-						<small>Chosen by {row.person.name} for the IndieNodes ring</small>
-					</span>
-					<button class="mini-btn" onclick={(event) => openPicks(entry, own, event.currentTarget)}
-						>{own.label}</button
-					>
-				</div>
-			{/if}
 			<div class="feed-list" id={`feeds-${personIndex}`}>
 				<h4 class="row-sub">Sources</h4>
 				{#each row.feeds as feed, feedIndex (feed.id)}
@@ -1431,6 +1423,11 @@
 		color: #fff;
 	}
 
+	/* A solid gear: drawn filled, with no outline to blur its teeth into petals. */
+	.picks-btn svg.gear {
+		stroke: none;
+	}
+
 	.picks-btn svg {
 		width: 18px;
 		height: 18px;
@@ -1440,9 +1437,6 @@
 		stroke-linejoin: round;
 	}
 
-	.their-picks,
-	.their-picks .tt,
-	.their-picks small,
 	.mini-btn.danger {
 		background: var(--error);
 		border-color: var(--error);
