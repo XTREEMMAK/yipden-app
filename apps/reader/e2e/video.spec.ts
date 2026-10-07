@@ -14,6 +14,12 @@ const FEED = `<?xml version="1.0"?><rss version="2.0"><channel>
 	<item><link>https://lenaofori.com/notes/1</link><guid>note-1</guid>
 		<pubDate>Mon, 21 Sep 2026 10:00:00 GMT</pubDate>
 		<description><![CDATA[<p>Made a little video about the zine: <a href="https://youtu.be/M7lc1UVf-VE">watch</a></p>]]></description></item>
+	<item><link>https://lenaofori.com/notes/2</link><guid>note-2</guid>
+		<pubDate>Sun, 20 Sep 2026 10:00:00 GMT</pubDate>
+		<description><![CDATA[<p>A long note. ${'Every line of this note matters to the one who reads it. '.repeat(4)}<a href="https://youtu.be/dQw4w9WgXcQ">The video</a></p>]]></description></item>
+	<item><link>https://lenaofori.com/notes/3</link><guid>note-3</guid>
+		<pubDate>Sat, 19 Sep 2026 10:00:00 GMT</pubDate>
+		<description>A short one after it.</description></item>
 </channel></rss>`;
 
 async function seed(page: Page) {
@@ -57,7 +63,10 @@ test('a shared YouTube video shows inside the post and opens on YouTube, not in 
 	await expect(pane.getByText(/Made a little video about the zine/)).toBeVisible({
 		timeout: 10_000
 	});
-	await pane.getByRole('button', { name: 'Watch the video Lena Ofori shared, on YouTube' }).click();
+	await pane
+		.getByRole('button', { name: 'Watch the video Lena Ofori shared, on YouTube' })
+		.first()
+		.click();
 	expect(await page.evaluate(() => (window as unknown as { opened: string[] }).opened)).toEqual([
 		'https://www.youtube.com/watch?v=M7lc1UVf-VE'
 	]);
@@ -66,9 +75,55 @@ test('a shared YouTube video shows inside the post and opens on YouTube, not in 
 	// The rest of the card is still the post.
 	await pane
 		.getByRole('button', { name: /Post by Lena Ofori/ })
+		.first()
 		.click({ position: { x: 120, y: 70 } });
 	expect(await page.evaluate(() => (window as unknown as { opened: string[] }).opened)).toEqual([
 		'https://www.youtube.com/watch?v=M7lc1UVf-VE',
 		'https://lenaofori.com/notes/1'
 	]);
+});
+
+test('a card taller than the screen is read to its end before it folds away', async ({ page }) => {
+	await seed(page);
+	await page.goto('/feeds');
+	const pane = page.locator('#pane-everything');
+	await expect(pane.getByText(/A long note/)).toBeVisible({ timeout: 10_000 });
+
+	const measure = () =>
+		pane.evaluate((el) => {
+			const card = [...el.querySelectorAll<HTMLElement>('.yip-stack')].find((node) =>
+				node.textContent?.includes('A long note')
+			)!;
+			const dock =
+				parseFloat(getComputedStyle(el.closest('.app')!).getPropertyValue('--dock')) || 88;
+			return {
+				top: card.offsetTop,
+				height: card.offsetHeight,
+				viewport: el.clientHeight - dock
+			};
+		});
+	const fold = () =>
+		pane.evaluate((el) => {
+			const card = [...el.querySelectorAll<HTMLElement>('.yip-stack')].find((node) =>
+				node.textContent?.includes('A long note')
+			)!;
+			const drawn = card.querySelector<HTMLElement>('.yip-fold')!;
+			return { transform: drawn.style.transform, top: drawn.style.top };
+		});
+
+	const { top, height, viewport } = await measure();
+	expect(height).toBeGreaterThan(viewport);
+	const overflow = height - viewport;
+
+	// Its bottom edge just reaching the bottom of the screen: all of it read, nothing folded yet.
+	await pane.evaluate((el, at) => el.scrollTo({ top: at }), top + overflow);
+	await expect.poll(fold).toEqual({ transform: '', top: `${-overflow}px` });
+	const video = pane
+		.locator('.yip-stack', { hasText: 'A long note' })
+		.getByRole('button', { name: 'Watch the video Lena Ofori shared, on YouTube' });
+	await expect(video).toBeInViewport({ ratio: 1 });
+
+	// Past that, it folds away like any other card.
+	await pane.evaluate((el, at) => el.scrollTo({ top: at }), top + overflow + height / 2);
+	await expect.poll(async () => (await fold()).transform).toContain('rotateX');
 });

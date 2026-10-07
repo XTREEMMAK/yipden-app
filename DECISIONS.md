@@ -3283,3 +3283,20 @@ Phone feedback reversed part of the evening's change.
   container: a full-size button for the post sits under the card's words, which do not take
   taps, and the video's own button sits over it. The card's label, tap and press effect are
   unchanged.
+
+## 2026-10-06 (late night) — Tall cards pin by their bottom edge
+
+A Bluesky post with a video preview is taller than the space between the header and the dock on
+a phone. The stack pinned every card by its top and began folding it at once, so the bottom of a
+tall card, the video, could not be reached (phone feedback).
+
+- **`pinOffset`.** A card that fits pins at 0, as before. A taller one gets its height minus the
+  visible area, as a negative sticky `top`, set by the same per-frame pass that folds it.
+  The scroller then holds it once its bottom edge reaches the bottom of the visible area, so it
+  scrolls normally until all of it has been seen. Its fold and its `behind` mark count from that
+  point instead of from 0.
+- **Rising in.** A tall card stands up over one screen, from a hinge at its top, because its
+  bottom edge is still out of sight.
+- **Scope.** The shipping per-frame path only. The debug-only scroll-driven CSS path keeps
+  pinning at the top.
+- **Next, as agreed:** a video icon that flips a card to a video face of the same size, and back.

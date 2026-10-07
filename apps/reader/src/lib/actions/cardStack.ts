@@ -69,11 +69,12 @@ export type CardPlacement = {
  */
 export function cardPlacement(relative: number, height: number, viewport: number): CardPlacement {
 	if (height <= 0) return null;
-	if (relative < -height - 40 || relative > viewport + height) return null;
+	const pin = pinOffset(height, viewport);
+	if (relative < pin - height - 40 || relative > viewport + height) return null;
 
-	if (relative < 0) {
+	if (relative < pin) {
 		// Rising off the top: tip back and dim as it goes.
-		const exit = Math.min(1, -relative / height);
+		const exit = Math.min(1, (pin - relative) / height);
 		return {
 			transformOrigin: '50% 0%',
 			// The sink is outside the perspective, so it is not shrunk with the card (see the CSS).
@@ -83,11 +84,14 @@ export function cardPlacement(relative: number, height: number, viewport: number
 		};
 	}
 
-	if (relative > viewport - height) {
-		// Rising from the bottom: stand up from a hinge at its own bottom edge.
-		const entry = Math.max(0, Math.min(1, (viewport - relative) / height));
+	// A card taller than the screen stands up over one screen of its own, from a hinge at its top,
+	// since its bottom edge is still out of sight; any other card from its own bottom edge.
+	const span = Math.min(height, viewport);
+	if (relative > viewport - span) {
+		// Rising from the bottom.
+		const entry = Math.max(0, Math.min(1, (viewport - relative) / span));
 		return {
-			transformOrigin: '50% 100%',
+			transformOrigin: pin < 0 ? '50% 0%' : '50% 100%',
 			transform: `perspective(1000px) translateY(${24 * (1 - entry)}px) rotateX(${14 * (1 - entry)}deg) scale(${0.94 + 0.06 * entry})`,
 			opacity: 0.5 + 0.5 * entry,
 			dim: 0
@@ -105,8 +109,19 @@ export function cardPlacement(relative: number, height: number, viewport: number
  * keep their buttons. Where the next card overlaps a pinned one, the next card is drawn on top
  * and takes the tap anyway, so nothing else needs refusing.
  */
-export function isBehind(relative: number, height: number): boolean {
-	return height > 0 && relative < -height / 2;
+export function isBehind(relative: number, height: number, viewport = Infinity): boolean {
+	return height > 0 && relative < pinOffset(height, viewport) - height / 2;
+}
+
+/**
+ * Where a card is held while it folds, as its top edge's offset from the top of the pane: 0 for a
+ * card that fits, so it pins at the top; negative for one taller than the visible area, so it
+ * pins only once its bottom edge reaches the bottom of it. A tall card (a post with a video in it,
+ * a long text post, a grouped crosspost) scrolls normally until all of it has been seen, and only
+ * then folds away (phone feedback, 2026-10-06: its lower part could not be reached).
+ */
+export function pinOffset(height: number, viewport: number): number {
+	return Math.min(0, viewport - height);
 }
 
 /** The box that is drawn and folded; the card's own place in the list is never moved. */
@@ -128,15 +143,19 @@ function layoutFallback(pane: HTMLElement): void {
 		const fold = foldOf(card);
 		const height = card.offsetHeight;
 		const relative = card.offsetTop - scrollTop;
+		const pin = pinOffset(height, viewport);
+		// The scroller holds it there, as it holds any card at the top; only the offset differs.
+		const top = pin < 0 ? `${pin}px` : '';
+		if (fold.style.top !== top) fold.style.top = top;
 		const placement = cardPlacement(relative, height, viewport);
-		card.classList.toggle('behind', isBehind(relative, height));
+		card.classList.toggle('behind', isBehind(relative, height, viewport));
 
 		/*
 		 * Folded away. Its place has left the top of the pane, but the drawn card is still held
 		 * there by its rail for another screen of scrolling, so it has to stay gone: put back to
 		 * its resting style here, every folded card reappeared at the top as a ghost.
 		 */
-		if (relative <= -height) {
+		if (relative <= pin - height) {
 			if (fold.style.visibility !== 'hidden') {
 				resetCard(fold);
 				fold.style.opacity = '0';
@@ -190,6 +209,7 @@ export function cardStack(pane: HTMLElement, options: CardStackOptions = {}) {
 		else
 			for (const card of pane.querySelectorAll<HTMLElement>('.yip-stack')) {
 				resetCard(foldOf(card));
+				foldOf(card).style.top = '';
 				card.classList.remove('behind');
 			}
 	}
@@ -286,6 +306,7 @@ export function cardStack(pane: HTMLElement, options: CardStackOptions = {}) {
 			pane.classList.remove('stack', 'stack-pin', 'stack-sda');
 			for (const card of pane.querySelectorAll<HTMLElement>('.yip-stack')) {
 				resetCard(foldOf(card));
+				foldOf(card).style.top = '';
 				card.classList.remove('behind');
 			}
 		}

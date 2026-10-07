@@ -450,6 +450,8 @@ test.describe('partner rings in Discover', () => {
 			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
 			const hint = panel.getByRole('note');
 			await expect(hint).toContainText('Swipe a card left');
+			// The panel slides in: measure the card where it settles, not where it is on the way.
+			await expect.poll(() => panel.evaluate((el) => el.getAnimations().length)).toBe(0);
 
 			const card = panel.locator('.card').first();
 			const box = (await card.boundingBox())!;

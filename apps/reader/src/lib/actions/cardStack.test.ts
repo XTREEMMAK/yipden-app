@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardPlacement, isBehind } from './cardStack.js';
+import { cardPlacement, isBehind, pinOffset } from './cardStack.js';
 
 /**
  * The rAF fallback's geometry, checked as plain numbers: `relative` is a card's offset from
@@ -111,5 +111,35 @@ describe('isBehind', () => {
 	it('refuses taps once a card is more than half folded away', () => {
 		expect(isBehind(-151, 300)).toBe(true);
 		expect(isBehind(-300, 300)).toBe(true);
+	});
+});
+
+describe('a card taller than the screen', () => {
+	const TALL = 900;
+
+	it('is pinned by its bottom edge: held once that reaches the bottom of the screen', () => {
+		expect(pinOffset(TALL, VIEWPORT)).toBe(-300);
+		expect(pinOffset(CARD_HEIGHT, VIEWPORT)).toBe(0);
+	});
+
+	it('scrolls past the top untouched until all of it has been seen', () => {
+		// Its top is 200px above the screen, its bottom still 100px from the bottom of it.
+		expect(cardPlacement(-200, TALL, VIEWPORT)?.transform).toBe('none');
+		expect(isBehind(-200, TALL, VIEWPORT)).toBe(false);
+	});
+
+	it('only then folds away, over its own height', () => {
+		const start = cardPlacement(-300, TALL, VIEWPORT)!;
+		const half = cardPlacement(-300 - TALL / 2, TALL, VIEWPORT)!;
+		expect(start.opacity).toBe(1);
+		expect(half.transform).toContain('rotateX(-5deg)');
+		expect(isBehind(-300 - TALL / 2 - 1, TALL, VIEWPORT)).toBe(true);
+	});
+
+	it('stands up over one screen from a hinge at its top, its bottom still out of sight', () => {
+		const rising = cardPlacement(VIEWPORT / 2, TALL, VIEWPORT)!;
+		expect(rising.transformOrigin).toBe('50% 0%');
+		expect(rising.transform).toContain('rotateX(7deg)');
+		expect(cardPlacement(0, TALL, VIEWPORT)?.transform).toBe('none');
 	});
 });
