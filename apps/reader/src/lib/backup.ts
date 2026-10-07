@@ -303,7 +303,7 @@ function validVerdict(value: unknown): value is VerdictRecord {
 		https(value.url) &&
 		stringValue(value.name, 1_000) &&
 		['liked', 'hidden'].includes(String(value.verdict)) &&
-		['indienodes', 'partner'].includes(String(value.source)) &&
+		['indienodes', 'partner', 'site'].includes(String(value.source)) &&
 		optionalText(value.via, 1_000) &&
 		optionalText(value.thumbUrl, 2_000) &&
 		text(value.at, 100)

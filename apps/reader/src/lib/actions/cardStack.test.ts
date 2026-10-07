@@ -142,4 +142,9 @@ describe('a card taller than the screen', () => {
 		expect(rising.transform).toContain('rotateX(7deg)');
 		expect(cardPlacement(0, TALL, VIEWPORT)?.transform).toBe('none');
 	});
+	it('keeps a rising card opaque when the pane asks for a solid entry', () => {
+		const rising = VIEWPORT - CARD_HEIGHT / 2;
+		expect(cardPlacement(rising, CARD_HEIGHT, VIEWPORT)!.opacity).toBeLessThan(1);
+		expect(cardPlacement(rising, CARD_HEIGHT, VIEWPORT, false)!.opacity).toBe(1);
+	});
 });

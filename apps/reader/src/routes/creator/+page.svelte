@@ -262,7 +262,8 @@
 			{
 				url: site,
 				name,
-				source: partner ? 'partner' : 'indienodes',
+				// A site met in Surf stays a site: a profile opened on it does not make it a person.
+				source: verdict?.source === 'site' ? 'site' : partner ? 'partner' : 'indienodes',
 				...(hint?.ringName ? { via: hint.ringName } : verdict?.via ? { via: verdict.via } : {}),
 				...(cover ? { thumbUrl: cover } : {})
 			},

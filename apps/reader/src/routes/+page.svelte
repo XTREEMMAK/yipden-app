@@ -29,6 +29,8 @@
 	import { verdicts } from '$lib/verdicts.svelte.js';
 	import { celebrateLike, tick } from '$lib/sound.js';
 	import PartnerRingPanel from '$components/PartnerRingPanel.svelte';
+	import SurfPanel from '$components/SurfPanel.svelte';
+	import { sites } from '$lib/sites.svelte.js';
 
 	/**
 	 * Discover: the ring, one member at a time, as a full bleed hero built on their own image.
@@ -39,6 +41,13 @@
 	 */
 
 	let following = $state(false);
+	/**
+	 * Discover's other side: the sites index (sites-surf experiment). People is the ring's hero,
+	 * untouched; Surf covers it the way a partner ring does, and pauses it the same way.
+	 */
+	let surfing = $derived(sites.view === 'surf');
+	/** Anything covering the hero: a partner ring, or Surf. */
+	let heroCovered = $derived(partners.selected !== null || surfing);
 	let fetchingCurrent = $derived(
 		ring.current ? feeds.fetching.has(`ring:${ring.current.id}`) : false
 	);
@@ -237,6 +246,9 @@
 		void ring.load();
 		void partners.load();
 		void shelf.load();
+		void sites.loadView().then(() => {
+			if (sites.view === 'surf') void sites.load();
+		});
 	});
 
 	// Pull to refresh: re-check the ring on screen, IndieNodes and every registered partner ring
@@ -329,7 +341,7 @@
 	function onTapUp(event: PointerEvent) {
 		const start = tapDown;
 		tapDown = null;
-		if (!start || !ring.current || partners.selected) return;
+		if (!start || !ring.current || heroCovered) return;
 		if (filterSheetOpen || ringSheetOpen || actionsSheetOpen || membersSheetOpen || previewOpen)
 			return;
 		if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10) return; // a drag
@@ -544,7 +556,7 @@
 			ringSheetOpen ||
 			actionsSheetOpen ||
 			membersSheetOpen ||
-			partners.selected ||
+			heroCovered ||
 			ring.visible.length <= 1
 		)
 			return;
@@ -562,7 +574,7 @@
 	use:swipe={{
 		axis: 'x',
 		exclude: '[data-noswipe]',
-		enabled: () => ring.visible.length > 1 && !partners.selected,
+		enabled: () => ring.visible.length > 1 && !heroCovered,
 		onStart: () => {
 			dragging = true;
 			heroArt?.wake();
@@ -578,7 +590,7 @@
 	}}
 	use:pullToRefresh={{
 		atTop: () => true,
-		enabled: () => !partners.selected,
+		enabled: () => !heroCovered,
 		onChange: (state) => {
 			pullY = state.pullY;
 			pulling = state.pulling;
@@ -602,7 +614,7 @@
 
 	<HeroArt
 		bind:this={heroArt}
-		covered={partners.selected !== null}
+		covered={heroCovered}
 		src={ring.heroImage}
 		wash={washFor(ring.current?.id ?? 'yipden')}
 		washColor={washColorFor(ring.current?.id ?? 'yipden')}
@@ -619,7 +631,7 @@
 		</div>
 	{/if}
 
-	<header class="top" inert={partners.selected !== null}>
+	<header class="top" class:over-surf={surfing} inert={partners.selected !== null}>
 		<span class="logo">
 			<svg width="30" height="30" viewBox="0 0 1024 1024" aria-hidden="true">
 				<path
@@ -629,7 +641,7 @@
 			</svg>
 			YipDen
 		</span>
-		<span class="top-actions">
+		<span class="top-actions" hidden={surfing}>
 			{#if partners.status === 'loading'}
 				<span class="round is-loading" aria-hidden="true">
 					<span class="mini-spinner"></span>
@@ -710,7 +722,7 @@
 
 	<div
 		class="body"
-		inert={partners.selected !== null}
+		inert={heroCovered}
 		style:transform="translateX({dragX}px)"
 		style:transition={dragging || snapBody ? 'none' : `transform var(--dur-m) var(--ease)`}
 	>
@@ -831,10 +843,26 @@
 		empty: `.body` above sits with `margin-top: auto` and relies on this element's own
 		dock-clearance padding to keep the hero text clear of the tab bar.
 	-->
-	<div class="bottom" inert={partners.selected !== null}></div>
+	<div class="bottom" inert={heroCovered}></div>
+
+	{#if surfing && !partners.selected}
+		<SurfPanel />
+	{/if}
 
 	{#if partners.selected}
 		<PartnerRingPanel result={partners.selected} onback={() => partners.select(null)} />
+	{:else}
+		<!--
+			People | Surf: one control in one place for both sides, so switching never moves it. It
+			sits above Surf's panel; a partner ring has its own way back and covers it.
+		-->
+		<div class="view-switch" data-noswipe role="radiogroup" aria-label="What to discover">
+			<button role="radio" aria-checked={!surfing} onclick={() => sites.setView('people')}
+				>People</button
+			>
+			<button role="radio" aria-checked={surfing} onclick={() => sites.setView('surf')}>Surf</button
+			>
+		</div>
 	{/if}
 
 	<div class="bursts" aria-hidden="true">
@@ -1192,6 +1220,53 @@
 		font-size: 22px;
 		font-weight: 750;
 		letter-spacing: -0.02em;
+	}
+
+	/* Over Surf the bar stays where it is, above the panel, with only the logo left on it. */
+	.top.over-surf {
+		z-index: 7;
+	}
+
+	.top-actions[hidden] {
+		display: none;
+	}
+
+	/*
+	 * Below the bar, centred, in the same place over the hero and over Surf. Glass on the hero,
+	 * like the round buttons beside the logo.
+	 */
+	.view-switch {
+		position: absolute;
+		top: calc(76px + env(safe-area-inset-top, 0px));
+		left: 50%;
+		z-index: 7;
+		display: flex;
+		padding: 3px;
+		border-radius: 999px;
+		background: rgba(var(--deep-rgb), 0.46);
+		transform: translateX(-50%);
+		backdrop-filter: blur(8px);
+	}
+
+	.view-switch button {
+		min-width: 88px;
+		min-height: 40px;
+		padding: 0 16px;
+		border: 0;
+		border-radius: 999px;
+		background: none;
+		color: #fff;
+		font-family: var(--body);
+		font-size: 14px;
+		font-weight: 600;
+		transition:
+			background var(--dur-s) var(--ease),
+			color var(--dur-s) var(--ease);
+	}
+
+	.view-switch button[aria-checked='true'] {
+		background: #fff;
+		color: #1f1410;
 	}
 
 	.top-actions {

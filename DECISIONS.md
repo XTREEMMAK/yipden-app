@@ -3336,3 +3336,45 @@ past the card's edges rather than inside it.
 - **Not clipped by Feeds.** A card's `.yip-fold` has `content-visibility: auto`, whose paint
   containment would clip the swap to the card's box, so a fold holding a video is drawn always.
 - **The profile button** over the creator's picture is not rendered while the video is in front.
+
+## 2026-10-07 — Sites and Surf: an experiment beside the ring (branch `sites-surf`)
+
+A second dataset, a visual index of indie web sites (shrines, fandom pages, personal sites,
+blogs, webrings), tried on its own branch so it can be judged on a phone and kept or dropped. The
+reasoning behind its shape came out of a feasibility review the same day.
+
+- **People and sites.** ring.json lists people; the index lists sites. What a listing is comes
+  from the document that lists it, never from guessing about the human behind it: a fan shrine is
+  a site even though a person made it, and a musician in the ring is a person even though their
+  home is a website. A site never becomes a person by itself. "Made by" is to come only from
+  evidence (an h-card, a `rel=me`, a site under a ring member's own address), the Creator
+  Database's own ladder; a submitter's claim may later count as weak evidence.
+- **Discover keeps its hero.** Category sections as Discover's top level, with preview cards
+  everywhere, would have replaced the full-bleed, one-at-a-time hero; that was most of why the
+  idea looked like a new app. Instead Discover has a People | Surf switch. People is the ring's
+  hero, untouched. Surf covers it the way a partner ring does, and pauses it the same way.
+- **The switch is one element in one place** for both sides, below the bar, so switching never
+  moves it. Over Surf the bar stays, with only the logo: the ring's own buttons do nothing there.
+  The choice is saved (`discoverView`).
+- **Surf is laid out like a partner ring's panel**, written as its own component rather than a
+  generalized `PartnerRingPanel`, so working code stays untouched while this is judged. Category
+  is a row of its own (the one thing a ring has no equivalent of); tags and explored marks are in
+  the filter sheet, which gained an optional heading for tags.
+- **Order is newest added first**, then by id: the index's own chronology, never a ranking.
+- **Previews: a poster always, a clip only for the card being looked at.** The first card, in
+  list order, whose preview is mostly on screen and which the stack has not folded, and only once
+  a fling settles. One video element at a time, created only while it plays; none under reduced
+  motion. Bundled clips are WebM (what Playwright records, and Android plays). The real feed
+  should be H.264 MP4 for iOS and hardware decoding.
+- **A solid entry for tall cards.** The stack fades a rising card in from half opacity over its
+  own height, and a site card with its preview is tall, so half a screen of it was see-through
+  over the card pinned behind. `cardStack` takes `solidEntry`, which Surf sets; nothing else
+  changes.
+- **A site's Like is a site's.** Verdicts gained the source `site`, accepted by backup import. A
+  creator profile opened on a liked site keeps it a site.
+- **The seed** is twelve sites chosen by the maintainer, bundled with posters and six clips,
+  captured by `scripts/capture-site-previews.mjs`, which reads robots.txt first. stupied.net turns
+  away every crawler it does not name, so it has no capture, and the app's own robots check will
+  likely refuse its feed too.
+- **Not yet:** following a site (built the way forums are), the People | Sites | Forums switches in
+  Follow and Feeds, search across both sides, and the site page with "Made by".

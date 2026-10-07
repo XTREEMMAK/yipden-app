@@ -15,6 +15,8 @@ import { store } from './store/index.js';
  * nothing else here changes.
  */
 
+export type DiscoverView = 'people' | 'surf';
+
 async function loadDocument(): Promise<{ document: unknown; localMedia: boolean }> {
 	return { document: seed, localMedia: true };
 }
@@ -61,6 +63,27 @@ class SitesState {
 	generatedAt = $state<string | null>(null);
 
 	categories = $derived(categoriesOf(this.all));
+
+	/**
+	 * Which side of Discover is showing: People (the ring's hero, the default) or Surf. Saved, so
+	 * a reader who lives in Surf comes back to it.
+	 */
+	view = $state<DiscoverView>('people');
+	private viewRead = false;
+
+	async loadView(): Promise<void> {
+		if (this.viewRead) return;
+		this.viewRead = true;
+		await store.init();
+		const saved = await store.getSetting<string>('discoverView');
+		if (saved === 'surf' || saved === 'people') this.view = saved;
+	}
+
+	setView(view: DiscoverView): void {
+		this.view = view;
+		void store.setSetting('discoverView', view);
+		if (view === 'surf') void this.load();
+	}
 
 	private started: Promise<void> | null = null;
 

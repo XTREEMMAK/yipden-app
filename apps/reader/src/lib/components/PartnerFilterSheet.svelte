@@ -18,13 +18,27 @@
 		genres: Array<{ tag: string; count: number }>;
 		counts: { all: number; explored: number; unexplored: number };
 		genreLabel: (tag: string) => string;
+		/** What this list calls its genres: Surf's are tags. */
+		genreHeading?: string;
+		allGenresLabel?: string;
 		onshow: (show: ExploredFilter) => void;
 		ongenre: (genre: string | null) => void;
 		onclose: () => void;
 	}
 
-	let { ringName, show, genre, genres, counts, genreLabel, onshow, ongenre, onclose }: Props =
-		$props();
+	let {
+		ringName,
+		show,
+		genre,
+		genres,
+		counts,
+		genreLabel,
+		genreHeading = 'Genre',
+		allGenresLabel = 'All genres',
+		onshow,
+		ongenre,
+		onclose
+	}: Props = $props();
 
 	const SHOW: Array<{ key: ExploredFilter; label: string }> = [
 		{ key: 'all', label: 'Everyone' },
@@ -58,7 +72,7 @@
 		</div>
 
 		{#if genres.length > 1}
-			<h3 class="sheet-sec" id="partner-genre">Genre</h3>
+			<h3 class="sheet-sec" id="partner-genre">{genreHeading}</h3>
 			<div role="radiogroup" aria-labelledby="partner-genre">
 				<button
 					class="sheet-row"
@@ -67,7 +81,7 @@
 					onclick={() => ongenre(null)}
 				>
 					<span class="sheet-dot" aria-hidden="true"></span>
-					<span class="sheet-name">All genres</span>
+					<span class="sheet-name">{allGenresLabel}</span>
 				</button>
 				{#each genres as entry (entry.tag)}
 					<button

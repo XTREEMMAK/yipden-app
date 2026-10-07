@@ -176,8 +176,8 @@ export interface VerdictRecord {
 	url: string;
 	name: string;
 	verdict: Verdict;
-	/** Which kind of ring it was found in. */
-	source: 'indienodes' | 'partner';
+	/** Which kind of ring it was found in, or `site` for a site met in Surf (not a person). */
+	source: 'indienodes' | 'partner' | 'site';
 	/** A partner ring's name, when it came from one. */
 	via?: string;
 	thumbUrl?: string;
@@ -324,7 +324,8 @@ export type SettingKey =
 	| 'layoutOverrides'
 	| 'sitesInApp'
 	| 'forumQuietDays'
-	| 'browserGuideSeen';
+	| 'browserGuideSeen'
+	| 'discoverView';
 
 /**
  * Cached waveform peaks, keyed by media URL and ETag so a track is decoded at most once.

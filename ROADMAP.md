@@ -656,6 +656,20 @@ Creator types (comics, cosplay, crafts, voice-over, video) are covered by kinds 
 place, plus the ring's `form` deciding what a profile shows first. No separate features per type.
 Comics are the first non-audio type to prove end to end.
 
+## Sites and Surf (experiment, branch `sites-surf`, 2026-10-07)
+
+A visual index of indie web sites beside the ring, judged on a phone before it is kept. The
+contract is [docs/sites-contract.md](docs/sites-contract.md); the reasoning is in DECISIONS.md.
+
+1. **Seed and sites layer (done).** Twelve sites bundled, posters and six clips.
+2. **People | Surf in Discover (built; to see on a phone).** The hero is untouched.
+3. **Following sites, the way forums are followed.** People | Sites | Forums in Follow and Feeds;
+   Forums may fold into Sites later.
+4. **Search across both sides, and a site page with "Made by" from evidence only.**
+
+To judge on the phone: does Surf feel like YipDen or a second app inside it; does the hero still
+feel central; do clips judder in the stack, and what do they cost in data.
+
 ## Your own webrings (proposed 2026-10-06; ask before building)
 
 A reader pastes a webring's address and browses it like a partner ring. It stays on their

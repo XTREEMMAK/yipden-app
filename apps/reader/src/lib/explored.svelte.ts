@@ -21,6 +21,8 @@ export interface RingView {
 	genre: string | null;
 	scrollTop: number;
 	show: ExploredFilter;
+	/** Surf's category, when one is chosen. Rings have none. */
+	category?: string | null;
 	/** How `show` was saved before it had three choices: true meant "not explored yet". */
 	hideExplored?: boolean;
 }

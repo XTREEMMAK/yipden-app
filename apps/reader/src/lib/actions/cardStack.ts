@@ -67,7 +67,13 @@ export type CardPlacement = {
  * the scroll-driven CSS path where an out-of-range card simply is not the entry or exit phase
  * of its own view-timeline.
  */
-export function cardPlacement(relative: number, height: number, viewport: number): CardPlacement {
+export function cardPlacement(
+	relative: number,
+	height: number,
+	viewport: number,
+	/** False keeps a rising card opaque: see `CardStackOptions.solidEntry`. */
+	fadeIn = true
+): CardPlacement {
 	if (height <= 0) return null;
 	const pin = pinOffset(height, viewport);
 	if (relative < pin - height - 40 || relative > viewport + height) return null;
@@ -93,7 +99,7 @@ export function cardPlacement(relative: number, height: number, viewport: number
 		return {
 			transformOrigin: pin < 0 ? '50% 0%' : '50% 100%',
 			transform: `perspective(1000px) translateY(${24 * (1 - entry)}px) rotateX(${14 * (1 - entry)}deg) scale(${0.94 + 0.06 * entry})`,
-			opacity: 0.5 + 0.5 * entry,
+			opacity: fadeIn ? 0.5 + 0.5 * entry : 1,
 			dim: 0
 		};
 	}
@@ -138,6 +144,7 @@ function foldOf(card: HTMLElement): HTMLElement {
 function layoutFallback(pane: HTMLElement): void {
 	const scrollTop = pane.scrollTop;
 	const viewport = pane.clientHeight - dockPx(pane);
+	const fadeIn = !pane.classList.contains('stack-solid');
 
 	for (const card of pane.querySelectorAll<HTMLElement>('.yip-stack')) {
 		const fold = foldOf(card);
@@ -147,7 +154,7 @@ function layoutFallback(pane: HTMLElement): void {
 		// The scroller holds it there, as it holds any card at the top; only the offset differs.
 		const top = pin < 0 ? `${pin}px` : '';
 		if (fold.style.top !== top) fold.style.top = top;
-		const placement = cardPlacement(relative, height, viewport);
+		const placement = cardPlacement(relative, height, viewport, fadeIn);
 		card.classList.toggle('behind', isBehind(relative, height, viewport));
 
 		/*
@@ -186,6 +193,13 @@ export interface CardStackOptions {
 	 * could see. Defaults to true.
 	 */
 	active?: boolean;
+	/**
+	 * True keeps a card opaque while it rises, instead of fading in from half. A card rises over
+	 * its own height (up to a screen), so a tall one, like a site in Surf with its preview, spent
+	 * half a screen see-through over the card pinned behind it, which read as two cards printed on
+	 * top of each other. It still tips and scales up as before. Defaults to false.
+	 */
+	solidEntry?: boolean;
 }
 
 export function cardStack(pane: HTMLElement, options: CardStackOptions = {}) {
@@ -195,6 +209,7 @@ export function cardStack(pane: HTMLElement, options: CardStackOptions = {}) {
 		__YIPDEN_DEBUG__ && diagnostics?.cssStack === true && supportsScrollDrivenAnimation();
 	let active = options.active !== false;
 	pane.classList.add('stack');
+	if (options.solidEntry) pane.classList.add('stack-solid');
 
 	/*
 	 * Feeds changes pane in one frame, with no slide, so the classes change in that same frame: the
