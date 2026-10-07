@@ -3319,3 +3319,20 @@ grows.
   grouped post.
 - **Later, not now:** the header could collapse while the cards scroll, to give the stack more
   room (ROADMAP).
+
+## 2026-10-06 (later still) — The swap happens outside the card, like a deck
+
+Phone feedback: the shuffle worked, but should play like two cards exchanging in a deck, out
+past the card's edges rather than inside it.
+
+- **Two cards, not two faces.** The video is its own card, a sibling of the post in `.yip-wrap`,
+  waiting behind it: smaller, set back, its top edge showing above the post. The post is no
+  longer clipped by its own `overflow: hidden`.
+- **The swap is the Web Animations API.** It is made once and then `reverse()`d, so either
+  direction turns around from wherever it is. The post swings out to the right and tips back,
+  and the video swings in from the left. They change `z-index` at the midpoint so they cross over
+  in the air. Mostly sideways, since a card near the top of Feeds has little room before the
+  header. Under reduced motion it is instant.
+- **Not clipped by Feeds.** A card's `.yip-fold` has `content-visibility: auto`, whose paint
+  containment would clip the swap to the card's box, so a fold holding a video is drawn always.
+- **The profile button** over the creator's picture is not rendered while the video is in front.

@@ -934,6 +934,15 @@
 	 * wrong total is what made "From the ring," below the last card, feel unreachable or stuck:
 	 * the pane's real scrollable area was smaller than its content actually needed.
 	 */
+	/*
+	 * A card carrying a shared video swaps it with the post like two cards in a deck, the pair
+	 * swinging out past the card's own edges. Skipping its rendering would clip it to its box,
+	 * as content-visibility contains its paint, so these few cards are always drawn.
+	 */
+	:global(.pane.stack .yip-fold:has(.has-video)) {
+		content-visibility: visible;
+	}
+
 	:global(.pane.stack .yip-fold:has(.yip.listen)) {
 		contain-intrinsic-size: auto 172px;
 	}

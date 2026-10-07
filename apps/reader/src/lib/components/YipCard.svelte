@@ -1,5 +1,52 @@
+<script lang="ts" module>
+	/** Where the card not on top waits: a little smaller, set back, its top edge showing above. */
+	const BEHIND =
+		'perspective(900px) translate3d(0, -16px, -40px) rotate(0deg) rotateY(0deg) scale(0.95)';
+	const TOP = 'perspective(900px) translate3d(0, 0, 0) rotate(0deg) rotateY(0deg) scale(1)';
+
+	/**
+	 * The post: out to the right over the video, then back and in behind it. Mostly sideways: a
+	 * card near the top of Feeds has little room above it before the header.
+	 */
+	const POST_TUCKS_BEHIND: Keyframe[] = [
+		{ offset: 0, transform: TOP, zIndex: 3 },
+		{
+			offset: 0.45,
+			transform:
+				'perspective(900px) translate3d(30%, -8%, 60px) rotate(7deg) rotateY(-18deg) scale(1)',
+			zIndex: 3
+		},
+		{
+			offset: 0.55,
+			transform:
+				'perspective(900px) translate3d(22%, -6%, -30px) rotate(4deg) rotateY(-12deg) scale(0.97)',
+			zIndex: 1
+		},
+		{ offset: 1, transform: BEHIND, zIndex: 1 }
+	];
+
+	/** The video: out to the left from behind, under the post, then forward and on top. */
+	const VIDEO_COMES_FORWARD: Keyframe[] = [
+		{ offset: 0, transform: BEHIND, zIndex: 1 },
+		{
+			offset: 0.45,
+			transform:
+				'perspective(900px) translate3d(-24%, 6%, -30px) rotate(-6deg) rotateY(16deg) scale(0.97)',
+			zIndex: 1
+		},
+		{
+			offset: 0.55,
+			transform:
+				'perspective(900px) translate3d(-16%, 4%, 40px) rotate(-3deg) rotateY(10deg) scale(1)',
+			zIndex: 3
+		},
+		{ offset: 1, transform: TOP, zIndex: 3 }
+	];
+</script>
+
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onDestroy, tick } from 'svelte';
+	import { prefersReducedMotion } from '$lib/motion.js';
 	import { sourceColor as sourceColorOf } from '$lib/sources.js';
 	import { youtubeLinkIn } from '$lib/embeds/source.js';
 	import { hostOf } from '$lib/hosts.js';
@@ -98,11 +145,42 @@
 	let showingVideo = $state(false);
 	let videoChip = $state<HTMLButtonElement | undefined>(undefined);
 	let videoOpen = $state<HTMLButtonElement | undefined>(undefined);
+	let postCard = $state<HTMLElement | undefined>(undefined);
+	let videoCard = $state<HTMLElement | undefined>(undefined);
+	/** The two cards' swap, made once and then played forward or back from wherever it is. */
+	let exchange: Animation[] = [];
+
+	/**
+	 * The post and the video trade places like two cards in a deck: the post lifts up and away,
+	 * swings back and tucks in behind as the video swings forward from the other side, the two
+	 * crossing over in the air. The same motion run backwards puts the post on top again, from
+	 * wherever the swap had got to. Under reduced motion they change places with no motion.
+	 */
 	async function showVideo(show: boolean) {
+		if (show === showingVideo) return;
 		showingVideo = show;
+		if (postCard && videoCard) {
+			if (exchange.length) {
+				for (const animation of exchange) animation.reverse();
+			} else {
+				const timing: KeyframeAnimationOptions = {
+					duration: prefersReducedMotion() ? 1 : 620,
+					easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)',
+					fill: 'forwards'
+				};
+				exchange = [
+					postCard.animate(POST_TUCKS_BEHIND, timing),
+					videoCard.animate(VIDEO_COMES_FORWARD, timing)
+				];
+			}
+		}
 		await tick();
 		(show ? videoOpen : videoChip)?.focus({ preventScroll: true });
 	}
+
+	onDestroy(() => {
+		for (const animation of exchange) animation.cancel();
+	});
 
 	/** A video a post shares: opened on YouTube, like a channel's own. */
 	function openVideo(watchUrl: string) {
@@ -173,13 +251,15 @@
 		{@render profileButton('media')}
 	</div>
 {:else}
-	<div class="yip-wrap">
+	<div class="yip-wrap" class:has-video={linkedVideo && !concealed}>
 		<div
 			class="yip text"
 			style:--src={sourceColor}
 			class:concealed
 			class:unread={!yip.readAt}
 			class:showing-video={showingVideo}
+			bind:this={postCard}
+			inert={showingVideo}
 		>
 			<!-- The post itself: the whole card, under the buttons drawn over it. -->
 			<button
@@ -190,7 +270,7 @@
 					: `${yip.title && yip.title !== 'Untitled' ? `${yip.title}. ` : ''}Post by ${authorName} on ${sourceLabel(yip)}. Opens on ${new URL(yip.url).hostname}.`}
 			></button>
 			<!-- The post: everything a reader sees first, shuffled behind the video when they ask. -->
-			<span class="front" inert={showingVideo}>
+			<span class="front">
 				<span class="who">
 					<span class="av" style:background-image={icon ? `url(${icon})` : ''}></span>
 					<span class="wn">
@@ -225,33 +305,38 @@
 					{/if}
 				</span>
 			</span>
-			{#if linkedVideo && !concealed}
-				{@const id = youtubeVideoId(linkedVideo)}
-				<!-- The video they shared: the same size as the post, in its place until put back. -->
-				<span class="video-face" inert={!showingVideo} aria-hidden={!showingVideo}>
-					<button
-						bind:this={videoOpen}
-						class="video-open"
-						style:background-image={`url(https://i.ytimg.com/vi/${id}/hqdefault.jpg)`}
-						aria-label={`Watch the video ${authorName} shared, on YouTube`}
-						onclick={() => openVideo(linkedVideo!)}
-					>
-						<svg class="play" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7v10l8-5z" /></svg>
-						<span class="video-meta">
-							<b
-								>{yip.media.find((media) => media.kind === 'video')?.title ??
-									'A video they shared'}</b
-							>
-							<small>YouTube · Opens there</small>
-						</span>
-					</button>
-					<button class="video-back" aria-label="Back to the post" onclick={() => showVideo(false)}>
-						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
-					</button>
-				</span>
-			{/if}
 		</div>
-		{@render profileButton('text')}
+		{#if linkedVideo && !concealed}
+			{@const id = youtubeVideoId(linkedVideo)}
+			<!-- The video they shared: a card of its own, waiting behind the post in the deck. -->
+			<div
+				class="video-card"
+				bind:this={videoCard}
+				inert={!showingVideo}
+				aria-hidden={!showingVideo}
+			>
+				<button
+					bind:this={videoOpen}
+					class="video-open"
+					style:background-image={`url(https://i.ytimg.com/vi/${id}/hqdefault.jpg)`}
+					aria-label={`Watch the video ${authorName} shared, on YouTube`}
+					onclick={() => openVideo(linkedVideo!)}
+				>
+					<svg class="play" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7v10l8-5z" /></svg>
+					<span class="video-meta">
+						<b
+							>{yip.media.find((media) => media.kind === 'video')?.title ??
+								'A video they shared'}</b
+						>
+						<small>YouTube · Opens there</small>
+					</span>
+				</button>
+				<button class="video-back" aria-label="Back to the post" onclick={() => showVideo(false)}>
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+				</button>
+			</div>
+		{/if}
+		{#if !showingVideo}{@render profileButton('text')}{/if}
 	</div>
 {/if}
 
@@ -309,13 +394,6 @@
 		pointer-events: none;
 	}
 
-	.front {
-		display: block;
-		transition:
-			transform var(--dur-m) var(--ease),
-			opacity var(--dur-m) var(--ease);
-	}
-
 	.foot {
 		display: flex;
 		align-items: center;
@@ -347,42 +425,26 @@
 	}
 
 	/*
-	 * The shuffle: the post slides out one way and tips behind as the video slides in from the
-	 * other, and back again. Both are the card's own size, so nothing below it moves.
+	 * A card with a video carries two cards, the post on top. The one behind shows its top edge
+	 * above the post, so there is plainly something more here; `showVideo` swaps them.
 	 */
-	.yip.text > .video-face {
+	.has-video > .yip.text {
+		z-index: 3;
+	}
+
+	.has-video > .av-hit {
+		z-index: 4;
+	}
+
+	.video-card {
 		position: absolute;
 		inset: 0;
 		z-index: 1;
-		opacity: 0;
-		transform: translateX(28%) rotate(3deg) scale(0.94);
-		transition:
-			transform var(--dur-m) var(--ease),
-			opacity var(--dur-m) var(--ease);
-	}
-
-	.showing-video .front {
-		opacity: 0;
-		transform: translateX(-28%) rotate(-3deg) scale(0.94);
-	}
-
-	.yip.text.showing-video > .video-face {
-		opacity: 1;
-		transform: none;
-	}
-
-	.showing-video .video-face button {
-		pointer-events: auto;
-	}
-
-	/* Under reduced motion the two simply cross-fade. */
-	@media (prefers-reduced-motion: reduce) {
-		.front,
-		.showing-video .front,
-		.yip.text > .video-face,
-		.yip.text.showing-video > .video-face {
-			transform: none;
-		}
+		border-radius: var(--r-card);
+		background: #000;
+		box-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.6);
+		overflow: hidden;
+		transform: perspective(900px) translate3d(0, -16px, -40px) scale(0.95);
 	}
 
 	.video-open {

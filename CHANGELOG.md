@@ -9,8 +9,9 @@ Every notable change to YipDen, newest first. The format follows
 ### Added
 
 - A YouTube video a post shares (a Bluesky link card, a blog post's embed or link) waits behind
-  the post: a Video button shuffles the post aside and brings the video forward, the same size as
-  the card, and Back to the post returns it. The video opens on YouTube (its app when installed,
+  the post, its top edge showing above it like a second card in a deck. The Video button swaps
+  the two in 3D, the post swinging out and behind as the video swings forward, and Back to the
+  post swaps them back. The video opens on YouTube (its app when installed,
   the browser otherwise), as a channel's own videos in Feeds do.
 - How finding works: a guide to the in-app browser, shown before the first site opens in the app,
   and from "Found on their page", the Library and Settings. On the page itself, a held picture
