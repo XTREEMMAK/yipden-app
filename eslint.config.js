@@ -14,7 +14,9 @@ export default tseslint.config(
 			'apps/reader/android/**',
 			'docs/reference/**',
 			'tmp/**',
-			'brand/**'
+			'brand/**',
+			// Real third-party pages and scripts, kept exactly as captured: not our code to lint.
+			'apps/reader/src/lib/partner/test-fixtures/**'
 		]
 	},
 	js.configs.recommended,

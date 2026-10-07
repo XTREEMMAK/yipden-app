@@ -197,13 +197,18 @@ describe('partner rings', () => {
 describe('the registry', () => {
 	afterEach(() => vi.unstubAllEnvs());
 
-	it('registers Musicians Webring and Knifebeetle for everyone, with no flag', async () => {
+	it('registers every live partner ring for everyone, with no flag', async () => {
 		vi.doUnmock('./partner/registry.js');
 		const { partnerSources } = await import('./partner/registry.js');
 		const sources = await partnerSources();
 		expect(sources.map((source) => source.adapter.ring.id)).toEqual([
 			'musicians-webring',
-			'knifebeetle'
+			'knifebeetle',
+			'webringthemusic',
+			'smallway-comics',
+			'ink-shrines',
+			'webcomic-quest',
+			'homebrew-webring'
 		]);
 	});
 

@@ -8,6 +8,8 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- Five more webrings in What to discover: WeBringTheMusic, Smallway's Comics Line, Ink Shrines,
+  WebcomicQuest and The Homebrew Webring.
 - Surf: Discover's ring button becomes "What to discover", offering
   the rings (people) and Surf (sites). Surf is a list of indie web sites by category (shrines,
   personal sites, blogs, webrings), each with a picture of the page and, for some, a short moving

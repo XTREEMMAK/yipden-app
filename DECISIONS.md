@@ -3505,3 +3505,25 @@ Play mostly did not. And continuous play stopped dead at a Bandcamp track.
   that frame alone (`WebViewCompat.addDocumentStartJavaScript`, already in Capacitor's
   `androidx.webkit`), relaying play, pause, time and end to the app. Native code that reaches into
   another platform's player is a decision for the maintainer, so it waits for one.
+
+## 2026-10-07 — Five more partner rings
+
+Added at the maintainer's request, each through its own adapter (`partner/`), sharing a small
+`livePartnerSource` helper, and each tested against a real capture of its own page or file:
+
+| Ring                  | Read from                                                              | Kept (live, 2026-10-07) |
+| --------------------- | ---------------------------------------------------------------------- | ----------------------- |
+| WeBringTheMusic       | `/directory`, a table; a member's Bandcamp is their sample (`preview`) | 29                      |
+| Smallway: Comics Line | `comics.js`'s `DATA_comics` array, read as text and never run          | 19                      |
+| Ink Shrines           | the home page's cards; the section heading is the genre tag            | 19 of 43                |
+| WebcomicQuest         | the home page's member gallery (its onionring list has no names)       | 15                      |
+| The Homebrew Webring  | `members.json`, which its own members page loads                       | 63                      |
+
+Ink Shrines links 24 of its cartoonists as plain `http://`. They are dropped at the boundary like
+Knifebeetle's, not upgraded on a guess. Smallway's array is found by matching brackets, since the
+ring's own widget code follows it in the same file.
+
+**Warp Point was not added.** It is a directory of game blogs and publications (Aftermath,
+Gematsu), not a ring of people, and its list carries no addresses: each blog's address is only on
+that blog's own page, so a refresh would be twenty-odd requests. It fits Surf, as sites, better
+than Webrings.

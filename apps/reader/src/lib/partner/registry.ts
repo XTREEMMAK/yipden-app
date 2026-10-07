@@ -47,7 +47,7 @@ function localFlag(key: string): boolean {
  * the end to end suite does and a release build does not, and even then it stays off until a
  * test opts in. It needs no network: the fixture document is bundled with it.
  *
- * Musicians Webring and Knifebeetle are real rings, read live, and on for everyone: each links
+ * Musicians Webring, Knifebeetle and the five added on 2026-10-07 are real rings, read live, and on for everyone: each links
  * back to its ring's own site and carries that ring's own badge. See DECISIONS.md. The one build
  * that leaves them out is the end to end suite's (`VITE_YIPDEN_PARTNER_LIVE=0`), which must not
  * touch the network.
@@ -63,6 +63,12 @@ export async function partnerSources(): Promise<PartnerSource[]> {
 	if (import.meta.env.VITE_YIPDEN_PARTNER_LIVE !== '0') {
 		sources.push((await import('./musiciansWebring.js')).musiciansWebringSource);
 		sources.push((await import('./knifebeetleWebring.js')).knifebeetleSource);
+		// Added 2026-10-07 at the maintainer's request: each read through its own adapter.
+		sources.push((await import('./webringTheMusic.js')).webringTheMusicSource);
+		sources.push((await import('./smallwayComics.js')).smallwayComicsSource);
+		sources.push((await import('./inkShrines.js')).inkShrinesSource);
+		sources.push((await import('./webcomicQuest.js')).webcomicQuestSource);
+		sources.push((await import('./homebrewWebring.js')).homebrewSource);
 	}
 
 	return sources;

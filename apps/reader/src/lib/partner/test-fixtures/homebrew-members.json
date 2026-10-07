@@ -1,0 +1,448 @@
+{
+  "members": [
+    {
+      "name": "beigestack",
+      "url": "https://maniksharma.xyz/",
+      "button": "/buttons/65.png",
+      "description": "a dude who likes old web, oss (I use Fedora Workstation 42) and monospaced fonts [IBM Plex Mono, Space Mono] (but also fonts like SF UI and Playfair Display) trying to navigate the web :P",
+      "number": 65
+    },
+    {
+      "name": "Pygmalion",
+      "url": "https://dreamvalley.nekoweb.org/",
+      "button": "/buttons/64.png",
+      "description": "a unicorn who has an affinity for old DS games, clouds, and lesbianism",
+      "number": 64
+    },
+    {
+      "name": "Allister",
+      "url": "https://milkywaytrain.neocities.org/",
+      "button": "/buttons/63.png",
+      "description": "personal website for some freak on a leash",
+      "number": 63
+    },
+    {
+      "name": "Listening to the raindrops",
+      "url": "https://theleavesarefalling.neocities.org/",
+      "button": "/buttons/62.gif",
+      "description": "First website i've made, basically just a website where i can share my interests and junk. its not fully finished but i got like 70% of it finished",
+      "number": 62
+    },
+    {
+      "name": "Mala",
+      "url": "https://ophanimkei.com/",
+      "button": "/buttons/61.gif",
+      "description": "diary, art, archive, media logs, etc of the webmistress. love weird retro kids games",
+      "number": 61
+    },
+    {
+      "name": "jakedog29",
+      "url": "https://2000site.neocities.org",
+      "button": "/buttons/60.gif",
+      "description": "A gimmick 2000s era website. i plan to add more 2000's - early 2010's stuff that I like there.",
+      "number": 60
+    },
+    {
+      "name": "Milo",
+      "url": "puptart.neocities.org",
+      "button": "/buttons/59.gif",
+      "description": "artist guy who wants to share his joy, art, ocs and hyperfixations",
+      "number": 59
+    },
+    {
+      "name": "emmy",
+      "url": "https://p3p.neocities.org/",
+      "description": "p3p is a love letter to 2000s - early 2010s technology, gaming, and the internet that raised me!",
+      "number": 58
+    },
+    {
+      "name": "Heap",
+      "url": "https://twotriplezero.nekoweb.org/",
+      "button": "/buttons/57.png",
+      "description": "Personal home for me, my OC projects, and other stuff!",
+      "number": 57
+    },
+    {
+      "name": "enn",
+      "url": "https://ennchanted.neocities.org/",
+      "description": "a random fun personal website",
+      "number": 56
+    },
+    {
+      "name": "Zima",
+      "url": "zimawtf.neocities.org",
+      "button": "/buttons/55.png",
+      "description": "Personal notebook-style site to help me and others get to know myself better ^__^ ! I love style savvy, cooking mama and more :3",
+      "number": 55
+    },
+    {
+      "name": "marrow",
+      "url": "https://marrowbites.neocities.org/",
+      "description": "a wolf's personal websites for links and such",
+      "number": 54
+    },
+    {
+      "name": "Riley",
+      "url": "https://rileyland.nekoweb.org/",
+      "description": "computerboy who has a 3ds and some knowledge of html",
+      "number": 53
+    },
+    {
+      "name": "dtsx",
+      "url": "https://dtsx.neocities.org/",
+      "button": "/buttons/52.gif",
+      "description": "an dtsx455's site lol!",
+      "number": 52
+    },
+    {
+      "name": "Sodarain",
+      "url": "https://sodarain.neocities.org/",
+      "button": "/buttons/51.gif",
+      "description": "Personal site I use to blog and share my art/other creations on :D",
+      "number": 51
+    },
+    {
+      "name": "disk",
+      "url": "https://coolfishseawater9.neocities.org/",
+      "description": "personal site for fun",
+      "number": 50
+    },
+    {
+      "name": "Penny",
+      "url": "https://pennylovespandas.neocities.org/",
+      "button": "/buttons/49.gif",
+      "description": "My space on the net for art, writing, and more!",
+      "number": 49
+    },
+    {
+      "name": "Vinnith",
+      "url": "https://dramaticalmurder.neocities.org/",
+      "button": "/buttons/48.png",
+      "description": "Personal site to store my ramblings, thoughts and interests.",
+      "number": 48
+    },
+    {
+      "name": "Evil",
+      "url": "https://evilperson.neocities.org/",
+      "button": "/buttons/47.gif",
+      "description": "Cutesy personal site! Lots of free content for use!",
+      "number": 47
+    },
+    {
+      "name": "lumi",
+      "url": "https://milkyway.moe/",
+      "button": "/buttons/46.gif",
+      "description": "the house of autism",
+      "number": 46
+    },
+    {
+      "name": "Xavier",
+      "url": "https://xavierhm.com/",
+      "description": "The personal site of an artist/writer/poet/blogger/trans man and all-around cool dude. Handhelds are my favorite consoles/games. I own a 3DS and plan on getting a Vita in the future! I have a page all about my 3DS with game/CFW recs on my website.",
+      "number": 45
+    },
+    {
+      "name": "Daisy",
+      "url": "https://daisybells.neocities.org/",
+      "button": "/buttons/44.png",
+      "description": "a silly site to put all my silly creative projects all in one place! :D",
+      "number": 44
+    },
+    {
+      "name": "igor360",
+      "url": "https://igor360.neocities.org/",
+      "button": "/buttons/43.png",
+      "description": "some website with cats, seals and some other cool and silly stuff!",
+      "number": 43
+    },
+    {
+      "name": "Nicky",
+      "url": "https://nickyturner.neocities.org/",
+      "button": "/buttons/42.png",
+      "description": "the personal website of nickyturner.",
+      "number": 42
+    },
+    {
+      "name": "Kelly",
+      "url": "https://onlytrichromatic.neocities.org/",
+      "button": "/buttons/41.png",
+      "description": "A site for games, comics, art, and whatever else I feel like!",
+      "number": 41
+    },
+    {
+      "name": "Laxus",
+      "url": "https://oopsano.neocities.org/",
+      "button": "/buttons/40.png",
+      "description": "Just redesigned my site, so I'll slowly be filling it up with fanfiction, graphics, and maybe some essay about topics I want to nerd out about",
+      "number": 40
+    },
+    {
+      "name": "harriet",
+      "url": "https://harriet.nekoweb.org/",
+      "button": "/buttons/39.png",
+      "description": "hatties personal lil' website !!! come visit and say hello :3",
+      "number": 39
+    },
+    {
+      "name": "roxy",
+      "url": "https://plotpoint.nekoweb.org/",
+      "description": "personal site i work on for fun!",
+      "number": 38
+    },
+    {
+      "name": "Aid",
+      "url": "https://zhongvie.neocities.org/",
+      "button": "/buttons/37.png",
+      "description": "Aid's small corner of OCs, media logs, and other fun oddities! 3DS homebrew hell yeah!!!",
+      "number": 37
+    },
+    {
+      "name": "mocha",
+      "url": "https://arcane.kitties.cat/",
+      "button": "/buttons/36.png",
+      "description": "ima kitty cat that codes and meows alot",
+      "number": 36
+    },
+    {
+      "name": "Malcolm",
+      "url": "https://jetblackwings.neocities.org/",
+      "description": "A site where I write reviews for anime, books and videogames and occasionally write essays",
+      "number": 35
+    },
+    {
+      "name": "Junebug",
+      "url": "https://animalgirlssanctuary.neocities.org/",
+      "description": "Animal guy that hoards resources/graphics/ & art",
+      "number": 34
+    },
+    {
+      "name": "corvidae",
+      "url": "https://corvidae.digital/",
+      "button": "/buttons/33.gif",
+      "description": "my personal digital space! features my art, blog, collections, and more! :D",
+      "number": 33
+    },
+    {
+      "name": "Mika",
+      "url": "https://dcsk8prk.online/",
+      "button": "/buttons/32.png",
+      "description": "A personal stomping ground of an internet loser!",
+      "number": 32
+    },
+    {
+      "name": "Mey",
+      "url": "https://meyr0s3.neocities.org/",
+      "button": "/buttons/31.gif",
+      "description": "Just a personal website for stuff i like with a frutiger aero theme",
+      "number": 31
+    },
+    {
+      "name": "Gabriel",
+      "url": "https://chimerathing.neocities.org/",
+      "button": "/buttons/30.png",
+      "description": "personal site showcasing my art and other stuff i like",
+      "number": 30
+    },
+    {
+      "name": "Noor",
+      "url": "https://soulmaze.neocities.org/",
+      "button": "/buttons/29.gif",
+      "description": "The homepage of an art and technology enthusiast",
+      "number": 29
+    },
+    {
+      "name": "Jonny",
+      "url": "https://wizardhell.neocities.org/",
+      "button": "/buttons/28.jpeg",
+      "description": "my own personal hell! Art, fandom, ancient magical texts, etc. - Currently in progress!",
+      "number": 28
+    },
+    {
+      "name": "two_ko86.",
+      "url": "https://two-ko86.moe/",
+      "button": "/buttons/27.gif",
+      "description": "two_ko86's corner of the internet",
+      "number": 27
+    },
+    {
+      "name": "51db",
+      "url": "https://51db.neocities.org/",
+      "button": "/buttons/26.gif",
+      "description": "a personal homepage made for the joy of coding and sharing my interests",
+      "number": 26
+    },
+    {
+      "name": "Wildcat",
+      "url": "https://bibliohound.neocities.org",
+      "button": "/buttons/25.png",
+      "description": "A personal website containing things the webmaster loves, such as writing and technology.",
+      "number": 25
+    },
+    {
+      "name": "mime",
+      "url": "https://miracleos.neocities.org/",
+      "button": "/buttons/24.png",
+      "description": "just a personal site lol",
+      "number": 24
+    },
+    {
+      "name": "toothsprite",
+      "url": "https://toothspit.neocities.org",
+      "button": "/buttons/23.gif",
+      "description": "Personal web-palace full of odd things! and stuff...",
+      "number": 23
+    },
+    {
+      "name": "FlipSide",
+      "url": "https://flipside.nekoweb.org/",
+      "button": "/buttons/22.gif",
+      "description": "My neat little retro site where I share my stuff",
+      "number": 22
+    },
+    {
+      "name": "Humanfinny",
+      "url": "https://humanfinny.neocities.org/",
+      "button": "/buttons/21.webp",
+      "description": "A personal art, media review, and other miscellany site.",
+      "number": 21
+    },
+    {
+      "name": "OliviaMeower",
+      "url": "https://oliviameower.neocities.org/",
+      "button": "/buttons/20.gif",
+      "description": "A site with helpful links, zines, shrines, and more fun stuff!!",
+      "number": 20
+    },
+    {
+      "name": "kiyo",
+      "url": "https://akuwarai.nekoweb.org",
+      "button": "/buttons/19.png",
+      "description": "this where all of tha magic happen",
+      "number": 19
+    },
+    {
+      "name": "Alex",
+      "url": "https://aoki553.nekoweb.org/",
+      "button": "/buttons/18.gif",
+      "description": "Alex's personal website - otaku nerd hell",
+      "number": 18
+    },
+    {
+      "name": "pablito_sexobar/ashley l.",
+      "url": "https://pablitosexobar.neocities.org/",
+      "description": "Personal website about artist/homebrewer :]",
+      "number": 17
+    },
+    {
+      "name": "skapon",
+      "url": "https://chironup.neocities.org/",
+      "button": "/buttons/16.png",
+      "description": "silliest place on the web ( ❛ ▿ ❛ )",
+      "number": 16
+    },
+    {
+      "name": "Pretender",
+      "url": "https://thegreatpretender02.neocities.org/",
+      "button": "/buttons/15.png",
+      "description": "Sharing my life's comforts with the world wide web!",
+      "number": 15
+    },
+    {
+      "name": "Marzo",
+      "url": "https://marzopan.neocities.org/",
+      "button": "/buttons/14.jpg",
+      "description": "Call me Mx. Worldwide the way I have art, blogs and everything else on my site.",
+      "number": 14
+    },
+    {
+      "name": "Frankie",
+      "url": "https://caitsith.neocities.org/",
+      "button": "/buttons/13.gif",
+      "description": "a site where i showcase my love for time where the internet was much more exciting ",
+      "number": 13
+    },
+    {
+      "name": "MaYo",
+      "url": "https://mayonnaisevibes.neocities.org/",
+      "button": "/buttons/12.gif",
+      "description": "My lil corner of the internet, which just so happens to be a fridge.",
+      "number": 12
+    },
+    {
+      "name": "Asmodeus Vulcan",
+      "url": "https://asmodeusvulcan.neocities.org/",
+      "button": "/buttons/11.jpg",
+      "description": "Just some guy with a cool website that punches nazis and supports the right to repair ",
+      "number": 11
+    },
+    {
+      "name": "Confetti",
+      "url": "https://confetticann0n.neocities.org/",
+      "button": "/buttons/10.png",
+      "description": "This is my space where I yap and post art. I talk a lot about modded games and my homebrewed 3DS!",
+      "number": 10
+    },
+    {
+      "name": "Rho",
+      "url": "https://roseverdict.neocities.org/",
+      "button": "/buttons/9.gif",
+      "description": "miscellany of all kinds- yarn, food, programming, fiction writing, music making, throwing stuff at my 3ds to see what sticks, the works",
+      "number": 9
+    },
+    {
+      "name": "breval",
+      "url": "https://fish.golf/",
+      "button": "/buttons/8.gif",
+      "description": "Killer fish.. Killer fish from San Diego.. I don't know what I am, but I taste really good! I'm a killer fish! Hello! I'll be your killer fish for the evening, Thank you.",
+      "number": 8
+    },
+    {
+      "name": "JaidenLE",
+      "url": "https://jaidenle.fun/",
+      "button": "/buttons/7.gif",
+      "description": "A nerd who likes computers alot, has one Pretendo guide, also really likes homebrew :3",
+      "number": 7
+    },
+    {
+      "name": "Chloe",
+      "url": "https://guzu2squared.neocities.org/",
+      "button": "/buttons/6.png",
+      "description": "My corner, where I pretty much do whatever I want and make things about my interests, one of which is my homebrewed Wii U.",
+      "number": 6
+    },
+    {
+      "name": "jack",
+      "url": "https://raineysplace.online/",
+      "description": "Competitive melee player blog and tutorials on how to improve at the game and optimize your experience.",
+      "number": 5
+    },
+    {
+      "name": "Dolphinho",
+      "url": "https://dolphinriivolution.neocities.org/",
+      "button": "/buttons/4.gif",
+      "description": "Currently  ̶5̶.̶0̶0̶0̶+̶  0 days without Homebrew related accidents",
+      "number": 4
+    },
+    {
+      "name": "Andie",
+      "url": "https://transferns.neocities.org/",
+      "button": "/buttons/3.gif",
+      "description": "A place where I talk about my interest and make music and such sometimes :3",
+      "number": 3
+    },
+    {
+      "name": "aiden!",
+      "url": "https://troy-sucks.neocities.org/",
+      "button": "/buttons/2.gif",
+      "description": "who gave this guy a computer",
+      "number": 2
+    },
+    {
+      "name": "sarah :3",
+      "url": "https://cresentri.com/",
+      "button": "https://cresentri.com/buttons!!!/dynamic.gif",
+      "description": "owner of the homebrew ring. i'm evil",
+      "number": 1
+    }
+  ]
+}

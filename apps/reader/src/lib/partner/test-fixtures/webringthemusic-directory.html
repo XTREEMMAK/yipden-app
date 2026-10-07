@@ -1,0 +1,947 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Directory - WeBringTheMusic</title>
+		<link rel="icon" href="/static/favicon.ico" type="image/x-icon" />
+		<link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon" />
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			body {
+				font-family:
+					-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+				background: #0a0a0a;
+				color: #e0e0e0;
+				line-height: 1.6;
+				min-height: 100vh;
+				-webkit-text-size-adjust: 100%;
+			}
+
+			/* Mobile-first: base styles for small screens */
+			.container {
+				max-width: 800px;
+				margin: 0 auto;
+				padding: 24px 16px;
+			}
+
+			footer {
+				margin-top: 48px;
+				padding-top: 24px;
+				border-top: 1px solid #222;
+				text-align: center;
+				color: #666;
+				font-size: 0.85rem;
+			}
+
+			footer a {
+				color: #6eb5ff;
+			}
+
+			header {
+				margin-bottom: 24px;
+				border-bottom: 1px solid #222;
+				padding-bottom: 16px;
+			}
+
+			h1 {
+				font-size: 1.25rem;
+				font-weight: 600;
+				color: #fff;
+				margin-bottom: 6px;
+			}
+
+			.tagline {
+				color: #888;
+				font-size: 0.85rem;
+			}
+
+			nav {
+				margin-top: 14px;
+				display: flex;
+				gap: 16px;
+			}
+
+			nav a {
+				color: #888;
+				text-decoration: none;
+				font-size: 0.9rem;
+				padding: 4px 0;
+			}
+
+			nav a:hover,
+			nav a:active {
+				color: #fff;
+			}
+
+			a {
+				color: #6eb5ff;
+				text-decoration: none;
+			}
+
+			a:hover {
+				text-decoration: underline;
+			}
+
+			.btn {
+				display: inline-block;
+				background: #333;
+				color: #fff;
+				padding: 12px 24px;
+				border: none;
+				border-radius: 6px;
+				font-size: 1rem;
+				cursor: pointer;
+				text-decoration: none;
+				transition: background 0.2s;
+				-webkit-tap-highlight-color: transparent;
+			}
+
+			.btn:hover,
+			.btn:active {
+				background: #444;
+				text-decoration: none;
+			}
+
+			.btn-primary {
+				background: #2563eb;
+			}
+
+			.btn-primary:hover,
+			.btn-primary:active {
+				background: #3b82f6;
+			}
+
+			/* Desktop enhancements */
+			@media (min-width: 640px) {
+				.container {
+					padding: 40px 24px;
+				}
+
+				header {
+					margin-bottom: 40px;
+					padding-bottom: 20px;
+				}
+
+				h1 {
+					font-size: 1.5rem;
+					margin-bottom: 8px;
+				}
+
+				.tagline {
+					font-size: 0.9rem;
+				}
+
+				nav {
+					margin-top: 16px;
+				}
+
+				.btn {
+					padding: 10px 20px;
+					font-size: 0.9rem;
+				}
+			}
+		</style>
+
+		<style>
+			.directory-intro {
+				margin-bottom: 24px;
+				color: #888;
+				font-size: 0.9rem;
+			}
+
+			.artist-table {
+				width: 100%;
+				border-collapse: collapse;
+				font-size: 0.85rem;
+			}
+
+			.artist-table th {
+				text-align: left;
+				padding: 10px 8px;
+				border-bottom: 1px solid #333;
+				color: #888;
+				font-weight: 500;
+				font-size: 0.75rem;
+				text-transform: uppercase;
+				letter-spacing: 0.5px;
+			}
+
+			.artist-table td {
+				padding: 12px 8px;
+				border-bottom: 1px solid #1a1a1a;
+				vertical-align: top;
+			}
+
+			.artist-table tr:last-child td {
+				border-bottom: none;
+			}
+
+			.artist-table a {
+				color: #6eb5ff;
+				text-decoration: none;
+			}
+
+			.artist-table a:hover {
+				text-decoration: underline;
+			}
+
+			.artist-name {
+				color: #fff;
+				font-weight: 500;
+				white-space: nowrap;
+			}
+
+			.artist-url {
+				font-size: 0.8rem;
+				word-break: break-all;
+			}
+
+			.artist-desc {
+				color: #888;
+				font-size: 0.8rem;
+				line-height: 1.4;
+				max-width: 300px;
+			}
+
+			.bandcamp-link {
+				font-size: 0.75rem;
+				color: #1da0c3;
+			}
+
+			.empty-state {
+				text-align: center;
+				padding: 40px 16px;
+				color: #666;
+			}
+
+			/* Mobile: stack cells */
+			@media (max-width: 639px) {
+				.artist-table thead {
+					display: none;
+				}
+
+				.artist-table tr {
+					display: block;
+					padding: 16px 0;
+					border-bottom: 1px solid #1a1a1a;
+				}
+
+				.artist-table tr:last-child {
+					border-bottom: none;
+				}
+
+				.artist-table td {
+					display: block;
+					padding: 2px 0;
+					border: none;
+				}
+
+				.artist-name {
+					font-size: 1rem;
+					margin-bottom: 4px;
+				}
+
+				.artist-url {
+					margin-bottom: 4px;
+				}
+
+				.artist-desc {
+					max-width: none;
+					margin-top: 8px;
+				}
+			}
+
+			@media (min-width: 640px) {
+				.directory-intro {
+					margin-bottom: 32px;
+				}
+
+				.artist-table {
+					font-size: 0.9rem;
+				}
+
+				.artist-table th {
+					padding: 12px;
+				}
+
+				.artist-table td {
+					padding: 14px 12px;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<header>
+				<h1>WeBringTheMusic</h1>
+				<p class="tagline">A network of independent musicians</p>
+				<nav>
+					<a href="/">Home</a>
+					<a href="/directory">Directory</a>
+					<a href="/join">Join</a>
+				</nav>
+			</header>
+
+			<main>
+				<section>
+					<p class="directory-intro">
+						All the artists in the webring. <a href="/join">Join us</a> to add your site.
+					</p>
+
+					<table class="artist-table">
+						<thead>
+							<tr>
+								<th>Artist</th>
+								<th>Website</th>
+								<th>About</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>
+									<span class="artist-name">Dave Hawkins</span>
+
+									<br /><a
+										href="https://iamdavehawkins.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://links.iamdavehawkins.com" target="_blank" rel="noopener"
+										>links.iamdavehawkins.com</a
+									>
+								</td>
+								<td class="artist-desc">
+									Dave Hawkins writes songs meant for slowing down in a fast-moving world. Based in
+									Denver, operating out of a home studio, he blends his years of experience playing
+									classical piano with synth textures and indie guitar rock to create something
+									reflective of where we&#39;re at. At the end of the day - it&#39;s honest music
+									about just how strange it feels to be alive right now.
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Kid Lightbulbs</span>
+
+									<br /><a
+										href="https://kidlightbulbs.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://kidlightbulbs.com" target="_blank" rel="noopener"
+										>kidlightbulbs.com</a
+									>
+								</td>
+								<td class="artist-desc">
+									Kid Lightbulbs is Brandon Lucas Green. Brandon&#39;s music blends an intriguing
+									mix of influences, evoking Nine Inch Nails, Fiona Apple-esque piano rock, and 70s
+									prog, coupled with highly vulnerable and often self-deprecating lyricism. Brandon
+									operates as a solo artist, writing, producing &amp; releasing music from his
+									basement in central Massachusetts.
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Shooble</span>
+
+									<br /><a
+										href="https://shooblemusic.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://shooblemusic.com" target="_blank" rel="noopener"
+										>shooblemusic.com</a
+									>
+								</td>
+								<td class="artist-desc">
+									Lancaster, PA-based Shooble makes noisy folk rock for nostalgic homebodies.
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">The Great Homesickness</span>
+
+									<br /><a
+										href="https://thegreathomesickness.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://bretthiggins.me/music" target="_blank" rel="noopener"
+										>bretthiggins.me/music</a
+									>
+								</td>
+								<td class="artist-desc">
+									Hi, I&#39;m Brett. I make angsty pop-punk/post-hardcore jams about a complex,
+									messy, evolving faith. I love Small Brown Bike, Hot Water Music, The Wonder Years,
+									and all sorts of other bands with thick guitars, pounding drums, and earnest words
+									that all together tug at the heartstrings.
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">The Sleeping Cliffs</span>
+
+									<br /><a
+										href="https://Thesleepingcliffs.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://Thesleepingcliffs.com" target="_blank" rel="noopener"
+										>Thesleepingcliffs.com</a
+									>
+								</td>
+								<td class="artist-desc">
+									Rhythmic rock-adjacent grooves alternately screaming and whispering at each other
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Drew Stephenson</span>
+
+									<br /><a
+										href="https://drewstephenson.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://blinddrewsmusic.blogspot.com/" target="_blank" rel="noopener"
+										>blinddrewsmusic.blogspot.com/</a
+									>
+								</td>
+								<td class="artist-desc">
+									Drew Stephenson is a singer-songwriter based in York, UK, writing conventional
+									songs about unconventional subjects. Americana with a UK twist, Anglicana maybe.
+									Music to think deep thoughts about simple things. Death, monkeys and space
+									hardware may all feature.
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Jordan Coley</span>
+
+									<br /><a
+										href="https://jordancoley.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://jordancoley.com" target="_blank" rel="noopener"
+										>jordancoley.com</a
+									>
+								</td>
+								<td class="artist-desc">
+									Alt punk rock with heartfelt and heavy-hitting lyrics, lush vocal harmonies, and
+									walls of instrumentation.
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Jack Jose</span>
+
+									<br /><a
+										href="https://Jackjose.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://Jackjosemusic.com" target="_blank" rel="noopener"
+										>Jackjosemusic.com</a
+									>
+								</td>
+								<td class="artist-desc">Cosmic Americana. If Tom Petty joined Tears For Fears.</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">kingtriumph</span>
+
+									<br /><a
+										href="https://kingtriumph.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://kingtriumph.com" target="_blank" rel="noopener"
+										>kingtriumph.com</a
+									>
+								</td>
+								<td class="artist-desc">
+									kingtriumph is the handle used by Olympia, Washington based musician Theo Smith.
+									kingtriumph&#39;s music is drum driven synth rock, with an occasional guitar,
+									informed by growing up in the 80s and 90s. Unintentionally nostalgic,
+									unapologetically awesome, it&#39;s a fever dream soundtrack to your half
+									remembered youth.
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">pitch black revival</span>
+
+									<br /><a
+										href="https://pitchblackrevival.bandcamp.com/"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://pitchblackrevival.com" target="_blank" rel="noopener"
+										>pitchblackrevival.com</a
+									>
+								</td>
+								<td class="artist-desc">
+									Canadian musician. Making noise on the banks of the Detroit River. Creating dark,
+									ambient lo-fi and trip-hop instrumentals.
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Combover Beethoven</span>
+
+									<br /><a
+										href="https://comboverbeethoven.bandcamp.com/"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://comboverbeethoven.com" target="_blank" rel="noopener"
+										>comboverbeethoven.com</a
+									>
+								</td>
+								<td class="artist-desc">
+									Guitartronica featuring occasional shoegazey pillows of cerebral confection and
+									balls-out noise
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Andrew Kirwin</span>
+
+									<br /><a
+										href="https://bandcamp.com/lobotomoose"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://www.lobotomoose.com/" target="_blank" rel="noopener"
+										>www.lobotomoose.com/</a
+									>
+								</td>
+								<td class="artist-desc">
+									I play bass in a jukebox band; everything from Chuck Berry and Wilson Picket to
+									Dada and Chappell Roan.
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">VLNTYN</span>
+
+									<br /><a
+										href="https://vlntyntheband.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://www.vlntyn.com" target="_blank" rel="noopener">www.vlntyn.com</a>
+								</td>
+								<td class="artist-desc">Main Character Indie Rock</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Thousand Gardens</span>
+
+									<br /><a
+										href="https://thousandgardens.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://thousandgardens.net/" target="_blank" rel="noopener"
+										>thousandgardens.net/</a
+									>
+								</td>
+								<td class="artist-desc">I made downtempo electronic music</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Kristóf Hajós</span>
+
+									<br /><a
+										href="https://kristofhajos.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://kristofhajos.com" target="_blank" rel="noopener"
+										>kristofhajos.com</a
+									>
+								</td>
+								<td class="artist-desc">—</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Jaded Noon Wives</span>
+
+									<br /><a
+										href="https://jadednoonwives.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://jadednoonwives.pikapod.net" target="_blank" rel="noopener"
+										>jadednoonwives.pikapod.net</a
+									>
+								</td>
+								<td class="artist-desc">
+									It&#39;s only dadrock if an actual dad makes it, otherwise it&#39;s just sparkling
+									guitar noise. Lo-fi indie rock from Doncaster, UK
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Jason Pilling</span>
+
+									<br /><a
+										href="https://jasonpilling.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://www.jasonpilling.com" target="_blank" rel="noopener"
+										>www.jasonpilling.com</a
+									>
+								</td>
+								<td class="artist-desc">
+									indie folk. diverse lyrical topics. ambitious arrangements
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Lucre-Naut</span>
+
+									<br /><a
+										href="https://lucre-naut.bandcamp.com/"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://lucrenaut.neocities.org/" target="_blank" rel="noopener"
+										>lucrenaut.neocities.org/</a
+									>
+								</td>
+								<td class="artist-desc">
+									LUCRE-NAUT explores memory, media, and the “third place” through minimal
+									electronic composition and retro-digital atmospheres / side project of JRJ
+									ENTERPRISES / presented by AGGREGATRON RECORDS
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Mitch Rocket</span>
+
+									<br /><a
+										href="https://Mitchrocket.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://Mitchrocket.com" target="_blank" rel="noopener"
+										>Mitchrocket.com</a
+									>
+								</td>
+								<td class="artist-desc">
+									Yacht Grunge / Old Wave music from San Francisco, often featuring saxophone, often
+									with a political bent.
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">POLYODIK</span>
+
+									<br /><a
+										href="https://polyodik.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://polyodik.net" target="_blank" rel="noopener">polyodik.net</a>
+								</td>
+								<td class="artist-desc">various electronic music projects</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Smokin&#39; Cola</span>
+
+									<br /><a
+										href="https://smokincola.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://smokincola.com" target="_blank" rel="noopener">smokincola.com</a>
+								</td>
+								<td class="artist-desc">
+									Smokin’ Cola is a delicious musical beverage with eclectic flavors, featuring
+									notes of alternative and indie rock, with overtones of punk, post-punk, grunge,
+									and, well, whatever. Always evolving.
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Key Jay</span>
+
+									<br /><a
+										href="https://keyjayhd.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://keyjay.neocities.org" target="_blank" rel="noopener"
+										>keyjay.neocities.org</a
+									>
+								</td>
+								<td class="artist-desc">
+									I make multiple genre&#39;s including VGM, Hip-Hop, Orchestral, Jazz, and others,
+									but my video game remixes have been the most popular as of late.
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Reppard Walker</span>
+
+									<br /><a
+										href="https://reppardwalker.bandcamp.com/"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://reppardwalkermusic.com" target="_blank" rel="noopener"
+										>reppardwalkermusic.com</a
+									>
+								</td>
+								<td class="artist-desc">
+									Alternative Rock / Folk / Pop somewhere in the void between Smashing Pumpkins and
+									Wilco
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Guest_1013</span>
+
+									<br /><a
+										href="https://www.dizzylab.net/l/Traveller&#39;s%20Record/"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://guest1013.neocities.org" target="_blank" rel="noopener"
+										>guest1013.neocities.org</a
+									>
+								</td>
+								<td class="artist-desc">
+									Indie electronic music hobbyist. Recently turning into electronica-like music.
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Pless Pray</span>
+
+									<br /><a
+										href="https://plesspray.bandcamp.com"
+										target="_blank"
+										rel="noopener"
+										class="bandcamp-link"
+										>bandcamp</a
+									>
+								</td>
+								<td class="artist-url">
+									<a href="https://plesspray.nl" target="_blank" rel="noopener">plesspray.nl</a>
+								</td>
+								<td class="artist-desc">
+									&#34;Pless Pray is Henjo: techno meets IDM, intricate breakbeats, glitched synth
+									textures, custom-built visuals running live in sync… The project grew from thirty
+									years inside rave culture and severe addiction, a long road back through
+									spirituality and family. There is joy in it. Hard won, but real.&#34;
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">KonoDioDa</span>
+								</td>
+								<td class="artist-url">
+									<a href="https://konodioodaa.nekoweb.org/" target="_blank" rel="noopener"
+										>konodioodaa.nekoweb.org/</a
+									>
+								</td>
+								<td class="artist-desc">
+									Mostly chiptune, though I sometimes branch out into other genres&#39;
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Myk Gózon</span>
+								</td>
+								<td class="artist-url">
+									<a href="https://www.mykgozon.com" target="_blank" rel="noopener"
+										>www.mykgozon.com</a
+									>
+								</td>
+								<td class="artist-desc">
+									I make music that is R&amp;B and hip-hop, and various electronica. I also have
+									material from past bands which is mainly rock.
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Sni-A-Bar String Band and Friends</span>
+								</td>
+								<td class="artist-url">
+									<a href="https://sniabarstringband.neocities.org/" target="_blank" rel="noopener"
+										>sniabarstringband.neocities.org/</a
+									>
+								</td>
+								<td class="artist-desc">A Kansas City local music archive</td>
+							</tr>
+
+							<tr>
+								<td>
+									<span class="artist-name">Strigora</span>
+								</td>
+								<td class="artist-url">
+									<a href="https://strigora.nekoweb.org/" target="_blank" rel="noopener"
+										>strigora.nekoweb.org/</a
+									>
+								</td>
+								<td class="artist-desc">
+									A blend of power metal, future pop, and EBM. Atmospheric, moody, and anthemic.
+									Working on my first EP: Sanguis Ex Machina-- a musical exploration of loss, hope,
+									and what it means to be human in a world of AI.
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</section>
+			</main>
+
+			<footer
+				style="
+					margin-top: 48px;
+					padding-top: 24px;
+					border-top: 1px solid #222;
+					text-align: center;
+					color: #666;
+					font-size: 0.85rem;
+				"
+			>
+				made <a href="https://withlove.iamdavehawkins.com" target="_blank">with love</a> by
+				<a href="https://links.iamdavehawkins.com" target="_blank">Dave Hawkins</a> 💙
+			</footer>
+		</div>
+	</body>
+</html>
