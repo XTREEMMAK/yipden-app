@@ -665,7 +665,7 @@ contract is [docs/sites-contract.md](docs/sites-contract.md); the reasoning is i
 2. **Surf in Discover (seen on a phone 2026-10-07; reworked for space, to see again).** Chosen from
    the ring button, now "What to discover" (Webrings | Surf). The hero is untouched. Feeds' header
    is down to two rows too (2026-10-07). Forums is the third segment: a hand-gathered forum index
-   (32-Bit Cafe followable; MelonLand and treefor visit only, see DECISIONS.md).
+   (32-Bit Cafe followable; MelonLand and TreeFort visit only, see DECISIONS.md).
    3a. **After the merge, in Feeds:** blur the video waiting behind a post more, so the post's text
    reads over it; and make the swap back to the post start as promptly as the swap to the video.
 3. **Following sites, the way forums are followed.** People | Sites | Forums in Follow and Feeds;

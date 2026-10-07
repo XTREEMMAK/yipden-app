@@ -40,14 +40,22 @@ async function openDiscover(page: Page) {
 
 const surf = (page: Page) => page.getByRole('region', { name: 'Surf: sites' });
 
-/** Discover's ring button is where the webrings and Surf are chosen, one segment each. */
-async function choose(page: Page, kind: 'Webrings' | 'Surf' | 'Forums', name: RegExp) {
+/**
+ * Discover's ring button is where the webrings, Surf and Forums are chosen. A segment is a choice
+ * by itself; a row only narrows it. Webrings and Forums close the sheet themselves here (no partner
+ * ring, one forum category); Surf's categories keep it open until a row or Escape.
+ */
+async function choose(page: Page, kind: 'Webrings' | 'Surf' | 'Forums', row?: RegExp) {
 	await page.getByRole('button', { name: /^What to discover/ }).click();
-	await page
+	const dialog = page.getByRole('dialog', { name: 'What to discover' });
+	const segment = dialog
 		.getByRole('radiogroup', { name: 'What to discover' })
-		.getByRole('radio', { name: kind })
-		.click();
-	await page.getByRole('radiogroup', { name: kind }).getByRole('radio', { name }).click();
+		.getByRole('radio', { name: kind });
+	if ((await segment.getAttribute('aria-checked')) !== 'true') await segment.click();
+	if (row)
+		await dialog.getByRole('radiogroup', { name: kind }).getByRole('radio', { name: row }).click();
+	else if (kind === 'Surf') await page.keyboard.press('Escape');
+	await expect(dialog).toBeHidden();
 }
 
 async function search(page: Page, text: string) {
@@ -62,7 +70,7 @@ test('Surf is chosen beside the rings, takes only the bar above its cards, and i
 	const switcher = page.getByRole('button', { name: /^What to discover/ });
 	await expect(switcher).toHaveAttribute('aria-label', 'What to discover: IndieNodes');
 
-	await choose(page, 'Surf', /^All sites/);
+	await choose(page, 'Surf');
 	await expect(surf(page)).toBeVisible();
 	await expect(switcher).toHaveAttribute('aria-label', 'What to discover: Surf');
 	await expect(surf(page).getByRole('heading', { name: 'Medjed' })).toBeVisible();
@@ -78,7 +86,7 @@ test('Surf is chosen beside the rings, takes only the bar above its cards, and i
 	await page.reload();
 	await expect(surf(page)).toBeVisible();
 
-	await choose(page, 'Webrings', /IndieNodes/);
+	await choose(page, 'Webrings');
 	await expect(surf(page)).toBeHidden();
 	await expect(page.getByRole('button', { name: 'Shuffle the ring' })).toBeVisible();
 });
@@ -87,7 +95,7 @@ test('a category narrows Surf, from the row or the sheet, and search finds a sit
 	page
 }) => {
 	await openDiscover(page);
-	await choose(page, 'Surf', /^All sites/);
+	await choose(page, 'Surf');
 
 	const categories = surf(page).getByRole('radiogroup', { name: 'Category' });
 	await categories.getByRole('radio', { name: /^Webrings/ }).click();
@@ -107,7 +115,7 @@ test('a category narrows Surf, from the row or the sheet, and search finds a sit
 
 test('Not for me takes a site out of Surf, with a way back named', async ({ page }) => {
 	await openDiscover(page);
-	await choose(page, 'Surf', /^All sites/);
+	await choose(page, 'Surf');
 	// Alone on screen: a card further down can sit under the next one in the stack.
 	await search(page, 'medjed');
 	await surf(page).getByRole('button', { name: 'Not for me: Medjed' }).click();
@@ -117,7 +125,7 @@ test('Not for me takes a site out of Surf, with a way back named', async ({ page
 
 test('one clip plays at a time, and none under reduced motion', async ({ page, browser }) => {
 	await openDiscover(page);
-	await choose(page, 'Surf', /^All sites/);
+	await choose(page, 'Surf');
 	// The first site has no clip; the next one plays once its preview is mostly on screen.
 	await expect(surf(page).getByRole('heading', { name: 'I Have a New Hobby' })).toBeVisible();
 	await surf(page)
@@ -131,7 +139,7 @@ test('one clip plays at a time, and none under reduced motion', async ({ page, b
 
 	const calm = await browser.newPage({ reducedMotion: 'reduce' });
 	await openDiscover(calm);
-	await choose(calm, 'Surf', /^All sites/);
+	await choose(calm, 'Surf');
 	await expect(surf(calm).getByRole('heading', { name: 'Medjed' })).toBeVisible();
 	await calm.waitForTimeout(500);
 	await expect(surf(calm).locator('video')).toHaveCount(0);
@@ -151,7 +159,7 @@ test("a card's picture opens its whole preview, which Close and Back both shut",
 	page
 }) => {
 	await openDiscover(page);
-	await choose(page, 'Surf', /^All sites/);
+	await choose(page, 'Surf');
 	await search(page, 'medjed');
 	await surf(page).getByRole('button', { name: 'Preview Medjed' }).click();
 	const preview = page.getByRole('dialog', { name: 'Preview of Medjed' });
@@ -179,12 +187,12 @@ test.describe('Forums', () => {
 		page
 	}) => {
 		await openDiscover(page);
-		await choose(page, 'Forums', /^All forums/);
+		await choose(page, 'Forums');
 		const panel = forumsPanel(page);
 		await expect(panel.getByRole('heading', { level: 3 })).toHaveText([
 			'32-Bit Cafe',
 			'MelonLand Forum',
-			'treefor'
+			'TreeFort'
 		]);
 		await expect(page.getByRole('button', { name: /^What to discover/ })).toHaveAttribute(
 			'aria-label',
@@ -204,7 +212,7 @@ test.describe('Forums', () => {
 
 	test('keeps its own place apart from Surf', async ({ page }) => {
 		await openDiscover(page);
-		await choose(page, 'Forums', /^All forums/);
+		await choose(page, 'Forums');
 		await page.getByRole('button', { name: 'Search forums' }).click();
 		await page.getByRole('searchbox', { name: 'Search forums' }).fill('melon');
 		await expect(forumsPanel(page).getByRole('heading', { level: 3 })).toHaveText([
@@ -212,7 +220,7 @@ test.describe('Forums', () => {
 		]);
 		// An open search has the whole bar; closing it gives back What to discover.
 		await page.getByRole('button', { name: 'Close search' }).click();
-		await choose(page, 'Surf', /^All sites/);
+		await choose(page, 'Surf');
 		await expect(surf(page).getByRole('heading', { name: 'Medjed' })).toBeVisible();
 	});
 });

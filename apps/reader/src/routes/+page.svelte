@@ -194,15 +194,15 @@
 		ringButton?.focus();
 	}
 
-	function chooseRing(id: string | null) {
+	function chooseRing(id: string | null, close = true) {
 		navDirection = 0;
 		discover.setView('people');
 		partners.select(id);
-		closeRingSheet();
+		if (close) closeRingSheet();
 	}
 
 	/** Surf or Forums, on one category or all of them: the sheet's place sides list them. */
-	function choosePlace(kind: 'surf' | 'forums', category: string | null) {
+	function choosePlace(kind: 'surf' | 'forums', category: string | null, close = true) {
 		const index = kind === 'surf' ? sites : forumIndex;
 		partners.select(null);
 		index.category = category;
@@ -210,8 +210,42 @@
 		// The panel restores its saved view as it opens: the choice has to be that view, or it is undone.
 		explored.setView(index.viewId, { category, genre: null, scrollTop: 0 });
 		discover.setView(kind);
-		closeRingSheet();
+		if (close) closeRingSheet();
 	}
+
+	/**
+	 * A segment is a choice in itself, not only a way to see more rows: tapping Forums goes to the
+	 * forums at once, behind the sheet (phone feedback, 2026-10-07: having to then pick "All forums"
+	 * was not obvious). The rows below only narrow it. When there is nothing to narrow (one
+	 * category, or no partner ring), the sheet has done its job and closes.
+	 */
+	function chooseKind(next: 'webrings' | 'surf' | 'forums') {
+		if (next === sheetKind) return;
+		sheetKind = next;
+		if (next === 'webrings') {
+			if (discover.view !== 'people') chooseRing(null, false);
+			if (!partners.rings.length && partners.status !== 'loading') closeRingSheet();
+			return;
+		}
+		if (discover.view !== next) choosePlace(next, null, false);
+		const index = next === 'surf' ? sites : forumIndex;
+		if (index.status === 'ready' && index.categories.length <= 1) closeRingSheet();
+	}
+
+	/*
+	 * The sheet's body eases to its new height when the segment changes, rather than popping: its
+	 * height follows the measured height of what is inside it. Not on the sheet's first frame,
+	 * which would grow from nothing while the sheet itself is flying in.
+	 */
+	let sheetBodyHeight = $state(0);
+	let sheetBodySized = $state(false);
+	$effect(() => {
+		if (!ringSheetOpen) {
+			sheetBodySized = false;
+			return;
+		}
+		if (sheetBodyHeight && !sheetBodySized) requestAnimationFrame(() => (sheetBodySized = true));
+	});
 
 	/** Which side of the sheet is showing: it opens on whichever side the reader is on. */
 	let sheetKind = $state<'webrings' | 'surf' | 'forums'>('webrings');
@@ -1190,77 +1224,85 @@
 					{ value: 'forums', label: 'Forums' }
 				]}
 				value={sheetKind}
-				onchange={(next) => (sheetKind = next)}
+				onchange={chooseKind}
 			/>
 		</div>
-		{#if sheetKind === 'webrings'}
-			<div class="sheet-list" role="radiogroup" aria-label="Webrings">
-				<button
-					class="sheet-row"
-					role="radio"
-					aria-checked={partners.selected === null && !surfing}
-					onclick={() => chooseRing(null)}
-				>
-					<img class="sheet-icon" src="/ring-icons/indienodes.svg" alt="" />
-					IndieNodes Webring
-				</button>
-				{#each partners.rings as entry (entry.ring.id)}
-					<button
-						class="sheet-row"
-						role="radio"
-						aria-checked={partners.selected?.ring.id === entry.ring.id}
-						onclick={() => chooseRing(entry.ring.id)}
-					>
-						{#if entry.ring.iconUrl}
-							<img class="sheet-icon" src={entry.ring.iconUrl} alt="" />
-						{:else}
-							<span class="sheet-dot" aria-hidden="true"></span>
-						{/if}
-						{webringName(entry.ring.name)}
-						<small class="sheet-hint">Partner ring</small>
-					</button>
-				{/each}
-				{#if partners.status === 'loading'}
-					<p class="sheet-loading">Reading the other rings…</p>
-				{/if}
-			</div>
-		{:else}
-			<p class="sheet-about">
-				{sheetKind === 'forums'
-					? 'Indie web forums, gathered by hand. Places, not people.'
-					: 'Indie web sites: shrines, fan pages, personal sites. Places, not people.'}
-			</p>
-			<div
-				class="sheet-list"
-				role="radiogroup"
-				aria-label={sheetKind === 'forums' ? 'Forums' : 'Surf'}
-			>
-				<button
-					class="sheet-row"
-					role="radio"
-					aria-checked={place === sheetIndex && sheetIndex.category === null}
-					onclick={() => choosePlace(sheetKind === 'forums' ? 'forums' : 'surf', null)}
-				>
-					<span class="sheet-dot" aria-hidden="true"></span>
-					All {sheetIndex.noun}
-					<small class="sheet-hint">{sheetIndex.all.length}</small>
-				</button>
-				{#if sheetIndex.categories.length > 1}
-					{#each sheetIndex.categories as entry (entry.key)}
+		<div
+			class="sheet-body"
+			class:sized={sheetBodySized}
+			style:height={sheetBodySized ? `${sheetBodyHeight}px` : null}
+		>
+			<div class="sheet-body-inner" bind:clientHeight={sheetBodyHeight}>
+				{#if sheetKind === 'webrings'}
+					<div class="sheet-list" role="radiogroup" aria-label="Webrings">
 						<button
 							class="sheet-row"
 							role="radio"
-							aria-checked={place === sheetIndex && sheetIndex.category === entry.key}
-							onclick={() => choosePlace(sheetKind === 'forums' ? 'forums' : 'surf', entry.key)}
+							aria-checked={partners.selected === null && !surfing}
+							onclick={() => chooseRing(null)}
+						>
+							<img class="sheet-icon" src="/ring-icons/indienodes.svg" alt="" />
+							IndieNodes Webring
+						</button>
+						{#each partners.rings as entry (entry.ring.id)}
+							<button
+								class="sheet-row"
+								role="radio"
+								aria-checked={partners.selected?.ring.id === entry.ring.id}
+								onclick={() => chooseRing(entry.ring.id)}
+							>
+								{#if entry.ring.iconUrl}
+									<img class="sheet-icon" src={entry.ring.iconUrl} alt="" />
+								{:else}
+									<span class="sheet-dot" aria-hidden="true"></span>
+								{/if}
+								{webringName(entry.ring.name)}
+								<small class="sheet-hint">Partner ring</small>
+							</button>
+						{/each}
+						{#if partners.status === 'loading'}
+							<p class="sheet-loading">Reading the other rings…</p>
+						{/if}
+					</div>
+				{:else}
+					<p class="sheet-about">
+						{sheetKind === 'forums'
+							? 'Indie web forums, gathered by hand. Places, not people.'
+							: 'Indie web sites: shrines, fan pages, personal sites. Places, not people.'}
+					</p>
+					<div
+						class="sheet-list"
+						role="radiogroup"
+						aria-label={sheetKind === 'forums' ? 'Forums' : 'Surf'}
+					>
+						<button
+							class="sheet-row"
+							role="radio"
+							aria-checked={place === sheetIndex && sheetIndex.category === null}
+							onclick={() => choosePlace(sheetKind === 'forums' ? 'forums' : 'surf', null)}
 						>
 							<span class="sheet-dot" aria-hidden="true"></span>
-							{categoryLabel(entry.key)}
-							<small class="sheet-hint">{entry.count}</small>
+							All {sheetIndex.noun}
+							<small class="sheet-hint">{sheetIndex.all.length}</small>
 						</button>
-					{/each}
+						{#if sheetIndex.categories.length > 1}
+							{#each sheetIndex.categories as entry (entry.key)}
+								<button
+									class="sheet-row"
+									role="radio"
+									aria-checked={place === sheetIndex && sheetIndex.category === entry.key}
+									onclick={() => choosePlace(sheetKind === 'forums' ? 'forums' : 'surf', entry.key)}
+								>
+									<span class="sheet-dot" aria-hidden="true"></span>
+									{categoryLabel(entry.key)}
+									<small class="sheet-hint">{entry.count}</small>
+								</button>
+							{/each}
+						{/if}
+					</div>
 				{/if}
 			</div>
-		{/if}
+		</div>
 	</div>
 {/if}
 
@@ -1836,6 +1878,21 @@
 	.sheet-list {
 		display: flex;
 		flex-direction: column;
+	}
+
+	.sheet-body {
+		flex: none;
+		overflow: hidden;
+	}
+
+	.sheet-body.sized {
+		transition: height var(--dur-m) var(--ease);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.sheet-body.sized {
+			transition: none;
+		}
 	}
 
 	.sheet-switch {

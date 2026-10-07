@@ -3445,7 +3445,7 @@ asked for, and checking them decided what each can be:
 - **MelonLand** is SMF with a working RSS feed, but its robots.txt keeps unnamed crawlers off
   `/*action`, its feed included. Visit only, and the card says why. Asking MelonLand to allow
   YipDen by name is the reader-friendly path, and is the maintainer's to make.
-- **treefor** is ProBoards, behind a proof-of-work check that also turns away headless browsers.
+- **TreeFort** (`treefort.boards.net`) is ProBoards, behind a proof-of-work check that also turns away headless browsers.
   The app cannot read it and the capture script cannot photograph it: visit only, a color wash
   for a picture, and a plain one-line blurb, since nothing of its own words could be read.
 
@@ -3453,3 +3453,14 @@ Surf and Forums are one `IndexState` each, shown by one `IndexPanel` and `IndexF
 `discover` holds which of People, Surf or Forums is on screen. A category row or section with one
 category is not shown. A forum's card says Following when it already is, linking to its settings.
 An open search still has the whole bar: closing it gives What to discover back.
+
+## 2026-10-07 (phone feedback) — A segment is a choice; the sheet eases to size
+
+- **Tapping Webrings, Surf or Forums switches Discover at once**, behind the sheet. Having to pick
+  "All forums" after choosing Forums was not obvious. The rows under a segment only narrow it (a
+  partner ring, a category). When a side has nothing to narrow (no partner ring, one category, as
+  the forum index has today) the sheet closes itself, since the choice is already made.
+- **The sheet's body eases to its new height** when the segment changes, instead of popping: its
+  height follows its content's measured height with a transition. Not on the first frame (the
+  sheet is flying in then), and instantly under reduced motion.
+- **TreeFort**, not "treefor": `treefort.boards.net`. Same ProBoards wall, so the same verdict.
