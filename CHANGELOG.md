@@ -8,6 +8,18 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- Like and Not for me in the player. Next on a Bandcamp track with nothing after it ends the queue
+  and offers what to play next.
+- Settings' debug section has a media log of what the car and lock screen asked of the player.
+
+### Changed
+
+- You's Following rows open the person's profile; their settings are a sheet behind a settings
+  button.
+- Feeds: an unread yip rings its creator's picture; a shared video waiting behind its post is
+  glass; Save for later and Video are solid buttons; the new count sits after "Everything".
+- The browser guide says exactly what is kept: the link, never the file, and for a passage the
+  words chosen.
 - Five more webrings in What to discover: WeBringTheMusic, Smallway's Comics Line, Ink Shrines,
   WebcomicQuest and The Homebrew Webring.
 - Surf: Discover's ring button becomes "What to discover", offering

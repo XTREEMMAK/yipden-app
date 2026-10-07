@@ -142,3 +142,13 @@ describe('the car and the lock screen', () => {
 		expect(session.positions.at(-1)?.position).toBe(90);
 	});
 });
+
+describe('a lone Bandcamp track', () => {
+	it('can be finished, which ends the queue and asks what next', () => {
+		player.play([bandcamp('bc')], 0);
+		expect(player.next).toBeNull();
+		player.finish();
+		expect(player.ended).toBe(true);
+		expect(player.playing).toBe(false);
+	});
+});

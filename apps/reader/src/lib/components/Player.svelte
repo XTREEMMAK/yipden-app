@@ -14,6 +14,9 @@
 	import { ring, washFor } from '$lib/ring.svelte.js';
 	import { ringPlayer } from '$lib/ringPlayer.svelte.js';
 	import Waveform from './Waveform.svelte';
+	import { partners } from '$lib/partnerRings.svelte.js';
+	import { verdicts, verdictKey } from '$lib/verdicts.svelte.js';
+	import { celebrateLike } from '$lib/sound.js';
 
 	/**
 	 * The full screen player, over every tab. It stays mounted for the rest of the session once
@@ -89,6 +92,37 @@
 
 	/** Our buttons can drive this track: a file, or a platform player with an API (not Bandcamp). */
 	let controllable = $derived(!player.source || embedControllable(player.source.provider));
+
+	/**
+	 * Like or Not for me, from the player: the creator of what is playing. Filed by their site, as
+	 * every verdict is, under the ring they were met in (IndieNodes, else a partner ring that lists
+	 * them), as their profile does.
+	 */
+	async function judge(kind: 'liked' | 'hidden') {
+		const current = player.current;
+		if (!current) return;
+		const key = verdictKey(current.siteUrl);
+		const partner = partners.rings.find((entry) =>
+			entry.members.some((member) => verdictKey(member.url) === key)
+		);
+		const inRing = ring.all.some((entry) => verdictKey(entry.source_url) === key);
+		const now = await verdicts.toggle(
+			{
+				url: current.siteUrl,
+				name: current.creator,
+				source: !inRing && partner ? 'partner' : 'indienodes',
+				...(!inRing && partner ? { via: partner.ring.name } : {}),
+				...(current.artUrl ? { thumbUrl: current.artUrl } : {})
+			},
+			kind
+		);
+		if (now === 'liked') {
+			celebrateLike();
+			toast.show(`Liked ${current.creator}. Find them in You.`);
+		} else if (now === 'hidden') {
+			toast.show(`${current.creator} marked not for me. Bring them back from You.`);
+		}
+	}
 
 	/**
 	 * What to offer once a queue has run out. The ring comes first for a ring session and the
@@ -286,6 +320,36 @@
 					<span class="pl-via">{'·'} via SoundCloud</span>
 				{/if}
 			</p>
+			<!-- What the reader thinks of whoever this is, without leaving the track. -->
+			<div class="pl-judge">
+				<button
+					class="judge"
+					aria-pressed={verdicts.verdictFor(item.siteUrl) === 'liked'}
+					onclick={() => judge('liked')}
+					aria-label={`Like ${item.creator}`}
+				>
+					<svg
+						viewBox="0 0 24 24"
+						aria-hidden="true"
+						class:filled={verdicts.verdictFor(item.siteUrl) === 'liked'}
+						><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" /></svg
+					>
+					Like
+				</button>
+				<button
+					class="judge"
+					aria-pressed={verdicts.verdictFor(item.siteUrl) === 'hidden'}
+					onclick={() => judge('hidden')}
+					aria-label={`Not for me: ${item.creator}`}
+				>
+					<svg viewBox="0 0 24 24" aria-hidden="true"
+						><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z" /><path
+							d="M9.6 8.6l4.8 4.8M14.4 8.6l-4.8 4.8"
+						/></svg
+					>
+					Not for me
+				</button>
+			</div>
 			{#if player.error}
 				<p class="pl-error" role="alert">{player.error}</p>
 			{/if}
@@ -371,10 +435,14 @@
 						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
 					{/if}
 				</button>
+				<!--
+					A track that cannot say when it ends (Bandcamp) can always be moved on from: with
+					nothing after it, Next ends the queue and offers what to play next.
+				-->
 				<button
 					class="round lg"
-					onclick={() => player.advance()}
-					disabled={!player.next}
+					onclick={() => (player.next ? player.advance() : player.finish())}
+					disabled={!player.next && (controllable || player.ended)}
 					aria-label="Next track"
 				>
 					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14M6 5l9 7-9 7z" /></svg>
@@ -580,6 +648,45 @@
 
 	.pl-embed.soundcloud :global(iframe) {
 		height: 166px;
+	}
+
+	.pl-judge {
+		display: flex;
+		gap: 8px;
+		margin-top: 2px;
+	}
+
+	.judge {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		min-height: 44px;
+		padding: 0 14px;
+		border: 1px solid rgba(255, 255, 255, 0.28);
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.1);
+		color: #fff;
+		font: inherit;
+		font-size: 14px;
+		font-weight: 600;
+	}
+
+	.judge[aria-pressed='true'] {
+		background: rgba(255, 255, 255, 0.28);
+	}
+
+	.judge svg {
+		width: 18px;
+		height: 18px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.9;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.judge svg.filled {
+		fill: currentColor;
 	}
 
 	.pl-embed.bandcamp {

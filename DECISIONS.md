@@ -3527,3 +3527,43 @@ ring's own widget code follows it in the same file.
 Gematsu), not a ring of people, and its list carries no addresses: each blog's address is only on
 that blog's own page, so a refresh would be twenty-odd requests. It fits Surf, as sites, better
 than Webrings.
+
+## 2026-10-07 (phone pass, build 47) — What passed, what changed, and what the claim really is
+
+**Passed on the phone:** the encrypted store's upgrade (data intact, relaunch quick), kept passages
+and pictures, Back in every combination, the splash, play notifications, and the car's scrubber.
+
+**The car's Play (a Tesla) still does not resume after a Pause.** Ruled out on paper: the plugin
+keeps its foreground service and session while paused and advertises Play then; Capacitor keeps
+the WebView's timers running in the background; Play no longer toggles. Two causes remain, and
+nothing at a desk can tell them apart: the WebView refusing `play()` while the page is hidden, or
+a platform's player (YouTube, SoundCloud) refusing to start from a hidden page. `safePlay`
+swallowed exactly that refusal. **A media log** in Settings' debug section (debug builds only,
+`mediaLog.svelte.ts`) now records each system action as it arrives, whether the page was visible,
+what kind of track it was, and `play()`'s outcome with the browser's reason. One drive answers it.
+LBHQ's media controls (a web app on `navigator.mediaSession`) already did what this app now does.
+
+**Changed:**
+
+- **The player** has Like and Not for me for whoever is playing, filed like their profile's. On a
+  track that cannot say when it ends (Bandcamp), Next is never a dead end: with nothing after it,
+  it ends the queue and offers what to play next (`player.finish()`).
+- **Feeds:** the video waiting behind a post is glass (its picture blurred and darkened, heavily
+  while behind, lightly in front); Save for later and Video are solid buttons, not soft tints that
+  read as labels on a dark card; the new count is a superscript after the word, not over it; an
+  unread yip rings its creator's picture with the pulse, where the corner dot sat on its age.
+- **You's Following rows** open the person's profile. Their settings (their own picks, sources,
+  folder, layout, how long to keep posts) are a sheet behind a settings button. "Kept from them"
+  and keep-by-link are gone from there: the profile has both.
+
+**The claim, audited.** "YipDen keeps only the link … nothing is saved for good" was not exactly
+true. Tracks, pictures and screenshots: the address only. A waveform downloads the whole file
+once, in memory, keeps the bar heights and duration, and drops the audio. The WebView's cache can
+hold a file while the app is open and is cleared on close and at every cold start. A passage keeps
+up to 500 characters of the words chosen and a little context, so it can be found again, and is
+left out of backups. Nothing leaves the phone but what the reader exports. The browser guide now
+says exactly that: the link and never the file, and for a passage the words chosen.
+
+**Open, for the maintainer:** Surf's and Forums' bundled posters and clips (15 posters, 8 clips)
+are copies of other people's sites, distributed inside the APK. That is the capture permission the
+sites contract now describes, and it does not square with "links, not copies" in a store release.

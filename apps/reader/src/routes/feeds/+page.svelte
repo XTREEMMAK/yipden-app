@@ -277,12 +277,12 @@
 					aria-selected={selectedPill === filter.key}
 					onclick={() => feeds.setFilter(filter.key)}
 				>
-					{filter.label}
-					{#if filter.key === 'everything' && feeds.unreadCount}
-						<span class="new-count" aria-label={`${feeds.unreadCount} new`}
-							>{feeds.unreadCount}</span
-						>
-					{/if}
+					<span class="pill-label"
+						>{filter.label}{#if filter.key === 'everything' && feeds.unreadCount}<span
+								class="new-count"
+								aria-label={`${feeds.unreadCount} new`}>{feeds.unreadCount}</span
+							>{/if}</span
+					>
 				</button>
 			{/each}
 		</div>
@@ -542,6 +542,10 @@
 		stroke-linecap: round;
 	}
 
+	.pill-label {
+		position: relative;
+	}
+
 	.pill[aria-selected='true'] .new-count {
 		background: #fff;
 		color: var(--brand-ink);
@@ -554,8 +558,10 @@
 	 */
 	.new-count {
 		position: absolute;
-		top: 2px;
-		right: 4px;
+		/* Just after the word, raised: a superscript that takes no room in the row. */
+		left: 100%;
+		bottom: 60%;
+		margin-left: 1px;
 		min-width: 16px;
 		padding: 0 4px;
 		line-height: 16px;
@@ -799,8 +805,9 @@
 		padding: 0 14px;
 		border: 0;
 		border-radius: 999px;
-		background: var(--brand-soft);
-		color: var(--brand-ink);
+		/* Solid, not the soft tint, which on a dark card read as a faint label (2026-10-07). */
+		background: var(--brand);
+		color: #fff;
 		font-family: var(--body);
 		font-size: 12.5px;
 		font-weight: 600;

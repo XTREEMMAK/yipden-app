@@ -4,6 +4,18 @@
 	import { prefs } from '$lib/prefs.svelte.js';
 	import Switch from './Switch.svelte';
 	import { diagnostics, type DiagKey } from '$lib/diagnostics.svelte.js';
+	import { mediaLog } from '$lib/mediaLog.svelte.js';
+
+	let copied = $state(false);
+	async function copyLog() {
+		try {
+			await navigator.clipboard.writeText(mediaLog?.lines.join('\n') ?? '');
+			copied = true;
+			setTimeout(() => (copied = false), 1500);
+		} catch {
+			// No clipboard: a screenshot of the list does the same job.
+		}
+	}
 
 	// THROWAWAY: the Listen embeds spike, removed once its results are reported.
 	let spike = $state(false);
@@ -69,10 +81,72 @@
 			<EmbedSpike onclose={() => (spike = false)} />
 		{/await}
 	{/if}
+	<!-- What the car and lock screen asked of the player, newest first (see mediaLog.svelte.ts). -->
+	<div class="media-log">
+		<div class="log-head">
+			<b>Media log</b>
+			<button class="log-btn" onclick={copyLog}>{copied ? 'Copied' : 'Copy'}</button>
+			<button class="log-btn" onclick={() => mediaLog?.clear()}>Clear</button>
+		</div>
+		{#if mediaLog?.lines.length}
+			<ol>
+				{#each [...mediaLog.lines].reverse() as line, index (index)}
+					<li>{line}</li>
+				{/each}
+			</ol>
+		{:else}
+			<small>Nothing yet. Use the car's or lock screen's controls, then look here.</small>
+		{/if}
+	</div>
 	<p class="note">Only in debug builds. A release build has none of these.</p>
 </section>
 
 <style>
+	.media-log {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		padding: 12px 14px;
+		border: 1px solid var(--line);
+		border-radius: 14px;
+	}
+
+	.log-head {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.log-head b {
+		margin-right: auto;
+	}
+
+	.log-btn {
+		min-height: 36px;
+		padding: 0 12px;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: none;
+		color: var(--ink);
+		font: inherit;
+		font-size: 13px;
+	}
+
+	.media-log ol {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		max-height: 280px;
+		overflow-y: auto;
+		font-family: var(--mono);
+		font-size: 11px;
+		line-height: 1.5;
+	}
+
+	.media-log small {
+		color: var(--muted);
+	}
+
 	.grp {
 		display: flex;
 		flex-direction: column;

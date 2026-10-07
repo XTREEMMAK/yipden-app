@@ -9,6 +9,7 @@ import {
 	soundcloudWaveform,
 	type EmbedSource
 } from './embeds/source.js';
+import { mediaLog } from './mediaLog.svelte.js';
 import { prefersReducedMotion } from './motion.js';
 import { store, type PeaksRecord } from './store/index.js';
 import { toast } from './toast.svelte.js';
@@ -80,7 +81,12 @@ function sameSite(left: string, right: string): boolean {
 function safePlay(audio: HTMLAudioElement, onUnplayable?: () => void): void {
 	const result = audio.play();
 	if (result && typeof result.catch === 'function') {
+		if (__YIPDEN_DEBUG__) void result.then(() => mediaLog?.add('play(): started'));
 		result.catch((cause: unknown) => {
+			if (__YIPDEN_DEBUG__) {
+				const reason = cause instanceof Error ? `${cause.name}: ${cause.message}` : String(cause);
+				mediaLog?.add(`play(): refused, ${reason}`);
+			}
 			// Autoplay refused by the platform: the reader presses play themselves. A source the
 			// browser cannot play at all is different, and is said out loud.
 			if (cause instanceof DOMException && cause.name === 'NotSupportedError') onUnplayable?.();
@@ -451,6 +457,11 @@ class PlayerState {
 	}
 
 	toggle(): void {
+		if (__YIPDEN_DEBUG__ && this.source) {
+			mediaLog?.add(
+				`${this.playing ? 'pause' : 'play'} asked of the ${this.source.provider} player`
+			);
+		}
 		if (this.source) {
 			if (!this.engine) this.startEmbed(true);
 			else if (this.playing) this.engine.pause();
@@ -693,6 +704,15 @@ class PlayerState {
 		else this.load(at);
 	}
 
+	/**
+	 * Done with this track, with nothing queued after it: the queue ends and asks what next. What
+	 * Next does on a track the app cannot tell the end of (Bandcamp), so a lone one is not a dead end.
+	 */
+	finish(): void {
+		this.pause();
+		this.ended = true;
+	}
+
 	advance(): void {
 		if (!this.loop && this.currentIndex >= this.queue.length - 1) {
 			this.pause();
@@ -849,7 +869,13 @@ class PlayerState {
 			action: MediaSessionAction,
 			handler: (details: { seekTime?: number | null }) => void
 		) => {
-			void MediaSession.setActionHandler({ action }, handler).catch(() => {});
+			void MediaSession.setActionHandler({ action }, (details) => {
+				if (__YIPDEN_DEBUG__) {
+					const kind = this.source?.provider ?? (this.current ? 'file' : 'nothing');
+					mediaLog?.add(`${action} from the system (${kind}, playing=${this.playing})`);
+				}
+				handler(details);
+			}).catch(() => {});
 		};
 		// Each says what it means: a Play that only toggled paused whenever the app and the
 		// system disagreed about whether it was playing.

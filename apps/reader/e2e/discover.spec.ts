@@ -361,13 +361,12 @@ test.describe('a followed member’s own picks', () => {
 		const box = await quick.boundingBox();
 		expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
 
-		await page
-			.getByRole('button', { name: /^Ada Reed/ })
-			.first()
-			.click();
+		// Their own picks are also in their settings sheet.
+		await page.getByRole('button', { name: 'Settings for Ada Reed' }).click();
 		const picks = page.locator('.their-picks');
 		await expect(picks).toContainText('Their own picks');
 		await expect(picks).toContainText('Chosen by Ada Reed for the IndieNodes ring');
+		await page.keyboard.press('Escape');
 
 		await quick.click();
 		await expect(page.getByText('Broken Synth').first()).toBeVisible();

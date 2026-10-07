@@ -1,5 +1,5 @@
 <script lang="ts">
-	import KeepByLink from '$components/KeepByLink.svelte';
+	import Sheet from '$components/Sheet.svelte';
 	import { kindLabel } from '$lib/sources.js';
 	import { hostOf } from '$lib/hosts.js';
 	import { profileHref } from '$lib/creatorProfile.svelte.js';
@@ -22,8 +22,6 @@
 	import YouLists from '$components/YouLists.svelte';
 	import FolderPicker from '$components/FolderPicker.svelte';
 	import LayoutPicker from '$components/LayoutPicker.svelte';
-	import ReaderTracks from '$components/ReaderTracks.svelte';
-	import ReaderFinds from '$components/ReaderFinds.svelte';
 	import Library from '$components/Library.svelte';
 	import PreviewSheet from '$components/PreviewSheet.svelte';
 	import type { RingEntry } from '@yipden/ring-client';
@@ -45,7 +43,11 @@
 	 */
 
 	let confirmingId = $state<string | null>(null);
-	let expandedIds = $state<Set<string>>(new Set());
+	/** Whose settings sheet is open, by person id. */
+	let settingsFor = $state<string | null>(null);
+	let settingsRow = $derived(
+		settingsFor ? (you.rows.find((row) => row.person.id === settingsFor) ?? null) : null
+	);
 	let busyFeedIds = $state<Set<string>>(new Set());
 	let busyPersonIds = $state<Set<string>>(new Set());
 	let addingForId = $state<string | null>(null);
@@ -153,13 +155,6 @@
 		confirmingId = null;
 		await you.unfollow(personId);
 		toast.show(`Unfollowed ${name}. Their yips are gone from Feeds.`);
-	}
-
-	function toggleExpanded(personId: string) {
-		const next = new Set(expandedIds);
-		if (next.has(personId)) next.delete(personId);
-		else next.add(personId);
-		expandedIds = next;
 	}
 
 	/** A source by where it comes from: a site's own feed is its Website here, not a Blog. */
@@ -561,12 +556,7 @@
 							{@const own = entry ? previewFor(entry) : null}
 							<div class="follow-person">
 								<div class="srow person-row">
-									<button
-										class="person-toggle"
-										aria-expanded={expandedIds.has(row.person.id)}
-										aria-controls={`feeds-${personIndex}`}
-										onclick={() => toggleExpanded(row.person.id)}
-									>
+									<a class="person-toggle" href={profileHref(row.person.siteUrl)}>
 										<span
 											class="av"
 											style:background-image={row.person.iconUrl
@@ -585,11 +575,20 @@
 												<small class="fetching"><Spinner size={11} /> Fetching posts{'…'}</small>
 											{/if}
 										</span>
-										<svg
-											class="chevron"
-											class:open={expandedIds.has(row.person.id)}
-											viewBox="0 0 24 24"
-											aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg
+										<svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"
+											><path d="m9 6 6 6-6 6" /></svg
+										>
+									</a>
+									<button
+										class="picks-btn"
+										aria-haspopup="dialog"
+										aria-label={`Settings for ${row.person.name}`}
+										onclick={() => (settingsFor = row.person.id)}
+									>
+										<svg viewBox="0 0 24 24" aria-hidden="true"
+											><circle cx="12" cy="12" r="3" /><path
+												d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"
+											/></svg
 										>
 									</button>
 									{#if entry && own && confirmingId !== row.person.id}
@@ -629,203 +628,6 @@
 										</button>
 									{/if}
 								</div>
-								{#if expandedIds.has(row.person.id)}
-									<div class="profile-row">
-										<span class="tt">
-											<b>Their profile</b>
-											<small>About them, where they are, and what you kept</small>
-										</span>
-										<a class="mini-btn" href={profileHref(row.person.siteUrl)}>Open</a>
-									</div>
-									{#if entry && own}
-										<div class="their-picks">
-											<span class="tt">
-												<b>Their own picks</b>
-												<small>Chosen by {row.person.name} for the IndieNodes ring</small>
-											</span>
-											<button
-												class="mini-btn"
-												onclick={(event) => openPicks(entry, own, event.currentTarget)}
-												>{own.label}</button
-											>
-										</div>
-									{/if}
-									<div class="feed-list" id={`feeds-${personIndex}`}>
-										<h4 class="row-sub">Sources</h4>
-										{#each row.feeds as feed, feedIndex (feed.id)}
-											<div class:feed-problem={feed.failures > 0} class="feed-row">
-												<span class="feed-mark" aria-hidden="true"
-													>{feedKindLabel(feed.kind).slice(0, 1)}</span
-												>
-												<span class="feed-copy">
-													<b>{feedKindLabel(feed.kind)}</b>
-													<small>
-														{feed.title !== row.person.name ? `${feed.title} · ` : ''}
-														{hostOf(feed.url)}
-														{feed.provenance === 'manual' ? ' · Added manually' : ''}
-													</small>
-													<small class:problem={feed.failures > 0}>{sourceStatus(feed)}</small>
-												</span>
-												<span class="feed-actions">
-													{#if feed.failures > 0 && feed.enabled}
-														<button
-															class="source-btn"
-															disabled={busyFeedIds.has(feed.id)}
-															onclick={() =>
-																retrySource(row.person.id, feed.id, feedKindLabel(feed.kind))}
-															>Retry</button
-														>
-													{/if}
-													{#if suggestReplace(feed)}
-														<button
-															class="source-btn"
-															aria-expanded={replacingFeedId === feed.id}
-															aria-label={`Replace the address for ${feedKindLabel(feed.kind)}`}
-															onclick={() => beginReplace(feed.id, row.person.siteUrl)}
-															>{replacingFeedId === feed.id ? 'Cancel' : 'Replace'}</button
-														>
-													{/if}
-													{#if feed.provenance === 'manual'}
-														{#if confirmingSourceId === feed.id}
-															<button
-																class="source-btn danger"
-																onclick={() =>
-																	removeManualSource(
-																		row.person.id,
-																		feed.id,
-																		feedKindLabel(feed.kind)
-																	)}>Remove</button
-															>
-															<button class="source-btn" onclick={() => (confirmingSourceId = null)}
-																>Keep</button
-															>
-														{:else}
-															<button
-																class="source-btn"
-																onclick={() => (confirmingSourceId = feed.id)}>Remove</button
-															>
-														{/if}
-													{/if}
-													<Switch
-														id={`feed-${personIndex}-${feedIndex}`}
-														label={`${feed.enabled ? 'Pause' : 'Enable'} ${feedKindLabel(feed.kind)} for ${row.person.name}`}
-														checked={feed.enabled}
-														disabled={busyFeedIds.has(feed.id)}
-														onchange={(enabled) =>
-															setFeedEnabled(
-																row.person.id,
-																feed.id,
-																feedKindLabel(feed.kind),
-																enabled
-															)}
-													/>
-												</span>
-											</div>
-											{#if replacingFeedId === feed.id}
-												{@render sourceForm(
-													`replace-${personIndex}-${feedIndex}`,
-													'Where it moved: a feed, website or profile link',
-													'Use this',
-													(source) => replaceSource(row.person.id, feed, source)
-												)}
-											{/if}
-										{/each}
-										<div class="source-manage">
-											<div class="source-toolbar">
-												<button
-													class="source-btn"
-													disabled={busyPersonIds.has(row.person.id) ||
-														!row.feeds.some((feed) => feed.enabled)}
-													onclick={() => catchUpCreator(row.person.id, row.person.name)}
-													>Check now</button
-												>
-												<button
-													class="source-btn"
-													disabled={busyPersonIds.has(row.person.id) || row.feeds.length === 0}
-													onclick={() =>
-														setCreatorSources(
-															row.person.id,
-															row.person.name,
-															!row.feeds.every((feed) => feed.enabled)
-														)}
-												>
-													{row.feeds.every((feed) => feed.enabled) ? 'Pause all' : 'Enable all'}
-												</button>
-											</div>
-											<button class="add-source" onclick={() => beginAddSource(row.person.id)}>
-												{addingForId === row.person.id ? 'Cancel' : '+ Add source'}
-											</button>
-											{#if addingForId === row.person.id}
-												{@render sourceForm(
-													`source-${personIndex}`,
-													'Feed, website, or profile link',
-													'Add',
-													(source) => attachSource(row.person.id, source)
-												)}
-											{/if}
-											<h4 class="row-sub">Kept from them</h4>
-											<ReaderTracks
-												creator={{
-													url: row.person.siteUrl,
-													name: row.person.name,
-													artUrl: row.person.iconUrl ?? null,
-													// Followed from IndieNodes (`ringId` is their entry there), or found another way.
-													ring: row.person.ringId ? { source: 'own', id: 'indienodes' } : null
-												}}
-											/>
-											<ReaderFinds
-												creator={{
-													url: row.person.siteUrl,
-													name: row.person.name,
-													ring: row.person.ringId ? { source: 'own', id: 'indienodes' } : null
-												}}
-											/>
-											<KeepByLink
-												id={`keep-${personIndex}`}
-												creator={{
-													url: row.person.siteUrl,
-													name: row.person.name,
-													ring: row.person.ringId ? { source: 'own', id: 'indienodes' } : null
-												}}
-											/>
-											<h4 class="row-sub">Your settings for them</h4>
-											<FolderPicker
-												id={`folder-${personIndex}`}
-												value={row.person.folder}
-												folders={you.folders}
-												onchange={(folder) => you.setPersonFolder(row.person.id, folder)}
-											/>
-											<LayoutPicker
-												id={`layout-${personIndex}`}
-												creatorUrl={row.person.siteUrl}
-												declared={row.person.layout}
-											/>
-											<div class="age-limit">
-												<label for={`age-${personIndex}`}>
-													Keep posts from the last
-													<b>{row.person.maxAgeDays ?? prefs.maxAgeDays} days</b>
-													{#if row.person.maxAgeDays === undefined}<small>(default)</small>{/if}
-												</label>
-												<input
-													id={`age-${personIndex}`}
-													type="range"
-													min={MIN_MAX_AGE_DAYS}
-													max={MAX_MAX_AGE_DAYS}
-													value={row.person.maxAgeDays ?? prefs.maxAgeDays}
-													onchange={(event) =>
-														you.setPersonMaxAge(row.person.id, Number(event.currentTarget.value))}
-												/>
-												{#if row.person.maxAgeDays !== undefined}
-													<button
-														class="source-btn"
-														onclick={() => you.setPersonMaxAge(row.person.id, null)}
-														>Use default</button
-													>
-												{/if}
-											</div>
-										</div>
-									</div>
-								{/if}
 							</div>
 						{/each}
 					{/if}
@@ -851,6 +653,172 @@
 
 {#if picks}
 	<PreviewSheet title={picks.title} slides={picks.slides} onclose={() => (picks = null)} />
+{/if}
+
+{#if settingsRow}
+	{@const row = settingsRow}
+	{@const personIndex = you.rows.indexOf(settingsRow)}
+	{@const entry = ringEntryFor(row.person)}
+	{@const own = entry ? previewFor(entry) : null}
+	<!--
+		Settings for one person, in a sheet of its own: their sources and how YipDen treats them.
+		Tapping their row opens their profile instead (phone feedback, 2026-10-07); what you kept from
+		them lives there, so it is not repeated here.
+	-->
+	<Sheet
+		title={`Settings for ${row.person.name}`}
+		onclose={() => (settingsFor = null)}
+		historyKey="personSettings"
+		maxHeight="85vh"
+	>
+		<div class="person-settings">
+			{#if entry && own}
+				<div class="their-picks">
+					<span class="tt">
+						<b>Their own picks</b>
+						<small>Chosen by {row.person.name} for the IndieNodes ring</small>
+					</span>
+					<button class="mini-btn" onclick={(event) => openPicks(entry, own, event.currentTarget)}
+						>{own.label}</button
+					>
+				</div>
+			{/if}
+			<div class="feed-list" id={`feeds-${personIndex}`}>
+				<h4 class="row-sub">Sources</h4>
+				{#each row.feeds as feed, feedIndex (feed.id)}
+					<div class:feed-problem={feed.failures > 0} class="feed-row">
+						<span class="feed-mark" aria-hidden="true">{feedKindLabel(feed.kind).slice(0, 1)}</span>
+						<span class="feed-copy">
+							<b>{feedKindLabel(feed.kind)}</b>
+							<small>
+								{feed.title !== row.person.name ? `${feed.title} · ` : ''}
+								{hostOf(feed.url)}
+								{feed.provenance === 'manual' ? ' · Added manually' : ''}
+							</small>
+							<small class:problem={feed.failures > 0}>{sourceStatus(feed)}</small>
+						</span>
+						<span class="feed-actions">
+							{#if feed.failures > 0 && feed.enabled}
+								<button
+									class="source-btn"
+									disabled={busyFeedIds.has(feed.id)}
+									onclick={() => retrySource(row.person.id, feed.id, feedKindLabel(feed.kind))}
+									>Retry</button
+								>
+							{/if}
+							{#if suggestReplace(feed)}
+								<button
+									class="source-btn"
+									aria-expanded={replacingFeedId === feed.id}
+									aria-label={`Replace the address for ${feedKindLabel(feed.kind)}`}
+									onclick={() => beginReplace(feed.id, row.person.siteUrl)}
+									>{replacingFeedId === feed.id ? 'Cancel' : 'Replace'}</button
+								>
+							{/if}
+							{#if feed.provenance === 'manual'}
+								{#if confirmingSourceId === feed.id}
+									<button
+										class="source-btn danger"
+										onclick={() =>
+											removeManualSource(row.person.id, feed.id, feedKindLabel(feed.kind))}
+										>Remove</button
+									>
+									<button class="source-btn" onclick={() => (confirmingSourceId = null)}
+										>Keep</button
+									>
+								{:else}
+									<button class="source-btn" onclick={() => (confirmingSourceId = feed.id)}
+										>Remove</button
+									>
+								{/if}
+							{/if}
+							<Switch
+								id={`feed-${personIndex}-${feedIndex}`}
+								label={`${feed.enabled ? 'Pause' : 'Enable'} ${feedKindLabel(feed.kind)} for ${row.person.name}`}
+								checked={feed.enabled}
+								disabled={busyFeedIds.has(feed.id)}
+								onchange={(enabled) =>
+									setFeedEnabled(row.person.id, feed.id, feedKindLabel(feed.kind), enabled)}
+							/>
+						</span>
+					</div>
+					{#if replacingFeedId === feed.id}
+						{@render sourceForm(
+							`replace-${personIndex}-${feedIndex}`,
+							'Where it moved: a feed, website or profile link',
+							'Use this',
+							(source) => replaceSource(row.person.id, feed, source)
+						)}
+					{/if}
+				{/each}
+				<div class="source-manage">
+					<div class="source-toolbar">
+						<button
+							class="source-btn"
+							disabled={busyPersonIds.has(row.person.id) || !row.feeds.some((feed) => feed.enabled)}
+							onclick={() => catchUpCreator(row.person.id, row.person.name)}>Check now</button
+						>
+						<button
+							class="source-btn"
+							disabled={busyPersonIds.has(row.person.id) || row.feeds.length === 0}
+							onclick={() =>
+								setCreatorSources(
+									row.person.id,
+									row.person.name,
+									!row.feeds.every((feed) => feed.enabled)
+								)}
+						>
+							{row.feeds.every((feed) => feed.enabled) ? 'Pause all' : 'Enable all'}
+						</button>
+					</div>
+					<button class="add-source" onclick={() => beginAddSource(row.person.id)}>
+						{addingForId === row.person.id ? 'Cancel' : '+ Add source'}
+					</button>
+					{#if addingForId === row.person.id}
+						{@render sourceForm(
+							`source-${personIndex}`,
+							'Feed, website, or profile link',
+							'Add',
+							(source) => attachSource(row.person.id, source)
+						)}
+					{/if}
+					<h4 class="row-sub">Your settings for them</h4>
+					<FolderPicker
+						id={`folder-${personIndex}`}
+						value={row.person.folder}
+						folders={you.folders}
+						onchange={(folder) => you.setPersonFolder(row.person.id, folder)}
+					/>
+					<LayoutPicker
+						id={`layout-${personIndex}`}
+						creatorUrl={row.person.siteUrl}
+						declared={row.person.layout}
+					/>
+					<div class="age-limit">
+						<label for={`age-${personIndex}`}>
+							Keep posts from the last
+							<b>{row.person.maxAgeDays ?? prefs.maxAgeDays} days</b>
+							{#if row.person.maxAgeDays === undefined}<small>(default)</small>{/if}
+						</label>
+						<input
+							id={`age-${personIndex}`}
+							type="range"
+							min={MIN_MAX_AGE_DAYS}
+							max={MAX_MAX_AGE_DAYS}
+							value={row.person.maxAgeDays ?? prefs.maxAgeDays}
+							onchange={(event) =>
+								you.setPersonMaxAge(row.person.id, Number(event.currentTarget.value))}
+						/>
+						{#if row.person.maxAgeDays !== undefined}
+							<button class="source-btn" onclick={() => you.setPersonMaxAge(row.person.id, null)}
+								>Use default</button
+							>
+						{/if}
+					</div>
+				</div>
+			</div>
+		</div>
+	</Sheet>
 {/if}
 
 <style>
@@ -1146,6 +1114,7 @@
 		background: none;
 		color: inherit;
 		text-align: left;
+		text-decoration: none;
 		font: inherit;
 	}
 
@@ -1159,10 +1128,6 @@
 		stroke-linecap: round;
 		stroke-linejoin: round;
 		transition: transform var(--dur-s) var(--ease);
-	}
-
-	.chevron.open {
-		transform: rotate(90deg);
 	}
 
 	.feed-list {
@@ -1452,12 +1417,6 @@
 		font-weight: 600;
 	}
 
-	a.mini-btn {
-		display: inline-grid;
-		place-items: center;
-		text-decoration: none;
-	}
-
 	/* Their own picks, one tap from the row: the brand's round play button, as in Discover. */
 	.picks-btn {
 		display: grid;
@@ -1482,28 +1441,8 @@
 	}
 
 	.their-picks,
-	.profile-row {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		margin: 0 14px;
-		padding: 10px 12px;
-		border-radius: 14px;
-		background: var(--brand-soft);
-		color: var(--brand-ink);
-	}
-
 	.their-picks .tt,
-	.profile-row .tt {
-		flex: 1;
-		min-width: 0;
-	}
-
 	.their-picks small,
-	.profile-row small {
-		color: var(--brand-ink);
-	}
-
 	.mini-btn.danger {
 		background: var(--error);
 		border-color: var(--error);

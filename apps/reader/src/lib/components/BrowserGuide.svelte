@@ -56,8 +56,9 @@
 	<div class="promise">
 		<b>Links, not copies</b>
 		<p>
-			YipDen keeps only the link, on this phone. The work stays on the creator’s site: if they take
-			it down, it goes from here too. Nothing is saved for good.
+			YipDen keeps the link, on this phone, and never the file. For a passage it also keeps the
+			words you chose, so it can find them on the page again. The work stays on the creator’s site:
+			if they take it down, it goes from here too.
 		</p>
 		<b>Love their work? Support them</b>
 		<p>Buy it, commission them or tip them on their own site. That is what keeps it there.</p>

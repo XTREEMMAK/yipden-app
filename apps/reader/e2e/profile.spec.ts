@@ -58,12 +58,12 @@ test.describe('A creator’s profile', () => {
 		await page.goto('/feeds');
 		await page.locator('#pane-everything').getByText('Low Tide').waitFor({ timeout: 10_000 });
 
+		// Their row in You is the way to their profile.
 		await page.goto('/you');
 		await page
-			.getByRole('button', { name: /Lena Ofori/ })
+			.getByRole('link', { name: /Lena Ofori/ })
 			.first()
 			.click();
-		await page.getByRole('link', { name: 'Open' }).click();
 
 		await expect(page).toHaveURL(/\/creator\/?\?site=https%3A%2F%2Flenaofori\.com/);
 		await expect(page.getByRole('heading', { level: 1, name: 'Lena Ofori' })).toBeVisible();

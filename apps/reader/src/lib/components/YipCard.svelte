@@ -423,8 +423,9 @@
 		padding: 0 14px 0 10px;
 		border: 0;
 		border-radius: 999px;
-		background: color-mix(in srgb, var(--src-youtube) 14%, transparent);
-		color: color-mix(in srgb, var(--src-youtube) 80%, var(--ink));
+		/* Solid YouTube red: a tint of it read as a faint label on a dark card (2026-10-07). */
+		background: var(--src-youtube);
+		color: #fff;
 		font: inherit;
 		font-size: 13px;
 		font-weight: 650;
@@ -484,13 +485,27 @@
 		fill: #fff;
 	}
 
-	/* The thumbnail a little darker, so the play mark and Back read on any picture. */
+	/*
+	 * The picture as glass: the thumbnail blurred and darkened under everything drawn on it. Heavy
+	 * while the video waits behind its post, where only a strip of it shows above the post and a
+	 * busy picture there pulled the eye off the post's text; light once it is in front, so the
+	 * picture still says what the video is (phone feedback, 2026-10-07). Scaled up a little so the
+	 * blur's soft edge stays outside the card.
+	 */
 	.video-open::before {
 		content: '';
 		position: absolute;
 		inset: 0;
-		background: rgba(0, 0, 0, 0.38);
+		background-image: inherit;
+		background-size: cover;
+		background-position: center;
+		filter: blur(18px) brightness(0.55);
+		transform: scale(1.15);
 		pointer-events: none;
+	}
+
+	.video-card.in-front .video-open::before {
+		filter: blur(6px) brightness(0.6);
 	}
 
 	.video-open > :global(*) {
@@ -754,64 +769,35 @@
 		filter: saturate(0.45) brightness(0.65);
 	}
 
-	/* A small dot for an unread yip, the same idea the tab bar's badge would use. */
-	.yip.unread::before {
-		content: '';
-		position: absolute;
-		top: 14px;
-		right: 14px;
-		z-index: 1;
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background: var(--brand);
-		box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+	/*
+	 * An unread yip rings its creator's picture, and the ring pulses outward. It was a dot in the
+	 * card's corner, which sat on top of the post's age and was easy to miss (phone feedback,
+	 * 2026-10-07). Transform and opacity only, and still under reduced motion.
+	 */
+	.yip.unread .av,
+	.yip.unread .top-av {
+		position: relative;
+		box-shadow:
+			0 0 0 2px var(--brand),
+			0 0 0 4px color-mix(in srgb, var(--brand) 25%, transparent);
 	}
 
-	.yip.text.unread::before {
-		top: 16px;
-		right: 16px;
-		box-shadow: none;
-	}
-
-	/* The ghost of the dot, sent outward as a ring. Transform and opacity only. */
-	.yip.unread::after {
+	.yip.unread .av::after,
+	.yip.unread .top-av::after {
 		content: '';
 		position: absolute;
-		top: 14px;
-		right: 14px;
-		z-index: 1;
+		inset: -2px;
 		box-sizing: border-box;
-		width: 8px;
-		height: 8px;
-		border: 1.5px solid var(--brand);
+		border: 2px solid var(--brand);
 		border-radius: 50%;
 		opacity: 0;
 		pointer-events: none;
 	}
 
-	.yip.text.unread::after {
-		top: 16px;
-		right: 16px;
-	}
-
 	@media (prefers-reduced-motion: no-preference) {
-		.yip.unread::before {
-			animation: unread-blink 2.4s ease-in-out infinite;
-		}
-
-		.yip.unread::after {
+		.yip.unread .av::after,
+		.yip.unread .top-av::after {
 			animation: unread-ring 2.4s ease-out infinite;
-		}
-	}
-
-	@keyframes unread-blink {
-		0%,
-		100% {
-			opacity: 1;
-		}
-		50% {
-			opacity: 0.45;
 		}
 	}
 
@@ -822,7 +808,7 @@
 		}
 		70%,
 		100% {
-			transform: scale(3);
+			transform: scale(1.7);
 			opacity: 0;
 		}
 	}

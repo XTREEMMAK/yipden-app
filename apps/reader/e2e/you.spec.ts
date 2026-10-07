@@ -66,7 +66,7 @@ test.describe('You', () => {
 
 		await expect(page.getByText('Lena Ofori')).toBeVisible();
 		await expect(
-			page.getByRole('button', { name: /Lena Ofori 1 of 1 sources active/ })
+			page.getByRole('link', { name: /Lena Ofori 1 of 1 sources active/ })
 		).toBeVisible();
 	});
 
@@ -90,7 +90,7 @@ test.describe('You', () => {
 		);
 
 		await page.goto('/you');
-		await page.getByRole('button', { name: /Lena Ofori.*sources active/ }).click();
+		await page.getByRole('button', { name: 'Settings for Lena Ofori' }).click();
 		await page.getByRole('button', { name: '+ Add source' }).click();
 		await expect(page.getByText(/Manual sources stay unverified/)).toBeVisible();
 		await page.getByLabel('Feed, website, or profile link').fill('youtube.com/keyjayhd');
@@ -100,14 +100,14 @@ test.describe('You', () => {
 		await expect(page.getByRole('status')).toContainText('YouTube was added and checked');
 		await expect(page.getByText(/Added manually/)).toBeVisible();
 		await expect(
-			page.getByRole('button', { name: /Lena Ofori 2 of 2 sources active/ })
+			page.getByRole('link', { name: /Lena Ofori 2 of 2 sources active/ })
 		).toBeVisible();
 
 		await page.getByRole('button', { name: 'Remove', exact: true }).click();
 		await page.getByRole('button', { name: 'Remove', exact: true }).click();
 		await expect(page.getByRole('status')).toContainText('Removed YouTube and its cached yips');
 		await expect(
-			page.getByRole('button', { name: /Lena Ofori 1 of 1 sources active/ })
+			page.getByRole('link', { name: /Lena Ofori 1 of 1 sources active/ })
 		).toBeVisible();
 	});
 
@@ -131,7 +131,7 @@ test.describe('You', () => {
 		);
 
 		await page.goto('/you');
-		await page.getByRole('button', { name: /Lena Ofori.*sources active/ }).click();
+		await page.getByRole('button', { name: 'Settings for Lena Ofori' }).click();
 		await page.getByRole('button', { name: 'Check now' }).click();
 		await expect(
 			page.getByText('Not found (404); it may have moved · 1 failure in a row')
@@ -147,7 +147,7 @@ test.describe('You', () => {
 		await expect(page.getByText(/Not found/)).toHaveCount(0);
 		await expect(page.getByText(/Added manually/)).toBeVisible();
 		await expect(
-			page.getByRole('button', { name: /Lena Ofori 1 of 1 sources active/ })
+			page.getByRole('link', { name: /Lena Ofori 1 of 1 sources active/ })
 		).toBeVisible();
 	});
 
@@ -158,7 +158,7 @@ test.describe('You', () => {
 		);
 
 		await page.goto('/you');
-		await page.getByRole('button', { name: /Lena Ofori.*sources active/ }).click();
+		await page.getByRole('button', { name: 'Settings for Lena Ofori' }).click();
 		await page.getByRole('button', { name: 'Check now' }).click();
 		await expect(page.getByText('Could not connect · 1 failure in a row')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
@@ -278,14 +278,14 @@ test.describe('You', () => {
 	test('pauses and resumes every source for one creator', async ({ page }) => {
 		await followLena(page);
 		await page.goto('/you');
-		await page.getByRole('button', { name: /Lena Ofori.*sources active/ }).click();
+		await page.getByRole('button', { name: 'Settings for Lena Ofori' }).click();
 
 		await page.getByRole('button', { name: 'Pause all' }).click();
 		await expect(
 			page.getByRole('switch', { name: 'Enable Website for Lena Ofori' })
 		).not.toBeChecked();
 		await expect(
-			page.getByRole('button', { name: /Lena Ofori 0 of 1 sources active/ })
+			page.getByRole('link', { name: /Lena Ofori 0 of 1 sources active/ })
 		).toBeVisible();
 
 		await page.getByRole('button', { name: 'Enable all' }).click();
@@ -562,4 +562,21 @@ test.describe('You', () => {
 		await expect(dialog).toHaveCount(0);
 		await expect(trigger).toBeFocused();
 	});
+});
+
+test('a followed person’s row opens their profile; their settings are a sheet of their own', async ({
+	page
+}) => {
+	await followLena(page);
+	await page.goto('/you');
+	await page.getByRole('link', { name: /Lena Ofori.*sources active/ }).click();
+	await expect(page).toHaveURL(/\/creator/);
+
+	await page.goto('/you');
+	await page.getByRole('button', { name: 'Settings for Lena Ofori' }).click();
+	const sheet = page.getByRole('dialog', { name: 'Settings for Lena Ofori' });
+	await expect(sheet.getByRole('button', { name: 'Check now' })).toBeVisible();
+	await expect(sheet.getByText('Kept from them')).toHaveCount(0);
+	await page.goBack();
+	await expect(sheet).toBeHidden();
 });

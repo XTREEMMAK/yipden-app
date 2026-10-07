@@ -266,7 +266,7 @@ test.describe('Feeds', () => {
 		await expect(page.getByText('Following Cy Marsh')).toBeVisible();
 
 		await page.goto('/you');
-		await page.getByRole('button', { name: /Lena Ofori.*sources active/ }).click();
+		await page.getByRole('button', { name: 'Settings for Lena Ofori' }).click();
 		await page.getByLabel('Folder', { exact: true }).selectOption({ label: 'New folder…' });
 		await page.getByLabel('New folder name').fill('Music');
 		await page.getByRole('button', { name: 'Save', exact: true }).click();
