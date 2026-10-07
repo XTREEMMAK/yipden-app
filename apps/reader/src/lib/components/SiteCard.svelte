@@ -63,7 +63,8 @@
 				url: entry.url,
 				name: entry.title,
 				source: 'site',
-				via: 'Surf',
+				// A forum's like says so, so You's Follow takes it to Follow's Forums side.
+				via: isForum ? 'Forums' : 'Surf',
 				...(remoteThumb(entry) ? { thumbUrl: remoteThumb(entry)! } : {})
 			},
 			kind

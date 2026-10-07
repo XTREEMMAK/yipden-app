@@ -547,18 +547,26 @@
 		color: var(--brand-ink);
 	}
 
-	/* The new count on Everything, where the big title used to say it. */
+	/*
+	 * The new count on Everything, where the big title used to say it: a superscript pinned to the
+	 * tab's top corner, out of the layout, so it never widens a tab and pushes the last one out of
+	 * the row (phone feedback, 2026-10-07).
+	 */
 	.new-count {
-		min-width: 20px;
-		margin-left: 6px;
-		padding: 1px 6px;
+		position: absolute;
+		top: 2px;
+		right: 4px;
+		min-width: 16px;
+		padding: 0 4px;
+		line-height: 16px;
 		border-radius: 999px;
 		background: var(--brand);
 		color: #fff;
 		font-family: var(--mono);
-		font-size: 11px;
+		font-size: 10px;
 		font-weight: 500;
 		text-align: center;
+		pointer-events: none;
 	}
 
 	.pills {

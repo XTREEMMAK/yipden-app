@@ -489,7 +489,7 @@
 		content: '';
 		position: absolute;
 		inset: 0;
-		background: rgba(0, 0, 0, 0.22);
+		background: rgba(0, 0, 0, 0.38);
 		pointer-events: none;
 	}
 
@@ -514,13 +514,13 @@
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
-		padding: 12px 16px 14px;
-		background: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.55));
+		padding: 14px 16px 16px;
+		background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.7));
 	}
 
 	.video-card.in-front .video-meta {
-		-webkit-backdrop-filter: blur(14px);
-		backdrop-filter: blur(14px);
+		-webkit-backdrop-filter: blur(24px);
+		backdrop-filter: blur(24px);
 	}
 
 	.video-meta b {
@@ -578,10 +578,17 @@
 		background-position: center;
 	}
 
+	/*
+	 * Over the picture: the theme's own deep color laid evenly across it, then the theme's scrim.
+	 * Pictures read too bright under the scrim alone, and the card's text hard to read on them
+	 * (phone feedback, 2026-10-07). A tint rather than a filter on the picture, so the stack has
+	 * nothing more to repaint as cards fold.
+	 */
 	.shade {
 		position: absolute;
 		inset: 0;
-		background: var(--scrim-card);
+		background:
+			var(--scrim-card), linear-gradient(rgba(var(--deep-rgb), 0.42), rgba(var(--deep-rgb), 0.42));
 	}
 
 	.top {

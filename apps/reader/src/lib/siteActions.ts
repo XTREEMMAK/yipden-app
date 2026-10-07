@@ -40,7 +40,7 @@ export function saveSite(entry: SiteEntry): void {
 	void toggleShelf({
 		url: entry.url,
 		title: entry.title,
-		via: 'Surf',
+		via: typeof entry.software === 'string' ? 'Forums' : 'Surf',
 		from: 'discover',
 		...(thumb ? { thumbUrl: thumb } : {})
 	});

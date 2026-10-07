@@ -4,6 +4,8 @@
 	import { openExternal } from '$lib/platform/external.js';
 	import type { VerdictRecord } from '$lib/store/index.js';
 	import { verdicts } from '$lib/verdicts.svelte.js';
+	import { forumIndex } from '$lib/sites.svelte.js';
+	import { onMount } from 'svelte';
 
 	/**
 	 * Liked or Not for me, as rows: the creator's badge when one was saved with the verdict, their
@@ -19,6 +21,21 @@
 	let { kind, items }: Props = $props();
 	/** Badges that failed to load, so a broken one leaves the row as if it had none. */
 	let broken = $state<Set<string>>(new Set());
+
+	// Forums liked in Discover are followed as forums: their index says which they are.
+	onMount(() => void forumIndex.load());
+
+	/**
+	 * Where Follow goes for a liked row: a forum to Follow's Forums side, a forum YipDen cannot read
+	 * nowhere (it can only be visited), anything else to Follow's people search as before. Forums
+	 * liked before their likes said "via Forums" are found in the forum index by address.
+	 */
+	function followHref(item: VerdictRecord): string | null {
+		const forum = forumIndex.all.find((entry) => entry.url === item.url);
+		if (forum && forum.software !== 'discourse') return null;
+		const asForum = item.via === 'Forums' || forum !== undefined;
+		return `/follow?${asForum ? 'mode=forums&' : ''}url=${encodeURIComponent(item.url)}`;
+	}
 </script>
 
 {#each items as item (item.id)}
@@ -42,9 +59,10 @@
 			</span>
 		</button>
 		{#if kind === 'liked'}
-			<button class="mini-btn" onclick={() => goto(`/follow?url=${encodeURIComponent(item.url)}`)}>
-				Follow
-			</button>
+			{@const href = followHref(item)}
+			{#if href}
+				<button class="mini-btn" onclick={() => goto(href)}>Follow</button>
+			{/if}
 		{/if}
 		<button class="mini-btn" onclick={() => verdicts.clear(item.url)}>
 			{kind === 'liked' ? 'Remove' : 'Bring back'}
