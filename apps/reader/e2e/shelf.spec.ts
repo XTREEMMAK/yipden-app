@@ -404,14 +404,17 @@ async function chooseShow(page: Page, label: string) {
 }
 
 test.describe('partner rings in Discover', () => {
-	test('with no ring registered, the switcher offers IndieNodes and Surf only', async ({
+	test('with no ring registered, the switcher offers IndieNodes, and Surf beside it', async ({
 		page
 	}) => {
 		await withRing(page);
 		await page.goto('/');
 		await page.getByRole('button', { name: /^What to discover/ }).click();
-		const choices = page.getByRole('radiogroup', { name: 'What to discover' }).getByRole('radio');
-		await expect(choices).toHaveText([/IndieNodes Webring/, /Surf/]);
+		const kind = page.getByRole('radiogroup', { name: 'What to discover' });
+		await expect(kind.getByRole('radio')).toHaveText(['Webrings', 'Surf']);
+		await expect(page.getByRole('radiogroup', { name: 'Webrings' }).getByRole('radio')).toHaveText([
+			/IndieNodes Webring/
+		]);
 		await page.keyboard.press('Escape');
 
 		// Filtering by category still works and is unaffected: it never depended on a ring

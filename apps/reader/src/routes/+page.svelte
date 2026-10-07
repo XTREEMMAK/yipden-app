@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { hostOf } from '$lib/hosts.js';
 	import { creatorProfiles } from '$lib/creatorProfile.svelte.js';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { swipe } from '$lib/actions/swipe.js';
 	import { tap } from '$lib/actions/tap.js';
 	import { pullToRefresh } from '$lib/actions/pullToRefresh.js';
@@ -30,7 +30,8 @@
 	import { celebrateLike, tick } from '$lib/sound.js';
 	import PartnerRingPanel from '$components/PartnerRingPanel.svelte';
 	import SurfPanel from '$components/SurfPanel.svelte';
-	import { sites } from '$lib/sites.svelte.js';
+	import { categoryLabel, sites } from '$lib/sites.svelte.js';
+	import Segmented from '$components/Segmented.svelte';
 
 	/**
 	 * Discover: the ring, one member at a time, as a full bleed hero built on their own image.
@@ -198,11 +199,24 @@
 		closeRingSheet();
 	}
 
-	function chooseSurf() {
+	/** Surf, on one category or all of them: the sheet's Surf side lists them. */
+	function chooseSurf(category: string | null) {
 		partners.select(null);
+		sites.category = category;
+		sites.tag = null;
+		// Surf restores its saved view as it opens: the choice has to be that view, or it is undone.
+		explored.setView('surf', { category, genre: null, scrollTop: 0 });
 		sites.setView('surf');
 		closeRingSheet();
 	}
+
+	/** Which side of the sheet is showing: it opens on whichever side the reader is on. */
+	let sheetKind = $state<'webrings' | 'surf'>('webrings');
+	$effect(() => {
+		if (!ringSheetOpen) return;
+		sheetKind = untrack(() => (surfing ? 'surf' : 'webrings'));
+		void sites.load();
+	});
 
 	/** Surf's search field takes focus as it opens, so a tap on Search can be typed into at once. */
 	function focusOnMount(node: HTMLInputElement) {
@@ -1152,48 +1166,81 @@
 				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
 			</button>
 		</div>
-		<div class="sheet-list" role="radiogroup" aria-label="What to discover">
-			<h3 class="sheet-sec">People</h3>
-			<button
-				class="sheet-row"
-				role="radio"
-				aria-checked={partners.selected === null && !surfing}
-				onclick={() => chooseRing(null)}
-			>
-				<img class="sheet-icon" src="/ring-icons/indienodes.svg" alt="" />
-				IndieNodes Webring
-			</button>
-			{#each partners.rings as entry (entry.ring.id)}
+		<!--
+			Two kinds of thing to discover, said plainly up front: webrings (people) and Surf (sites).
+			A segment rather than one long list, so Surf stays one tap away however many rings join.
+		-->
+		<div class="sheet-switch">
+			<Segmented
+				label="What to discover"
+				options={[
+					{ value: 'webrings', label: 'Webrings' },
+					{ value: 'surf', label: 'Surf' }
+				]}
+				value={sheetKind}
+				onchange={(next) => (sheetKind = next)}
+			/>
+		</div>
+		{#if sheetKind === 'webrings'}
+			<div class="sheet-list" role="radiogroup" aria-label="Webrings">
 				<button
 					class="sheet-row"
 					role="radio"
-					aria-checked={partners.selected?.ring.id === entry.ring.id}
-					onclick={() => chooseRing(entry.ring.id)}
+					aria-checked={partners.selected === null && !surfing}
+					onclick={() => chooseRing(null)}
 				>
-					{#if entry.ring.iconUrl}
-						<img class="sheet-icon" src={entry.ring.iconUrl} alt="" />
-					{:else}
-						<span class="sheet-dot" aria-hidden="true"></span>
-					{/if}
-					{webringName(entry.ring.name)}
-					<small class="sheet-hint">Partner ring</small>
+					<img class="sheet-icon" src="/ring-icons/indienodes.svg" alt="" />
+					IndieNodes Webring
 				</button>
-			{/each}
-			{#if partners.status === 'loading'}
-				<p class="sheet-loading">Reading the other rings…</p>
-			{/if}
-			<h3 class="sheet-sec">Sites</h3>
-			<button
-				class="sheet-row"
-				role="radio"
-				aria-checked={surfing && partners.selected === null}
-				onclick={chooseSurf}
-			>
-				<span class="sheet-dot" aria-hidden="true"></span>
-				Surf
-				<small class="sheet-hint">Indie web sites</small>
-			</button>
-		</div>
+				{#each partners.rings as entry (entry.ring.id)}
+					<button
+						class="sheet-row"
+						role="radio"
+						aria-checked={partners.selected?.ring.id === entry.ring.id}
+						onclick={() => chooseRing(entry.ring.id)}
+					>
+						{#if entry.ring.iconUrl}
+							<img class="sheet-icon" src={entry.ring.iconUrl} alt="" />
+						{:else}
+							<span class="sheet-dot" aria-hidden="true"></span>
+						{/if}
+						{webringName(entry.ring.name)}
+						<small class="sheet-hint">Partner ring</small>
+					</button>
+				{/each}
+				{#if partners.status === 'loading'}
+					<p class="sheet-loading">Reading the other rings…</p>
+				{/if}
+			</div>
+		{:else}
+			<p class="sheet-about">
+				Indie web sites: shrines, fan pages, personal sites. Places, not people.
+			</p>
+			<div class="sheet-list" role="radiogroup" aria-label="Surf">
+				<button
+					class="sheet-row"
+					role="radio"
+					aria-checked={surfing && sites.category === null}
+					onclick={() => chooseSurf(null)}
+				>
+					<span class="sheet-dot" aria-hidden="true"></span>
+					All sites
+					<small class="sheet-hint">{sites.all.length}</small>
+				</button>
+				{#each sites.categories as entry (entry.key)}
+					<button
+						class="sheet-row"
+						role="radio"
+						aria-checked={surfing && sites.category === entry.key}
+						onclick={() => chooseSurf(entry.key)}
+					>
+						<span class="sheet-dot" aria-hidden="true"></span>
+						{categoryLabel(entry.key)}
+						<small class="sheet-hint">{entry.count}</small>
+					</button>
+				{/each}
+			</div>
+		{/if}
 	</div>
 {/if}
 
@@ -1771,14 +1818,17 @@
 		flex-direction: column;
 	}
 
-	.sheet-sec {
-		margin: 12px 16px 4px;
-		font-family: var(--mono);
-		font-size: 11px;
-		font-weight: 500;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
+	.sheet-switch {
+		display: flex;
+		justify-content: center;
+		margin: 4px 16px 8px;
+	}
+
+	.sheet-about {
+		margin: 4px 16px 6px;
 		color: var(--muted);
+		font-size: 13px;
+		line-height: 1.4;
 	}
 
 	.sheet-loading {

@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { hostOf } from '$lib/hosts.js';
 	import { explored } from '$lib/explored.svelte.js';
-	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
-	import { siteBrowser } from '$lib/platform/siteBrowser.svelte.js';
-	import { prefs } from '$lib/prefs.svelte.js';
-	import { shelf, toggleShelf } from '$lib/shelf.svelte.js';
+	import { shelf } from '$lib/shelf.svelte.js';
+	import { remoteThumb, saveSite, siteLayout, visitSite } from '$lib/siteActions.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import { verdicts } from '$lib/verdicts.svelte.js';
 	import { celebrateLike } from '$lib/sound.js';
@@ -24,11 +22,13 @@
 		entry: SiteEntry;
 		/** True only for the one card whose clip should run right now. */
 		playing: boolean;
+		/** The picture opens the site's whole preview; the panel draws it, outside the stack. */
+		onpreview: (entry: SiteEntry) => void;
 	}
 
-	let { entry, playing }: Props = $props();
+	let { entry, playing, onpreview }: Props = $props();
 
-	let desktopFirst = $derived(creatorNotes.layoutFor(entry.url, entry.layout) === 'desktop-first');
+	let desktopFirst = $derived(siteLayout(entry) === 'desktop-first');
 	let onShelf = $derived(shelf.has(entry.url));
 	let seen = $derived(explored.has(entry.url));
 	let verdict = $derived(verdicts.verdictFor(entry.url));
@@ -38,33 +38,8 @@
 		if (!playing) clipReady = false;
 	});
 
-	/** Only an https picture is kept with a Like or a Save: a bundled one is not an address. */
-	let remoteThumb = $derived(entry.poster_url?.startsWith('https://') ? entry.poster_url : null);
-
-	function visit() {
-		void explored.mark(entry.url);
-		void siteBrowser.open(
-			entry.url,
-			{
-				url: entry.url,
-				name: entry.title,
-				artUrl: remoteThumb,
-				layout: creatorNotes.layoutFor(entry.url, entry.layout),
-				ring: null
-			},
-			prefs.sitesInApp
-		);
-	}
-
-	function save() {
-		void toggleShelf({
-			url: entry.url,
-			title: entry.title,
-			via: 'Surf',
-			from: 'discover',
-			...(remoteThumb ? { thumbUrl: remoteThumb } : {})
-		});
-	}
+	const visit = () => visitSite(entry);
+	const save = () => saveSite(entry);
 
 	async function decide(kind: 'liked' | 'hidden') {
 		const now = await verdicts.toggle(
@@ -73,7 +48,7 @@
 				name: entry.title,
 				source: 'site',
 				via: 'Surf',
-				...(remoteThumb ? { thumbUrl: remoteThumb } : {})
+				...(remoteThumb(entry) ? { thumbUrl: remoteThumb(entry)! } : {})
 			},
 			kind
 		);
@@ -92,8 +67,9 @@
 <article class="card yip-fold" class:seen data-site={entry.id}>
 	<button
 		class="media"
-		onclick={visit}
-		aria-label={`Visit ${entry.title}`}
+		onclick={() => onpreview(entry)}
+		aria-label={`Preview ${entry.title}`}
+		aria-haspopup="dialog"
 		style:background={entry.poster_url ? null : washFor(entry.id)}
 	>
 		{#if entry.poster_url}

@@ -198,8 +198,23 @@
 <svelte:head><title>Feeds</title></svelte:head>
 
 <div class="feeds">
+	<!--
+		Two rows and no more, so the cards get the screen (phone feedback, 2026-10-07): what to read
+		and a filter beside it, then the panes. The counts that were the big title are a heading for
+		screen readers and a badge on what they count.
+	-->
 	<header class="head">
-		<div class="source-switch">
+		<h2 class="visually-hidden">
+			{#if onForums}
+				{forums.activeCount} active {forums.activeCount === 1 ? 'topic' : 'topics'} · {forums.forums
+					.length}
+				{forums.forums.length === 1 ? 'forum' : 'forums'}
+			{:else}
+				{feeds.unreadCount} new yips from {feeds.peopleCount}
+				{feeds.peopleCount === 1 ? 'person' : 'people'}
+			{/if}
+		</h2>
+		<div class="head-row">
 			<Segmented
 				label="What to read"
 				options={[
@@ -209,34 +224,17 @@
 				value={onForums ? 'forums' : 'people'}
 				onchange={(next) => (onForums = next === 'forums')}
 			/>
-		</div>
-		<div class="head-row">
-			<div class="head-text">
-				<p class="eyebrow">
-					{new Date().toLocaleDateString('en-US', {
-						weekday: 'short',
-						month: 'short',
-						day: 'numeric'
-					})}{#if feeds.scopeLabel}{' · '}{#if scopedPerson}<a
-								class="scope"
-								href={profileHref(scopedPerson.siteUrl)}
-								aria-label={`${feeds.scopeLabel}'s profile`}>{feeds.scopeLabel}</a
-							>{:else}<span class="scope">{feeds.scopeLabel}</span>{/if}{/if}
-				</p>
-				{#if onForums}
-					<h2 class="screen-title">
-						{forums.activeCount} active <em>{forums.activeCount === 1 ? 'topic' : 'topics'}</em>
-						{'·'}
-						{forums.forums.length}
-						{forums.forums.length === 1 ? 'forum' : 'forums'}
-					</h2>
+			{#if !onForums && feeds.scopeLabel}
+				{#if scopedPerson}
+					<a
+						class="scope"
+						href={profileHref(scopedPerson.siteUrl)}
+						aria-label={`${feeds.scopeLabel}'s profile`}>{feeds.scopeLabel}</a
+					>
 				{:else}
-					<h2 class="screen-title">
-						{feeds.unreadCount} new <em>yips</em> from {feeds.peopleCount}
-						{feeds.peopleCount === 1 ? 'person' : 'people'}
-					</h2>
+					<span class="scope">{feeds.scopeLabel}</span>
 				{/if}
-			</div>
+			{/if}
 			{#if onForums}
 				<a class="scope-btn" href="/you/forums" aria-label="Manage your forums">
 					<svg viewBox="0 0 24 24" aria-hidden="true">
@@ -280,6 +278,11 @@
 					onclick={() => feeds.setFilter(filter.key)}
 				>
 					{filter.label}
+					{#if filter.key === 'everything' && feeds.unreadCount}
+						<span class="new-count" aria-label={`${feeds.unreadCount} new`}
+							>{feeds.unreadCount}</span
+						>
+					{/if}
 				</button>
 			{/each}
 		</div>
@@ -484,26 +487,31 @@
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
-		padding: calc(20px + env(safe-area-inset-top, 0px)) 20px 14px;
+		/* The same top as Discover's bar, so the two tabs' first rows line up. */
+		padding: calc(22px + env(safe-area-inset-top, 0px)) 20px 10px;
 	}
 
 	.head-row {
 		display: flex;
-		align-items: flex-start;
-		gap: 12px;
-	}
-
-	.head-text {
-		display: flex;
-		flex: 1;
-		flex-direction: column;
+		align-items: center;
 		gap: 10px;
-		min-width: 0;
 	}
 
+	/* Who Feeds is narrowed to, between the switch and the filter that chose it. */
 	.scope {
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
 		color: var(--brand-text);
+		font-size: 14px;
+		font-weight: 600;
 		text-decoration: none;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.head-row > .scope-btn {
+		margin-left: auto;
 	}
 
 	.scope-btn {
@@ -534,13 +542,23 @@
 		stroke-linecap: round;
 	}
 
-	.eyebrow {
-		margin: 0;
+	.pill[aria-selected='true'] .new-count {
+		background: #fff;
+		color: var(--brand-ink);
+	}
+
+	/* The new count on Everything, where the big title used to say it. */
+	.new-count {
+		min-width: 20px;
+		margin-left: 6px;
+		padding: 1px 6px;
+		border-radius: 999px;
+		background: var(--brand);
+		color: #fff;
 		font-family: var(--mono);
 		font-size: 11px;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: var(--muted);
+		font-weight: 500;
+		text-align: center;
 	}
 
 	.pills {
@@ -841,11 +859,6 @@
 	}
 
 	/* People or Forums: a quiet pill above the title, the same shape as You's tabs. */
-	.source-switch {
-		display: flex;
-		margin-bottom: 10px;
-	}
-
 	.forums-empty {
 		display: flex;
 		flex-direction: column;

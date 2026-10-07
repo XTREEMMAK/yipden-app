@@ -663,8 +663,10 @@ contract is [docs/sites-contract.md](docs/sites-contract.md); the reasoning is i
 
 1. **Seed and sites layer (done).** Twelve sites bundled, posters and six clips.
 2. **Surf in Discover (seen on a phone 2026-10-07; reworked for space, to see again).** Chosen from
-   the ring button, now "What to discover". The hero is untouched. Next after it: Feeds' own top
-   space (see "Feeds' header collapses while scrolling").
+   the ring button, now "What to discover" (Webrings | Surf). The hero is untouched. Feeds' header
+   is down to two rows too (2026-10-07). Open: whether Forums is a third segment, and what it lists.
+   3a. **After the merge, in Feeds:** blur the video waiting behind a post more, so the post's text
+   reads over it; and make the swap back to the post start as promptly as the swap to the video.
 3. **Following sites, the way forums are followed.** People | Sites | Forums in Follow and Feeds;
    Forums may fold into Sites later.
 4. **Search across both sides, and a site page with "Made by" from evidence only.**

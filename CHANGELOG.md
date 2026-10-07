@@ -13,7 +13,13 @@ Every notable change to YipDen, newest first. The format follows
   personal sites, blogs, webrings), each with a picture of the page and, for some, a short moving
   preview of it scrolling, which plays only for the card being looked at and never under reduced
   motion. Search and Filter sit in the bar, so the cards get the screen. Visit, Save, Like and
-  Not for me work as they do for creators.
+  Not for me work as they do for creators. "What to discover" splits into Webrings and Surf, and
+  Surf's side goes straight to a category. Tapping a site's picture shows its whole page preview.
+
+### Changed
+
+- Feeds' header is two rows: People | Forums with the filter beside it, then the panes. The new
+  count is a badge on Everything, so the cards start much higher on the screen.
 
 - A YouTube video a post shares (a Bluesky link card, a blog post's embed or link) waits behind
   the post, its top edge showing above it like a second card in a deck. The Video button swaps

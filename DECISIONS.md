@@ -3402,3 +3402,22 @@ three rows above its cards.
   covers that.
 - **Feeds has the same problem** (too much above its cards). Left for after Surf is settled; it is
   the "Feeds' header collapses while scrolling" item in ROADMAP.md.
+
+## 2026-10-07 (second phone pass) — Webrings | Surf, a whole preview, and Feeds' header
+
+- **"What to discover" is a segment, Webrings | Surf**, rather than one list with Surf at its end:
+  partner rings will grow, and Surf must not drift further down as they do. The segment also says
+  what each kind of thing is. Its Surf side lists every category, so a reader can go straight to
+  Shrines. The sheet opens on whichever side the reader is on. Forums were asked for as a third
+  segment; Discover has no forum directory to show, so that waits for a decision on what it lists.
+- **A card's picture opens the site's whole preview**: the page at a phone's own shape, its clip
+  playing, with Visit (or Save for later), Save and Close below. It replaces the picture being a
+  second Visit button, so visiting is still one tap, from the card's own Visit. It is how a partner
+  ring's thumbnail already behaves. The card's clip stops while the preview plays: still one video
+  at a time. Back and Escape close it. Card and preview share `siteActions.ts`.
+- **Feeds' header is two rows**: the People | Forums switch with the filter beside it, then the
+  panes. The date line and the big "3 new yips from 1 person" title are gone; the new count is a
+  badge on Everything (as Forums' active count already was on its segment), and the sentence is
+  still the page's heading for screen readers. A person or folder Feeds is narrowed to is named
+  between the switch and the filter. The first card now starts at about 18% of the screen, from
+  about 32%.

@@ -11,6 +11,8 @@
 	import { categoryLabel, sites, tagLabel } from '$lib/sites.svelte.js';
 	import SurfFilterSheet from './SurfFilterSheet.svelte';
 	import SiteCard from './SiteCard.svelte';
+	import SitePreview from './SitePreview.svelte';
+	import type { SiteEntry } from '$lib/sites/types.js';
 
 	/**
 	 * Discover's Surf side: the sites index, by category, as cards with a moving preview.
@@ -115,8 +117,11 @@
 	const visible = new Set<string>();
 	let pickTimer: ReturnType<typeof setTimeout> | undefined;
 
+	/** The site whose whole preview is open: its clip plays there, so no card plays meanwhile. */
+	let previewing = $state<SiteEntry | null>(null);
+
 	function pick() {
-		if (prefersReducedMotion() || !scroller) {
+		if (prefersReducedMotion() || !scroller || previewing) {
 			playingId = null;
 			return;
 		}
@@ -236,7 +241,14 @@
 				{#each shown as entry (entry.id)}
 					<li class="yip-stack" data-id={entry.id} use:watchMedia={entry.id}>
 						<div class="yip-rail">
-							<SiteCard {entry} playing={playingId === entry.id} />
+							<SiteCard
+								{entry}
+								playing={playingId === entry.id}
+								onpreview={(chosen) => {
+									previewing = chosen;
+									playingId = null;
+								}}
+							/>
 						</div>
 					</li>
 				{/each}
@@ -262,6 +274,16 @@
 		</div>
 	</div>
 </section>
+
+{#if previewing}
+	<SitePreview
+		entry={previewing}
+		onclose={() => {
+			previewing = null;
+			schedulePick();
+		}}
+	/>
+{/if}
 
 {#if sites.filtersOpen}
 	<SurfFilterSheet
