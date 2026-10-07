@@ -40,6 +40,12 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- In a car or on the lock screen, the scrubber moves the track, Play plays (it could pause), and
+  the position stays right for YouTube and SoundCloud tracks. A queue playing on by itself steps
+  over Bandcamp tracks, which cannot be started from there, instead of stopping at one.
+- A liked forum's Follow, in You, opens Follow's Forums side.
+- Feed cards' pictures sit under a theme-colored tint, so their text reads; the new count on
+  Everything no longer pushes the last tab out of the row.
 - A shared video's title reads over any picture: it sits on a frosted band. Going back from the
   video to its post starts moving at once, as quickly as going to the video does.
 - robots.txt rules with wildcards (`Disallow: /*action`) are honored. They were read as plain

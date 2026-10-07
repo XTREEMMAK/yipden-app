@@ -3,6 +3,7 @@ import { MediaSession, type MediaSessionAction } from '@capgo/capacitor-media-se
 import { mountEmbed, type EmbedEngine, type EmbedEvents } from './embeds/engines.js';
 import {
 	embedArtOf,
+	embedControllable,
 	embedOf,
 	soundcloudArt,
 	soundcloudWaveform,
@@ -203,7 +204,7 @@ class PlayerState {
 				this.updateMediaSessionPosition();
 			});
 			element.addEventListener('ended', () => {
-				if (!this.source) this.advance();
+				if (!this.source) this.continueOn();
 			});
 			element.addEventListener('error', () => {
 				if (this.source) return;
@@ -460,6 +461,15 @@ class PlayerState {
 		else safePlay(this.audio);
 	}
 
+	/**
+	 * Play, if not already: the car's and lock screen's Play. Never a toggle, which turned a Play
+	 * into a pause whenever the app's own idea of playing had fallen out of step with the system's.
+	 */
+	resume(): void {
+		if (!this.current || this.playing) return;
+		this.toggle();
+	}
+
 	/** Pause whatever is playing, file or embed. */
 	pause(): void {
 		if (this.source) this.engine?.pause();
@@ -520,6 +530,8 @@ class PlayerState {
 				if (playing) this.started();
 				this.playing = playing;
 				this.updateMediaSessionState();
+				// The car and lock screen count on from the position they were last told.
+				this.updateMediaSessionPosition();
 			},
 			time: (seconds) => {
 				if (live()) this.currentTime = seconds;
@@ -530,7 +542,7 @@ class PlayerState {
 				this.updateMediaSessionPosition();
 			},
 			ended: () => {
-				if (live()) this.advance();
+				if (live()) this.continueOn();
 			},
 			error: () => {
 				if (live()) this.reportUnplayable();
@@ -601,6 +613,7 @@ class PlayerState {
 			const target = Math.max(0, Math.min(this.seekableEnd(), seconds));
 			this.engine?.seek(target);
 			this.currentTime = target;
+			this.updateMediaSessionPosition();
 			return;
 		}
 		const audio = this.audio;
@@ -629,6 +642,55 @@ class PlayerState {
 
 	skip(deltaSeconds: number): void {
 		this.seek((this.pendingSeek ?? this.currentTime) + deltaSeconds);
+	}
+
+	/**
+	 * Whether the app can play this through to its end by itself. Bandcamp's player cannot be told
+	 * to play and never says when it ends, so a queue that reaches one stops there.
+	 */
+	private playsThrough(item: QueueItem): boolean {
+		const source = embedOf(item.mediaUrl);
+		return !source || embedControllable(source.provider);
+	}
+
+	/** The nearest track after (1) or before (-1) this one that plays by itself, or null. */
+	private playableFrom(step: 1 | -1): number | null {
+		const count = this.queue.length;
+		for (let i = 1; i < count; i += 1) {
+			const raw = this.currentIndex + step * i;
+			if (!this.loop && (raw < 0 || raw >= count)) return null;
+			const at = (raw + count) % count;
+			if (this.playsThrough(this.queue[at]!)) return at;
+		}
+		return null;
+	}
+
+	/**
+	 * On by itself: a track ended, or Next came from the car or the lock screen, where Bandcamp's
+	 * own play button cannot be pressed. Goes on to the next track that plays by itself, so a
+	 * Bandcamp track in the queue does not stop the music (phone feedback, 2026-10-07). The
+	 * player's own Next still steps to the very next track, Bandcamp included.
+	 */
+	continueOn(): void {
+		const at = this.playableFrom(1);
+		if (at === null) {
+			this.pause();
+			this.ended = true;
+			return;
+		}
+		this.load(at);
+	}
+
+	/** The car's Previous, the same way round: restart past a few seconds, else the last playable. */
+	continueBack(): void {
+		if (!this.current) return;
+		if (this.currentTime > 3 && this.playsThrough(this.current)) {
+			this.seek(0);
+			return;
+		}
+		const at = this.playableFrom(-1);
+		if (at === null) this.seek(0);
+		else this.load(at);
 	}
 
 	advance(): void {
@@ -783,15 +845,26 @@ class PlayerState {
 	}
 
 	private wireMediaSession(): void {
-		const bind = (action: MediaSessionAction, handler: () => void) => {
+		const bind = (
+			action: MediaSessionAction,
+			handler: (details: { seekTime?: number | null }) => void
+		) => {
 			void MediaSession.setActionHandler({ action }, handler).catch(() => {});
 		};
-		bind('play', () => this.toggle());
-		bind('pause', () => this.toggle());
+		// Each says what it means: a Play that only toggled paused whenever the app and the
+		// system disagreed about whether it was playing.
+		bind('play', () => this.resume());
+		bind('pause', () => this.pause());
 		bind('seekbackward', () => this.skip(-15));
 		bind('seekforward', () => this.skip(30));
-		bind('previoustrack', () => this.previous());
-		bind('nexttrack', () => this.advance());
+		// A car's or lock screen's scrubber, which had no handler at all.
+		bind('seekto', (details) => {
+			if (typeof details.seekTime === 'number' && Number.isFinite(details.seekTime)) {
+				this.seek(details.seekTime);
+			}
+		});
+		bind('previoustrack', () => this.continueBack());
+		bind('nexttrack', () => this.continueOn());
 		bind('stop', () => this.stop());
 	}
 }

@@ -3484,3 +3484,24 @@ across both sides, and the site page with "Made by" from evidence only (ROADMAP.
   to move. Now each way walks its path forward with the same easing (100ms in, the post is about
   halfway along either way). A swap still in the air is still reversed, which turns it around from
   exactly where it is.
+
+## 2026-10-07 — The car's controls, and a queue that plays past Bandcamp
+
+Phone feedback from a car: scrubbing did not move the car's position, Pause mostly worked, and
+Play mostly did not. And continuous play stopped dead at a Bandcamp track.
+
+- **Scrubbing.** There was no `seekto` handler at all, so a car's or lock screen's scrubber did
+  nothing. There is now. A seek inside a platform's player (YouTube, SoundCloud) also tells the
+  session where it now is, as a seek in a file already did, and so does an embed starting or
+  stopping: the car counts on from the last position it was told, and that had gone stale.
+- **Play and Pause say what they mean.** Both called `toggle()`, so whenever the app's idea of
+  playing and the system's disagreed, Play paused (or did nothing). Play now only plays, Pause only
+  pauses. Capacitor already lets a WebView start audio without a tap, so that was not the cause.
+- **On past Bandcamp.** Bandcamp's player has no API: it cannot be started and never says it
+  ended. When a track ends, or Next or Previous comes from the car or lock screen, the queue now
+  goes on to the nearest track the app can play by itself. The player's own Next and Previous still
+  step to the very next track, Bandcamp included, since there the reader can press its own play.
+- **Not done, offered:** Bandcamp's player could be read and driven by a script Android adds to
+  that frame alone (`WebViewCompat.addDocumentStartJavaScript`, already in Capacitor's
+  `androidx.webkit`), relaying play, pause, time and end to the app. Native code that reaches into
+  another platform's player is a decision for the maintainer, so it waits for one.
