@@ -76,6 +76,32 @@ There is deliberately no owner field. Who made a site is worked out from the sit
 same evidence ladder the Creator Database uses; a submitter's claim may be added later as weak
 evidence.
 
+## Getting into the index, and permission (agreed 2026-10-07, not built)
+
+Three different permissions, and passing the checks gives only the second:
+
+1. **A list of addresses from elsewhere** (Kagi Small Web's lists, say) may be used when its
+   license allows it. Kagi's are MIT: keep its notice with any copy, credit it ("nominations drawn
+   from the Kagi Small Web list (MIT)"), take the lists from its GitHub repository rather than
+   kagi.com's endpoints, and never brand anything as Kagi's.
+2. **Listing a site** (its name, address and a link out) is fine for any site that passes the
+   Surf checks. It is what webrings and directories have always done.
+3. **Capturing it** (a poster, a scroll clip, kept on our storage) copies its owner's work, and
+   needs its owner's say-so:
+   - **Owner submission is the main way in**, through the PR pipeline: consent by design.
+   - **A nominated site starts without our captures.** It shows the picture it offers for sharing
+     (`og:image`), no clip, until its owner claims or approves the listing.
+   - **Every "no" a site can say is honored**: robots.txt (wildcards included), `noindex`, and
+     "no AI" or "no image AI" style meta tags. A site that turns away crawlers it does not name gets
+     no capture.
+   - **Captures are small and credited**: low resolution, a few seconds, the site's name and a link
+     on every card.
+   - **Opt-out and takedown come before scale**: an "Is this your site?" link on every card, and a
+     stated time within which a site is removed from the index and from storage.
+
+The 12 sites in today's seed were chosen by the maintainer, not submitted by their owners, so the
+same rules apply to them once the pipeline exists.
+
 ## Ceilings
 
 At most 2,000 entries and 16 tags per entry, the partner ring's own limits: past them the lists
