@@ -54,28 +54,33 @@ async function seed(page: Page) {
 	await page.getByText('Following Lena Ofori').waitFor();
 }
 
-test('a shared YouTube video shows inside the post and opens on YouTube, not in the player', async ({
+test('a shared video waits behind its post, and opens on YouTube, not in the player', async ({
 	page
 }) => {
 	await seed(page);
 	await page.goto('/feeds');
 	const pane = page.locator('#pane-everything');
-	await expect(pane.getByText(/Made a little video about the zine/)).toBeVisible({
-		timeout: 10_000
-	});
-	await pane
-		.getByRole('button', { name: 'Watch the video Lena Ofori shared, on YouTube' })
-		.first()
-		.click();
+	const card = pane.locator('.yip-stack', { hasText: 'Made a little video about the zine' });
+	await expect(card).toBeVisible({ timeout: 10_000 });
+	const watch = card.getByRole('button', { name: 'Watch the video Lena Ofori shared, on YouTube' });
+
+	// Behind the post until asked for: the card is the post's own size, and the video not reachable.
+	await expect(watch).toHaveCount(0);
+	await card.getByRole('button', { name: 'Show the video Lena Ofori shared' }).click();
+	await expect(watch).toBeFocused();
+	await watch.click();
 	expect(await page.evaluate(() => (window as unknown as { opened: string[] }).opened)).toEqual([
 		'https://www.youtube.com/watch?v=M7lc1UVf-VE'
 	]);
 	await expect(page.getByRole('region', { name: 'Now playing' })).toBeHidden();
 
-	// The rest of the card is still the post.
-	await pane
+	// Back to the post, which is still the post.
+	await card.getByRole('button', { name: 'Back to the post' }).click();
+	await expect(
+		card.getByRole('button', { name: 'Show the video Lena Ofori shared' })
+	).toBeFocused();
+	await card
 		.getByRole('button', { name: /Post by Lena Ofori/ })
-		.first()
 		.click({ position: { x: 120, y: 70 } });
 	expect(await page.evaluate(() => (window as unknown as { opened: string[] }).opened)).toEqual([
 		'https://www.youtube.com/watch?v=M7lc1UVf-VE',
@@ -111,6 +116,13 @@ test('a card taller than the screen is read to its end before it folds away', as
 			return { transform: drawn.style.transform, top: drawn.style.top };
 		});
 
+	// A card made taller than the screen on purpose: what is at its foot must be reachable.
+	await pane.evaluate((el) => {
+		const card = [...el.querySelectorAll<HTMLElement>('.yip-stack')].find((node) =>
+			node.textContent?.includes('A long note')
+		)!;
+		card.querySelector<HTMLElement>('.yip')!.style.minHeight = '900px';
+	});
 	const { top, height, viewport } = await measure();
 	expect(height).toBeGreaterThan(viewport);
 	const overflow = height - viewport;
@@ -118,10 +130,18 @@ test('a card taller than the screen is read to its end before it folds away', as
 	// Its bottom edge just reaching the bottom of the screen: all of it read, nothing folded yet.
 	await pane.evaluate((el, at) => el.scrollTo({ top: at }), top + overflow);
 	await expect.poll(fold).toEqual({ transform: '', top: `${-overflow}px` });
-	const video = pane
-		.locator('.yip-stack', { hasText: 'A long note' })
-		.getByRole('button', { name: 'Watch the video Lena Ofori shared, on YouTube' });
-	await expect(video).toBeInViewport({ ratio: 1 });
+	const bottomGap = await pane.evaluate((el) => {
+		const card = [...el.querySelectorAll<HTMLElement>('.yip-stack')].find((node) =>
+			node.textContent?.includes('A long note')
+		)!;
+		const dock = parseFloat(getComputedStyle(el.closest('.app')!).getPropertyValue('--dock')) || 88;
+		const visibleBottom = el.getBoundingClientRect().top + el.clientHeight - dock;
+		return Math.abs(
+			card.querySelector('.yip-fold')!.getBoundingClientRect().bottom - visibleBottom
+		);
+	});
+	// Within a few pixels: the stack measures its place in the list, the eye sees the drawn card.
+	expect(bottomGap).toBeLessThan(10);
 
 	// Past that, it folds away like any other card.
 	await pane.evaluate((el, at) => el.scrollTo({ top: at }), top + overflow + height / 2);

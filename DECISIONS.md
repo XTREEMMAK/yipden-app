@@ -3300,3 +3300,22 @@ tall card, the video, could not be reached (phone feedback).
 - **Scope.** The shipping per-frame path only. The debug-only scroll-driven CSS path keeps
   pinning at the top.
 - **Next, as agreed:** a video icon that flips a card to a video face of the same size, and back.
+
+## 2026-10-06 (late night) — A shared video waits behind its post
+
+The video inside the post made Bluesky cards tall. Pinning tall cards by their bottom edge (the
+entry before this one) helped but left little room under Feeds' header. So the card no longer
+grows.
+
+- **Two faces, one size.** The post is the front face, with a Video button beside "Open on".
+  The video is a face laid over the whole card: its picture filling it, a play mark, its title,
+  and Back to the post (top right, since top left is the creator's picture, which opens their
+  profile).
+- **The shuffle.** The post slides out one way and tips back as the video slides in from the
+  other, and the reverse. It is a transition, so either direction can be interrupted. Under
+  reduced motion the two cross-fade. Focus moves to the face shown, and the face not shown is
+  `inert`.
+- **Kept from before:** tall cards still pin by their bottom edge, which still serves a long
+  grouped post.
+- **Later, not now:** the header could collapse while the cards scroll, to give the stack more
+  room (ROADMAP).

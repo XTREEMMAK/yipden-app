@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { sourceColor as sourceColorOf } from '$lib/sources.js';
 	import { youtubeLinkIn } from '$lib/embeds/source.js';
 	import { hostOf } from '$lib/hosts.js';
@@ -89,6 +90,20 @@
 		openExternal(yip.url);
 	}
 
+	/**
+	 * A shared video lives behind the post, the same size as it, so the card never grows (it had,
+	 * and a tall card cannot fit under Feeds' header). The Video button shuffles the post behind
+	 * it, and Back to the post brings the post forward again (decided 2026-10-06).
+	 */
+	let showingVideo = $state(false);
+	let videoChip = $state<HTMLButtonElement | undefined>(undefined);
+	let videoOpen = $state<HTMLButtonElement | undefined>(undefined);
+	async function showVideo(show: boolean) {
+		showingVideo = show;
+		await tick();
+		(show ? videoOpen : videoChip)?.focus({ preventScroll: true });
+	}
+
 	/** A video a post shares: opened on YouTube, like a channel's own. */
 	function openVideo(watchUrl: string) {
 		void feeds.markRead(yip);
@@ -159,8 +174,14 @@
 	</div>
 {:else}
 	<div class="yip-wrap">
-		<div class="yip text" style:--src={sourceColor} class:concealed class:unread={!yip.readAt}>
-			<!-- The post itself: the whole card, under the video's own button. -->
+		<div
+			class="yip text"
+			style:--src={sourceColor}
+			class:concealed
+			class:unread={!yip.readAt}
+			class:showing-video={showingVideo}
+		>
+			<!-- The post itself: the whole card, under the buttons drawn over it. -->
 			<button
 				class="yip-hit"
 				onclick={open}
@@ -168,44 +189,65 @@
 					? `Content warning: ${warning}. Show post.`
 					: `${yip.title && yip.title !== 'Untitled' ? `${yip.title}. ` : ''}Post by ${authorName} on ${sourceLabel(yip)}. Opens on ${new URL(yip.url).hostname}.`}
 			></button>
-			<span class="who">
-				<span class="av" style:background-image={icon ? `url(${icon})` : ''}></span>
-				<span class="wn">
-					<b>{authorName}</b>
-					<small>{sourceLabel(yip)} {'·'} {age}</small>
+			<!-- The post: everything a reader sees first, shuffled behind the video when they ask. -->
+			<span class="front" inert={showingVideo}>
+				<span class="who">
+					<span class="av" style:background-image={icon ? `url(${icon})` : ''}></span>
+					<span class="wn">
+						<b>{authorName}</b>
+						<small>{sourceLabel(yip)} {'·'} {age}</small>
+					</span>
+					<span class="src-light">{sourceLabel(yip)}</span>
 				</span>
-				<span class="src-light">{sourceLabel(yip)}</span>
+				{#if !concealed && yip.title && yip.title !== 'Untitled'}
+					<span class="ttl-text">{yip.title}</span>
+				{/if}
+				<span class="body">{concealed ? warning : yip.summary}</span>
+				<span class="foot">
+					{#if concealed}
+						<span class="link">Show post</span>
+					{:else}
+						<span class="link">
+							Open on {hostOf(yip.url)}
+							<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
+						</span>
+					{/if}
+					{#if linkedVideo && !concealed}
+						<button
+							bind:this={videoChip}
+							class="video-chip"
+							aria-label={`Show the video ${authorName} shared`}
+							onclick={() => showVideo(true)}
+						>
+							<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7v10l8-5z" /></svg>
+							Video
+						</button>
+					{/if}
+				</span>
 			</span>
-			{#if !concealed && yip.title && yip.title !== 'Untitled'}
-				<span class="ttl-text">{yip.title}</span>
-			{/if}
-			<span class="body">{concealed ? warning : yip.summary}</span>
 			{#if linkedVideo && !concealed}
 				{@const id = youtubeVideoId(linkedVideo)}
-				<button
-					class="video"
-					aria-label={`Watch the video ${authorName} shared, on YouTube`}
-					onclick={() => openVideo(linkedVideo!)}
-				>
-					<span
-						class="video-thumb"
+				<!-- The video they shared: the same size as the post, in its place until put back. -->
+				<span class="video-face" inert={!showingVideo} aria-hidden={!showingVideo}>
+					<button
+						bind:this={videoOpen}
+						class="video-open"
 						style:background-image={`url(https://i.ytimg.com/vi/${id}/hqdefault.jpg)`}
-						aria-hidden="true"
+						aria-label={`Watch the video ${authorName} shared, on YouTube`}
+						onclick={() => openVideo(linkedVideo!)}
 					>
-						<svg viewBox="0 0 24 24"><path d="M9 7v10l8-5z" /></svg>
-					</span>
-					<span class="video-meta">
-						<b>{yip.media.find((media) => media.kind === 'video')?.title ?? 'Watch on YouTube'}</b>
-						<small>YouTube</small>
-					</span>
-				</button>
-			{/if}
-			{#if concealed}
-				<span class="link">Show post</span>
-			{:else}
-				<span class="link">
-					Open on {hostOf(yip.url)}
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
+						<svg class="play" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7v10l8-5z" /></svg>
+						<span class="video-meta">
+							<b
+								>{yip.media.find((media) => media.kind === 'video')?.title ??
+									'A video they shared'}</b
+							>
+							<small>YouTube · Opens there</small>
+						</span>
+					</button>
+					<button class="video-back" aria-label="Back to the post" onclick={() => showVideo(false)}>
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+					</button>
 				</span>
 			{/if}
 		</div>
@@ -244,7 +286,7 @@
 		transition: transform var(--dur-s) var(--ease);
 	}
 
-	.yip:active:not(:has(.video:active)),
+	button.yip:active,
 	.yip:has(> .yip-hit:active) {
 		transform: scale(0.985);
 	}
@@ -261,67 +303,160 @@
 		border-radius: inherit;
 	}
 
+	/* Drawn over the tap target, taking no taps of its own but for its buttons. */
 	.yip.text > :not(.yip-hit) {
 		position: relative;
 		pointer-events: none;
 	}
 
-	/* A video the post shares, inside it: a link preview of its own, over the card's target. */
-	.yip.text > .video {
-		z-index: 1;
+	.front {
+		display: block;
+		transition:
+			transform var(--dur-m) var(--ease),
+			opacity var(--dur-m) var(--ease);
+	}
+
+	.foot {
 		display: flex;
-		flex-direction: column;
-		gap: 0;
-		width: 100%;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+	}
+
+	.video-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		min-height: 44px;
 		margin-top: 12px;
-		padding: 0;
-		border: 1px solid var(--line);
-		border-radius: 14px;
-		background: var(--ground);
-		color: var(--ink);
+		padding: 0 14px 0 10px;
+		border: 0;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--src-youtube) 14%, transparent);
+		color: color-mix(in srgb, var(--src-youtube) 80%, var(--ink));
 		font: inherit;
-		text-align: left;
-		overflow: hidden;
+		font-size: 13px;
+		font-weight: 650;
 		pointer-events: auto;
 	}
 
-	.video-thumb {
+	.video-chip svg {
+		width: 16px;
+		height: 16px;
+		fill: currentColor;
+	}
+
+	/*
+	 * The shuffle: the post slides out one way and tips behind as the video slides in from the
+	 * other, and back again. Both are the card's own size, so nothing below it moves.
+	 */
+	.yip.text > .video-face {
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		opacity: 0;
+		transform: translateX(28%) rotate(3deg) scale(0.94);
+		transition:
+			transform var(--dur-m) var(--ease),
+			opacity var(--dur-m) var(--ease);
+	}
+
+	.showing-video .front {
+		opacity: 0;
+		transform: translateX(-28%) rotate(-3deg) scale(0.94);
+	}
+
+	.yip.text.showing-video > .video-face {
+		opacity: 1;
+		transform: none;
+	}
+
+	.showing-video .video-face button {
+		pointer-events: auto;
+	}
+
+	/* Under reduced motion the two simply cross-fade. */
+	@media (prefers-reduced-motion: reduce) {
+		.front,
+		.showing-video .front,
+		.yip.text > .video-face,
+		.yip.text.showing-video > .video-face {
+			transform: none;
+		}
+	}
+
+	.video-open {
+		position: absolute;
+		inset: 0;
 		display: grid;
 		place-items: center;
-		width: 100%;
-		aspect-ratio: 16 / 9;
+		border: 0;
+		padding: 0;
 		background-color: #000;
 		background-size: cover;
 		background-position: center;
+		color: #fff;
+		font: inherit;
+		text-align: left;
 	}
 
-	.video-thumb svg {
-		width: 44px;
-		height: 44px;
-		padding: 10px;
+	.video-open .play {
+		width: 56px;
+		height: 56px;
+		padding: 14px;
 		border-radius: 999px;
 		background: rgba(0, 0, 0, 0.6);
 		fill: #fff;
 	}
 
 	.video-meta {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
-		padding: 10px 12px;
+		padding: 28px 16px 14px;
+		background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
 	}
 
 	.video-meta b {
 		font-size: 14px;
-		font-weight: 600;
+		font-weight: 650;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
 	.video-meta small {
-		color: var(--muted);
 		font-size: 12px;
+		opacity: 0.85;
+	}
+
+	/* Top right: the top left is the creator's picture, which opens their profile. */
+	.video-back {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+		display: grid;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		border: 0;
+		border-radius: 999px;
+		background: rgba(0, 0, 0, 0.55);
+		color: #fff;
+	}
+
+	.video-back svg {
+		width: 20px;
+		height: 20px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
 	}
 
 	.yip.media {

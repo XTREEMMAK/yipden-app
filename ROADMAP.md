@@ -694,3 +694,10 @@ Left for later, noted here so they are not lost:
   components (Discover's hero, You's person row).
 - The embed spike (`EmbedSpike.svelte`) and its CSP origins go once Spotify and background
   playback are answered.
+
+## Later: Feeds' header collapses while scrolling (noted 2026-10-06)
+
+The header above the card stack takes much of a phone's height, and a tall card had little room
+under it. Collapsing it to a slim bar as the cards scroll, and bringing it back on a scroll up,
+would give the stack that room. Not started: the stack's pin offsets and the tail sizing would
+both have to follow the header's height as it changes.
