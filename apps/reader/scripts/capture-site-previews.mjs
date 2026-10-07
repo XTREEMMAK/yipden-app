@@ -47,6 +47,17 @@ function ffmpeg() {
 	return join(base, dir, 'ffmpeg-linux');
 }
 
+/** RFC 9309 path matching, as `robotsPathMatches` in @yipden/feeds: `*` any run, final `$` the end. */
+function matches(rule, path) {
+	const anchored = rule.endsWith('$');
+	const body = anchored ? rule.slice(0, -1) : rule;
+	const pattern = body
+		.split('*')
+		.map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+		.join('.*');
+	return new RegExp(`^${pattern}${anchored ? '$' : ''}`).test(path);
+}
+
 /** The groups for `*` and for us, longest matching rule wins, Allow beating Disallow on a tie. */
 async function allowed(url) {
 	const target = new URL(url);
@@ -85,7 +96,7 @@ async function allowed(url) {
 	const path = target.pathname + target.search;
 	let best = null;
 	for (const rule of rules) {
-		if (!rule.path || !path.startsWith(rule.path)) continue;
+		if (!rule.path || !matches(rule.path, path)) continue;
 		if (
 			!best ||
 			rule.path.length > best.path.length ||

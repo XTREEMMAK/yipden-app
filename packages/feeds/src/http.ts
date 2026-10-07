@@ -286,7 +286,7 @@ export class FeedHttp {
 
 		const path = `${target.pathname}${target.search}`;
 		for (const rule of rules.rules) {
-			if (path.startsWith(rule.path)) return rule.allow;
+			if (robotsPathMatches(rule.path, path)) return rule.allow;
 		}
 		return true;
 	}
@@ -344,11 +344,30 @@ export function linkHeaderUrl(
 }
 
 /**
+ * Whether a robots.txt rule's path covers this path, as RFC 9309 defines it: a prefix match,
+ * where `*` stands for any run of characters and a final `$` means the path must end there.
+ *
+ * Without the wildcards, a rule like `Disallow: /*action` (a forum keeping crawlers off every
+ * `?action=` page, its RSS included) never matched anything, and YipDen fetched what the site
+ * had asked it not to.
+ */
+export function robotsPathMatches(rule: string, path: string): boolean {
+	if (!rule.includes('*') && !rule.endsWith('$')) return path.startsWith(rule);
+	const anchored = rule.endsWith('$');
+	const body = anchored ? rule.slice(0, -1) : rule;
+	const pattern = body
+		.split('*')
+		.map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+		.join('.*');
+	return new RegExp(`^${pattern}${anchored ? '$' : ''}`).test(path);
+}
+
+/**
  * Parse robots.txt for one agent.
  *
  * Groups for our own token win over the wildcard group; within a group, the longest matching
- * prefix decides, with Allow beating Disallow at equal length, which is how the major crawlers
- * have read the standard for years.
+ * rule decides (by its length, wildcards included), with Allow beating Disallow at equal length,
+ * which is how RFC 9309 and the major crawlers read it. Matching is `robotsPathMatches`.
  */
 export function parseRobots(text: string, userAgent: string): RobotsRules['rules'] {
 	const token = userAgent.split('/')[0]?.toLowerCase() ?? 'yipden';

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { FeedHttp, parseRobots } from '../src/http.js';
+import { FeedHttp, parseRobots, robotsPathMatches } from '../src/http.js';
 import { fakeServer, MINIMAL_RSS, XML } from './server.js';
 
 /** Tests run with robots off unless they are about robots, and with no waiting between hosts. */
@@ -236,6 +236,24 @@ describe('robots.txt', () => {
 		await expect(http.get('https://example.com/feed.xml')).rejects.toThrow(/robots/);
 	});
 
+	it("honors a wildcard rule, as a forum's own robots.txt writes it", async () => {
+		// MelonLand's (2026-10-07): crawlers it does not name are kept off every ?action= page.
+		const body =
+			'User-agent: ia_archiver\nAllow: /\n\nUser-agent: *\nDisallow: /*action\nDisallow: /*PHPSESSID';
+		const server = fakeServer({
+			'https://forum.example/robots.txt': { body, headers: { 'content-type': 'text/plain' } },
+			'https://forum.example/index.php?action=.xml;type=rss': { body: MINIMAL_RSS },
+			'https://forum.example/index.php?board=3.0': { body: MINIMAL_RSS }
+		});
+		const http = new FeedHttp({ minHostIntervalMs: 0, fetch: server.fetch });
+		await expect(http.get('https://forum.example/index.php?action=.xml;type=rss')).rejects.toThrow(
+			/robots/
+		);
+		await expect(http.get('https://forum.example/index.php?board=3.0')).resolves.toMatchObject({
+			status: 200
+		});
+	});
+
 	it('proceeds when there is no robots.txt', async () => {
 		const server = fakeServer({ 'https://example.com/feed.xml': { body: MINIMAL_RSS } });
 		const http = new FeedHttp({ minHostIntervalMs: 0, fetch: server.fetch });
@@ -272,6 +290,32 @@ describe('robots.txt and published feed endpoints', () => {
 	it('still honors robots.txt for everything else on that host', async () => {
 		const http = new FeedHttp({ minHostIntervalMs: 0, fetch: fakeServer(youtube).fetch });
 		await expect(http.get('https://www.youtube.com/results?q=x')).rejects.toThrow(/robots/);
+	});
+});
+
+describe('robotsPathMatches', () => {
+	it('matches a plain rule as a prefix', () => {
+		expect(robotsPathMatches('/private/', '/private/feed.xml')).toBe(true);
+		expect(robotsPathMatches('/private/', '/public/private/')).toBe(false);
+	});
+
+	it('reads * as any run of characters', () => {
+		expect(robotsPathMatches('/*action', '/index.php?action=.xml')).toBe(true);
+		expect(robotsPathMatches('/*topic=*.msg', '/index.php?topic=12.msg40')).toBe(true);
+		expect(robotsPathMatches('/*topic=*.msg', '/index.php?topic=12.0')).toBe(false);
+	});
+
+	it('reads a final $ as the end of the path', () => {
+		expect(robotsPathMatches('/*.xml$', '/feed.xml')).toBe(true);
+		expect(robotsPathMatches('/*.xml$', '/feed.xml?page=2')).toBe(false);
+		expect(robotsPathMatches('/exact$', '/exact')).toBe(true);
+		expect(robotsPathMatches('/exact$', '/exactly')).toBe(false);
+	});
+
+	it('treats everything else in a rule literally', () => {
+		expect(robotsPathMatches('/a.b?c', '/a.b?c=1')).toBe(true);
+		expect(robotsPathMatches('/a.b', '/aXb')).toBe(false);
+		expect(robotsPathMatches('/(x)+', '/(x)+y')).toBe(true);
 	});
 });
 

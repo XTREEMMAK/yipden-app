@@ -38,6 +38,8 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- robots.txt rules with wildcards (`Disallow: /*action`) are honored. They were read as plain
+  prefixes and never matched, so a feed a site had asked crawlers to leave alone could be fetched.
 - A card taller than the screen in Feeds (a post with a video in it, a group of crossposts) can be
   read to its end: it scrolls normally until its bottom is on screen, and only then folds away.
 - A Library queue that went on to the ring stopped after one ring member: a previous session's

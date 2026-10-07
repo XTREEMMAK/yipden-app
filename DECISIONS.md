@@ -3421,3 +3421,14 @@ three rows above its cards.
   still the page's heading for screen readers. A person or folder Feeds is narrowed to is named
   between the switch and the filter. The first card now starts at about 18% of the screen, from
   about 32%.
+
+## 2026-10-07 — robots.txt wildcards are honored
+
+YipDen honors robots.txt, but its parser matched rule paths as plain prefixes, so the `*` and `$`
+of RFC 9309 never matched anything. Found checking MelonLand's forum for the forum index: its
+`Disallow: /*action` keeps unnamed crawlers off every `?action=` page, its RSS included, and the app
+would have fetched that feed anyway. `robotsPathMatches` (`@yipden/feeds`) now reads `*` as any run
+of characters and a final `$` as the end of the path; everything else in a rule stays literal. The
+longest rule still decides, Allow winning a tie. The site preview capture script had the same gap
+and the same fix. The cost is that a feed some site disallows by wildcard, which the app used to
+read, now reports `blocked`, which is what that site asked for.
