@@ -3471,3 +3471,16 @@ After four phone builds (40 to 44) the experiment is kept: Surf feels part of th
 previews earn their place, and the hero is untouched. `sites-surf` was merged into `listen-embeds`
 as a fast forward. Still to come from the plan: following sites the way forums are followed, search
 across both sides, and the site page with "Made by" from evidence only (ROADMAP.md).
+
+## 2026-10-07 — The shared video's title is frosted; the swap back starts at once
+
+- **The title on a frosted band.** A shared video's title and Back sat straight on its YouTube
+  picture with a light fade, and a busy first frame made them hard to read. The picture is now a
+  little darker, and the title sits on a darker band that blurs the picture under it. The blur is
+  only on while the video is in front: every post with a video carries one behind it, and a blur
+  under each of those on every scroll is the kind of cost the stack's judder history warns about.
+- **Each way of the swap is its own animation.** Back to the post was the first swap `reverse()`d,
+  which also plays its easing backwards: a brisk start became a slow one, so the post took a beat
+  to move. Now each way walks its path forward with the same easing (100ms in, the post is about
+  halfway along either way). A swap still in the air is still reversed, which turns it around from
+  exactly where it is.

@@ -40,6 +40,8 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- A shared video's title reads over any picture: it sits on a frosted band. Going back from the
+  video to its post starts moving at once, as quickly as going to the video does.
 - robots.txt rules with wildcards (`Disallow: /*action`) are honored. They were read as plain
   prefixes and never matched, so a feed a site had asked crawlers to leave alone could be fetched.
 - A card taller than the screen in Feeds (a post with a video in it, a group of crossposts) can be

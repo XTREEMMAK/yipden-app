@@ -26,6 +26,11 @@
 	];
 
 	/** The video: out to the left from behind, under the post, then forward and on top. */
+	/** The same path walked the other way: what puts a card back where it came from. */
+	function backwards(keyframes: Keyframe[]): Keyframe[] {
+		return keyframes.map((frame) => ({ ...frame, offset: 1 - (frame.offset as number) })).reverse();
+	}
+
 	const VIDEO_COMES_FORWARD: Keyframe[] = [
 		{ offset: 0, transform: BEHIND, zIndex: 1 },
 		{
@@ -153,14 +158,19 @@
 	/**
 	 * The post and the video trade places like two cards in a deck: the post lifts up and away,
 	 * swings back and tucks in behind as the video swings forward from the other side, the two
-	 * crossing over in the air. The same motion run backwards puts the post on top again, from
-	 * wherever the swap had got to. Under reduced motion they change places with no motion.
+	 * crossing over in the air. Back to the post walks the same path the other way. Under reduced
+	 * motion they change places with no motion.
+	 *
+	 * Each way is its own animation with the same easing, so both start as briskly. The way back
+	 * used to be the first one `reverse()`d, which plays its easing backwards too: a quick start
+	 * became a slow one, and the post took a beat to move (phone feedback, 2026-10-07). A swap
+	 * still in the air is the exception: reversing it turns it around from exactly where it is.
 	 */
 	async function showVideo(show: boolean) {
 		if (show === showingVideo) return;
 		showingVideo = show;
 		if (postCard && videoCard) {
-			if (exchange.length) {
+			if (exchange.some((animation) => animation.playState === 'running')) {
 				for (const animation of exchange) animation.reverse();
 			} else {
 				const timing: KeyframeAnimationOptions = {
@@ -168,9 +178,11 @@
 					easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)',
 					fill: 'forwards'
 				};
+				// Replaced in the same frame: each new path starts where the old one left its card.
+				for (const animation of exchange) animation.cancel();
 				exchange = [
-					postCard.animate(POST_TUCKS_BEHIND, timing),
-					videoCard.animate(VIDEO_COMES_FORWARD, timing)
+					postCard.animate(show ? POST_TUCKS_BEHIND : backwards(POST_TUCKS_BEHIND), timing),
+					videoCard.animate(show ? VIDEO_COMES_FORWARD : backwards(VIDEO_COMES_FORWARD), timing)
 				];
 			}
 		}
@@ -311,6 +323,7 @@
 			<!-- The video they shared: a card of its own, waiting behind the post in the deck. -->
 			<div
 				class="video-card"
+				class:in-front={showingVideo}
 				bind:this={videoCard}
 				inert={!showingVideo}
 				aria-hidden={!showingVideo}
@@ -471,6 +484,28 @@
 		fill: #fff;
 	}
 
+	/* The thumbnail a little darker, so the play mark and Back read on any picture. */
+	.video-open::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.22);
+		pointer-events: none;
+	}
+
+	.video-open > :global(*) {
+		position: relative;
+	}
+
+	.video-open .video-meta {
+		position: absolute;
+	}
+
+	/*
+	 * The title on a frosted band rather than straight on the picture, which a busy first frame
+	 * made hard to read (phone feedback, 2026-10-07). The blur is only on while the video is in
+	 * front: a card waiting behind every such post would otherwise blur under each scroll.
+	 */
 	.video-meta {
 		position: absolute;
 		left: 0;
@@ -479,8 +514,13 @@
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
-		padding: 28px 16px 14px;
-		background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
+		padding: 12px 16px 14px;
+		background: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.55));
+	}
+
+	.video-card.in-front .video-meta {
+		-webkit-backdrop-filter: blur(14px);
+		backdrop-filter: blur(14px);
 	}
 
 	.video-meta b {
