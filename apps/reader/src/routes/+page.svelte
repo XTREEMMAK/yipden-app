@@ -146,7 +146,7 @@
 
 	let filterSheetOpen = $state(false);
 	let filterLabel = $derived(ring.chips.find((chip) => chip.key === ring.filter)?.label ?? 'All');
-	let filterButton: HTMLButtonElement | undefined;
+	let filterButton = $state<HTMLButtonElement | undefined>(undefined);
 	let filterSheetClose = $state<HTMLButtonElement | undefined>(undefined);
 
 	$effect(() => {
@@ -193,8 +193,20 @@
 
 	function chooseRing(id: string | null) {
 		navDirection = 0;
+		sites.setView('people');
 		partners.select(id);
 		closeRingSheet();
+	}
+
+	function chooseSurf() {
+		partners.select(null);
+		sites.setView('surf');
+		closeRingSheet();
+	}
+
+	/** Surf's search field takes focus as it opens, so a tap on Search can be typed into at once. */
+	function focusOnMount(node: HTMLInputElement) {
+		node.focus();
 	}
 
 	/**
@@ -632,92 +644,147 @@
 	{/if}
 
 	<header class="top" class:over-surf={surfing} inert={partners.selected !== null}>
-		<span class="logo">
-			<svg width="30" height="30" viewBox="0 0 1024 1024" aria-hidden="true">
-				<path
-					d="M465 2c-96.8 3.3-166 18-224.5 47.8-40.2 20.5-99.4 69.5-135.6 112.2-60.1 71-85.5 130.7-97.8 230C5 408.3 5 412 5 716.2V1024h32l.3-306.7.3-306.8 2.7-16.5C52.5 319.6 69 272.1 97.6 229.4A439 439 0 0 1 229.3 97.7c24.2-16.2 44.8-26 76.7-36.8a549 549 0 0 1 137-25.4 993 993 0 0 1 138 0c70 4.2 137.6 20.8 187.3 46.2 14.4 7.4 57.7 36.6 57.7 39 0 .6-14.9 26.7-25.3 44.1-7.6 12.8-7.8 13.4-6.1 15.3 2.6 2.9 3.6 2.5 11.5-4.9l21.4-19.4c7.7-6.9 15-13.7 16.4-15.2 1.4-1.4 3-2.6 3.5-2.6 4.1 0 52.4 51.5 50.4 53.6-.6.5-53.2 19.4-66.5 23.8l-8.3 2.8v7.1l42.8-.8 49.7-.9 7-.1 6.7 10c25 37.3 44.5 94.3 53.7 156.9 2 13.8 2.1 16.3 2.1 323.7V1024h32l-.2-320.7-.3-320.8-2.2-11.5c-1.2-6.3-3-16.7-4.3-23-7.7-41.2-26-92.7-42.1-119-1.7-2.8-3-5.2-2.8-5.4.7-.5 36.2-2.7 44.3-2.7 13.5 0 13.5-.3-1.5-11s-23.3-17.9-36.5-31.7l-9.1-9.5-14.3 5.2c-13.7 5-14.5 5-16 3.4a602 602 0 0 0-41.2-45.4l-17.7-17.7 9.2-8.3 10-9c.8-.7-5.7-9.9-7.4-10.7l-11.6-8.1c-6-4.4-12.3-8.6-14-9.4l-3-1.6-6.3 11.4-6.3 11.4-8-6.2A661 661 0 0 0 811 66.5C735.8 16 631.3-3.4 465 2m221.4 116.7c-12.7 4.5-30.7 19.9-48 40.8-11 13.4-9.6 12.6-19 10.9-49-9-104.4 7-154.8 44.4l-9.8 7.2-14.6-2a288 288 0 0 0-69.7-2.6l-10.5 1.3a330 330 0 0 0-107.2 31.8c-24.7 12.5-25.3 15.8-6.6 34.6 11 11 29.8 25.6 38.8 30.3 3.1 1.6 4 3.5 1.7 3.5S248 337.3 237 344a697 697 0 0 0-81 58c-6.3 5.3-14.2 12-17.6 14.7-8 6.7-10.5 10-10.5 13.6 0 4.7 1.3 6 15.2 16.5C190.5 482 236.3 505.4 277 515c8.6 2 10 2.2 22.5 4 26.8 3.7 61.5-3 90.2-17.4 5.1-2.5 9.5-4.6 9.8-4.6 2.3 0-1.4 14-7.7 28.8l-3.9 9.3 1.8 3.7c2.5 5 5.6 5.8 16.4 4.3l8.6-1.2 3.5 3.5c2.6 2.6 4.8 3.7 9.5 4.6 9.8 2 9.8 2 .7 10.8a199 199 0 0 1-34.9 25.2c-16 8.8-15.7 16.5 1.3 25 6.5 3.2 7.1 4 4.7 6-.8.6-3.4 4.6-6 8.8-5.1 9-14.1 18-44 44.8-66.7 59.8-102.3 106.8-123 162.4-7.4 19.7-14.5 50.3-14.5 62.2 0 4 0 4-3.1 3.4-1.8-.3-7.4-2.7-12.5-5.2-38.9-19-71.6-62.4-83.9-111.1-5-20-6.6-34.9-6.4-58.1l.2-21.3-2.4-2.5c-3.9-3.8-8.8-4.2-12.7-1C85 704.8 74 727 68 745.9q-13.6 44.3-2.9 91.3l2 8.6-3.6 3.6c-5.5 5.5-4.6 12.7 3.7 29.2a117 117 0 0 0 16.2 22.7q1.2.6-.2 2.8a15 15 0 0 0-1.2 6c0 5 3.6 9.2 16.6 19.6 29 23.1 62.1 41.7 95.4 53.5a53 53 0 0 1 13.3 5.8c-.1.5 1.2 1.2 3 1.6 15.9 3 17.8 3.8 21 8 7 9 13.4 15.8 17.8 19l4.7 3.5h500.9l2.8-2.2c5.8-4.5 9.4-18.6 7.6-29.4-1.4-7.8-3-11.3-4-9.5q-1 1.1-4-4.3a59 59 0 0 0-21.9-20.7 44 44 0 0 1-7.3-4.2c-.4-.5-1.2-5-1.9-10-4.6-33.6 2.7-100.4 18-164.2 2.7-11 11-38 12.2-39 .3-.3 2.3 2.1 4.6 5.4 7.6 10.8 17 10.5 20.2-.6 3.3-11.7 2-47.9-2.3-67-1.3-5.7-2.2-10.3-2.1-10.3l8.5 4c10.5 5 13.7 5.2 17.8.4 2.8-3 3-4 2.5-7.2-1-5.7-10.2-27.4-21.2-50.7-15.8-33.2-27.6-62-30.6-74.6-1.3-5.4-1.2-6.3 1.6-17 8.8-33.6 27.9-87 35.7-99.9a281 281 0 0 0 32-74.2c8-34.4-1.3-62.4-20.7-61.8-2.6.1-5.5.1-6.4 0-.9 0-3.9-3.3-6.6-7.4-8.7-13-13.9-29.7-16.7-53.6-4.4-38.2-10.5-51.7-35.3-77.5l-17.4-18.2a31 31 0 0 0-33.4-8.5"
-					fill="currentColor"
+		{#if surfing && sites.searchOpen}
+			<!-- Surf's search takes the whole bar while it is open, and gives it back on close. -->
+			<div class="surf-search">
+				<input
+					type="search"
+					placeholder={`Search ${sites.all.length} sites`}
+					aria-label="Search sites"
+					autocomplete="off"
+					spellcheck="false"
+					bind:value={sites.query}
+					use:focusOnMount
 				/>
-			</svg>
-			YipDen
-		</span>
-		<span class="top-actions" hidden={surfing}>
-			{#if partners.status === 'loading'}
-				<span class="round is-loading" aria-hidden="true">
-					<span class="mini-spinner"></span>
-				</span>
-			{:else if partners.rings.length}
+				<button
+					class="round"
+					onclick={() => {
+						sites.query = '';
+						sites.searchOpen = false;
+					}}
+					aria-label="Close search"
+				>
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+				</button>
+			</div>
+		{:else}
+			<span class="logo">
+				<svg width="30" height="30" viewBox="0 0 1024 1024" aria-hidden="true">
+					<path
+						d="M465 2c-96.8 3.3-166 18-224.5 47.8-40.2 20.5-99.4 69.5-135.6 112.2-60.1 71-85.5 130.7-97.8 230C5 408.3 5 412 5 716.2V1024h32l.3-306.7.3-306.8 2.7-16.5C52.5 319.6 69 272.1 97.6 229.4A439 439 0 0 1 229.3 97.7c24.2-16.2 44.8-26 76.7-36.8a549 549 0 0 1 137-25.4 993 993 0 0 1 138 0c70 4.2 137.6 20.8 187.3 46.2 14.4 7.4 57.7 36.6 57.7 39 0 .6-14.9 26.7-25.3 44.1-7.6 12.8-7.8 13.4-6.1 15.3 2.6 2.9 3.6 2.5 11.5-4.9l21.4-19.4c7.7-6.9 15-13.7 16.4-15.2 1.4-1.4 3-2.6 3.5-2.6 4.1 0 52.4 51.5 50.4 53.6-.6.5-53.2 19.4-66.5 23.8l-8.3 2.8v7.1l42.8-.8 49.7-.9 7-.1 6.7 10c25 37.3 44.5 94.3 53.7 156.9 2 13.8 2.1 16.3 2.1 323.7V1024h32l-.2-320.7-.3-320.8-2.2-11.5c-1.2-6.3-3-16.7-4.3-23-7.7-41.2-26-92.7-42.1-119-1.7-2.8-3-5.2-2.8-5.4.7-.5 36.2-2.7 44.3-2.7 13.5 0 13.5-.3-1.5-11s-23.3-17.9-36.5-31.7l-9.1-9.5-14.3 5.2c-13.7 5-14.5 5-16 3.4a602 602 0 0 0-41.2-45.4l-17.7-17.7 9.2-8.3 10-9c.8-.7-5.7-9.9-7.4-10.7l-11.6-8.1c-6-4.4-12.3-8.6-14-9.4l-3-1.6-6.3 11.4-6.3 11.4-8-6.2A661 661 0 0 0 811 66.5C735.8 16 631.3-3.4 465 2m221.4 116.7c-12.7 4.5-30.7 19.9-48 40.8-11 13.4-9.6 12.6-19 10.9-49-9-104.4 7-154.8 44.4l-9.8 7.2-14.6-2a288 288 0 0 0-69.7-2.6l-10.5 1.3a330 330 0 0 0-107.2 31.8c-24.7 12.5-25.3 15.8-6.6 34.6 11 11 29.8 25.6 38.8 30.3 3.1 1.6 4 3.5 1.7 3.5S248 337.3 237 344a697 697 0 0 0-81 58c-6.3 5.3-14.2 12-17.6 14.7-8 6.7-10.5 10-10.5 13.6 0 4.7 1.3 6 15.2 16.5C190.5 482 236.3 505.4 277 515c8.6 2 10 2.2 22.5 4 26.8 3.7 61.5-3 90.2-17.4 5.1-2.5 9.5-4.6 9.8-4.6 2.3 0-1.4 14-7.7 28.8l-3.9 9.3 1.8 3.7c2.5 5 5.6 5.8 16.4 4.3l8.6-1.2 3.5 3.5c2.6 2.6 4.8 3.7 9.5 4.6 9.8 2 9.8 2 .7 10.8a199 199 0 0 1-34.9 25.2c-16 8.8-15.7 16.5 1.3 25 6.5 3.2 7.1 4 4.7 6-.8.6-3.4 4.6-6 8.8-5.1 9-14.1 18-44 44.8-66.7 59.8-102.3 106.8-123 162.4-7.4 19.7-14.5 50.3-14.5 62.2 0 4 0 4-3.1 3.4-1.8-.3-7.4-2.7-12.5-5.2-38.9-19-71.6-62.4-83.9-111.1-5-20-6.6-34.9-6.4-58.1l.2-21.3-2.4-2.5c-3.9-3.8-8.8-4.2-12.7-1C85 704.8 74 727 68 745.9q-13.6 44.3-2.9 91.3l2 8.6-3.6 3.6c-5.5 5.5-4.6 12.7 3.7 29.2a117 117 0 0 0 16.2 22.7q1.2.6-.2 2.8a15 15 0 0 0-1.2 6c0 5 3.6 9.2 16.6 19.6 29 23.1 62.1 41.7 95.4 53.5a53 53 0 0 1 13.3 5.8c-.1.5 1.2 1.2 3 1.6 15.9 3 17.8 3.8 21 8 7 9 13.4 15.8 17.8 19l4.7 3.5h500.9l2.8-2.2c5.8-4.5 9.4-18.6 7.6-29.4-1.4-7.8-3-11.3-4-9.5q-1 1.1-4-4.3a59 59 0 0 0-21.9-20.7 44 44 0 0 1-7.3-4.2c-.4-.5-1.2-5-1.9-10-4.6-33.6 2.7-100.4 18-164.2 2.7-11 11-38 12.2-39 .3-.3 2.3 2.1 4.6 5.4 7.6 10.8 17 10.5 20.2-.6 3.3-11.7 2-47.9-2.3-67-1.3-5.7-2.2-10.3-2.1-10.3l8.5 4c10.5 5 13.7 5.2 17.8.4 2.8-3 3-4 2.5-7.2-1-5.7-10.2-27.4-21.2-50.7-15.8-33.2-27.6-62-30.6-74.6-1.3-5.4-1.2-6.3 1.6-17 8.8-33.6 27.9-87 35.7-99.9a281 281 0 0 0 32-74.2c8-34.4-1.3-62.4-20.7-61.8-2.6.1-5.5.1-6.4 0-.9 0-3.9-3.3-6.6-7.4-8.7-13-13.9-29.7-16.7-53.6-4.4-38.2-10.5-51.7-35.3-77.5l-17.4-18.2a31 31 0 0 0-33.4-8.5"
+						fill="currentColor"
+					/>
+				</svg>
+				YipDen
+			</span>
+			<span class="top-actions">
+				<!--
+				What to discover: IndieNodes, a partner ring, or Surf. Always here now, since Surf always
+				is; partner rings join its list once they have been read.
+			-->
 				<button
 					bind:this={ringButton}
 					class="round"
-					class:is-active={partners.selected !== null}
+					class:is-active={partners.selected !== null || surfing}
 					data-noswipe
 					onclick={() => (ringSheetOpen = true)}
 					aria-haspopup="dialog"
 					aria-expanded={ringSheetOpen}
-					aria-label={`Switch ring: ${ringLabel}`}
+					aria-label={`What to discover: ${surfing ? 'Surf' : ringLabel}`}
 				>
 					<svg viewBox="0 0 24 24" aria-hidden="true">
 						<circle cx="9.5" cy="12" r="6" />
 						<circle cx="14.5" cy="12" r="6" />
 					</svg>
-					{#if partners.selected !== null}
+					{#if partners.selected !== null || surfing}
 						<span class="filter-dot" aria-hidden="true"></span>
 					{/if}
 				</button>
-			{/if}
-			<button
-				bind:this={filterButton}
-				class="round"
-				class:is-active={ring.filter !== 'all'}
-				data-noswipe
-				onclick={() => (filterSheetOpen = true)}
-				aria-haspopup="dialog"
-				aria-expanded={filterSheetOpen}
-				aria-label={ring.filter === 'all' ? 'Filter the ring' : `Filter the ring: ${filterLabel}`}
-			>
-				<svg viewBox="0 0 24 24" aria-hidden="true">
-					<path d="M4 5h16M7 12h10M10 19h4" />
-				</svg>
-				{#if ring.filter !== 'all'}
-					<span class="filter-dot" aria-hidden="true"></span>
+				{#if surfing}
+					<button
+						class="round"
+						class:is-active={sites.query.trim() !== ''}
+						data-noswipe
+						onclick={() => (sites.searchOpen = true)}
+						aria-label="Search sites"
+					>
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4.4-4.4" />
+						</svg>
+					</button>
+					<button
+						class="round"
+						class:is-active={sites.filtering}
+						data-noswipe
+						onclick={() => (sites.filtersOpen = true)}
+						aria-haspopup="dialog"
+						aria-expanded={sites.filtersOpen}
+						aria-label={sites.filtering ? 'Filter sites: on' : 'Filter sites'}
+					>
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<path d="M4 5h16M7 12h10M10 19h4" />
+						</svg>
+						{#if sites.filtering}
+							<span class="filter-dot" aria-hidden="true"></span>
+						{/if}
+					</button>
+				{:else}
+					<button
+						bind:this={filterButton}
+						class="round"
+						class:is-active={ring.filter !== 'all'}
+						data-noswipe
+						onclick={() => (filterSheetOpen = true)}
+						aria-haspopup="dialog"
+						aria-expanded={filterSheetOpen}
+						aria-label={ring.filter === 'all'
+							? 'Filter the ring'
+							: `Filter the ring: ${filterLabel}`}
+					>
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<path d="M4 5h16M7 12h10M10 19h4" />
+						</svg>
+						{#if ring.filter !== 'all'}
+							<span class="filter-dot" aria-hidden="true"></span>
+						{/if}
+					</button>
+					{#if ring.visible.length > 1}
+						<button
+							bind:this={membersButton}
+							class="round"
+							data-noswipe
+							onclick={() => (membersSheetOpen = true)}
+							aria-haspopup="dialog"
+							aria-expanded={membersSheetOpen}
+							aria-label="Browse members"
+						>
+							<svg viewBox="0 0 24 24" aria-hidden="true">
+								<path d="M4 6h16M4 12h16M4 18h10" />
+							</svg>
+						</button>
+					{/if}
+					<button
+						class="round"
+						class:is-active={ring.shuffled}
+						onclick={() => {
+							navDirection = 0;
+							if (ring.shuffled) ring.unshuffle();
+							else ring.shuffle();
+						}}
+						aria-pressed={ring.shuffled}
+						aria-label="Shuffle the ring"
+					>
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<path d="M3 7h3.5c2 0 3.3 1 4.3 2.6l2.4 4.8C14.2 16 15.5 17 17.5 17H21" />
+							<path d="M18 14l3 3-3 3" />
+							<path d="M3 17h3.5c1.2 0 2.2-.4 3-1.1" />
+							<path d="M13.5 8.1c.8-.7 1.8-1.1 3-1.1H21" />
+							<path d="M18 4l3 3-3 3" />
+						</svg>
+					</button>
 				{/if}
-			</button>
-			{#if ring.visible.length > 1}
-				<button
-					bind:this={membersButton}
-					class="round"
-					data-noswipe
-					onclick={() => (membersSheetOpen = true)}
-					aria-haspopup="dialog"
-					aria-expanded={membersSheetOpen}
-					aria-label="Browse members"
-				>
-					<svg viewBox="0 0 24 24" aria-hidden="true">
-						<path d="M4 6h16M4 12h16M4 18h10" />
-					</svg>
-				</button>
-			{/if}
-			<button
-				class="round"
-				class:is-active={ring.shuffled}
-				onclick={() => {
-					navDirection = 0;
-					if (ring.shuffled) ring.unshuffle();
-					else ring.shuffle();
-				}}
-				aria-pressed={ring.shuffled}
-				aria-label="Shuffle the ring"
-			>
-				<svg viewBox="0 0 24 24" aria-hidden="true">
-					<path d="M3 7h3.5c2 0 3.3 1 4.3 2.6l2.4 4.8C14.2 16 15.5 17 17.5 17H21" />
-					<path d="M18 14l3 3-3 3" />
-					<path d="M3 17h3.5c1.2 0 2.2-.4 3-1.1" />
-					<path d="M13.5 8.1c.8-.7 1.8-1.1 3-1.1H21" />
-					<path d="M18 4l3 3-3 3" />
-				</svg>
-			</button>
-		</span>
+			</span>
+		{/if}
 	</header>
 
 	<div
@@ -851,18 +918,6 @@
 
 	{#if partners.selected}
 		<PartnerRingPanel result={partners.selected} onback={() => partners.select(null)} />
-	{:else}
-		<!--
-			People | Surf: one control in one place for both sides, so switching never moves it. It
-			sits above Surf's panel; a partner ring has its own way back and covers it.
-		-->
-		<div class="view-switch" data-noswipe role="radiogroup" aria-label="What to discover">
-			<button role="radio" aria-checked={!surfing} onclick={() => sites.setView('people')}
-				>People</button
-			>
-			<button role="radio" aria-checked={surfing} onclick={() => sites.setView('surf')}>Surf</button
-			>
-		</div>
 	{/if}
 
 	<div class="bursts" aria-hidden="true">
@@ -1082,12 +1137,12 @@
 		data-noswipe
 		role="dialog"
 		aria-modal="true"
-		aria-label="Switch ring"
+		aria-label="What to discover"
 		in:fly={flyIn({ y: 40 })}
 		out:fly={flyIn({ y: 40 })}
 	>
 		<div class="sheet-head">
-			<h2>Switch ring</h2>
+			<h2>What to discover</h2>
 			<button
 				bind:this={ringSheetClose}
 				class="sheet-close"
@@ -1097,11 +1152,12 @@
 				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
 			</button>
 		</div>
-		<div class="sheet-list" role="radiogroup" aria-label="Switch ring">
+		<div class="sheet-list" role="radiogroup" aria-label="What to discover">
+			<h3 class="sheet-sec">People</h3>
 			<button
 				class="sheet-row"
 				role="radio"
-				aria-checked={partners.selected === null}
+				aria-checked={partners.selected === null && !surfing}
 				onclick={() => chooseRing(null)}
 			>
 				<img class="sheet-icon" src="/ring-icons/indienodes.svg" alt="" />
@@ -1123,6 +1179,20 @@
 					<small class="sheet-hint">Partner ring</small>
 				</button>
 			{/each}
+			{#if partners.status === 'loading'}
+				<p class="sheet-loading">Reading the other rings…</p>
+			{/if}
+			<h3 class="sheet-sec">Sites</h3>
+			<button
+				class="sheet-row"
+				role="radio"
+				aria-checked={surfing && partners.selected === null}
+				onclick={chooseSurf}
+			>
+				<span class="sheet-dot" aria-hidden="true"></span>
+				Surf
+				<small class="sheet-hint">Indie web sites</small>
+			</button>
 		</div>
 	</div>
 {/if}
@@ -1227,46 +1297,29 @@
 		z-index: 7;
 	}
 
-	.top-actions[hidden] {
-		display: none;
-	}
-
-	/*
-	 * Below the bar, centred, in the same place over the hero and over Surf. Glass on the hero,
-	 * like the round buttons beside the logo.
-	 */
-	.view-switch {
-		position: absolute;
-		top: calc(76px + env(safe-area-inset-top, 0px));
-		left: 50%;
-		z-index: 7;
+	/* Surf's search, in the bar's own row: the field, and a close beside it. */
+	.surf-search {
 		display: flex;
-		padding: 3px;
-		border-radius: 999px;
-		background: rgba(var(--deep-rgb), 0.46);
-		transform: translateX(-50%);
-		backdrop-filter: blur(8px);
+		flex: 1;
+		align-items: center;
+		gap: 10px;
 	}
 
-	.view-switch button {
-		min-width: 88px;
-		min-height: 40px;
+	.surf-search input {
+		flex: 1;
+		min-width: 0;
+		height: 44px;
 		padding: 0 16px;
-		border: 0;
+		border: 1px solid rgba(255, 255, 255, 0.28);
 		border-radius: 999px;
-		background: none;
+		background: rgba(255, 255, 255, 0.14);
 		color: #fff;
-		font-family: var(--body);
-		font-size: 14px;
-		font-weight: 600;
-		transition:
-			background var(--dur-s) var(--ease),
-			color var(--dur-s) var(--ease);
+		font: inherit;
+		font-size: 15px;
 	}
 
-	.view-switch button[aria-checked='true'] {
-		background: #fff;
-		color: #1f1410;
+	.surf-search input::placeholder {
+		color: rgba(255, 255, 255, 0.7);
 	}
 
 	.top-actions {
@@ -1292,26 +1345,6 @@
 
 	.round:active {
 		background: rgba(var(--deep-rgb), 0.55);
-	}
-
-	/*
-	 * A reader was left guessing whether the switch-ring button was simply missing, or the app
-	 * was still working on something, since reading each partner ring is a real fetch of a
-	 * stranger's page (see partnerRings.svelte.ts) that can take a moment on a cold launch. This
-	 * fills the button's own place the instant that read starts, so "not there yet" and "still
-	 * loading" never look identical.
-	 */
-	.round.is-loading {
-		background: rgba(var(--deep-rgb), 0.34);
-	}
-
-	.mini-spinner {
-		width: 18px;
-		height: 18px;
-		border-radius: 50%;
-		border: 2px solid rgba(255, 255, 255, 0.3);
-		border-top-color: #fff;
-		animation: spin 0.7s linear infinite;
 	}
 
 	@keyframes spin {
@@ -1736,6 +1769,22 @@
 	.sheet-list {
 		display: flex;
 		flex-direction: column;
+	}
+
+	.sheet-sec {
+		margin: 12px 16px 4px;
+		font-family: var(--mono);
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+
+	.sheet-loading {
+		margin: 4px 16px;
+		color: var(--muted);
+		font-size: 13px;
 	}
 
 	.sheet-hint {

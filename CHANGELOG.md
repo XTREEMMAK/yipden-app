@@ -8,11 +8,12 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
-- Surf, on the `sites-surf` branch: Discover gains a People | Surf switch. People is the ring, as
-  before. Surf is a list of indie web sites by category (shrines, personal sites, blogs,
-  webrings), each with a picture of the page and, for some, a short moving preview of it
-  scrolling, which plays only for the card being looked at and never under reduced motion.
-  Visit, Save, Like and Not for me work as they do for creators.
+- Surf, on the `sites-surf` branch: Discover's ring button becomes "What to discover", offering
+  the rings (people) and Surf (sites). Surf is a list of indie web sites by category (shrines,
+  personal sites, blogs, webrings), each with a picture of the page and, for some, a short moving
+  preview of it scrolling, which plays only for the card being looked at and never under reduced
+  motion. Search and Filter sit in the bar, so the cards get the screen. Visit, Save, Like and
+  Not for me work as they do for creators.
 
 - A YouTube video a post shares (a Bluesky link card, a blog post's embed or link) waits behind
   the post, its top edge showing above it like a second card in a deck. The Video button swaps

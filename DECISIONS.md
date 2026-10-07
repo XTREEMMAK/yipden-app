@@ -3378,3 +3378,27 @@ reasoning behind its shape came out of a feasibility review the same day.
   likely refuse its feed too.
 - **Not yet:** following a site (built the way forums are), the People | Sites | Forums switches in
   Follow and Feeds, search across both sides, and the site page with "Made by".
+
+## 2026-10-07 (phone feedback) — Surf fits in the bar; cards rise flat
+
+The phone pass: Surf feels part of the app, and the moving previews earn their place (a reader
+sees what a site is before going in, as Neocities' own previews do). Clips did not judder. What
+did not work was space: the People | Surf switch took a row of its own on the hero, and Surf had
+three rows above its cards.
+
+- **The ring button became "What to discover".** It lists IndieNodes and any partner rings under
+  People, and Surf under Sites, so there is no separate switch at all. It is always in the bar now,
+  since Surf always exists; a partner ring still being read shows as a line in its sheet. It keeps
+  the ring button's slot, the first of the round buttons, so People's bar is exactly as before.
+- **Surf takes only the bar.** Search and Filter are round buttons in Discover's own bar in place of
+  the ring's; Search opens a field across the bar, and closing it clears the search. The category
+  row is the first thing in the list and scrolls away with it; the Filter sheet (Surf's own now,
+  so a partner ring's sheet is untouched again) offers category, explored and tags from anywhere.
+- **Cards rise flat.** A tall card rising from the bottom was tipped back on a hinge at its top,
+  which read as a card leaning out of the screen. `cardStack`'s `solidEntry` became `flatEntry`:
+  a card comes up as it is and only folds away at the top, as in Feeds.
+- **Clips start sooner:** half the preview on screen rather than 60%, and 100ms of settling after
+  a fling rather than 180. A clip hosted remotely will still take a moment to arrive; the poster
+  covers that.
+- **Feeds has the same problem** (too much above its cards). Left for after Surf is settled; it is
+  the "Feeds' header collapses while scrolling" item in ROADMAP.md.

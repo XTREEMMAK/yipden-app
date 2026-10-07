@@ -662,7 +662,9 @@ A visual index of indie web sites beside the ring, judged on a phone before it i
 contract is [docs/sites-contract.md](docs/sites-contract.md); the reasoning is in DECISIONS.md.
 
 1. **Seed and sites layer (done).** Twelve sites bundled, posters and six clips.
-2. **People | Surf in Discover (built; to see on a phone).** The hero is untouched.
+2. **Surf in Discover (seen on a phone 2026-10-07; reworked for space, to see again).** Chosen from
+   the ring button, now "What to discover". The hero is untouched. Next after it: Feeds' own top
+   space (see "Feeds' header collapses while scrolling").
 3. **Following sites, the way forums are followed.** People | Sites | Forums in Follow and Feeds;
    Forums may fold into Sites later.
 4. **Search across both sides, and a site page with "Made by" from evidence only.**

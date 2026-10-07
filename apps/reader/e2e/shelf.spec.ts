@@ -404,13 +404,18 @@ async function chooseShow(page: Page, label: string) {
 }
 
 test.describe('partner rings in Discover', () => {
-	test('offer no ring switcher at all until a ring is registered', async ({ page }) => {
+	test('with no ring registered, the switcher offers IndieNodes and Surf only', async ({
+		page
+	}) => {
 		await withRing(page);
 		await page.goto('/');
-		await expect(page.getByRole('button', { name: /^Switch ring/ })).toHaveCount(0);
+		await page.getByRole('button', { name: /^What to discover/ }).click();
+		const choices = page.getByRole('radiogroup', { name: 'What to discover' }).getByRole('radio');
+		await expect(choices).toHaveText([/IndieNodes Webring/, /Surf/]);
+		await page.keyboard.press('Escape');
 
 		// Filtering by category still works and is unaffected: it never depended on a ring
-		// being registered, and the button that opens it says "Filter", not "Switch ring".
+		// being registered, and the button that opens it says "Filter", not "What to discover".
 		await expect(page.getByRole('button', { name: /^Filter the ring/ })).toBeVisible();
 	});
 
@@ -423,7 +428,7 @@ test.describe('partner rings in Discover', () => {
 
 		test('show their own tab, labelled via the ring and linked to its hub', async ({ page }) => {
 			await page.goto('/');
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 
 			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
@@ -445,7 +450,7 @@ test.describe('partner rings in Discover', () => {
 			page
 		}) => {
 			await page.goto('/');
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
 			const hint = panel.getByRole('note');
@@ -477,7 +482,7 @@ test.describe('partner rings in Discover', () => {
 			expect(new Set(tops).size).toBe(1);
 
 			await page.reload();
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			await expect(page.getByRole('note')).toHaveCount(0);
 		});
@@ -486,7 +491,7 @@ test.describe('partner rings in Discover', () => {
 			page
 		}) => {
 			await page.goto('/');
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
 			await expectExplored(page, 0);
@@ -524,7 +529,7 @@ test.describe('partner rings in Discover', () => {
 
 			// And after a relaunch.
 			await page.reload();
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			await expect(page.getByRole('searchbox')).toHaveValue('monitor');
 			await expectExplored(page, 1);
@@ -532,20 +537,20 @@ test.describe('partner rings in Discover', () => {
 
 		test('the switcher sits next to Shuffle, on its own, not inside Filter', async ({ page }) => {
 			await page.goto('/');
-			const switcher = page.getByRole('button', { name: /^Switch ring/ });
+			const switcher = page.getByRole('button', { name: /^What to discover/ });
 			const shuffle = page.getByRole('button', { name: 'Shuffle the ring' });
 			await expect(switcher).toBeVisible();
-			await expect(switcher).toHaveAttribute('aria-label', 'Switch ring: IndieNodes');
+			await expect(switcher).toHaveAttribute('aria-label', 'What to discover: IndieNodes');
 
 			// Filter opens its own sheet, with no ring choice inside it: the two are separate now.
 			await page.getByRole('button', { name: /^Filter the ring/ }).click();
-			await expect(page.getByRole('radiogroup', { name: 'Switch ring' })).toHaveCount(0);
+			await expect(page.getByRole('radiogroup', { name: 'What to discover' })).toHaveCount(0);
 			await page.keyboard.press('Escape');
 
 			await switcher.click();
-			await expect(page.getByRole('dialog', { name: 'Switch ring' })).toBeVisible();
+			await expect(page.getByRole('dialog', { name: 'What to discover' })).toBeVisible();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
-			await expect(switcher).toHaveAttribute('aria-label', 'Switch ring: Fixture Ring');
+			await expect(switcher).toHaveAttribute('aria-label', 'What to discover: Fixture Ring');
 
 			// Adjacent in the header, not just both present somewhere on screen.
 			const switcherBox = await switcher.boundingBox();
@@ -556,7 +561,7 @@ test.describe('partner rings in Discover', () => {
 
 		test('save a desktop first member for later, and link out for the rest', async ({ page }) => {
 			await page.goto('/');
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 
 			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
@@ -592,7 +597,7 @@ test.describe('partner rings in Discover', () => {
 			page
 		}) => {
 			await page.goto('/');
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 
 			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
@@ -625,7 +630,7 @@ test.describe('partner rings in Discover', () => {
 			page
 		}) => {
 			await page.goto('/');
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 
 			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
@@ -643,7 +648,7 @@ test.describe('partner rings in Discover', () => {
 		test('reduced motion leaves it a flat, untransformed list', async ({ page }) => {
 			await page.emulateMedia({ reducedMotion: 'reduce' });
 			await page.goto('/');
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 
 			await expect(
@@ -661,7 +666,7 @@ test.describe('partner rings in Discover', () => {
 			page
 		}) => {
 			await page.goto('/');
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 
 			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
@@ -680,7 +685,7 @@ test.describe('partner rings in Discover', () => {
 
 		test('Back returns to Discover instead of leaving the app', async ({ page }) => {
 			await page.goto('/');
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
 			await expect(panel).toBeVisible();
@@ -691,7 +696,7 @@ test.describe('partner rings in Discover', () => {
 			expect(new URL(page.url()).pathname).toBe('/');
 
 			// The back bar pops the same entry, so a second Back has nothing of the panel's left.
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			await expect(panel).toBeVisible();
 			await page.getByRole('button', { name: 'Back to IndieNodes Webring' }).click();
@@ -701,7 +706,7 @@ test.describe('partner rings in Discover', () => {
 
 		test('back from a member’s profile, one Back still returns to Discover', async ({ page }) => {
 			await page.goto('/');
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
 			await expect(panel).toBeVisible();
@@ -718,7 +723,7 @@ test.describe('partner rings in Discover', () => {
 
 		test('search and the genre filter narrow the ring, generically', async ({ page }) => {
 			await page.goto('/');
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
 			const names = panel.getByRole('heading', { level: 3 });
@@ -742,7 +747,7 @@ test.describe('partner rings in Discover', () => {
 
 		test('any member can be saved for later, not only a desktop-first one', async ({ page }) => {
 			await page.goto('/');
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
 			const save = panel.getByRole('button', { name: 'Save Ash & Ember for later' });
@@ -766,7 +771,7 @@ test.describe('partner rings in Discover', () => {
 			await expect(drift).not.toHaveClass(/paused/);
 			await expect(bar).not.toHaveClass(/solid/);
 
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			await expect(drift).toHaveClass(/paused/);
 			await expect(bar).toHaveClass(/solid/);
@@ -781,7 +786,7 @@ test.describe('partner rings in Discover', () => {
 			page
 		}) => {
 			await page.goto('/');
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			const pane = page.locator('.partner .scroll');
 			// Inside the scroller, so it costs nothing per frame and never resizes it mid-fling.
@@ -793,7 +798,7 @@ test.describe('partner rings in Discover', () => {
 		test('never join the IndieNodes rotation', async ({ page }) => {
 			await page.goto('/');
 			await expectMemberCount(page, 3);
-			await page.getByRole('button', { name: /^Switch ring/ }).click();
+			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			await page.getByRole('button', { name: 'Back to IndieNodes Webring' }).click();
 

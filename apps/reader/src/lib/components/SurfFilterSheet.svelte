@@ -1,54 +1,67 @@
 <script lang="ts">
 	import Sheet from './Sheet.svelte';
+	import { categoryLabel, sites, tagLabel } from '$lib/sites.svelte.js';
 	import type { ExploredFilter } from '$lib/explored.svelte.js';
 
 	/**
-	 * A partner ring's Filter sheet: whom to show by what the reader has explored, and by genre
-	 * where the ring publishes them. It takes the place of the genre chips and the explored
-	 * buttons above the list, which crowded the cards off a phone screen. Each choice applies as it
-	 * is made; Done (or Back, or the backdrop) closes it.
-	 *
-	 * The explored counts live here now, on the choices they describe, instead of a separate line.
+	 * Surf's Filter sheet: category, tag and what the reader has explored. Category is also the
+	 * row at the top of the list, which scrolls away with it; here it stays reachable from anywhere
+	 * in the list. Each choice applies as it is made, as in a partner ring's sheet.
 	 */
 
 	interface Props {
-		ringName: string;
-		show: ExploredFilter;
-		genre: string | null;
-		genres: Array<{ tag: string; count: number }>;
+		/** Tags within the chosen category, most used first. */
+		tags: Array<{ tag: string; count: number }>;
 		counts: { all: number; explored: number; unexplored: number };
-		genreLabel: (tag: string) => string;
-		onshow: (show: ExploredFilter) => void;
-		ongenre: (genre: string | null) => void;
+		oncategory: (category: string | null) => void;
 		onclose: () => void;
 	}
 
-	let { ringName, show, genre, genres, counts, genreLabel, onshow, ongenre, onclose }: Props =
-		$props();
+	let { tags, counts, oncategory, onclose }: Props = $props();
 
 	const SHOW: Array<{ key: ExploredFilter; label: string }> = [
-		{ key: 'all', label: 'Everyone' },
+		{ key: 'all', label: 'Everything' },
 		{ key: 'unexplored', label: 'Not explored yet' },
 		{ key: 'explored', label: 'Explored' }
 	];
 </script>
 
-<Sheet
-	title={`Filter ${ringName}`}
-	{onclose}
-	historyKey="partnerFilter"
-	maxHeight="75vh"
-	class="filter-sheet"
->
+<Sheet title="Filter sites" {onclose} historyKey="surfFilter" maxHeight="75vh" class="filter-sheet">
 	<div class="sheet-list">
-		<h3 class="sheet-sec" id="partner-show">Show</h3>
-		<div role="radiogroup" aria-labelledby="partner-show">
+		<h3 class="sheet-sec" id="surf-category">Category</h3>
+		<div role="radiogroup" aria-labelledby="surf-category">
+			<button
+				class="sheet-row"
+				role="radio"
+				aria-checked={sites.category === null}
+				onclick={() => oncategory(null)}
+			>
+				<span class="sheet-dot" aria-hidden="true"></span>
+				<span class="sheet-name">All sites</span>
+				<small class="sheet-hint">{sites.all.length}</small>
+			</button>
+			{#each sites.categories as entry (entry.key)}
+				<button
+					class="sheet-row"
+					role="radio"
+					aria-checked={sites.category === entry.key}
+					onclick={() => oncategory(entry.key)}
+				>
+					<span class="sheet-dot" aria-hidden="true"></span>
+					<span class="sheet-name">{categoryLabel(entry.key)}</span>
+					<small class="sheet-hint">{entry.count}</small>
+				</button>
+			{/each}
+		</div>
+
+		<h3 class="sheet-sec" id="surf-show">Show</h3>
+		<div role="radiogroup" aria-labelledby="surf-show">
 			{#each SHOW as entry (entry.key)}
 				<button
 					class="sheet-row"
 					role="radio"
-					aria-checked={show === entry.key}
-					onclick={() => onshow(entry.key)}
+					aria-checked={sites.show === entry.key}
+					onclick={() => (sites.show = entry.key)}
 				>
 					<span class="sheet-dot" aria-hidden="true"></span>
 					<span class="sheet-name">{entry.label}</span>
@@ -57,27 +70,27 @@
 			{/each}
 		</div>
 
-		{#if genres.length > 1}
-			<h3 class="sheet-sec" id="partner-genre">Genre</h3>
-			<div role="radiogroup" aria-labelledby="partner-genre">
+		{#if tags.length > 1}
+			<h3 class="sheet-sec" id="surf-tag">Tag</h3>
+			<div role="radiogroup" aria-labelledby="surf-tag">
 				<button
 					class="sheet-row"
 					role="radio"
-					aria-checked={genre === null}
-					onclick={() => ongenre(null)}
+					aria-checked={sites.tag === null}
+					onclick={() => (sites.tag = null)}
 				>
 					<span class="sheet-dot" aria-hidden="true"></span>
-					<span class="sheet-name">All genres</span>
+					<span class="sheet-name">All tags</span>
 				</button>
-				{#each genres as entry (entry.tag)}
+				{#each tags as entry (entry.tag)}
 					<button
 						class="sheet-row"
 						role="radio"
-						aria-checked={genre === entry.tag}
-						onclick={() => ongenre(entry.tag)}
+						aria-checked={sites.tag === entry.tag}
+						onclick={() => (sites.tag = entry.tag)}
 					>
 						<span class="sheet-dot" aria-hidden="true"></span>
-						<span class="sheet-name">{genreLabel(entry.tag)}</span>
+						<span class="sheet-name">{tagLabel(entry.tag)}</span>
 						<small class="sheet-hint">{entry.count}</small>
 					</button>
 				{/each}
@@ -89,6 +102,7 @@
 </Sheet>
 
 <style>
+	/* The partner ring sheet's look (PartnerFilterSheet.svelte), so the two read as one family. */
 	.sheet-list,
 	[role='radiogroup'] {
 		display: flex;

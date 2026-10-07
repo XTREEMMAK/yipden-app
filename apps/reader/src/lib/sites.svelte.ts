@@ -1,6 +1,7 @@
 import seed from './sites/seed.json';
 import { SITE_CATEGORIES, type SiteEntry, type SitesDocument } from './sites/types.js';
 import { validateSites } from './sites/validate.js';
+import type { ExploredFilter } from './explored.svelte.js';
 import { store } from './store/index.js';
 
 /**
@@ -78,6 +79,20 @@ class SitesState {
 		const saved = await store.getSetting<string>('discoverView');
 		if (saved === 'surf' || saved === 'people') this.view = saved;
 	}
+
+	/**
+	 * Surf's own controls, shared by Discover's bar (search and filter live there, so Surf takes no
+	 * room of its own above its cards) and the panel that lists what they choose.
+	 */
+	query = $state('');
+	category = $state<string | null>(null);
+	tag = $state<string | null>(null);
+	show = $state<ExploredFilter>('all');
+	searchOpen = $state(false);
+	filtersOpen = $state(false);
+
+	/** Whether anything in the filter sheet narrows the list, for the filter button's dot. */
+	filtering = $derived(this.category !== null || this.tag !== null || this.show !== 'all');
 
 	setView(view: DiscoverView): void {
 		this.view = view;
