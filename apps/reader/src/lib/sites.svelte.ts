@@ -13,7 +13,7 @@ import { store } from './store/index.js';
  * kept apart from IndieNodes: a site or a forum is a different type from a ring entry, never enters
  * the rotation, and is never a person. See docs/sites-contract.md.
  *
- * Experiment (branch `sites-surf`): each document is a seed bundled with the app. When the real
+ * Each document is, for now, a seed bundled with the app. When the real
  * indexes are published, `load` becomes a fetch modelled on `ring-client`'s `fetchRing`, and
  * nothing else here changes.
  */

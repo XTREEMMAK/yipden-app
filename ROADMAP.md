@@ -656,7 +656,7 @@ Creator types (comics, cosplay, crafts, voice-over, video) are covered by kinds 
 place, plus the ring's `form` deciding what a profile shows first. No separate features per type.
 Comics are the first non-audio type to prove end to end.
 
-## Sites and Surf (experiment, branch `sites-surf`, 2026-10-07)
+## Sites, Surf and Forums (kept; merged into `listen-embeds` 2026-10-07)
 
 A visual index of indie web sites beside the ring, judged on a phone before it is kept. The
 contract is [docs/sites-contract.md](docs/sites-contract.md); the reasoning is in DECISIONS.md.

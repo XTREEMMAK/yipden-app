@@ -4,7 +4,7 @@ What YipDen reads from the sites index: a visual index of indie web sites (shrin
 personal sites, blogs, webrings, resources), published as its own JSON document beside the
 IndieNodes `ring.json` and never mixed into it.
 
-**Status: experiment, branch `sites-surf`.** The pipeline that will publish this (PR submission, a
+**Status: kept** (tried on the `sites-surf` branch, merged 2026-10-07). The pipeline that will publish this (PR submission, a
 GitHub Action, a Playwright capture) does not exist yet. Until it does, the app reads a seed copy
 bundled in `apps/reader/src/lib/sites/seed.json`, with its posters and clips in
 `apps/reader/static/sites/`.

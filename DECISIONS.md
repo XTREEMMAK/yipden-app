@@ -3464,3 +3464,10 @@ An open search still has the whole bar: closing it gives What to discover back.
   height follows its content's measured height with a transition. Not on the first frame (the
   sheet is flying in then), and instantly under reduced motion.
 - **TreeFort**, not "treefor": `treefort.boards.net`. Same ProBoards wall, so the same verdict.
+
+## 2026-10-07 — Sites, Surf and Forums are kept
+
+After four phone builds (40 to 44) the experiment is kept: Surf feels part of the app, the moving
+previews earn their place, and the hero is untouched. `sites-surf` was merged into `listen-embeds`
+as a fast forward. Still to come from the plan: following sites the way forums are followed, search
+across both sides, and the site page with "Made by" from evidence only (ROADMAP.md).

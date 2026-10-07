@@ -8,7 +8,7 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
-- Surf, on the `sites-surf` branch: Discover's ring button becomes "What to discover", offering
+- Surf: Discover's ring button becomes "What to discover", offering
   the rings (people) and Surf (sites). Surf is a list of indie web sites by category (shrines,
   personal sites, blogs, webrings), each with a picture of the page and, for some, a short moving
   preview of it scrolling, which plays only for the card being looked at and never under reduced
