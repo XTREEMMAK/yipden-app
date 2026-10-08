@@ -5,6 +5,8 @@ import type {
 	AddFeedResult,
 	Feed,
 	ForumFollow,
+	SiteFollow,
+	SiteUpdateRecord,
 	ForumTopicRecord,
 	PeaksRecord,
 	Person,
@@ -396,6 +398,76 @@ export class DocStore implements Store {
 			for (const topic of await tx.all<ForumTopicRecord, 'forumTopics'>('forumTopics')) {
 				if ((topic.lastActivityAt ?? topic.firstSeenAt) < cutoff) {
 					await tx.delete('forumTopics', topic.key);
+					removed += 1;
+				}
+			}
+			return removed;
+		});
+	}
+
+	// ---------- followed sites ----------
+
+	async listSiteFollows(): Promise<SiteFollow[]> {
+		const follows = await this.tx<SiteFollow[]>((tx) =>
+			tx.all<SiteFollow, 'siteFollows'>('siteFollows')
+		);
+		return follows.sort((a, b) => a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
+	}
+
+	putSiteFollow(follow: SiteFollow): Promise<void> {
+		return this.tx((tx) => tx.put('siteFollows', follow.id, follow));
+	}
+
+	removeSiteFollow(id: string): Promise<void> {
+		return this.tx(async (tx) => {
+			await tx.delete('siteFollows', id);
+			for (const row of await tx.fields('siteUpdates', { eq: { followId: id } })) {
+				await tx.delete('siteUpdates', row.key as string);
+			}
+		});
+	}
+
+	async listSiteUpdates(): Promise<SiteUpdateRecord[]> {
+		const updates = await this.tx<SiteUpdateRecord[]>((tx) =>
+			tx.all<SiteUpdateRecord, 'siteUpdates'>('siteUpdates')
+		);
+		const when = (update: SiteUpdateRecord) => update.publishedAt ?? update.firstSeenAt;
+		return updates.sort((a, b) => when(b).localeCompare(when(a)) || a.key.localeCompare(b.key));
+	}
+
+	putSiteUpdates(updates: SiteUpdateRecord[]): Promise<void> {
+		if (!updates.length) return Promise.resolve();
+		return this.tx(async (tx) => {
+			for (const update of updates) {
+				const existing = await tx.get<SiteUpdateRecord>('siteUpdates', update.key);
+				await tx.put(
+					'siteUpdates',
+					update.key,
+					existing
+						? {
+								...update,
+								firstSeenAt: existing.firstSeenAt,
+								...(existing.seenAt ? { seenAt: existing.seenAt } : {})
+							}
+						: update
+				);
+			}
+		});
+	}
+
+	markSiteUpdateSeen(key: string, at: string): Promise<void> {
+		return this.tx(async (tx) => {
+			const update = await tx.get<SiteUpdateRecord>('siteUpdates', key);
+			if (update) await tx.put('siteUpdates', key, { ...update, seenAt: at });
+		});
+	}
+
+	pruneSiteUpdates(cutoff: string): Promise<number> {
+		return this.tx(async (tx) => {
+			let removed = 0;
+			for (const update of await tx.all<SiteUpdateRecord, 'siteUpdates'>('siteUpdates')) {
+				if ((update.publishedAt ?? update.firstSeenAt) < cutoff) {
+					await tx.delete('siteUpdates', update.key);
 					removed += 1;
 				}
 			}

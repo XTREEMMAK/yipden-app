@@ -50,6 +50,36 @@ describe('SQLite', () => {
 		const again = new DocStore(new SqlBackend(sqljsDriver(file)));
 		expect((await again.listPeople()).map((entry) => entry.id)).toEqual(['person-lena']);
 	});
+
+	it('upgrades a database from before followed sites, keeping what it holds', async () => {
+		const file: { bytes?: Uint8Array } = {};
+		const driver = sqljsDriver(file);
+		const before = new DocStore(new SqlBackend(driver));
+		await before.follow(person(), [feed()]);
+		// Make it what a phone has from a build before sites could be followed: no such tables, and
+		// the schema one step behind.
+		await driver.exec(
+			'DROP TABLE "siteFollows"; DROP TABLE "siteUpdates"; PRAGMA user_version = 5;'
+		);
+		driver.save();
+
+		const after = new DocStore(new SqlBackend(sqljsDriver(file)));
+		expect((await after.listPeople()).map((entry) => entry.id)).toEqual(['person-lena']);
+		expect(await after.listSiteFollows()).toEqual([]);
+		await after.putSiteFollow({
+			id: 'https://a.example/',
+			siteUrl: 'https://a.example/',
+			feedUrl: 'https://a.example/feed.xml',
+			title: 'A',
+			followedAt: '2026-10-08T00:00:00.000Z',
+			refreshHours: 6,
+			status: 'ok',
+			failures: 0
+		});
+		expect((await after.listSiteFollows()).map((entry) => entry.id)).toEqual([
+			'https://a.example/'
+		]);
+	});
 });
 
 describe('encrypted IndexedDB', () => {

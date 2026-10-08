@@ -5,7 +5,14 @@ import { stableYipId } from '@yipden/feeds';
 import { createBackup, parseBackup, restoreBackup } from './backup.js';
 import { testStore } from './store/testing/memory.js';
 import { reference } from './store/testing/fixtures.js';
-import type { CreatorRecord, Feed, Person, ShelfItem, StoredYip } from './store/types.js';
+import type {
+	CreatorRecord,
+	Feed,
+	Person,
+	ShelfItem,
+	SiteFollow,
+	StoredYip
+} from './store/types.js';
 
 const PERSON: Person = {
 	id: 'person-lena',
@@ -376,3 +383,72 @@ describe('places in the backup', () => {
 		expect(() => parseBackup(JSON.stringify(backup))).toThrow('not a supported YipDen backup');
 	});
 });
+
+describe('followed sites in the backup', () => {
+	const SITE: SiteFollow = {
+		id: 'https://medjed.example/',
+		siteUrl: 'https://medjed.example/',
+		feedUrl: 'https://medjed.example/feed.xml',
+		title: 'Medjed',
+		followedAt: '2026-10-08T00:00:00.000Z',
+		refreshHours: 12,
+		lastCheckedAt: '2026-10-08T06:00:00.000Z',
+		cursor: 'etag-1',
+		status: 'gone',
+		failures: 3
+	};
+
+	it('travel through export and restore without this phone’s check state', async () => {
+		const source = testStore();
+		await source.init();
+		await source.putSiteFollow(SITE);
+		const preview = parseBackup(JSON.stringify(await createBackup(source)));
+		expect(preview.sites).toBe(1);
+		const target = testStore();
+		const report = await restoreBackup(preview.backup, target);
+		expect(report.sitesAdded).toBe(1);
+		const [restored] = await target.listSiteFollows();
+		expect(restored).toMatchObject({
+			title: 'Medjed',
+			refreshHours: 12,
+			status: 'ok',
+			failures: 0
+		});
+		expect(restored?.cursor).toBeUndefined();
+		expect(restored?.lastCheckedAt).toBeUndefined();
+	});
+
+	it('keeps the settings of one already followed here', async () => {
+		const target = testStore();
+		await target.init();
+		await target.putSiteFollow({ ...SITE, refreshHours: 24 });
+		const source = testStore();
+		await source.init();
+		await source.putSiteFollow(SITE);
+		const report = await restoreBackup(
+			parseBackup(JSON.stringify(await createBackup(source))).backup,
+			target
+		);
+		expect(report.sitesAdded).toBe(0);
+		expect((await target.listSiteFollows())[0]?.refreshHours).toBe(24);
+	});
+
+	it('still reads a backup made before sites, and refuses an unsafe feed address', () => {
+		expect(parseBackup(JSON.stringify({ ...emptyBackup() })).sites).toBe(0);
+		const bad = { ...emptyBackup(), sites: [{ ...SITE, feedUrl: 'javascript:alert(1)' }] };
+		expect(() => parseBackup(JSON.stringify(bad))).toThrow();
+	});
+});
+
+function emptyBackup() {
+	return {
+		format: 'yipden-backup',
+		version: 1,
+		exportedAt: '2026-10-08T00:00:00.000Z',
+		people: [],
+		feeds: [],
+		yips: [],
+		settings: {},
+		appearance: { theme: 'system', skin: 'original' }
+	};
+}

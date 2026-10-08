@@ -6,7 +6,13 @@ import { EncryptedIdbBackend } from './encryptedIdbBackend.js';
 import { SqlBackend } from './sqlBackend.js';
 import { sqljsDriver } from './testing/sqljs.js';
 import { feed, person, reference, shelfItem, yip } from './testing/fixtures.js';
-import type { ForumFollow, ForumTopicRecord, Store } from './types.js';
+import type {
+	ForumFollow,
+	ForumTopicRecord,
+	SiteFollow,
+	SiteUpdateRecord,
+	Store
+} from './types.js';
 
 /**
  * What every `Store` must do, run against both backends: SQLite as on the phone, and encrypted
@@ -382,6 +388,86 @@ describe.each(implementations)('%s', (_name, make) => {
 			expect(await store.listReferences()).toHaveLength(1);
 		});
 	});
+	describe('followed sites', () => {
+		const follow = (overrides: Partial<SiteFollow> = {}): SiteFollow => ({
+			id: 'https://medjed.example/',
+			siteUrl: 'https://medjed.example/',
+			feedUrl: 'https://medjed.example/rss.xml',
+			title: 'Medjed',
+			followedAt: '2026-10-08T00:00:00.000Z',
+			refreshHours: 6,
+			status: 'ok',
+			failures: 0,
+			...overrides
+		});
+		const update = (overrides: Partial<SiteUpdateRecord> = {}): SiteUpdateRecord => ({
+			key: 'https://medjed.example/#a',
+			followId: 'https://medjed.example/',
+			siteUrl: 'https://medjed.example/',
+			title: 'A post',
+			url: 'https://medjed.example/a',
+			summary: 'Words.',
+			publishedAt: '2026-10-08T10:00:00.000Z',
+			firstSeenAt: '2026-10-08T11:00:00.000Z',
+			...overrides
+		});
+
+		it('keeps follows, and takes a follow’s posts away with it', async () => {
+			await store.putSiteFollow(follow());
+			await store.putSiteFollow(
+				follow({ id: 'https://other.example/', siteUrl: 'https://other.example/', title: 'Other' })
+			);
+			await store.putSiteUpdates([
+				update(),
+				update({ key: 'https://other.example/#b', followId: 'https://other.example/' })
+			]);
+			await store.removeSiteFollow('https://medjed.example/');
+			expect((await store.listSiteFollows()).map((entry) => entry.id)).toEqual([
+				'https://other.example/'
+			]);
+			expect((await store.listSiteUpdates()).map((entry) => entry.key)).toEqual([
+				'https://other.example/#b'
+			]);
+		});
+
+		it('lists posts newest first, an undated one by when it was first seen', async () => {
+			await store.putSiteUpdates([
+				update({ key: 'old', publishedAt: '2026-10-01T00:00:00.000Z' }),
+				update({ key: 'new', publishedAt: '2026-10-08T00:00:00.000Z' }),
+				update({ key: 'undated', publishedAt: null, firstSeenAt: '2026-10-05T00:00:00.000Z' })
+			]);
+			expect((await store.listSiteUpdates()).map((entry) => entry.key)).toEqual([
+				'new',
+				'undated',
+				'old'
+			]);
+		});
+
+		it('keeps whether a post was opened when it comes back in a later check', async () => {
+			await store.putSiteUpdates([update()]);
+			await store.markSiteUpdateSeen('https://medjed.example/#a', '2026-10-08T12:00:00.000Z');
+			await store.putSiteUpdates([
+				update({ summary: 'Edited.', firstSeenAt: '2026-10-09T00:00:00.000Z' })
+			]);
+			const [stored] = await store.listSiteUpdates();
+			expect(stored).toMatchObject({
+				summary: 'Edited.',
+				firstSeenAt: '2026-10-08T11:00:00.000Z',
+				seenAt: '2026-10-08T12:00:00.000Z'
+			});
+		});
+
+		it('drops posts older than a date, by their own date or when first seen', async () => {
+			await store.putSiteUpdates([
+				update({ key: 'a', publishedAt: '2026-09-01T00:00:00.000Z' }),
+				update({ key: 'b', publishedAt: null, firstSeenAt: '2026-09-02T00:00:00.000Z' }),
+				update({ key: 'c', publishedAt: '2026-10-07T00:00:00.000Z' })
+			]);
+			expect(await store.pruneSiteUpdates('2026-10-01T00:00:00.000Z')).toBe(2);
+			expect((await store.listSiteUpdates()).map((entry) => entry.key)).toEqual(['c']);
+		});
+	});
+
 	describe('forums', () => {
 		const follow = (overrides: Partial<ForumFollow> = {}): ForumFollow => ({
 			id: 'https://forum.example',

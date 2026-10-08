@@ -3641,3 +3641,16 @@ app's buttons and the car's, and never said it ended. Approved by the maintainer
   - **To find what is left:** the debug frame meter now also reports Feeds and You, and three new
     debug switches each remove one suspect (glass on video posts, drawing cards on arrival in
     Feeds, Library pictures).
+
+## 2026-10-08: Following a site is a follow of its own, not a person's source
+
+A site is a place, so following one copies the forums' model and not the people's: its own store
+collections (`siteFollows`, `siteUpdates`; SQL schema 6, IndexedDB 6), its own digest under Sites in
+Feeds, and no person, no yips, no ring involvement. A site's posts are transient like a forum's
+topics: they are kept under the reader's age limit for posts, a check keeps the newest 30, and
+unfollowing removes them. Only a feed makes a site followable, so nothing is scraped; every check
+goes through the same robots-honouring fetcher as any feed, and a site that says no is marked
+`blocked` and left alone. A post behind a content warning keeps no summary. The backup carries the
+follow and how often it is checked, never its cursor, last check, or posts.
+Considered and left: turning a followed site into a person automatically. That is the conflict
+this split exists to avoid (a person owning a site is evidence, not a fact YipDen may assume).

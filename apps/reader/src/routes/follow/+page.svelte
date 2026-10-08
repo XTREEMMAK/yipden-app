@@ -15,6 +15,7 @@
 	} from '@yipden/feeds';
 	import ForumPicker, { type ForumChoice } from '$components/ForumPicker.svelte';
 	import { forums, namesOf } from '$lib/forums.svelte.js';
+	import { siteFollows } from '$lib/siteFollows.svelte.js';
 	import { onMount } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import Switch from '$components/Switch.svelte';
@@ -33,14 +34,30 @@
 	 * still a list the reader edits, never a list the app acts on by itself.
 	 */
 
-	type Phase = 'idle' | 'looking' | 'results' | 'followed' | 'forum' | 'forum-followed';
+	type Phase =
+		| 'idle'
+		| 'looking'
+		| 'results'
+		| 'followed'
+		| 'forum'
+		| 'forum-followed'
+		| 'site'
+		| 'site-followed';
 
 	/**
 	 * Who or what is being followed. People and forums are different intents with different words,
 	 * so each has its own heading and field (phone feedback, 2026-10-06). A forum link pasted under
 	 * People is still recognized; that is a kindness, not the way in.
 	 */
-	let mode = $state<'people' | 'forums'>('people');
+	let mode = $state<'people' | 'sites' | 'forums'>('people');
+	/** A site's address read for its feeds, and the one the reader picked to follow it by. */
+	let siteFound = $state<{
+		title: string;
+		siteUrl: string;
+		iconUrl: string | null;
+		feeds: DiscoveredFeed[];
+	} | null>(null);
+	let siteFeedUrl = $state<string | null>(null);
 
 	let phase = $state<Phase>('idle');
 	let input = $state('');
@@ -71,7 +88,8 @@
 			// Arrived from a link (a partner ring's "Find feeds"): fill the address in and look it
 			// up, which checks the ring's own known feeds before it touches the site.
 			const params = new URL(location.href).searchParams;
-			if (params.get('mode') === 'forums') mode = 'forums';
+			const wanted = params.get('mode');
+			if (wanted === 'forums' || wanted === 'sites') mode = wanted;
 			const prefill = params.get('url')?.trim();
 			if (prefill && phase === 'idle') {
 				input = prefill;
@@ -207,12 +225,64 @@
 		}
 	}
 
+	/** A site is followed by one of its feeds: read its address, then let the reader pick which. */
+	async function lookupSite(url: string) {
+		error = null;
+		phase = 'looking';
+		siteFound = null;
+		try {
+			const found = await discoverWithDeadline(url);
+			siteFound = {
+				title: found.title ?? hostOf(found.canonicalUrl),
+				siteUrl: found.canonicalUrl,
+				iconUrl: found.iconUrl ?? null,
+				feeds: found.feeds
+			};
+			// The first feed found is the site's own main one; the reader can pick another.
+			siteFeedUrl = found.feeds[0]?.url ?? null;
+			phase = 'site';
+		} catch (cause) {
+			phase = 'idle';
+			error =
+				cause instanceof DiscoveryTimeoutError
+					? `Finding feeds on ${hostOf(url)} took too long. Try again when the site is responding.`
+					: `Could not read ${hostOf(url)}. Check the address, or try again when you are online.`;
+		}
+	}
+
+	async function followSite() {
+		if (!siteFound || !siteFeedUrl || busy) return;
+		busy = true;
+		try {
+			await siteFollows.follow({
+				siteUrl: siteFound.siteUrl,
+				feedUrl: siteFeedUrl,
+				title: siteFound.title,
+				iconUrl: siteFound.iconUrl
+			});
+			phase = 'site-followed';
+		} catch {
+			error = 'Could not save that follow. There may be no room left on this phone.';
+		} finally {
+			busy = false;
+		}
+	}
+
 	async function find(event: SubmitEvent) {
 		event.preventDefault();
 		await runFind();
 	}
 
 	async function runFind() {
+		if (mode === 'sites') {
+			const url = asUrl(input);
+			if (!url) {
+				error = 'Paste the site’s address first.';
+				return;
+			}
+			await lookupSite(url);
+			return;
+		}
 		if (mode === 'forums') {
 			const url = asUrl(input);
 			if (!url) {
@@ -281,7 +351,7 @@
 		}
 	}
 
-	function setMode(next: 'people' | 'forums') {
+	function setMode(next: 'people' | 'sites' | 'forums') {
 		if (mode === next) return;
 		mode = next;
 		again();
@@ -292,6 +362,8 @@
 		forumFound = null;
 		forumMembersOnly = null;
 		forumFollowed = null;
+		siteFound = null;
+		siteFeedUrl = null;
 		phase = 'idle';
 		result = null;
 		selectedRing = null;
@@ -317,6 +389,7 @@
 			label="What to follow"
 			options={[
 				{ value: 'people', label: 'People' },
+				{ value: 'sites', label: 'Sites' },
 				{ value: 'forums', label: 'Forums' }
 			]}
 			value={mode}
@@ -329,6 +402,12 @@
 				Type a creator name or paste any website or profile. YipDen checks the IndieNodes ring
 				first, then reads the web only when it needs to.
 			</p>
+		{:else if mode === 'sites'}
+			<h2 class="screen-title">Follow a <em>site</em>, and read what it posts.</h2>
+			<p class="lede">
+				Paste a site’s address. If it has a feed, its new posts arrive in Feeds under Sites. A site
+				with no feed can still be saved from Surf.
+			</p>
 		{:else}
 			<h2 class="screen-title">Follow a <em>forum</em>, whole or in part.</h2>
 			<p class="lede">
@@ -340,7 +419,11 @@
 
 	<form class="find" onsubmit={find} novalidate in:fly={flyIn({ delay: 40 })}>
 		<label for="followUrl"
-			>{mode === 'people' ? 'Creator, website, or profile' : 'Forum link'}</label
+			>{mode === 'people'
+				? 'Creator, website, or profile'
+				: mode === 'sites'
+					? 'Site address'
+					: 'Forum link'}</label
 		>
 		<div class="field">
 			<input
@@ -351,7 +434,11 @@
 				autocomplete="off"
 				autocapitalize="off"
 				spellcheck="false"
-				placeholder={mode === 'people' ? 'Lena or lenaofori.com' : 'forum.example.com'}
+				placeholder={mode === 'people'
+					? 'Lena or lenaofori.com'
+					: mode === 'sites'
+						? 'example.neocities.org'
+						: 'forum.example.com'}
 				bind:value={input}
 				role="combobox"
 				aria-autocomplete="list"
@@ -361,7 +448,13 @@
 				aria-invalid={error ? 'true' : undefined}
 			/>
 			<button class="btn-brand" type="submit" disabled={phase === 'looking'}>
-				{phase === 'looking' ? 'Looking…' : mode === 'people' ? 'Find feeds' : 'Find forum'}
+				{phase === 'looking'
+					? 'Looking…'
+					: mode === 'people'
+						? 'Find feeds'
+						: mode === 'sites'
+							? 'Find site'
+							: 'Find forum'}
 			</button>
 		</div>
 		{#if mode === 'people' && phase === 'idle' && ringMatches.length > 0}
@@ -477,6 +570,66 @@
 			<p class="fine">
 				This follow stays on your phone. Nothing is posted anywhere, and {personName} is not notified.
 			</p>
+		{:else if phase === 'site' && siteFound}
+			<div class="person" in:fly={flyIn()}>
+				<span
+					class="av"
+					style:background-image={siteFound.iconUrl ? `url(${siteFound.iconUrl})` : ''}
+				></span>
+				<span class="person-copy">
+					<b>{siteFound.title}</b>
+					<small>
+						{siteFound.feeds.length === 0
+							? 'No feed found on that page.'
+							: `Found ${siteFound.feeds.length} ${siteFound.feeds.length === 1 ? 'feed' : 'feeds'}`}
+					</small>
+				</span>
+			</div>
+			{#if siteFound.feeds.length === 0}
+				<p class="fine">
+					Some sites do not publish a feed. If you know its feed address, paste that instead.
+				</p>
+			{:else}
+				<fieldset class="found" in:fly={flyIn({ delay: 40 })}>
+					<legend class="eyebrow">Follow it by</legend>
+					{#each siteFound.feeds as feed, index (feed.url)}
+						<label class="frow" for="site-feed-{index}">
+							<span class="ft">
+								<b>{labelFor(feed)}</b>
+								<code>{shortUrl(feed.url)}</code>
+							</span>
+							<input
+								id="site-feed-{index}"
+								type="radio"
+								name="siteFeed"
+								value={feed.url}
+								bind:group={siteFeedUrl}
+							/>
+						</label>
+					{/each}
+				</fieldset>
+				<button class="btn-brand wide" type="button" onclick={followSite} disabled={busy}>
+					Follow {siteFound.title}
+				</button>
+			{/if}
+			<p class="fine">This follow stays on your phone. Nothing is posted anywhere.</p>
+		{:else if phase === 'site-followed' && siteFound}
+			<div class="person done" in:fly={flyIn()}>
+				<span
+					class="av"
+					style:background-image={siteFound.iconUrl ? `url(${siteFound.iconUrl})` : ''}
+				></span>
+				<span class="person-copy">
+					<b>Following {siteFound.title}</b>
+					<small>Saved on this phone</small>
+				</span>
+			</div>
+			<div class="row-btns" in:fly={flyIn({ delay: 40 })}>
+				<button class="btn-quiet" type="button" onclick={() => goto('/feeds?pane=sites')}>
+					See its posts in Feeds
+				</button>
+				<button class="btn-quiet" type="button" onclick={again}>Find something else</button>
+			</div>
 		{:else if phase === 'forum' && forumMembersOnly}
 			<div class="person" in:fly={flyIn()}>
 				<span

@@ -306,6 +306,51 @@ export interface ForumTopicRecord {
 	seenAt?: string;
 }
 
+/**
+ * A followed site: a place with a feed of its own, read like a forum is, as a digest of its newest
+ * posts rather than as a person's yips. Sites stand on their own: never a person's source, never
+ * in the ring. A site with no feed cannot be followed, only saved, liked and visited.
+ */
+export interface SiteFollow {
+	/** The site's address as it was followed. Its identity. */
+	id: string;
+	siteUrl: string;
+	/** The feed that is read for it. */
+	feedUrl: string;
+	title: string;
+	iconUrl?: string;
+	followedAt: string;
+	/** How often it is checked by itself. A pull to refresh on Sites checks it regardless. */
+	refreshHours: number;
+	lastCheckedAt?: string;
+	/** What the last check returned for the next one, unread here. */
+	cursor?: string;
+	status: 'ok' | 'gone' | 'blocked' | 'not-a-feed' | 'unreachable';
+	failures: number;
+}
+
+/**
+ * One post in the sites digest, with whether the reader has opened it. Transient: dropped, with
+ * its read state, once it is older than the reader's age limit for posts.
+ */
+export interface SiteUpdateRecord {
+	/** `followId#<the item's stable id>`. */
+	key: string;
+	/** The follow whose check brought it in, so unfollowing takes it away. */
+	followId: string;
+	siteUrl: string;
+	title: string;
+	url: string;
+	/** A line or two of the post as plain text; may be empty. */
+	summary: string;
+	/** ISO. Null when the feed gave no usable date. */
+	publishedAt: string | null;
+	/** When YipDen first saw it. */
+	firstSeenAt: string;
+	/** When the reader opened it; absent until they do. */
+	seenAt?: string;
+}
+
 export type SettingKey =
 	| 'lastRefreshAt'
 	| 'includeExplicit'
@@ -420,6 +465,18 @@ export interface Store {
 	markForumTopicSeen(key: string, postNumber: number, at: string): Promise<void>;
 	/** Drop topics quiet since before `cutoff` (ISO), and what was seen of them. */
 	pruneForumTopics(cutoff: string): Promise<number>;
+
+	listSiteFollows(): Promise<SiteFollow[]>;
+	putSiteFollow(follow: SiteFollow): Promise<void>;
+	/** The follow and the posts its checks brought in. */
+	removeSiteFollow(id: string): Promise<void>;
+	/** Newest first; a post with no date sorts by when it was first seen. */
+	listSiteUpdates(): Promise<SiteUpdateRecord[]>;
+	/** A post seen again keeps whether the reader opened it, and when YipDen first saw it. */
+	putSiteUpdates(updates: SiteUpdateRecord[]): Promise<void>;
+	markSiteUpdateSeen(key: string, at: string): Promise<void>;
+	/** Drop posts older than `cutoff` (ISO), by their date or, with none, when first seen. */
+	pruneSiteUpdates(cutoff: string): Promise<number>;
 }
 
 export type ReferenceCheck = Pick<Reference, 'status' | 'checkedAt'> &

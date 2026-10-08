@@ -150,7 +150,7 @@
 			theme.hydrate();
 			const skipped = report.peopleSkipped + report.feedsSkipped;
 			toast.show(
-				`Restored ${report.peopleAdded} people, ${report.feedsAdded} sources, ${report.yipsAdded} cached yips${report.shelfAdded ? `, ${report.shelfAdded} Shelf links` : ''}${report.referencesAdded ? `, ${report.referencesAdded} things you kept from creators’ pages` : ''}${report.forumsAdded ? `, ${report.forumsAdded} forum follows` : ''}${skipped ? `; skipped ${skipped} conflicts` : ''}.`
+				`Restored ${report.peopleAdded} people, ${report.feedsAdded} sources, ${report.yipsAdded} cached yips${report.shelfAdded ? `, ${report.shelfAdded} Shelf links` : ''}${report.referencesAdded ? `, ${report.referencesAdded} things you kept from creators’ pages` : ''}${report.forumsAdded ? `, ${report.forumsAdded} forum follows` : ''}${report.sitesAdded ? `, ${report.sitesAdded} site follows` : ''}${skipped ? `; skipped ${skipped} conflicts` : ''}.`
 			);
 		} catch (cause) {
 			toast.show(

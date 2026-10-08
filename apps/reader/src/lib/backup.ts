@@ -16,6 +16,7 @@ import type {
 	ForumFollow,
 	Person,
 	SettingKey,
+	SiteFollow,
 	ShelfItem,
 	Store,
 	StoredYip,
@@ -69,6 +70,8 @@ export interface YipDenBackup {
 	references?: Reference[];
 	/** Followed forums, without their topics: those are transient, and refetched. Additive. */
 	forums?: ForumFollow[];
+	/** Followed sites, without their posts: those are transient, and refetched. Additive. */
+	sites?: SiteFollow[];
 	/** Creators known by several addresses, and homes the reader chose. Additive. */
 	creators?: CreatorRecord[];
 	/** Where creators are, with the evidence for each, and what the reader said is not theirs. */
@@ -88,6 +91,7 @@ export interface BackupPreview {
 	creators: number;
 	places: number;
 	forums: number;
+	sites: number;
 }
 
 export interface RestoreReport {
@@ -104,6 +108,7 @@ export interface RestoreReport {
 	placesAdded: number;
 	referencesAdded: number;
 	forumsAdded: number;
+	sitesAdded: number;
 	settingsRestored: number;
 }
 
@@ -243,6 +248,29 @@ function validForumFollow(value: unknown): value is ForumFollow {
 		value.refreshHours >= 1 &&
 		value.refreshHours <= 168
 	);
+}
+
+function validSiteFollow(value: unknown): value is SiteFollow {
+	return (
+		record(value) &&
+		text(value.id, 4_096) &&
+		https(value.siteUrl) &&
+		https(value.feedUrl) &&
+		text(value.title, 300) &&
+		optionalHttps(value.iconUrl) &&
+		text(value.followedAt, 100) &&
+		typeof value.refreshHours === 'number' &&
+		value.refreshHours >= 1 &&
+		value.refreshHours <= 168
+	);
+}
+
+/** What is followed of a site and how often; the check state (cursor, status) is this phone's. */
+function portableSite(follow: SiteFollow): SiteFollow {
+	const copy = { ...follow };
+	delete copy.cursor;
+	delete copy.lastCheckedAt;
+	return { ...copy, status: 'ok', failures: 0 };
 }
 
 /** What is followed of a forum and how often; the check state (cursor, status) is this phone's. */
@@ -463,6 +491,7 @@ export async function createBackup(store: Store = defaultStore): Promise<YipDenB
 		verdicts,
 		references,
 		forumFollows,
+		siteFollowRecords,
 		creatorRecords,
 		placeRecords,
 		settingValues
@@ -474,6 +503,7 @@ export async function createBackup(store: Store = defaultStore): Promise<YipDenB
 		store.listVerdicts(),
 		store.listReferences(),
 		store.listForumFollows(),
+		store.listSiteFollows(),
 		store.listCreators(),
 		store.listPlaces(),
 		Promise.all(SETTING_KEYS.map((key) => store.getSetting<unknown>(key)))
@@ -495,6 +525,7 @@ export async function createBackup(store: Store = defaultStore): Promise<YipDenB
 		references: references.map(exportable),
 		// What is followed and how often; the check state (cursor, status) is this phone's own.
 		forums: forumFollows.map(portableForum),
+		sites: siteFollowRecords.map(portableSite),
 		creators: creatorRecords,
 		places: placeRecords,
 		settings,
@@ -539,6 +570,10 @@ export function parseBackup(source: string): BackupPreview {
 			(!Array.isArray(value.forums) ||
 				value.forums.length > 1_000 ||
 				!value.forums.every(validForumFollow))) ||
+		(value.sites !== undefined &&
+			(!Array.isArray(value.sites) ||
+				value.sites.length > 1_000 ||
+				!value.sites.every(validSiteFollow))) ||
 		(value.places !== undefined &&
 			(!Array.isArray(value.places) ||
 				value.places.length > 50_000 ||
@@ -568,6 +603,7 @@ export function parseBackup(source: string): BackupPreview {
 		verdicts: backup.verdicts?.length ?? 0,
 		references: incomingReferences(backup).length,
 		forums: backup.forums?.length ?? 0,
+		sites: backup.sites?.length ?? 0,
 		creators: backup.creators?.length ?? 0,
 		places: backup.places?.length ?? 0
 	};
@@ -609,6 +645,7 @@ export async function restoreBackup(
 		placesAdded: 0,
 		referencesAdded: 0,
 		forumsAdded: 0,
+		sitesAdded: 0,
 		settingsRestored: 0
 	};
 
@@ -730,6 +767,15 @@ export async function restoreBackup(
 		await store.putForumFollow({ ...follow, status: 'ok', failures: 0 });
 		followedForums.add(follow.id);
 		report.forumsAdded += 1;
+	}
+
+	// Sites merge the same way: one already followed here keeps its own settings.
+	const followedSites = new Set((await store.listSiteFollows()).map((follow) => follow.id));
+	for (const follow of backup.sites ?? []) {
+		if (followedSites.has(follow.id)) continue;
+		await store.putSiteFollow({ ...follow, status: 'ok', failures: 0 });
+		followedSites.add(follow.id);
+		report.sitesAdded += 1;
 	}
 
 	for (const key of SETTING_KEYS) {

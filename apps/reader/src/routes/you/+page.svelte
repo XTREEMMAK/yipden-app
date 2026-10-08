@@ -36,6 +36,7 @@
 	import { explored } from '$lib/explored.svelte.js';
 	import { page } from '$app/state';
 	import { forums } from '$lib/forums.svelte.js';
+	import { siteFollows } from '$lib/siteFollows.svelte.js';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 
 	/**
@@ -73,6 +74,7 @@
 		void you.load();
 		void shelf.load();
 		void forums.load();
+		void siteFollows.load();
 		// Their own picks come from the ring; a cached ring paints at once, as in Discover.
 		if (!ring.all.length) void ring.load();
 	});
@@ -643,6 +645,17 @@
 						{/each}
 					{/if}
 				</div>
+				<a class="forums-link" href="/you/sites">
+					<span class="tt">
+						<b>Sites</b>
+						<small>
+							{siteFollows.follows.length
+								? `${siteFollows.follows.length} followed · ${siteFollows.activeCount} new ${siteFollows.activeCount === 1 ? 'post' : 'posts'}`
+								: 'Follow a site by its feed'}
+						</small>
+					</span>
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+				</a>
 				<!-- Forums are not people, so they are a screen of their own, one tap from here. -->
 				<a class="forums-link" href="/you/forums">
 					<span class="tt">

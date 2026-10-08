@@ -668,8 +668,12 @@ contract is [docs/sites-contract.md](docs/sites-contract.md); the reasoning is i
    (32-Bit Cafe followable; MelonLand and TreeFort visit only, see DECISIONS.md).
    3a. **Feeds (done 2026-10-07, to see on a phone):** a shared video's title on a frosted band, and
    the swap back to the post starting as promptly as the swap to the video.
-3. **Following sites, the way forums are followed.** People | Sites | Forums in Follow and Feeds;
-   Forums may fold into Sites later.
+3. **Following sites, the way forums are followed (built 2026-10-08, to see on a phone).**
+   People | Sites | Forums in Follow and Feeds; Forums may fold into Sites later. A site is
+   followed by its feed (Follow's Sites side finds it; a Surf card that lists a feed has a Follow
+   button), checked at its own pace, read as a newest-first digest under Sites, managed at
+   You > Sites, and travels in the backup. A site with no feed can still be saved and visited.
+   Left for later: a hand-pasted feed address in Sites mode, and a "caught up" push.
 4. **Search across both sides, and a site page with "Made by" from evidence only.**
 5. **Release blocker:** Surf's bundled seed posters and clips (`static/sites/`) must not ship in a
    release: they were temporary seeds. Surf needs its own opt-in procedure for owners

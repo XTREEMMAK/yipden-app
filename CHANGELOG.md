@@ -8,6 +8,9 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- Follow a site by its feed. Follow has a Sites side, a Surf card that lists a feed has a Follow
+  button, and the new posts arrive in Feeds under Sites. Sites are managed in You and are in the
+  backup.
 - Bandcamp tracks play with the app's own controls on Android: play, pause, seek, the car's
   buttons, and continuous play into and out of them.
 - Like and Not for me in the player. Next on a Bandcamp track with nothing after it ends the queue

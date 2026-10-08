@@ -9,6 +9,7 @@
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
 	import { verdicts } from '$lib/verdicts.svelte.js';
 	import { forums } from '$lib/forums.svelte.js';
+	import { siteFollows } from '$lib/siteFollows.svelte.js';
 	import { categoryLabel, tagLabel, type IndexState } from '$lib/sites.svelte.js';
 	import IndexFilterSheet from './IndexFilterSheet.svelte';
 	import SiteCard from './SiteCard.svelte';
@@ -185,6 +186,7 @@
 		void creatorNotes.load();
 		// A forum's card says whether it is already followed.
 		void forums.load();
+		void siteFollows.load();
 		void explored.load().then(async () => {
 			const view = explored.view(index.viewId);
 			index.query = view.query;

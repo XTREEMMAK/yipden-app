@@ -37,7 +37,7 @@ const column = (field: string) => field.replace(/[A-Z]/g, (letter) => `_${letter
 const table = (collection: Collection) => `"${collection}"`;
 
 /** Bump with a new step in `migrations`; never edit a step that has shipped. */
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 /** One collection's table, with a column and an index for each of its indexed fields. */
 function tableSql(collection: Collection): string {
@@ -65,7 +65,9 @@ const migrations: Array<() => string> = [
 	// 4: creators known by more than one address (the Creator Database, step 2).
 	() => tableSql('creators'),
 	// 5: where creators are, with how sure that is (the Creator Database, step 3).
-	() => tableSql('places')
+	() => tableSql('places'),
+	// 6: followed sites and their posts (Sites, following, 2026-10-08).
+	() => [tableSql('siteFollows'), tableSql('siteUpdates')].join('\n')
 ];
 
 export class SqlBackend implements RecordBackend {

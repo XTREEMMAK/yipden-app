@@ -3,6 +3,7 @@
 	import { explored } from '$lib/explored.svelte.js';
 	import { shelf } from '$lib/shelf.svelte.js';
 	import { forums } from '$lib/forums.svelte.js';
+	import { siteFollows } from '$lib/siteFollows.svelte.js';
 	import { goto } from '$app/navigation';
 	import { remoteThumb, saveSite, siteLayout, visitSite } from '$lib/siteActions.js';
 	import { toast } from '$lib/toast.svelte.js';
@@ -52,6 +53,20 @@
 
 	function followForum() {
 		void goto(`/follow?mode=forums&url=${encodeURIComponent(entry.url)}`);
+	}
+
+	/** A site that lists a feed is followed by it, in one tap; one without cannot be, only saved. */
+	let siteFeed = $derived(isForum ? undefined : entry.feeds?.[0]);
+	let siteFollowed = $derived(siteFeed !== undefined && siteFollows.isFollowing(entry.url));
+
+	async function followSite() {
+		if (!siteFeed) return;
+		await siteFollows.follow({
+			siteUrl: entry.url,
+			feedUrl: siteFeed.url,
+			title: entry.title
+		});
+		toast.show(`Following ${entry.title}. Its posts arrive in Feeds, under Sites.`);
 	}
 
 	const visit = () => visitSite(entry);
@@ -188,6 +203,20 @@
 					>
 				{:else}
 					<button class="secondary" onclick={followForum} aria-label={`Follow ${entry.title}`}>
+						<svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"
+							><path d="M12 5v14M5 12h14" /></svg
+						>
+						Follow
+					</button>
+				{/if}
+			{/if}
+			{#if siteFeed}
+				{#if siteFollowed}
+					<a class="secondary" href="/you/sites" aria-label={`Following ${entry.title}: manage`}
+						>Following</a
+					>
+				{:else}
+					<button class="secondary" onclick={followSite} aria-label={`Follow ${entry.title}`}>
 						<svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"
 							><path d="M12 5v14M5 12h14" /></svg
 						>

@@ -24,6 +24,8 @@
 	import FeedsFilterSheet from '$components/FeedsFilterSheet.svelte';
 	import ForumTopicCard from '$components/ForumTopicCard.svelte';
 	import { forums } from '$lib/forums.svelte.js';
+	import SiteUpdateCard from '$components/SiteUpdateCard.svelte';
+	import { siteFollows } from '$lib/siteFollows.svelte.js';
 	import { page } from '$app/state';
 
 	/**
@@ -42,24 +44,30 @@
 	}
 
 	/**
-	 * Feeds reads two kinds of source: people, through the four pills, and forums, as one digest
-	 * of topics. A switch at the top chooses between them, so the pills stay four and forum topics
-	 * never mix into the people's panes: a forum is a place, not a person (decided 2026-10-05).
+	 * Feeds reads three kinds of source: people, through the four pills, and sites and forums, each
+	 * as one digest of posts or topics. A switch at the top chooses between them, so the pills stay
+	 * four and a place's posts never mix into the people's panes: a site or a forum is a place, not
+	 * a person (decided 2026-10-05).
 	 */
-	let onForums = $state(false);
+	type Source = 'people' | 'sites' | 'forums';
+	let source = $state<Source>('people');
+	let onForums = $derived(source === 'forums');
+	let onSites = $derived(source === 'sites');
+	let onPlaces = $derived(source !== 'people');
 	/** The one person Feeds is narrowed to, whose name then opens their profile. */
 	let scopedPerson = $derived(
 		feeds.scope.kind === 'person' ? (feeds.people.get(feeds.scope.id) ?? null) : null
 	);
 	let filterIndex = $derived(
-		onForums
-			? FEEDS_FILTERS.length
-			: FEEDS_FILTERS.findIndex((filter) => filter.key === feeds.filter)
+		source === 'people'
+			? FEEDS_FILTERS.findIndex((filter) => filter.key === feeds.filter)
+			: FEEDS_FILTERS.length + (source === 'forums' ? 1 : 0)
 	);
-	let selectedPill = $derived(onForums ? 'forums' : feeds.filter);
+	let selectedPill = $derived(source === 'people' ? feeds.filter : source);
 
 	$effect(() => {
-		if (page.url.searchParams.get('pane') === 'forums') onForums = true;
+		const pane = page.url.searchParams.get('pane');
+		if (pane === 'forums' || pane === 'sites') source = pane;
 	});
 	let viewport: HTMLDivElement | undefined;
 
@@ -95,6 +103,7 @@
 		void feeds.loadAndCatchUp();
 		// Forums checked only when due: each has its own pace, slower than creators' feeds.
 		void forums.refresh();
+		void siteFollows.refresh();
 		void shelf.load();
 		void creatorNotes.load();
 		if (!ring.all.length) void ring.load();
@@ -115,6 +124,7 @@
 			if (hiddenAt && Date.now() - hiddenAt > 15 * 60 * 1000) {
 				void feeds.refresh();
 				void forums.refresh();
+				void siteFollows.refresh();
 			}
 			hiddenAt = null;
 		};
@@ -132,7 +142,7 @@
 
 	/** A card that scrolled off the top counts as read, when the reader turned that on. */
 	function markScrolledPast(key: string) {
-		if (onForums) return;
+		if (onPlaces) return;
 		const yip = feeds.panes[feeds.filter].find((candidate) => candidate.key === key);
 		if (yip && !yip.readAt) void feeds.markRead(yip);
 	}
@@ -143,7 +153,7 @@
 	let meterPane = $state<HTMLElement | undefined>(undefined);
 	$effect(() => {
 		void filterIndex;
-		void onForums;
+		void source;
 		meterPane = activePane() ?? undefined;
 	});
 
@@ -177,9 +187,10 @@
 		const shouldRefresh = pullY >= PULL_THRESHOLD;
 		pullY = 0;
 		if (!shouldRefresh) return;
-		// A pull on Forums checks every forum now; anywhere else, the forums that are due.
+		// A pull on Sites or Forums checks every one now; anywhere else, the ones that are due.
 		if (onForums) await forums.refresh({ force: true });
-		else await Promise.all([feeds.refresh(), forums.refresh()]);
+		else if (onSites) await siteFollows.refresh({ force: true });
+		else await Promise.all([feeds.refresh(), forums.refresh(), siteFollows.refresh()]);
 	}
 
 	function sourceHost(yip: StoredYip): string {
@@ -217,7 +228,11 @@
 	-->
 	<header class="head">
 		<h2 class="visually-hidden">
-			{#if onForums}
+			{#if onSites}
+				{siteFollows.activeCount} new {siteFollows.activeCount === 1 ? 'post' : 'posts'} · {siteFollows
+					.follows.length}
+				{siteFollows.follows.length === 1 ? 'site' : 'sites'}
+			{:else if onForums}
 				{forums.activeCount} active {forums.activeCount === 1 ? 'topic' : 'topics'} · {forums.forums
 					.length}
 				{forums.forums.length === 1 ? 'forum' : 'forums'}
@@ -231,12 +246,13 @@
 				label="What to read"
 				options={[
 					{ value: 'people', label: 'People' },
+					{ value: 'sites', label: 'Sites', badge: siteFollows.activeCount },
 					{ value: 'forums', label: 'Forums', badge: forums.activeCount }
 				]}
-				value={onForums ? 'forums' : 'people'}
-				onchange={(next) => (onForums = next === 'forums')}
+				value={source}
+				onchange={(next) => (source = next as Source)}
 			/>
-			{#if !onForums && feeds.scopeLabel}
+			{#if !onPlaces && feeds.scopeLabel}
 				{#if scopedPerson}
 					<a
 						class="scope"
@@ -247,8 +263,12 @@
 					<span class="scope">{feeds.scopeLabel}</span>
 				{/if}
 			{/if}
-			{#if onForums}
-				<a class="scope-btn" href="/you/forums" aria-label="Manage your forums">
+			{#if onPlaces}
+				<a
+					class="scope-btn"
+					href={onSites ? '/you/sites' : '/you/forums'}
+					aria-label={onSites ? 'Manage your sites' : 'Manage your forums'}
+				>
 					<svg viewBox="0 0 24 24" aria-hidden="true">
 						<path d="M4 6h10M4 12h16M4 18h7M18 4v4M14 6h8" />
 					</svg>
@@ -272,7 +292,7 @@
 			{/if}
 		</div>
 
-		<div class="pills" role="tablist" aria-label="Filter yips" hidden={onForums}>
+		<div class="pills" role="tablist" aria-label="Filter yips" hidden={onPlaces}>
 			<span
 				class="ind"
 				aria-hidden="true"
@@ -416,6 +436,72 @@
 					{/if}
 				</div>
 			{/each}
+
+			<div
+				class="pane"
+				data-pane="sites"
+				role="region"
+				id="pane-sites"
+				aria-label="Sites"
+				inert={!onSites}
+				use:cardStack={{ active: onSites }}
+				use:tuckMini
+				onpointerdown={onPullStart}
+				onpointermove={onPullMove}
+				onpointerup={onPullEnd}
+				onpointercancel={onPullEnd}
+			>
+				{#if !siteFollows.loaded}
+					<p class="empty">Loading{'…'}</p>
+				{:else if siteFollows.follows.length === 0}
+					<div class="forums-empty">
+						<p class="empty">
+							No sites yet. Follow a site from Surf, or paste its address in Follow, to see its new
+							posts here.
+						</p>
+						<a class="forums-btn" href="/follow?mode=sites">Follow a site</a>
+					</div>
+				{:else}
+					{#each siteFollows.follows.filter((follow) => follow.status !== 'ok') as follow (follow.id)}
+						<p class="forum-note">
+							{follow.title}
+							{follow.status === 'gone'
+								? 'is not there any more.'
+								: follow.status === 'blocked'
+									? 'asks not to be read by apps, so YipDen leaves it alone.'
+									: follow.status === 'not-a-feed'
+										? 'no longer has a feed at the address we have.'
+										: 'could not be reached. Its posts stay until the next check.'}
+						</p>
+					{/each}
+					<div class="forums-bar">
+						<span>
+							{siteFollows.activeCount === 0 ? 'You’re caught up.' : 'Newest posts first.'}
+						</span>
+						{#if siteFollows.activeCount > 0}
+							<button class="forums-btn" onclick={() => siteFollows.markAllSeen()}
+								>Mark all read</button
+							>
+						{/if}
+					</div>
+					{#if siteFollows.digest.length === 0}
+						<p class="empty">Nothing new from your sites yet.</p>
+					{:else}
+						<div class="stack-list">
+							{#each siteFollows.digest as update, index (update.record.key)}
+								<div in:fly={flyIn({ delay: staggerDelay(index) })}>
+									<div class="yip-stack" data-key={update.record.key}>
+										<div class="yip-rail">
+											<div class="yip-fold"><SiteUpdateCard {update} /></div>
+										</div>
+									</div>
+								</div>
+							{/each}
+							<div class="stack-tail" aria-hidden="true"></div>
+						</div>
+					{/if}
+				{/if}
+			</div>
 
 			<div
 				class="pane"

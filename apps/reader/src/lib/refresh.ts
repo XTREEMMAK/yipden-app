@@ -71,7 +71,7 @@ export interface FeedRefreshResult {
 }
 
 /** HttpError's own marker for a robots.txt refusal (see `FeedHttp.get`). */
-const ROBOTS_STATUS = 999;
+export const ROBOTS_STATUS = 999;
 
 /** Sort a failed check into what a reader can act on. See `FeedProblem`. */
 /**
