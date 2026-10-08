@@ -19,6 +19,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- Feeds is now Yips: one stream where a followed site's posts and a forum's topics sit among
+  people's yips, newest first. Its header is one line (All, Posts, Watch, Listen and the filter),
+  and the filter has three tabs: Show (everything, people, sites, forums), Person and Folder.
+  "Build your den" no longer says "not a platform".
 - What you follow is a den, whether a person, a site or a forum. Follow is one box with no switch
   to choose first, and a website's result can be followed as a person or as just its posts. You has
   one Following list, with sites and forums in it tagged by kind. Follow reads "Build your den".

@@ -11,10 +11,10 @@ test.describe('the app shell', () => {
 
 	test('moves between tabs and marks the current one', async ({ page }) => {
 		await page.goto('/');
-		await page.getByRole('link', { name: 'Feeds' }).click();
+		await page.getByRole('link', { name: 'Yips' }).click();
 
 		await expect(page).toHaveURL(/\/feeds/);
-		await expect(page.getByRole('link', { name: 'Feeds' })).toHaveAttribute('aria-current', 'page');
+		await expect(page.getByRole('link', { name: 'Yips' })).toHaveAttribute('aria-current', 'page');
 	});
 
 	test('every tab target meets the 44px minimum', async ({ page }) => {
@@ -88,7 +88,7 @@ test.describe('the app shell', () => {
 		await page.goto('/');
 		await page.waitForTimeout(600);
 		const ind = page.locator('.tabbar .ind');
-		const feedsIcon = page.getByRole('link', { name: 'Feeds' }).locator('.ic');
+		const feedsIcon = page.getByRole('link', { name: 'Yips' }).locator('.ic');
 		const start = (await ind.boundingBox())!.x;
 
 		// Watch the transition's own pseudo elements, which is where the layers show up.
@@ -106,7 +106,7 @@ test.describe('the app shell', () => {
 			poll();
 		});
 
-		await page.getByRole('link', { name: 'Feeds' }).click();
+		await page.getByRole('link', { name: 'Yips' }).click();
 		const xs: number[] = [];
 		for (let i = 0; i < 16; i += 1) {
 			xs.push((await ind.boundingBox())!.x);
@@ -141,7 +141,7 @@ test.describe('the app shell', () => {
 		await page.waitForTimeout(600);
 		const ind = page.locator('.tabbar .ind');
 		const start = (await ind.boundingBox())!.x;
-		const feeds = (await page.getByRole('link', { name: 'Feeds' }).boundingBox())!;
+		const feeds = (await page.getByRole('link', { name: 'Yips' }).boundingBox())!;
 
 		await page.mouse.move(feeds.x + feeds.width / 2, feeds.y + feeds.height / 2);
 		await page.mouse.down();
@@ -164,7 +164,7 @@ test.describe('the app shell', () => {
 		const page = await context.newPage();
 		await page.goto('/');
 		await page.waitForTimeout(600);
-		const feeds = page.getByRole('link', { name: 'Feeds' });
+		const feeds = page.getByRole('link', { name: 'Yips' });
 		const target = (await feeds.locator('.ic').boundingBox())!.x;
 		// Record every position the indicator is ever laid out at, from finger down onwards.
 		await page.evaluate(() => {
@@ -230,7 +230,7 @@ test.describe('the app shell', () => {
 			await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 			await page.waitForTimeout(gap);
 
-			await page.getByRole('link', { name: 'Feeds', exact: true }).tap();
+			await page.getByRole('link', { name: 'Yips', exact: true }).tap();
 			await expect(page, `gap ${gap}ms`).toHaveURL(/\/feeds/);
 			await context.close();
 		}
@@ -239,7 +239,7 @@ test.describe('the app shell', () => {
 	test('one tap on a tab makes exactly one history entry', async ({ page }) => {
 		await page.goto('/');
 		const before = await page.evaluate(() => history.length);
-		await page.getByRole('link', { name: 'Feeds', exact: true }).click();
+		await page.getByRole('link', { name: 'Yips', exact: true }).click();
 		await expect(page).toHaveURL(/\/feeds/);
 		await page.waitForTimeout(800);
 		expect(await page.evaluate(() => history.length)).toBe(before + 1);

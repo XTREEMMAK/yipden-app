@@ -97,9 +97,9 @@ test.describe('forums', () => {
 		await page.getByRole('button', { name: 'Follow Discourse Meta' }).click();
 		await expect(page.getByText('Following Discourse Meta')).toBeVisible({ timeout: 30_000 });
 
-		await page.getByRole('button', { name: 'See its topics in Feeds' }).click();
+		await page.getByRole('button', { name: 'See its topics' }).click();
 		// Forums is the kind being read; the filter sheet says so.
-		await page.getByRole('button', { name: /^Filter your feeds/ }).click();
+		await page.getByRole('button', { name: /^Filter your yips/ }).click();
 		const source = page.getByRole('dialog').getByRole('radio', { name: /^Forums/ });
 		await expect(source).toHaveAttribute('aria-checked', 'true');
 		await page
@@ -107,12 +107,9 @@ test.describe('forums', () => {
 			.getByRole('radio', { name: /^Forums/ })
 			.click();
 		await expect(page.getByRole('dialog')).toBeHidden();
-		// The people's four pills step aside while Forums is shown.
-		await expect(page.getByRole('tablist', { name: 'Filter yips' })).toBeHidden();
-		const pane = page.getByRole('region', { name: 'Forums' });
+		const pane = page.getByRole('tabpanel', { name: 'All' });
 		const cards = pane.locator('.topic');
 		await expect(cards).toHaveCount(4, { timeout: 20_000 });
-		await expect(page.getByRole('heading', { level: 2 })).toContainText('active topics · 1 forum');
 		await expect(cards.first()).toContainText('New topic');
 		await expect(cards.first()).toContainText('Discourse Meta');
 
@@ -124,16 +121,14 @@ test.describe('forums', () => {
 		await expect(pane.locator('.topic', { hasText: firstTitle })).toContainText('No new replies');
 
 		// People is the other side of the switch: the four pills, and no forum topic among them.
-		await page.getByRole('button', { name: /^Filter your feeds/ }).click();
+		await page.getByRole('button', { name: /^Filter your yips/ }).click();
 		await page
 			.getByRole('dialog')
 			.getByRole('radio', { name: /^People/ })
 			.click();
 		const pills = page.getByRole('tablist', { name: 'Filter yips' });
-		await expect(pills.getByRole('tab')).toHaveText(['Everything', 'Posts', 'Watch', 'Listen']);
-		await expect(page.getByRole('tabpanel', { name: 'Everything' }).locator('.topic')).toHaveCount(
-			0
-		);
+		await expect(pills.getByRole('tab')).toHaveText(['All', 'Posts', 'Watch', 'Listen']);
+		await expect(page.getByRole('tabpanel', { name: 'All' }).locator('.topic')).toHaveCount(0);
 	});
 
 	test('a long category description stays inside the screen, cut at 200 characters', async ({

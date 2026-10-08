@@ -13,7 +13,7 @@ import { store, type Feed, type Person, type StoredYip, type YipCategory } from 
  */
 
 export const FEEDS_FILTERS = [
-	{ key: 'everything', label: 'Everything' },
+	{ key: 'everything', label: 'All' },
 	{ key: 'posts', label: 'Posts' },
 	{ key: 'watch', label: 'Watch' },
 	{ key: 'listen', label: 'Listen' }

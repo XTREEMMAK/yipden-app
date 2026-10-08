@@ -222,7 +222,7 @@ test.describe('Follow', () => {
 		await expect(page.getByRole('button', { name: 'Find feeds' })).toBeVisible();
 	});
 
-	test('See their yips in Feeds goes to the Feeds tab', async ({ page }) => {
+	test('See their yips goes to the Feeds tab', async ({ page }) => {
 		await mockUpstream(page, {
 			'https://lenaofori.com/': { body: LENA_PAGE },
 			'https://lenaofori.com/feed.xml': { body: FEED, type: 'application/rss+xml' }
@@ -233,7 +233,7 @@ test.describe('Follow', () => {
 		await page.getByRole('button', { name: /Follow Lena Ofori in/ }).click();
 		await expect(page.getByText('Following Lena Ofori')).toBeVisible();
 
-		await page.getByRole('button', { name: 'See their yips in Feeds' }).click();
+		await page.getByRole('button', { name: 'See their yips' }).click();
 		await expect(page).toHaveURL(/\/feeds/);
 	});
 

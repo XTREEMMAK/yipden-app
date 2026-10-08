@@ -161,7 +161,7 @@
 	async function confirmUnfollow(personId: string, name: string) {
 		confirmingId = null;
 		await you.unfollow(personId);
-		toast.show(`Unfollowed ${name}. Their yips are gone from Feeds.`);
+		toast.show(`Unfollowed ${name}. Their yips are gone from Yips.`);
 	}
 
 	/** A source by where it comes from: a site's own feed is its Website here, not a Blog. */

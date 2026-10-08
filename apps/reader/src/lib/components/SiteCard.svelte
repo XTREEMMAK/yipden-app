@@ -66,7 +66,7 @@
 			feedUrl: siteFeed.url,
 			title: entry.title
 		});
-		toast.show(`Following ${entry.title}. Its posts arrive in Feeds, under Sites.`);
+		toast.show(`Following ${entry.title}. Its posts arrive in Yips.`);
 	}
 
 	const visit = () => visitSite(entry);

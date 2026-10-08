@@ -1,25 +1,34 @@
 <script lang="ts">
 	import Sheet from './Sheet.svelte';
+	import Segmented from './Segmented.svelte';
 	import { feeds, type FeedsScope } from '$lib/feeds.svelte.js';
 	import { forums } from '$lib/forums.svelte.js';
 	import { siteFollows } from '$lib/siteFollows.svelte.js';
 
 	/**
-	 * Feeds' Filter sheet: which dens to read (people, sites, forums), then for people everyone, one
-	 * folder, or one person. The same shape as Discover's
-	 * Filter sheet, a single choice that closes the sheet. Folders are made under You.
+	 * Yips' Filter sheet, in three tabs so no list runs long: what kind of den to read (all, people,
+	 * sites, forums), then one person, or one folder. Choosing closes the sheet. Folders are made
+	 * under You.
 	 */
+
+	type Kind = 'all' | 'people' | 'sites' | 'forums';
 
 	interface Props {
 		onclose: () => void;
-		/** Which kind of den Feeds is reading now, and how to change it. */
-		source: 'people' | 'sites' | 'forums';
-		onsource: (next: 'people' | 'sites' | 'forums') => void;
+		/** Which kind of den is read now, and how to change it. */
+		kind: Kind;
+		onkind: (next: Kind) => void;
 	}
 
-	let { onclose, source, onsource }: Props = $props();
+	let { onclose, kind, onkind }: Props = $props();
 
-	const SOURCES = $derived([
+	type Tab = 'show' | 'person' | 'folder';
+	let tab = $state<Tab>(
+		feeds.scope.kind === 'person' ? 'person' : feeds.scope.kind === 'folder' ? 'folder' : 'show'
+	);
+
+	const KINDS = $derived([
+		{ value: 'all' as const, label: 'Everything you follow', count: 0 },
 		{ value: 'people' as const, label: 'People', count: feeds.unreadCount },
 		{ value: 'sites' as const, label: 'Sites', count: siteFollows.activeCount },
 		{ value: 'forums' as const, label: 'Forums', count: forums.activeCount }
@@ -40,78 +49,75 @@
 		return needle ? people.filter((person) => person.name.toLowerCase().includes(needle)) : people;
 	});
 
-	function choose(scope: FeedsScope) {
+	function chooseScope(scope: FeedsScope) {
 		void feeds.setScope(scope);
-		onsource('people');
+		onkind('people');
 		onclose();
 	}
 
-	function chooseSource(next: 'people' | 'sites' | 'forums') {
-		onsource(next);
+	function chooseKind(next: Kind) {
+		// Reading a kind of den is not reading one person: the narrowing to a person goes.
+		void feeds.setScope({ kind: 'all' });
+		onkind(next);
 		onclose();
 	}
 </script>
 
 <Sheet
-	title="Filter your feeds"
+	title="Filter your yips"
 	{onclose}
 	historyKey="feedsFilter"
 	maxHeight="70vh"
 	class="filter-sheet"
 >
-	<div class="sheet-list" role="radiogroup" aria-label="Filter your feeds">
-		<h3 class="sheet-sec">Read</h3>
-		{#each SOURCES as option (option.value)}
-			<button
-				class="sheet-row"
-				role="radio"
-				aria-checked={source === option.value}
-				onclick={() => chooseSource(option.value)}
-			>
-				<span class="sheet-name">{option.label}</span>
-				{#if option.count > 0}<small class="sheet-hint">{option.count} new</small>{/if}
-			</button>
-		{/each}
+	<div class="tabs">
+		<Segmented
+			label="Filter by"
+			options={[
+				{ value: 'show', label: 'Show' },
+				{ value: 'person', label: 'Person' },
+				{ value: 'folder', label: 'Folder' }
+			]}
+			value={tab}
+			onchange={(next) => (tab = next)}
+		/>
+	</div>
 
-		<h3 class="sheet-sec">Whose yips</h3>
-		<button
-			class="sheet-row"
-			role="radio"
-			aria-checked={source === 'people' && feeds.scope.kind === 'all'}
-			onclick={() => choose({ kind: 'all' })}
-		>
-			<span class="sheet-av" aria-hidden="true">
-				<svg viewBox="0 0 24 24"
-					><circle cx="9" cy="9" r="3.2" /><path
-						d="M3.5 19c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6"
-					/><circle cx="16.5" cy="9.5" r="2.6" /><path d="M15.5 14.6c2.6-.3 4.6 1.2 5 4.4" /></svg
+	{#if tab === 'show'}
+		<div class="sheet-list" role="radiogroup" aria-label="Show">
+			{#each KINDS as option (option.value)}
+				<button
+					class="sheet-row"
+					role="radio"
+					aria-checked={kind === option.value && feeds.scope.kind === 'all'}
+					onclick={() => chooseKind(option.value)}
 				>
-			</span>
-			Everyone
-		</button>
-
-		<h3 class="sheet-sec">Folders</h3>
-		{#each feeds.folders as folder (folder.name)}
-			<button
-				class="sheet-row"
-				role="radio"
-				aria-checked={source === 'people' &&
-					feeds.scope.kind === 'folder' &&
-					feeds.scope.name === folder.name}
-				onclick={() => choose({ kind: 'folder', name: folder.name })}
-			>
-				<span class="sheet-av" aria-hidden="true">
-					<svg viewBox="0 0 24 24"><path d="M3.5 7.5h6l2 2h9v9h-17z" /></svg>
-				</span>
-				<span class="sheet-name">{folder.name}</span>
-				<small class="sheet-hint">{folder.count}</small>
-			</button>
-		{:else}
-			<p class="sheet-note">No folders yet. Put someone in one from You.</p>
-		{/each}
-
-		{#if people.length}
-			<h3 class="sheet-sec">People</h3>
+					<span class="sheet-name">{option.label}</span>
+					{#if option.count > 0}<small class="sheet-hint">{option.count} new</small>{/if}
+				</button>
+			{/each}
+		</div>
+	{:else if tab === 'folder'}
+		<div class="sheet-list" role="radiogroup" aria-label="Folder">
+			{#each feeds.folders as folder (folder.name)}
+				<button
+					class="sheet-row"
+					role="radio"
+					aria-checked={feeds.scope.kind === 'folder' && feeds.scope.name === folder.name}
+					onclick={() => chooseScope({ kind: 'folder', name: folder.name })}
+				>
+					<span class="sheet-av" aria-hidden="true">
+						<svg viewBox="0 0 24 24"><path d="M3.5 7.5h6l2 2h9v9h-17z" /></svg>
+					</span>
+					<span class="sheet-name">{folder.name}</span>
+					<small class="sheet-hint">{folder.count}</small>
+				</button>
+			{:else}
+				<p class="sheet-note">No folders yet. Put someone in one from You.</p>
+			{/each}
+		</div>
+	{:else}
+		<div class="sheet-list" role="radiogroup" aria-label="Person">
 			{#if people.length > SEARCH_FROM}
 				<input
 					class="sheet-search"
@@ -125,10 +131,8 @@
 				<button
 					class="sheet-row"
 					role="radio"
-					aria-checked={source === 'people' &&
-						feeds.scope.kind === 'person' &&
-						feeds.scope.id === person.id}
-					onclick={() => choose({ kind: 'person', id: person.id })}
+					aria-checked={feeds.scope.kind === 'person' && feeds.scope.id === person.id}
+					onclick={() => chooseScope({ kind: 'person', id: person.id })}
 				>
 					<!-- Their own picture when they have one; a plain person otherwise. -->
 					<span
@@ -149,26 +153,21 @@
 					{#if person.folder}<small class="sheet-hint">{person.folder}</small>{/if}
 				</button>
 			{:else}
-				<p class="sheet-note">Nobody by that name.</p>
+				<p class="sheet-note">{people.length ? 'Nobody by that name.' : 'Nobody followed yet.'}</p>
 			{/each}
-		{/if}
-	</div>
+		</div>
+	{/if}
 </Sheet>
 
 <style>
+	.tabs {
+		display: flex;
+		padding: 0 16px 8px;
+	}
+
 	.sheet-list {
 		display: flex;
 		flex-direction: column;
-	}
-
-	.sheet-sec {
-		margin: 12px 16px 4px;
-		font-family: var(--mono);
-		font-size: 11px;
-		font-weight: 500;
-		letter-spacing: 0.1em;
-		text-transform: uppercase;
-		color: var(--muted);
 	}
 
 	.sheet-note {

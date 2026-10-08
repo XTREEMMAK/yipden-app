@@ -357,7 +357,7 @@ test.describe('a followed site that looks built for desktop', () => {
 		await followWriter(page, PAGE_WITHOUT_VIEWPORT);
 		await page.goto('/feeds');
 
-		const everything = page.getByRole('tabpanel', { name: 'Everything' });
+		const everything = page.getByRole('tabpanel', { name: 'All' });
 		await expect(everything.getByText('Best on desktop', { exact: true })).toBeVisible();
 		await everything.getByRole('button', { name: 'Save A long, wide post for later' }).click();
 		await expect(page.getByText('Saved for later, in your Library.')).toBeVisible();
@@ -523,7 +523,7 @@ test.describe('partner rings in Discover', () => {
 			await expect(panel.getByRole('heading', { level: 3 })).toHaveText(['Big Monitor Club']);
 
 			// Away to Feeds and back: the ring, its search and the marks are all still there.
-			await page.getByRole('link', { name: 'Feeds' }).click();
+			await page.getByRole('link', { name: 'Yips' }).click();
 			await page.getByRole('link', { name: 'Discover' }).click();
 			const again = page.getByRole('region', { name: 'Fixture Ring members' });
 			await expect(again.getByRole('searchbox')).toHaveValue('monitor');

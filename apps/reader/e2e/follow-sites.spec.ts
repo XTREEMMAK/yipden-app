@@ -68,8 +68,8 @@ test.describe('following sites', () => {
 		await routes(page);
 		await followMedjed(page);
 
-		await page.getByRole('button', { name: 'See its posts in Feeds' }).click();
-		const sites = page.getByRole('region', { name: 'Sites' });
+		await page.getByRole('button', { name: 'See its posts' }).click();
+		const sites = page.getByRole('tabpanel', { name: 'All' });
 		await expect(sites.getByText('Shrine redesign')).toBeVisible({ timeout: 10_000 });
 		await expect(sites.getByText('Guestbook cleanup')).toBeVisible();
 
@@ -96,7 +96,9 @@ test.describe('following sites', () => {
 		await expect(page.getByText('No sites yet.')).toBeVisible();
 
 		await page.goto('/feeds?pane=sites');
-		await expect(page.getByText('No sites yet.')).toBeVisible();
+		await expect(
+			page.getByRole('tabpanel', { name: 'All' }).getByText(/^Nothing here yet\./)
+		).toBeVisible();
 	});
 
 	test('a page with no feed says so and offers nothing to follow', async ({ page }) => {

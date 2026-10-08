@@ -3664,3 +3664,12 @@ made from a site automatically. Follow is a single box; a forum link is recogniz
 website result offers "follow the person" or "just its posts as a site". You has one list with
 kind tags. Follow's heading is "Build your den". Feeds has no top switch: which kind to read (People,
 Sites, Forums) is the first section of the Filter sheet. Whether they become one stream is open.
+
+## 2026-10-08: One stream called Yips; places mix in, behind a filter
+
+Feeds is renamed Yips (the tab and its words; the route stays `/feeds`). A site's post and a forum's
+topic are yips of their den, kind-tagged on the card, and they merge with people's yips by time in
+All and Posts; Watch and Listen stay people's. This reverses the 2026-10-05 rule that places never
+mix into the people's panes, on the reader's word that the split was confusing. The way back is the
+filter's Show tab: People, Sites or Forums alone. Merging keeps each source's own order and slots
+place cards in by time, so people's yips are never re-ranked. "Everything" in the pills is "All".

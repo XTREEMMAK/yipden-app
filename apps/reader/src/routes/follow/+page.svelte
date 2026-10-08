@@ -317,11 +317,11 @@
 <div class="scroll">
 	<header class="head" in:fly={flyIn()}>
 		<p class="eyebrow">Follow</p>
-		<h2 class="screen-title">Build your <em>den</em>, not a platform.</h2>
+		<h2 class="screen-title">Build your <em>den</em>.</h2>
 		<p class="lede">
-			Add anyone or anywhere you like on the web: a creator, a website, a forum, a member of the
-			IndieNodes ring. Type a name or paste a link. YipDen checks the ring first, then reads the web
-			only when it needs to.
+			Add the people and places you like from around the web: a creator, a website, a forum, a
+			member of the IndieNodes ring. Type a name or paste a link, and what they share shows up in
+			Yips. YipDen checks the IndieNodes ring first, then reads the web only when it needs to.
 		</p>
 	</header>
 
@@ -483,7 +483,7 @@
 			</div>
 			<div class="row-btns" in:fly={flyIn({ delay: 40 })}>
 				<button class="btn-quiet" type="button" onclick={() => goto('/feeds?pane=sites')}>
-					See its posts in Feeds
+					See its posts
 				</button>
 				<button class="btn-quiet" type="button" onclick={again}>Find something else</button>
 			</div>
@@ -534,7 +534,7 @@
 			</div>
 			<div class="row-btns" in:fly={flyIn({ delay: 40 })}>
 				<button class="btn-quiet" type="button" onclick={() => goto('/feeds?pane=forums')}>
-					See its topics in Feeds
+					See its topics in Yips
 				</button>
 				<button class="btn-quiet" type="button" onclick={again}>Find something else</button>
 			</div>
@@ -555,7 +555,7 @@
 			</div>
 			<div class="row-btns" in:fly={flyIn({ delay: 40 })}>
 				<button class="btn-quiet" type="button" onclick={() => goto('/feeds')}>
-					See their yips in Feeds
+					See their yips
 				</button>
 				<button class="btn-quiet" type="button" onclick={again}>Find someone else</button>
 			</div>

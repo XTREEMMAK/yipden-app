@@ -143,10 +143,7 @@ test.describe('Feeds', () => {
 
 		await page.getByRole('tab', { name: 'Watch' }).click();
 		await expect(page.getByRole('tab', { name: 'Watch' })).toHaveAttribute('aria-selected', 'true');
-		await expect(page.getByRole('tab', { name: 'Everything' })).toHaveAttribute(
-			'aria-selected',
-			'false'
-		);
+		await expect(page.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'false');
 	});
 
 	test('opening a yip marks it read', async ({ page }) => {
@@ -218,7 +215,9 @@ test.describe('Feeds', () => {
 		await page.goto('/feeds');
 
 		await expect(
-			page.getByText('Nothing here yet. Follow someone to see their yips.')
+			page
+				.getByRole('tabpanel', { name: 'All' })
+				.getByText('Nothing here yet. Build your den to see its yips.')
 		).toBeVisible();
 		await expect(page.getByRole('heading', { level: 2 })).toContainText('0 new');
 	});
@@ -277,27 +276,30 @@ test.describe('Feeds', () => {
 		await expect(everything.getByText('An essay by Cy')).toBeVisible({ timeout: 10_000 });
 		await expect(everything.getByText('A plain post')).toBeVisible();
 
-		await page.getByRole('button', { name: 'Filter your feeds' }).click();
-		const sheet = page.getByRole('dialog', { name: 'Filter your feeds' });
-		await expect(sheet.getByRole('radio', { name: 'Everyone' })).toBeChecked();
+		await page.getByRole('button', { name: 'Filter your yips' }).click();
+		const sheet = page.getByRole('dialog', { name: 'Filter your yips' });
+		await expect(sheet.getByRole('radio', { name: 'Everything you follow' })).toBeChecked();
+		await sheet.getByRole('radio', { name: 'Folder', exact: true }).click();
 		await sheet.getByRole('radio', { name: /^Music/ }).click();
 
 		await expect(sheet).toHaveCount(0);
-		await expect(page.getByRole('button', { name: 'Filter your feeds: Music' })).toBeFocused();
+		await expect(page.getByRole('button', { name: 'Filter your yips: Music' })).toBeFocused();
 		await expect(everything.getByText('A plain post')).toBeVisible();
 		await expect(everything.getByText('An essay by Cy')).toHaveCount(0);
 
 		// One person, chosen the same way.
-		await page.getByRole('button', { name: 'Filter your feeds: Music' }).click();
+		await page.getByRole('button', { name: 'Filter your yips: Music' }).click();
+		await sheet.getByRole('radio', { name: 'Person', exact: true }).click();
 		await sheet.getByRole('radio', { name: 'Cy Marsh' }).click();
 		await expect(everything.getByText('An essay by Cy')).toBeVisible();
 		await expect(everything.getByText('A plain post')).toHaveCount(0);
 
-		await page.getByRole('button', { name: 'Filter your feeds: Cy Marsh' }).click();
+		await page.getByRole('button', { name: 'Filter your yips: Cy Marsh' }).click();
 		await page.keyboard.press('Escape');
 		await expect(sheet).toHaveCount(0);
-		await page.getByRole('button', { name: 'Filter your feeds: Cy Marsh' }).click();
-		await sheet.getByRole('radio', { name: 'Everyone' }).click();
+		await page.getByRole('button', { name: 'Filter your yips: Cy Marsh' }).click();
+		await sheet.getByRole('radio', { name: 'Show', exact: true }).click();
+		await sheet.getByRole('radio', { name: 'Everything you follow' }).click();
 		await expect(everything.getByText('A plain post')).toBeVisible();
 		await expect(everything.getByText('An essay by Cy')).toBeVisible();
 	});

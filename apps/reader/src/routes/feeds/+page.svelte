@@ -48,25 +48,23 @@
 	 * four and a place's posts never mix into the people's panes: a site or a forum is a place, not
 	 * a person (decided 2026-10-05).
 	 */
-	type Source = 'people' | 'sites' | 'forums';
-	let source = $state<Source>('people');
-	let onForums = $derived(source === 'forums');
-	let onSites = $derived(source === 'sites');
-	let onPlaces = $derived(source !== 'people');
+	type Kind = 'all' | 'people' | 'sites' | 'forums';
+	let kind = $state<Kind>('all');
 	/** The one person Feeds is narrowed to, whose name then opens their profile. */
 	let scopedPerson = $derived(
 		feeds.scope.kind === 'person' ? (feeds.people.get(feeds.scope.id) ?? null) : null
 	);
-	let filterIndex = $derived(
-		source === 'people'
-			? FEEDS_FILTERS.findIndex((filter) => filter.key === feeds.filter)
-			: FEEDS_FILTERS.length + (source === 'forums' ? 1 : 0)
+	let filterIndex = $derived(FEEDS_FILTERS.findIndex((filter) => filter.key === feeds.filter));
+	let selectedPill = $derived(feeds.filter);
+	/** What the filter narrows to, in words, for the button's name. */
+	let filterLabel = $derived(
+		feeds.scopeLabel ??
+			(kind === 'all' ? null : { people: 'People', sites: 'Sites', forums: 'Forums' }[kind])
 	);
-	let selectedPill = $derived(source === 'people' ? feeds.filter : source);
 
 	$effect(() => {
 		const pane = page.url.searchParams.get('pane');
-		if (pane === 'forums' || pane === 'sites') source = pane;
+		if (pane === 'forums' || pane === 'sites') kind = pane;
 	});
 	let viewport: HTMLDivElement | undefined;
 
@@ -88,7 +86,7 @@
 		// The selection is read so this effect reruns when it changes, and again when the
 		// pills come back from Forums.
 		void selectedPill;
-		if (!onForums) measureIndicator();
+		measureIndicator();
 	});
 
 	// Pull to refresh: a vertical drag from the top of the active pane.
@@ -139,9 +137,66 @@
 		};
 	});
 
+	type StreamItem =
+		| { key: string; at: number; type: 'yip'; yip: FeedYip }
+		| { key: string; at: number; type: 'site'; update: (typeof siteFollows.digest)[number] }
+		| { key: string; at: number; type: 'forum'; topic: (typeof forums.digest)[number] };
+
+	const time = (iso: string | null | undefined) => (iso ? Date.parse(iso) || 0 : 0);
+
+	/**
+	 * What a pane shows: the yips of people, and in the posts panes the posts of followed sites and
+	 * the topics of followed forums too, merged newest first. A person's yips keep the order Feeds
+	 * gave them; a place's cards slot in by time. Watch and Listen are only ever people's.
+	 */
+	function streamOf(key: (typeof FEEDS_FILTERS)[number]['key']): StreamItem[] {
+		const items: StreamItem[] = [];
+		if (kind === 'all' || kind === 'people') {
+			for (const yip of feeds.panes[key]) {
+				items.push({ key: yip.key, at: time(yip.publishedAt), type: 'yip', yip });
+			}
+		}
+		if (key === 'everything' || key === 'posts') {
+			const places: StreamItem[] = [];
+			if (kind === 'all' || kind === 'sites') {
+				for (const update of siteFollows.digest) {
+					places.push({
+						key: update.record.key,
+						at: time(update.record.publishedAt ?? update.record.firstSeenAt),
+						type: 'site',
+						update
+					});
+				}
+			}
+			if (kind === 'all' || kind === 'forums') {
+				for (const topic of forums.digest) {
+					places.push({
+						key: topic.record.key,
+						at: time(topic.record.lastActivityAt ?? topic.record.firstSeenAt),
+						type: 'forum',
+						topic
+					});
+				}
+			}
+			places.sort((left, right) => right.at - left.at);
+			// Merge two newest-first lists, keeping each one's own order.
+			const merged: StreamItem[] = [];
+			let a = 0;
+			let b = 0;
+			while (a < items.length || b < places.length) {
+				if (b >= places.length || (a < items.length && items[a]!.at >= places[b]!.at)) {
+					merged.push(items[a++]!);
+				} else {
+					merged.push(places[b++]!);
+				}
+			}
+			return merged;
+		}
+		return items;
+	}
+
 	/** A card that scrolled off the top counts as read, when the reader turned that on. */
 	function markScrolledPast(key: string) {
-		if (onPlaces) return;
 		const yip = feeds.panes[feeds.filter].find((candidate) => candidate.key === key);
 		if (yip && !yip.readAt) void feeds.markRead(yip);
 	}
@@ -152,7 +207,7 @@
 	let meterPane = $state<HTMLElement | undefined>(undefined);
 	$effect(() => {
 		void filterIndex;
-		void source;
+		void kind;
 		meterPane = activePane() ?? undefined;
 	});
 
@@ -186,10 +241,12 @@
 		const shouldRefresh = pullY >= PULL_THRESHOLD;
 		pullY = 0;
 		if (!shouldRefresh) return;
-		// A pull on Sites or Forums checks every one now; anywhere else, the ones that are due.
-		if (onForums) await forums.refresh({ force: true });
-		else if (onSites) await siteFollows.refresh({ force: true });
-		else await Promise.all([feeds.refresh(), forums.refresh(), siteFollows.refresh()]);
+		// A pull checks what is due; on Sites or Forums alone, every one of them now.
+		await Promise.all([
+			feeds.refresh(),
+			forums.refresh({ force: kind === 'forums' }),
+			siteFollows.refresh({ force: kind === 'sites' })
+		]);
 	}
 
 	function sourceHost(yip: StoredYip): string {
@@ -217,7 +274,7 @@
 	}
 </script>
 
-<svelte:head><title>Feeds</title></svelte:head>
+<svelte:head><title>Yips</title></svelte:head>
 
 <div class="feeds">
 	<!--
@@ -227,79 +284,53 @@
 	-->
 	<header class="head">
 		<h2 class="visually-hidden">
-			{#if onSites}
-				{siteFollows.activeCount} new {siteFollows.activeCount === 1 ? 'post' : 'posts'} · {siteFollows
-					.follows.length}
-				{siteFollows.follows.length === 1 ? 'site' : 'sites'}
-			{:else if onForums}
-				{forums.activeCount} active {forums.activeCount === 1 ? 'topic' : 'topics'} · {forums.forums
-					.length}
-				{forums.forums.length === 1 ? 'forum' : 'forums'}
-			{:else}
-				{feeds.unreadCount} new yips from {feeds.peopleCount}
-				{feeds.peopleCount === 1 ? 'person' : 'people'}
-			{/if}
+			{feeds.unreadCount} new yips from {feeds.peopleCount}
+			{feeds.peopleCount === 1 ? 'person' : 'people'}
 		</h2>
-		<div class="head-row">
-			{#if onPlaces}
-				<span class="scope">{onSites ? 'Sites' : 'Forums'}</span>
-			{:else if feeds.scopeLabel}
-				{#if scopedPerson}
-					<a
-						class="scope"
-						href={profileHref(scopedPerson.siteUrl)}
-						aria-label={`${feeds.scopeLabel}'s profile`}>{feeds.scopeLabel}</a
+		<div class="top">
+			<div class="pills" role="tablist" aria-label="Filter yips">
+				<span
+					class="ind"
+					aria-hidden="true"
+					style:transform={`translateX(${indicator.left}px)`}
+					style:width={`${indicator.width}px`}
+				></span>
+				{#each FEEDS_FILTERS as filter, index (filter.key)}
+					<button
+						bind:this={pillEls[index]}
+						class="pill"
+						role="tab"
+						id="pill-{filter.key}"
+						aria-controls="pane-{filter.key}"
+						aria-selected={selectedPill === filter.key}
+						onclick={() => feeds.setFilter(filter.key)}
 					>
-				{:else}
-					<span class="scope">{feeds.scopeLabel}</span>
-				{/if}
-			{/if}
+						<span class="pill-label"
+							>{filter.label}{#if filter.key === 'everything' && feeds.unreadCount}<span
+									class="new-count"
+									aria-label={`${feeds.unreadCount} new`}>{feeds.unreadCount}</span
+								>{/if}</span
+						>
+					</button>
+				{/each}
+			</div>
 			<button
 				bind:this={scopeButton}
 				class="scope-btn"
-				class:is-active={onPlaces || feeds.scope.kind !== 'all'}
+				class:is-active={kind !== 'all' || feeds.scope.kind !== 'all'}
 				onclick={() => (scopeSheetOpen = true)}
 				aria-haspopup="dialog"
 				aria-expanded={scopeSheetOpen}
-				aria-label={feeds.scopeLabel
-					? `Filter your feeds: ${feeds.scopeLabel}`
-					: 'Filter your feeds'}
+				aria-label={filterLabel ? `Filter your yips: ${filterLabel}` : 'Filter your yips'}
 			>
 				<svg viewBox="0 0 24 24" aria-hidden="true">
 					<path d="M4 5h16M7 12h10M10 19h4" />
 				</svg>
 			</button>
 		</div>
-
-		<div class="pills" role="tablist" aria-label="Filter yips" hidden={onPlaces}>
-			<span
-				class="ind"
-				aria-hidden="true"
-				style:transform={`translateX(${indicator.left}px)`}
-				style:width={`${indicator.width}px`}
-			></span>
-			{#each FEEDS_FILTERS as filter, index (filter.key)}
-				<button
-					bind:this={pillEls[index]}
-					class="pill"
-					role="tab"
-					id="pill-{filter.key}"
-					aria-controls="pane-{filter.key}"
-					aria-selected={selectedPill === filter.key}
-					onclick={() => feeds.setFilter(filter.key)}
-				>
-					<span class="pill-label"
-						>{filter.label}{#if filter.key === 'everything' && feeds.unreadCount}<span
-								class="new-count"
-								aria-label={`${feeds.unreadCount} new`}>{feeds.unreadCount}</span
-							>{/if}</span
-					>
-				</button>
-			{/each}
-		</div>
 	</header>
 
-	<FrameMeter target={meterPane} label="Feeds" />
+	<FrameMeter target={meterPane} label="Yips" />
 	<div class="viewport" bind:this={viewport}>
 		{#if feeds.status === 'refreshing' && !pulling && pullY === 0}
 			<div class="pull refreshing" role="status" aria-label="Refreshing your feeds">
@@ -336,60 +367,75 @@
 				>
 					{#if feeds.status === 'loading'}
 						<p class="empty">Loading{'…'}</p>
-					{:else if feeds.panes[filter.key].length === 0}
-						<p class="empty">
-							{feeds.scopeLabel
-								? `Nothing from ${feeds.scopeLabel} here yet.`
-								: filter.key === 'everything'
-									? 'Nothing here yet. Follow someone to see their yips.'
-									: 'Nothing here yet.'}
-						</p>
+					{:else if streamOf(filter.key).length === 0}
+						<div class="empty-wrap">
+							<p class="empty">
+								{feeds.scopeLabel
+									? `Nothing from ${feeds.scopeLabel} here yet.`
+									: filter.key === 'everything' || filter.key === 'posts'
+										? 'Nothing here yet. Build your den to see its yips.'
+										: 'Nothing here yet.'}
+							</p>
+							{#if !feeds.scopeLabel && (filter.key === 'everything' || filter.key === 'posts')}
+								<a class="forums-btn" href="/follow">Build your den</a>
+							{/if}
+						</div>
 					{:else}
+						{#if (filter.key === 'everything' || filter.key === 'posts') && (kind === 'sites' || kind === 'forums')}
+							{@render placeNotes()}
+						{/if}
 						<div class="stack-list">
-							{#each feeds.panes[filter.key] as yip, index (yip.key)}
+							{#each streamOf(filter.key) as item, index (item.key)}
 								<div in:fly={flyIn({ delay: staggerDelay(index) })}>
-									<div class="yip-stack" data-key={yip.key}>
+									<div class="yip-stack" data-key={item.key}>
 										<div class="yip-rail">
 											<div class="yip-fold">
-												<YipCard {yip} />
-												{#if isDesktopFirst(yip)}
-													{@const saved = shelf.has(yip.url)}
-													<div class="shelf-bar">
-														<span class="shelf-label">Best on desktop</span>
-														<button
-															class="shelf-btn"
-															aria-pressed={saved}
-															aria-label={saved
-																? `Remove ${yip.title || 'this yip'} from Saved`
-																: `Save ${yip.title || 'this yip'} for later`}
-															onclick={() => saveForLater(yip)}
-														>
-															{saved ? 'Saved' : 'Save for later'}
-														</button>
-													</div>
-												{/if}
-												{#if yip.crosspostGroupId && yip.crossposts && yip.crossposts.length > 1}
-													<div class="crosspost-bar" aria-label="Copies of this post">
-														<span class="crosspost-label">Same post</span>
-														<div class="source-chips">
-															{#each yip.crossposts as copy (copy.key)}
-																<button
-																	class="source-chip"
-																	title={`Open on ${sourceHost(copy)}`}
-																	aria-label={`Open ${sourceLabel(copy)} copy on ${sourceHost(copy)}`}
-																	onclick={() => openCopy(yip, copy)}
-																>
-																	{sourceLabel(copy)}
-																</button>
-															{/each}
+												{#if item.type === 'site'}
+													<SiteUpdateCard update={item.update} />
+												{:else if item.type === 'forum'}
+													<ForumTopicCard topic={item.topic} />
+												{:else}
+													{@const yip = item.yip}
+													<YipCard {yip} />
+													{#if isDesktopFirst(yip)}
+														{@const saved = shelf.has(yip.url)}
+														<div class="shelf-bar">
+															<span class="shelf-label">Best on desktop</span>
+															<button
+																class="shelf-btn"
+																aria-pressed={saved}
+																aria-label={saved
+																	? `Remove ${yip.title || 'this yip'} from Saved`
+																	: `Save ${yip.title || 'this yip'} for later`}
+																onclick={() => saveForLater(yip)}
+															>
+																{saved ? 'Saved' : 'Save for later'}
+															</button>
 														</div>
-														<button
-															class="separate"
-															onclick={() => feeds.showSeparately(yip.crosspostGroupId!)}
-														>
-															Show separately
-														</button>
-													</div>
+													{/if}
+													{#if yip.crosspostGroupId && yip.crossposts && yip.crossposts.length > 1}
+														<div class="crosspost-bar" aria-label="Copies of this post">
+															<span class="crosspost-label">Same post</span>
+															<div class="source-chips">
+																{#each yip.crossposts as copy (copy.key)}
+																	<button
+																		class="source-chip"
+																		title={`Open on ${sourceHost(copy)}`}
+																		aria-label={`Open ${sourceLabel(copy)} copy on ${sourceHost(copy)}`}
+																		onclick={() => openCopy(yip, copy)}
+																	>
+																		{sourceLabel(copy)}
+																	</button>
+																{/each}
+															</div>
+															<button
+																class="separate"
+																onclick={() => feeds.showSeparately(yip.crosspostGroupId!)}
+															>
+																Show separately
+															</button>
+														</div>
+													{/if}
 												{/if}
 											</div>
 										</div>
@@ -415,144 +461,54 @@
 					{/if}
 				</div>
 			{/each}
-
-			<div
-				class="pane"
-				data-pane="sites"
-				role="region"
-				id="pane-sites"
-				aria-label="Sites"
-				inert={!onSites}
-				use:cardStack={{ active: onSites }}
-				use:tuckMini
-				onpointerdown={onPullStart}
-				onpointermove={onPullMove}
-				onpointerup={onPullEnd}
-				onpointercancel={onPullEnd}
-			>
-				{#if !siteFollows.loaded}
-					<p class="empty">Loading{'…'}</p>
-				{:else if siteFollows.follows.length === 0}
-					<div class="forums-empty">
-						<p class="empty">
-							No sites yet. Follow a site from Surf, or paste its address in Follow, to see its new
-							posts here.
-						</p>
-						<a class="forums-btn" href="/follow">Build your den</a>
-					</div>
-				{:else}
-					{#each siteFollows.follows.filter((follow) => follow.status !== 'ok') as follow (follow.id)}
-						<p class="forum-note">
-							{follow.title}
-							{follow.status === 'gone'
-								? 'is not there any more.'
-								: follow.status === 'blocked'
-									? 'asks not to be read by apps, so YipDen leaves it alone.'
-									: follow.status === 'not-a-feed'
-										? 'no longer has a feed at the address we have.'
-										: 'could not be reached. Its posts stay until the next check.'}
-						</p>
-					{/each}
-					<div class="forums-bar">
-						<span>
-							{siteFollows.activeCount === 0 ? 'You’re caught up.' : 'Newest posts first.'}
-						</span>
-						{#if siteFollows.activeCount > 0}
-							<button class="forums-btn" onclick={() => siteFollows.markAllSeen()}
-								>Mark all read</button
-							>
-						{/if}
-					</div>
-					{#if siteFollows.digest.length === 0}
-						<p class="empty">Nothing new from your sites yet.</p>
-					{:else}
-						<div class="stack-list">
-							{#each siteFollows.digest as update, index (update.record.key)}
-								<div in:fly={flyIn({ delay: staggerDelay(index) })}>
-									<div class="yip-stack" data-key={update.record.key}>
-										<div class="yip-rail">
-											<div class="yip-fold"><SiteUpdateCard {update} /></div>
-										</div>
-									</div>
-								</div>
-							{/each}
-							<div class="stack-tail" aria-hidden="true"></div>
-						</div>
-					{/if}
-				{/if}
-			</div>
-
-			<div
-				class="pane"
-				data-pane="forums"
-				role="region"
-				id="pane-forums"
-				aria-label="Forums"
-				inert={!onForums}
-				use:cardStack={{ active: onForums }}
-				use:tuckMini
-				onpointerdown={onPullStart}
-				onpointermove={onPullMove}
-				onpointerup={onPullEnd}
-				onpointercancel={onPullEnd}
-			>
-				{#if !forums.loaded}
-					<p class="empty">Loading{'…'}</p>
-				{:else if forums.follows.length === 0}
-					<div class="forums-empty">
-						<p class="empty">
-							No forums yet. Paste a link to any page of a public forum in Follow (the front page, a
-							category, even one thread) to follow the forum or some of its categories.
-						</p>
-						<a class="forums-btn" href="/follow">Build your den</a>
-					</div>
-				{:else}
-					{#each forums.follows.filter((follow) => follow.status !== 'ok') as follow (follow.id)}
-						<p class="forum-note">
-							{follow.categoryName ? `${follow.title} · ${follow.categoryName}` : follow.title}
-							{follow.status === 'members-only'
-								? 'is members-only now, so YipDen cannot read it.'
-								: follow.status === 'gone'
-									? 'is not there any more.'
-									: 'could not be reached. Its topics stay until the next check.'}
-						</p>
-					{/each}
-					<div class="forums-bar">
-						<span>
-							{forums.activeCount === 0 ? 'You’re caught up.' : 'Newest activity first.'}
-						</span>
-						{#if forums.activeCount > 0}
-							<button class="forums-btn" onclick={() => forums.markAllSeen()}>Mark all read</button>
-						{/if}
-					</div>
-					{#if forums.digest.length === 0}
-						<p class="empty">
-							Nothing active in the last {forums.quietDays} days. Quieter topics leave the list by themselves.
-						</p>
-					{:else}
-						<div class="stack-list">
-							{#each forums.digest as topic, index (topic.record.key)}
-								<div in:fly={flyIn({ delay: staggerDelay(index) })}>
-									<div class="yip-stack" data-key={topic.record.key}>
-										<div class="yip-rail">
-											<div class="yip-fold"><ForumTopicCard {topic} /></div>
-										</div>
-									</div>
-								</div>
-							{/each}
-							<div class="stack-tail" aria-hidden="true"></div>
-						</div>
-					{/if}
-				{/if}
-			</div>
 		</div>
 	</div>
 
 	<Toast />
 </div>
 
+{#snippet placeNotes()}
+	{#if kind === 'sites'}
+		{#each siteFollows.follows.filter((follow) => follow.status !== 'ok') as follow (follow.id)}
+			<p class="forum-note">
+				{follow.title}
+				{follow.status === 'gone'
+					? 'is not there any more.'
+					: follow.status === 'blocked'
+						? 'asks not to be read by apps, so YipDen leaves it alone.'
+						: follow.status === 'not-a-feed'
+							? 'no longer has a feed at the address we have.'
+							: 'could not be reached. Its posts stay until the next check.'}
+			</p>
+		{/each}
+		{#if siteFollows.activeCount > 0}
+			<div class="forums-bar">
+				<span>Newest posts first.</span>
+				<button class="forums-btn" onclick={() => siteFollows.markAllSeen()}>Mark all read</button>
+			</div>
+		{/if}
+	{:else}
+		{#each forums.follows.filter((follow) => follow.status !== 'ok') as follow (follow.id)}
+			<p class="forum-note">
+				{follow.categoryName ? `${follow.title} · ${follow.categoryName}` : follow.title}
+				{follow.status === 'members-only'
+					? 'is members-only now, so YipDen cannot read it.'
+					: follow.status === 'gone'
+						? 'is not there any more.'
+						: 'could not be reached. Its topics stay until the next check.'}
+			</p>
+		{/each}
+		{#if forums.activeCount > 0}
+			<div class="forums-bar">
+				<span>Newest activity first.</span>
+				<button class="forums-btn" onclick={() => forums.markAllSeen()}>Mark all read</button>
+			</div>
+		{/if}
+	{/if}
+{/snippet}
+
 {#if scopeSheetOpen}
-	<FeedsFilterSheet onclose={closeScopeSheet} {source} onsource={(next) => (source = next)} />
+	<FeedsFilterSheet onclose={closeScopeSheet} {kind} onkind={(next) => (kind = next)} />
 {/if}
 
 <style>
@@ -570,27 +526,22 @@
 		padding: calc(22px + env(safe-area-inset-top, 0px)) 20px 10px;
 	}
 
-	.head-row {
+	/* One line: the four pills fill it, the filter sits at its end. */
+	.top {
 		display: flex;
 		align-items: center;
 		gap: 10px;
 	}
 
-	/* Who Feeds is narrowed to, between the switch and the filter that chose it. */
-	.scope {
+	.top > .pills {
 		flex: 1;
 		min-width: 0;
-		overflow: hidden;
-		color: var(--brand-text);
-		font-size: 14px;
-		font-weight: 600;
-		text-decoration: none;
-		text-overflow: ellipsis;
-		white-space: nowrap;
 	}
 
-	.head-row > .scope-btn {
-		margin-left: auto;
+	.empty-wrap {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
 	}
 
 	.scope-btn {
@@ -945,23 +896,6 @@
 		color: var(--muted);
 		font-size: 14.5px;
 		text-align: center;
-	}
-
-	/* Its own `display` would otherwise win over `hidden`. */
-	.pills[hidden] {
-		display: none;
-	}
-
-	/* People or Forums: a quiet pill above the title, the same shape as You's tabs. */
-	.forums-empty {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 4px;
-	}
-
-	.forums-empty .empty {
-		margin-bottom: 8px;
 	}
 
 	.forum-note {

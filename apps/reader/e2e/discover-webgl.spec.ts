@@ -227,7 +227,7 @@ test.describe('Discover WebGL hero', () => {
 			});
 		});
 
-		await page.getByRole('link', { name: 'Feeds', exact: true }).click();
+		await page.getByRole('link', { name: 'Yips', exact: true }).click();
 		await expect(page).toHaveURL(/feeds/);
 		await expect
 			.poll(() =>

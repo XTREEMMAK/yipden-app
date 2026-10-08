@@ -474,7 +474,7 @@
 			const count = outcome.feeds.length;
 			toast.show(
 				count === 0
-					? `Following ${entry.creator}. No feeds found yet, so Feeds will stay quiet.`
+					? `Following ${entry.creator}. No feeds found yet, so Yips will stay quiet.`
 					: `Following ${entry.creator} in ${count} ${count === 1 ? 'place' : 'places'}.`
 			);
 		} catch (error) {
