@@ -86,8 +86,8 @@ Following Mozilla's web security guidance, adapted to an app whose origin is loc
     in the queue, or restored on launch, contacts no platform. Every player address is rebuilt
     from a validated id or page address (`embeds/source.ts`), never taken from markup as given,
     and each frame is sandboxed with only the origin sent as referrer.
-  - The debug-only embed spike adds `www.youtube.com` frames and Spotify's two origins; those go
-    when the spike is deleted.
+  - The embed spike that once added `www.youtube.com` frames and Spotify's two origins is deleted
+    (2026-10-08), and so are they. A Spotify track opens on Spotify.
 - **`Referrer-Policy: strict-origin-when-cross-origin`**, so a creator's server never learns
   which yip the reader came from beyond the origin.
 - **Android cleartext traffic disabled** in the manifest, release builds not debuggable, and

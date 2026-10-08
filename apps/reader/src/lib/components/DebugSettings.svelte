@@ -17,9 +17,6 @@
 		}
 	}
 
-	// THROWAWAY: the Listen embeds spike, removed once its results are reported.
-	let spike = $state(false);
-
 	const DIAG: Array<{ key: DiagKey; title: string; note: string }> = [
 		{
 			key: 'meter',
@@ -105,16 +102,6 @@
 			</div>
 		{/each}
 	</div>
-	<button class="srow" onclick={() => (spike = true)}>
-		<span class="tt"
-			><b>Embed spike</b><small>YouTube, SoundCloud, Spotify, Bandcamp test page</small></span
-		>
-	</button>
-	{#if spike}
-		{#await import('./EmbedSpike.svelte') then { default: EmbedSpike }}
-			<EmbedSpike onclose={() => (spike = false)} />
-		{/await}
-	{/if}
 	<!-- What the car and lock screen asked of the player, newest first (see mediaLog.svelte.ts). -->
 	<div class="media-log">
 		<div class="log-head">

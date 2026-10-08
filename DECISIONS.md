@@ -3705,3 +3705,13 @@ which deletes the media and fails the build if the list or its media is still in
 future import cannot leak it back). Surf stays in Discover with an honest empty note; hiding the
 segment instead is a one-line change if it reads badly in the store. The forum index stays: its
 media is fine.
+
+## 2026-10-08: Versioned 0.9.0 before the tag, and the embed spike deleted
+
+Every package, the Android `versionName` (0.9.0) and `versionCode` (900) are 0.9.0 now, ahead of the
+tag, so the app, its About and its listing agree; the tag `v0.9.0` stays the last release step, after
+the store phone pass and signing, and the CHANGELOG's Unreleased heading is cut then. The Listen embed
+spike and the origins only it needed (`open.spotify.com`, `embed-cdn.spotifycdn.com`, and
+`www.youtube.com` as a frame source) are gone from the code and the CSP. Spotify has no player in the
+app, so a Spotify track opens on Spotify; whether an embed keeps playing in the background stays a
+device-pass question. `CLAUDE.md` now records the commands and the rules for a new session.

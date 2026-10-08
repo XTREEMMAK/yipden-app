@@ -32,28 +32,19 @@ export default {
 			directives: {
 				'default-src': ['self'],
 				// The platform player APIs the player drives (embeds/engines.ts), loaded only once a reader
-				// presses play on such a track. The two Spotify origins are the embed spike's alone and go
-				// with it.
-				'script-src': [
-					'self',
-					'https://www.youtube.com',
-					'https://w.soundcloud.com',
-					'https://open.spotify.com',
-					'https://embed-cdn.spotifycdn.com'
-				],
+				// presses play on such a track.
+				'script-src': ['self', 'https://www.youtube.com', 'https://w.soundcloud.com'],
 				'style-src': ['self', 'unsafe-inline'],
 				'img-src': ['self', 'https:', 'data:', 'blob:'],
 				'media-src': ['self', 'https:', 'blob:'],
 				'font-src': ['self'],
 				'connect-src': ['self', 'https:'],
 				// The platforms' own players, each only after a reader taps play: YouTube's privacy-enhanced
-				// one (YipCard, and the player), SoundCloud's and Bandcamp's (the player). www.youtube.com
-				// and Spotify are the embed spike's alone and go with it.
+				// one (YipCard, and the player), SoundCloud's and Bandcamp's (the player). Spotify has no
+				// player here: its script would not load on the phone, so a Spotify track opens on Spotify.
 				'frame-src': [
 					'https://www.youtube-nocookie.com',
-					'https://www.youtube.com',
 					'https://w.soundcloud.com',
-					'https://open.spotify.com',
 					'https://bandcamp.com'
 				],
 				'object-src': ['none'],

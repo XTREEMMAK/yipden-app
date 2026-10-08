@@ -9,7 +9,7 @@
   Follow people, not platforms.
 </p>
 
-<p align="center"><b>Version 0.8.0</b>, ahead of the first store release (0.9.0).</p>
+<p align="center"><b>Version 0.9.0</b>, the first store release, not yet published.</p>
 
 <p align="center">
   <a href="#what-this-is">What this is</a> ·

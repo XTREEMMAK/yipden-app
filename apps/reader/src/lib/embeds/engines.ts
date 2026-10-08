@@ -4,7 +4,7 @@ import { embedSrc, type EmbedSource } from './source.js';
 /**
  * Drives a platform's own player (YouTube, SoundCloud, Bandcamp) from the app's player: one
  * iframe in the host the full player gives it, loaded through the platform's own API, reporting
- * back what the app's audio element would. Proved on the phone by the embed spike (2026-10-06):
+ * back what the app's audio element would. Proved on the phone by an embed spike (2026-10-06, since deleted):
  * YouTube and SoundCloud take play, pause and seek from our buttons. Bandcamp has no API at all:
  * on Android a script the host adds to its frames stands in for one (`bandcampBridged`), and
  * anywhere else it plays with its own controls and never says when it ends.

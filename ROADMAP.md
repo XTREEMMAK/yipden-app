@@ -10,7 +10,7 @@ animation or gesture library, a `ring.json` contract change, or anything needing
 
 ## Where we are
 
-**0.8.0 (2026-10-06).** Everything below the first store release is built: Discover with
+**0.9.0 (versioned 2026-10-08, not yet tagged or published).** Everything below the first store release is built (written at 0.8.0, 2026-10-06; Surf, following sites, dens and Yips came after): Discover with
 partner rings, Follow (people and forums), Feeds, the player with platform embeds, the in-app
 browser and the Library, the encrypted store, and creator profiles with home and aliases
 (Creator Database steps 1 and 2). What stands between this and **0.9.0** is the phone pass of
@@ -238,19 +238,16 @@ Open questions DECISIONS.md already flags as unverified, all needing a phone:
   the same white mark as the launcher icon on the same day/night background, sized to fit Android
   12's circular splash mask. Capacitor's stock `splash.png` files are gone. See DECISIONS.md and
   `brand/README.md`. Still to see on a phone, on both Android 12+ and an older version.
-- Reconcile the package version (`0.0.1`) with a real release number.
+- ~~Reconcile the package version (`0.0.1`) with a real release number.~~ 0.9.0 everywhere (every package, `versionName` 0.9.0, `versionCode` 900), 2026-10-08. The tag `v0.9.0` is the last release step.
 
 ### 7. Housekeeping
 
 - ~~CHANGELOG: the Feeds/Today line still says the 3D stack and full playback are deferred.~~
   Corrected, and 0.8.0 cut from Unreleased (2026-10-06); 0.9.0 is the first store release.
-- `tmp/` holds a git bundle, the handoff prompt and a prototype backup. Decide what is worth
-  keeping, move it, or ignore it, so the repo root is not half scratch. The two briefs of
-  2026-10-03 moved to `docs/briefs/`.
-- `docs/reference` is gitignored but `docs/README.md` points at it. Make sure a fresh clone's
-  docs say where to get the prototype.
-- No `CLAUDE.md`. Worth a short one with the commands, the ask first rules and the DECISIONS.md
-  habit, so a new session starts warm.
+- ~~`tmp/` scratch, `docs/reference`, `CLAUDE.md`~~ Done 2026-10-08. `tmp/` is gitignored scratch (a git
+  bundle, handoff prompts, a prototype backup) and is never committed, so the repository root is not
+  half scratch. `docs/README.md` already says `docs/reference` is local-only. `CLAUDE.md` is written.
+  A stray `docs/security.md.orig` was deleted.
 - **A personal Capacitor walkthrough, for the developer, not the product (2026-09-29).** Once the
   app is done: a standalone, clickable HTML page (not published, not part of this repo's shipped
   output) walking through how this app actually uses Capacitor — the native/web bridge, the Android
@@ -642,11 +639,12 @@ Built, to see on a phone (debug builds 26 to 31):
   be kept, and an expiring Bandcamp stream offers its lasting player instead.
 - The end of a queue offers more from the ring or a shuffle of the Library.
 
-Still open:
+Done and settled (2026-10-08): the embed spike and its extra CSP origins (`www.youtube.com` frames and
+Spotify's two) are deleted. Spotify has no player in the app (its script would not load on the phone),
+so a Spotify track opens on Spotify.
 
-- Spotify: its player script would not load on the phone. The spike now logs why.
-- Whether an embed keeps playing with the app in the background.
-- Deleting the embed spike, and its CSP origins, once both are answered.
+Still open, for the device pass: whether an embed keeps playing with the app in the background. Bandcamp
+and SoundCloud have been heard with the phone locked; a longer check on a drive is wanted.
 
 ## The Creator Database (decided 2026-10-06)
 
@@ -799,8 +797,7 @@ Left for later, noted here so they are not lost:
 - `routes/+page.svelte` (Discover, ~1,700 lines), `routes/you/+page.svelte` (~1,500) and
   `PartnerRingPanel.svelte` (~1,200) are the largest files. Each has parts that could be
   components (Discover's hero, You's person row).
-- The embed spike (`EmbedSpike.svelte`) and its CSP origins go once Spotify and background
-  playback are answered.
+- ~~The embed spike (`EmbedSpike.svelte`) and its CSP origins~~ deleted 2026-10-08.
 
 ## Later: Feeds' header collapses while scrolling (noted 2026-10-06)
 
