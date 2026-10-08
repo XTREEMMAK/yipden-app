@@ -17,7 +17,7 @@ vi.mock('./store/index.js', () => ({
 		setSetting: async (key: string, value: unknown) => void settings.set(key, value)
 	}
 }));
-vi.mock('./platform/http.js', () => ({ httpFetch: net.fetch }));
+vi.mock('./platform/http.js', () => ({ httpFetch: net.fetch, isNative: () => false }));
 
 import { RING_FRESH_MS, ring, washColorFor, washFor } from './ring.svelte.js';
 
@@ -85,6 +85,21 @@ describe('ring.load', () => {
 		(ring as unknown as { checkedAt: number }).checkedAt = Date.now() - RING_FRESH_MS - 1;
 		await ring.load();
 		expect(net.fetch).toHaveBeenCalledTimes(2);
+	});
+
+	it('a pull to refresh during a check still asks again afterwards', async () => {
+		let release: (value: unknown) => void = () => {};
+		net.fetch.mockReturnValueOnce(new Promise((resolve) => (release = resolve)));
+		const first = ring.load();
+		await vi.waitFor(() => expect(net.fetch).toHaveBeenCalledTimes(1));
+
+		net.fetch.mockResolvedValue(ok(['a', 'b', 'c']));
+		const forced = ring.load(true);
+		release(ok(['a', 'b']));
+		await Promise.all([first, forced]);
+
+		expect(net.fetch).toHaveBeenCalledTimes(2);
+		expect(ring.all).toHaveLength(3);
 	});
 
 	it('remembers the last check across a relaunch, so a launch inside the window costs nothing', async () => {

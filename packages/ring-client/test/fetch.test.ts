@@ -61,6 +61,22 @@ describe('fetchRing', () => {
 		expect(result.document.entries).toHaveLength(live.entries.length);
 	});
 
+	it('asks caches in between to check with the origin when told to', async () => {
+		const seen: Array<Record<string, string>> = [];
+		const ask = (revalidate: boolean) =>
+			fetchRing({
+				revalidate,
+				fetch: async (_url, init) => {
+					seen.push(init?.headers ?? {});
+					return response(200, JSON.stringify(live));
+				}
+			});
+		await ask(false);
+		await ask(true);
+		expect(seen[0]?.['cache-control']).toBeUndefined();
+		expect(seen[1]?.['cache-control']).toBe('no-cache');
+	});
+
 	it('falls back to the last good copy when the network is gone', async () => {
 		const result = await fetchRing({
 			cache: memoryCache(cachedRecord()),

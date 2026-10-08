@@ -19,6 +19,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- The IndieNodes ring is checked again after half an hour (it was six), partner rings after six
+  hours (a day), and on Android the check asks caches in between to confirm with the origin. A pull
+  to refresh during a check now follows it with its own instead of being swallowed. The README
+  describes dens, Yips and playing YouTube, SoundCloud and Bandcamp inside the app.
 - Big photos on Yips cards are shrunk to about a megapixel before they are drawn, away from the main
   thread, because the slow frames landed on the cards with the biggest pictures. The debug frame
   meter says where the worst frame went and which card was arriving, and debug switches turn the

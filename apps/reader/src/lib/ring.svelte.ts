@@ -13,7 +13,7 @@ import {
 	type RingEntry,
 	type RingSource
 } from '@yipden/ring-client';
-import { httpFetch } from './platform/http.js';
+import { httpFetch, isNative } from './platform/http.js';
 import { store } from './store/index.js';
 import { verdicts } from './verdicts.svelte.js';
 
@@ -40,11 +40,12 @@ export type RingFilterKey = (typeof RING_FILTERS)[number]['key'];
 
 /**
  * How long a checked ring is trusted before Discover asks again, across launches too (the time of
- * the last check is saved). The ring changes when a member joins or edits their entry, a few times
- * a week at most; six hours keeps that prompt without a request on every launch or resume. Pull to
- * refresh asks at once regardless.
+ * the last check is saved). The ring changes when a member joins or edits their entry, and an
+ * edit that fixes a moved address should reach a phone soon (6 hours was too long, 2026-10-08). A
+ * check is conditional, so an unchanged ring costs a 304 and a few hundred bytes; half an hour keeps
+ * a launch or resume from asking every time. Pull to refresh asks at once regardless.
  */
-export const RING_FRESH_MS = 6 * 60 * 60 * 1000;
+export const RING_FRESH_MS = 30 * 60 * 1000;
 
 class RingState {
 	/** Every discoverable member, in the order every client agrees on. */
@@ -121,8 +122,16 @@ class RingState {
 	 * a request), and a check that finds nothing changed leaves the screen exactly as it was.
 	 */
 	load(force = false): Promise<void> {
-		this.inFlight ??= this.run(force).finally(() => (this.inFlight = null));
-		return this.inFlight;
+		if (this.inFlight && !force) return this.inFlight;
+		// A forced check (pull to refresh) is never swallowed by one already under way: it follows it.
+		const after = this.inFlight ?? Promise.resolve();
+		const next: Promise<void> = after
+			.then(() => this.run(force))
+			.finally(() => {
+				if (this.inFlight === next) this.inFlight = null;
+			});
+		this.inFlight = next;
+		return next;
 	}
 
 	private async run(force: boolean): Promise<void> {
@@ -145,6 +154,8 @@ class RingState {
 
 		const result = await fetchRing({
 			fetch: httpFetch,
+			// Native HTTP has no CORS preflight to trip over, so it can insist on a fresh answer.
+			revalidate: isNative(),
 			cache: {
 				read: () => store.readRing(),
 				write: (record) => store.writeRing(record)

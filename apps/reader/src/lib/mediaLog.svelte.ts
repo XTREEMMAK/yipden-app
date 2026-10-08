@@ -9,7 +9,7 @@
  */
 
 const KEY = 'yipden:diag:mediaLog';
-const LIMIT = 40;
+const LIMIT = 100;
 
 function read(): string[] {
 	try {
@@ -24,7 +24,9 @@ class MediaLog {
 	lines = $state<string[]>(read());
 
 	add(text: string): void {
-		const stamp = new Date().toLocaleTimeString([], { hour12: false });
+		const now = new Date();
+		// To the millisecond: a late echo of a Pause is told apart from a reply by how late it is.
+		const stamp = `${now.toLocaleTimeString([], { hour12: false })}.${String(now.getMilliseconds()).padStart(3, '0')}`;
 		const visible = typeof document === 'undefined' ? '?' : document.visibilityState;
 		this.lines = [...this.lines, `${stamp} [${visible}] ${text}`].slice(-LIMIT);
 		try {

@@ -197,6 +197,7 @@ class PlayerState {
 				this.seek(pending);
 			});
 			element.addEventListener('play', () => {
+				if (__YIPDEN_DEBUG__ && !this.source) mediaLog?.add('audio element: play');
 				if (this.source) return;
 				this.started();
 				this.playing = true;
@@ -204,6 +205,7 @@ class PlayerState {
 				this.updateMediaSessionPosition();
 			});
 			element.addEventListener('pause', () => {
+				if (__YIPDEN_DEBUG__ && !this.source) mediaLog?.add('audio element: pause');
 				if (this.source) return;
 				this.playing = false;
 				this.updateMediaSessionState();
@@ -483,6 +485,11 @@ class PlayerState {
 
 	/** Pause whatever is playing, file or embed. */
 	pause(): void {
+		if (__YIPDEN_DEBUG__) {
+			mediaLog?.add(
+				`pause(): ${this.source ? `${this.source.provider} player` : 'audio element'}, ${this.engine || !this.source ? 'ready' : 'no player yet'}`
+			);
+		}
 		if (this.source) this.engine?.pause();
 		else this._audio?.pause();
 	}
@@ -537,6 +544,11 @@ class PlayerState {
 		this.setMediaSessionMetadata(item);
 		const events: EmbedEvents = {
 			playing: (playing) => {
+				if (__YIPDEN_DEBUG__) {
+					mediaLog?.add(
+						`${source.provider} player says playing=${playing}${live() ? '' : ' (stale, ignored)'}`
+					);
+				}
 				if (!live()) return;
 				if (playing) this.started();
 				this.playing = playing;
@@ -848,11 +860,17 @@ class PlayerState {
 		this.updateMediaSessionPosition();
 	}
 
+	/** What the system was last told, for the debug log only. */
+	private toldSystem: 'playing' | 'paused' | 'none' | null = null;
+
 	private updateMediaSessionState(): void {
 		const active = this.current !== null && this.sheet !== 'hidden';
-		void MediaSession.setPlaybackState({
-			playbackState: active ? (this.playing ? 'playing' : 'paused') : 'none'
-		}).catch(() => {});
+		const state = active ? (this.playing ? 'playing' : 'paused') : 'none';
+		if (__YIPDEN_DEBUG__ && state !== this.toldSystem) {
+			mediaLog?.add(`told the system: ${state}`);
+		}
+		this.toldSystem = state;
+		void MediaSession.setPlaybackState({ playbackState: state }).catch(() => {});
 	}
 
 	/** The lock screen's own scrubber, kept in step with seeks and rate changes, not every frame. */

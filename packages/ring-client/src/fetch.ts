@@ -36,6 +36,12 @@ export interface FetchRingOptions extends ValidateOptions {
 	timeoutMs?: number;
 	maxBytes?: number;
 	userAgent?: string;
+	/**
+	 * Ask every cache between here and the ring to check with the origin (`Cache-Control: no-cache`),
+	 * still conditionally, so an unchanged ring costs a 304. Off by default because a browser treats
+	 * the header as one needing a CORS preflight; the native client has no such rule.
+	 */
+	revalidate?: boolean;
 	now?: () => Date;
 }
 
@@ -102,6 +108,7 @@ export async function fetchRing(options: FetchRingOptions = {}): Promise<FetchRi
 		timeoutMs = DEFAULT_TIMEOUT_MS,
 		maxBytes = DEFAULT_MAX_BYTES,
 		userAgent,
+		revalidate = false,
 		now = () => new Date()
 	} = options;
 
@@ -137,6 +144,7 @@ export async function fetchRing(options: FetchRingOptions = {}): Promise<FetchRi
 	if (cached?.lastModified) headers['if-modified-since'] = cached.lastModified;
 	// Browsers refuse to let a page set this, so it only takes effect on the native client.
 	if (userAgent) headers['user-agent'] = userAgent;
+	if (revalidate) headers['cache-control'] = 'no-cache';
 
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), timeoutMs);

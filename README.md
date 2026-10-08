@@ -30,20 +30,30 @@ and what you keep from it, even where the app cannot read: a **Creator Database*
 your phone. It is website-first, not website-only, so someone who only has a Bluesky account is
 still a full entry.
 
-Everything a followed feed produces is a **yip**, whatever its format: a post, a video, an
-episode, a track. Following a person is still called following. What shows up afterward in
-Feeds is a yip.
+What you follow is a **den**: a person, a website, a forum, a member of a webring. You build your
+den in one box, by name or by link, and what each of them shares arrives in **Yips**, newest
+first. Everything a followed feed produces is a **yip**, whatever its format: a post, a video, an
+episode, a track, a new post on a site, a topic on a forum.
 
 ### What is in the app
 
-- **Discover**: the IndieNodes ring and partner rings, one creator at a time.
-- **Follow**: a person across their site and profiles, or a public forum.
-- **Feeds**: everything followed, newest first, with forum topics as a digest.
-- **The player**: audio files, and YouTube, SoundCloud and Bandcamp through their own players.
+- **Discover**: the IndieNodes ring and partner rings one creator at a time, plus **Surf**, a
+  visual index of indie sites, and a short list of forums worth knowing. Surf is an early
+  experiment.
+- **Follow**: build your den. One box takes a name or a link and works out whether it is a
+  person, a site or a forum. A forum can be followed whole or by category, and a site by its feed.
+- **Yips**: everything in your den, newest first, never ranked. Filter by what kind of thing (all,
+  posts, watch, listen), by kind of den, by person or by folder. The filter is kept while you move
+  around the app.
+- **The player**: audio files, and tracks from **YouTube, SoundCloud and Bandcamp played inside the
+  app** with YipDen's own controls: play, pause, seek, next and previous. On Android they also work
+  from the lock screen and a car, and the queue plays on to the next track. Bandcamp's controls
+  on Android go through a small bridge into its player; where a platform's player cannot be
+  driven, the track opens on the platform instead.
 - **The in-app browser**: visit a creator's site and keep what it plays or shows to your
   **Library**: tracks, comic pages, game screenshots and passages, kept as links, never copies.
 - **Creator profiles**: who they are in their own words, where they are, what you kept.
-- **You**: who you follow, your Library, Liked and Not Liked, forums, settings and backups.
+- **You**: your dens in one list, your Library, Liked and Not Liked, settings and backups.
 
 ### Rules that do not bend
 

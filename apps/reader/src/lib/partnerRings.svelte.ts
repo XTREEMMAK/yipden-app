@@ -13,10 +13,11 @@ import { store } from './store/index.js';
 
 /**
  * How long a partner ring's page is trusted before it is asked about again. Rings are edited by
- * hand, a few times a month at most; a day keeps a new member from waiting long without spending a
- * request on every launch. Pull to refresh asks at once regardless.
+ * hand, a few times a month at most; six hours (a day before 2026-10-08) keeps a new member from
+ * waiting long, and the check is conditional, so an unchanged page costs a 304. Pull to refresh asks
+ * at once regardless.
  */
-export const PARTNER_FRESH_MS = 24 * 60 * 60 * 1000;
+export const PARTNER_FRESH_MS = 6 * 60 * 60 * 1000;
 
 /** A live ring's last page, kept per ring id with what is needed to ask whether it changed. */
 interface CachedPartnerPage {
