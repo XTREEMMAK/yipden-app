@@ -74,3 +74,30 @@ describe('previewFor', () => {
 		expect(previewFor(entry({ type: 'game' }))).toBeNull();
 	});
 });
+
+describe('a text excerpt written as HTML', () => {
+	it('is read as words, keeping its paragraphs, and plain text is left exactly as written', () => {
+		const html = previewFor({
+			id: 'text-one',
+			creator: 'Cy',
+			type: 'text',
+			source_url: 'https://cy.example/',
+			excerpts: [
+				{ title: '<b>Chapter</b> One', text: '<p>First line.</p><p>Second &amp; last.</p>' }
+			]
+		});
+		expect(html).toMatchObject({
+			kind: 'view',
+			slides: [{ title: 'Chapter One', text: 'First line.\n\nSecond & last.' }]
+		});
+
+		const plain = previewFor({
+			id: 'text-two',
+			creator: 'Cy',
+			type: 'text',
+			source_url: 'https://cy.example/',
+			excerpts: [{ text: 'A line.\n\nAnother, 3 < 4.' }]
+		});
+		expect(plain).toMatchObject({ slides: [{ text: 'A line.\n\nAnother, 3 < 4.' }] });
+	});
+});

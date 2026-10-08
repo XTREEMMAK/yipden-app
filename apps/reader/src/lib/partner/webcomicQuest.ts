@@ -54,7 +54,12 @@ export function scrapeWebcomicQuest(document: unknown): PartnerCandidate[] {
 
 export const webcomicQuestSource = livePartnerSource(
 	{
-		ring: { id: 'webcomic-quest', name: 'WebcomicQuest', hubUrl: WEBCOMIC_QUEST_URL },
+		ring: {
+			id: 'webcomic-quest',
+			name: 'WebcomicQuest',
+			hubUrl: WEBCOMIC_QUEST_URL,
+			iconUrl: 'https://webcomic.quest/wp-content/uploads/2026/03/cropped-Quest-Logo.png'
+		},
 		capabilities: ['thumbnails'],
 		read: scrapeWebcomicQuest
 	},

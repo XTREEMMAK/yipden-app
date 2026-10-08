@@ -311,8 +311,10 @@ test.describe('The player', () => {
 			.click();
 		await expect(page.getByRole('heading', { name: 'Low Tide' })).toBeVisible();
 
-		const title = await page.evaluate(() => navigator.mediaSession?.metadata?.title ?? null);
-		expect(title).toBe('Low Tide');
+		// The plugin sets it asynchronously: wait for it rather than read it the instant the player opens.
+		await expect
+			.poll(() => page.evaluate(() => navigator.mediaSession?.metadata?.title ?? null))
+			.toBe('Low Tide');
 	});
 
 	test('opens the creator site from the player, not the app WebView', async ({ page, context }) => {

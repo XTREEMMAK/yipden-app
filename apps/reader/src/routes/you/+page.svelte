@@ -1,5 +1,7 @@
 <script lang="ts">
 	import Sheet from '$components/Sheet.svelte';
+	import PersonIcon from '$components/PersonIcon.svelte';
+	import FrameMeter from '$components/FrameMeter.svelte';
 	import { kindLabel } from '$lib/sources.js';
 	import { hostOf } from '$lib/hosts.js';
 	import { profileHref } from '$lib/creatorProfile.svelte.js';
@@ -458,6 +460,9 @@
 
 <svelte:head><title>You</title></svelte:head>
 
+<!-- Debug builds: slow frames after each scroll of You, the Library's long list included. -->
+<FrameMeter target={typeof window === 'undefined' ? undefined : window} label="You" />
+
 <div
 	class="scroll"
 	bind:this={scroll}
@@ -625,11 +630,12 @@
 										</span>
 									{:else}
 										<button
-											class="mini-btn"
+											class="icon-btn"
 											aria-label={`Unfollow ${row.person.name}`}
+											title="Unfollow"
 											onclick={() => (confirmingId = row.person.id)}
 										>
-											Unfollow
+											<PersonIcon mark="remove" />
 										</button>
 									{/if}
 								</div>
@@ -1410,6 +1416,20 @@
 	}
 
 	/* Their own picks, one tap from the row: the brand's round play button, as in Discover. */
+	/* A round button holding only a drawing (Unfollow): quieter than the solid gear beside it. */
+	.icon-btn {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		padding: 0;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--ink);
+	}
+
 	.picks-btn {
 		display: grid;
 		flex: none;

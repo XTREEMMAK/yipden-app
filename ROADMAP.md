@@ -678,6 +678,27 @@ contract is [docs/sites-contract.md](docs/sites-contract.md); the reasoning is i
 To judge on the phone: does Surf feel like YipDen or a second app inside it; does the hero still
 feel central; do clips judder in the stack, and what do they cost in data.
 
+## iOS (audited 2026-10-07; not started)
+
+Capacitor builds iOS from the same app. Every plugin in use ships an iOS side: the encrypted store
+(SQLCipher, key in the Keychain), the in-app browser (script injection and messages), media
+session (Now Playing and remote commands), share and app. Nothing is a blocker in code; what is
+needed is a host and these:
+
+1. **A Mac with Xcode** (or a macOS CI runner), `cap add ios`, an Apple developer account, signing
+   and App Store review. Nothing iOS can be built on the Linux machine this has been built on.
+2. **The in-app browser is gated to Android** (`siteBrowser.available`): on iOS, Visit opens the
+   system browser and "Found on their page" (keeping tracks, pictures, passages) is unavailable
+   until the plugin's iOS script injection is verified and the gate lifted.
+3. **Android-only native code to match:** the Bandcamp bridge (a `WKUserScript` for all frames, in
+   a small plugin), clearing the WebView cache on close (`WKWebsiteDataStore`), and the Back
+   handling (iOS has no Back button; sheets already close by their own buttons and Escape).
+4. **Background audio:** `UIBackgroundModes: audio` in Info.plist, and inline media playback with
+   no tap required in the WebView, or the player stops when the screen locks.
+5. **Backups off the phone:** keep the database out of iCloud backup, as Android excludes it.
+6. **Video previews:** the forum index's clips are WebM; iOS needs MP4 (the real pipeline's plan).
+7. **v2.0 notifications** would need APNs beside FCM.
+
 ## Your own webrings (proposed 2026-10-06; ask before building)
 
 A reader pastes a webring's address and browses it like a partner ring. It stays on their

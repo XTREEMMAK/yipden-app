@@ -10,7 +10,10 @@ export const DIAG_KEYS = {
 	noStack: 'yipden:diag:noStack',
 	cssStack: 'yipden:diag:cssStack',
 	noBackdrop: 'yipden:diag:noBackdrop',
-	noThumbs: 'yipden:diag:noThumbs'
+	noThumbs: 'yipden:diag:noThumbs',
+	noCardGlass: 'yipden:diag:noCardGlass',
+	eagerCards: 'yipden:diag:eagerCards',
+	noLibraryThumbs: 'yipden:diag:noLibraryThumbs'
 } as const;
 
 export type DiagKey = keyof typeof DIAG_KEYS;
@@ -30,6 +33,12 @@ class Diagnostics {
 	cssStack = $state(read('cssStack'));
 	noBackdrop = $state(read('noBackdrop'));
 	noThumbs = $state(read('noThumbs'));
+	/** Feeds: no glass behind a post that shares a video. */
+	noCardGlass = $state(read('noCardGlass'));
+	/** Feeds: every card drawn up front, instead of as it nears the screen. */
+	eagerCards = $state(read('eagerCards'));
+	/** Library: an icon in place of each kept picture. */
+	noLibraryThumbs = $state(read('noLibraryThumbs'));
 
 	set(key: DiagKey, on: boolean): void {
 		this[key] = on;
@@ -59,7 +68,7 @@ export interface ScrollReport {
  * a moment. Main-thread frames only, which is where a judder from style, layout, decode or script
  * shows up; it cannot see a compositor-only hitch.
  */
-export function frameMeter(pane: HTMLElement, onReport: (report: ScrollReport) => void) {
+export function frameMeter(pane: HTMLElement | Window, onReport: (report: ScrollReport) => void) {
 	let raf = 0;
 	let last = 0;
 	let quietSince = 0;
@@ -76,11 +85,12 @@ export function frameMeter(pane: HTMLElement, onReport: (report: ScrollReport) =
 					frames: frames.length,
 					slow: frames.filter((frame) => frame > 20).length,
 					worst: Math.round(Math.max(...frames)),
-					stack: pane.classList.contains('stack-sda')
-						? 'css'
-						: pane.classList.contains('stack')
-							? 'js'
-							: 'off'
+					stack:
+						'classList' in pane && pane.classList.contains('stack-sda')
+							? 'css'
+							: 'classList' in pane && pane.classList.contains('stack')
+								? 'js'
+								: 'off'
 				});
 			}
 			frames = [];

@@ -1926,7 +1926,8 @@
 		height: 22px;
 		flex: none;
 		border-radius: 5px;
-		object-fit: cover;
+		/* Whole, not cropped: a ring's mark can be tall (Smallway's, Ink Shrines'). */
+		object-fit: contain;
 	}
 
 	.row-ic {

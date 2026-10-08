@@ -1,4 +1,6 @@
 <script lang="ts">
+	import FrameMeter from '$components/FrameMeter.svelte';
+	import { diagnostics } from '$lib/diagnostics.svelte.js';
 	import Segmented from '$components/Segmented.svelte';
 	import { hostOf } from '$lib/hosts.js';
 	import { profileHref } from '$lib/creatorProfile.svelte.js';
@@ -134,6 +136,16 @@
 		const yip = feeds.panes[feeds.filter].find((candidate) => candidate.key === key);
 		if (yip && !yip.readAt) void feeds.markRead(yip);
 	}
+
+	/** Debug builds: every card drawn up front, to see whether drawing on arrival is the stutter. */
+	const diagEager = __YIPDEN_DEBUG__ && diagnostics?.eagerCards === true;
+	/** The pane being read, for the debug frame meter. */
+	let meterPane = $state<HTMLElement | undefined>(undefined);
+	$effect(() => {
+		void filterIndex;
+		void onForums;
+		meterPane = activePane() ?? undefined;
+	});
 
 	function activePane(): HTMLElement | null {
 		return viewport?.querySelector(`[data-pane="${selectedPill}"]`) ?? null;
@@ -288,6 +300,7 @@
 		</div>
 	</header>
 
+	<FrameMeter target={meterPane} label="Feeds" />
 	<div class="viewport" bind:this={viewport}>
 		{#if feeds.status === 'refreshing' && !pulling && pullY === 0}
 			<div class="pull refreshing" role="status" aria-label="Refreshing your feeds">
@@ -304,6 +317,7 @@
 			{#each FEEDS_FILTERS as filter (filter.key)}
 				<div
 					class="pane"
+					class:eager={diagEager}
 					data-pane={filter.key}
 					role="tabpanel"
 					tabindex="0"
@@ -967,7 +981,8 @@
 	 * swinging out past the card's own edges. Skipping its rendering would clip it to its box,
 	 * as content-visibility contains its paint, so these few cards are always drawn.
 	 */
-	:global(.pane.stack .yip-fold:has(.has-video)) {
+	:global(.pane.stack .yip-fold:has(.has-video)),
+	:global(.pane.stack.eager .yip-fold) {
 		content-visibility: visible;
 	}
 

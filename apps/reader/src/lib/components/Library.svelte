@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { diagnostics } from '$lib/diagnostics.svelte.js';
+	/** Debug builds: icons in place of kept pictures, to see whether they are the stutter. */
+	const diagNoThumbs = __YIPDEN_DEBUG__ && diagnostics?.noLibraryThumbs === true;
 	import { browserGuide } from '$lib/browserGuide.svelte.js';
 	import { hostOf } from '$lib/hosts.js';
 	import { creators } from '$lib/creators.svelte.js';
@@ -219,7 +222,7 @@
 {/snippet}
 
 {#snippet thumb(item: LibraryItem)}
-	{#if (item.type === 'pictures' || item.type === 'screenshots') && !item.gone && item.reference}
+	{#if (item.type === 'pictures' || item.type === 'screenshots') && !item.gone && item.reference && !diagNoThumbs}
 		<!-- Loaded live from the creator's host; never stored. -->
 		<img
 			class="thumb"
@@ -673,6 +676,13 @@
 		gap: 2px;
 		border-radius: 14px;
 		transition: background var(--dur-m) var(--ease);
+		/*
+		 * Off screen, a row is not laid out or drawn until it nears the screen; its last height is
+		 * kept so the list does not jump. A long Library stuttered further down as rows and their
+		 * pictures were drawn in bulk (phone feedback, 2026-10-07).
+		 */
+		content-visibility: auto;
+		contain-intrinsic-size: auto 64px;
 	}
 
 	/* Where a View landed: picked out until the reader moves on. */

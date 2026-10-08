@@ -70,7 +70,9 @@ export const smallwayComicsSource = livePartnerSource(
 		ring: {
 			id: 'smallway-comics',
 			name: 'Smallway: Comics Line',
-			hubUrl: 'https://gusbus.space/smallweb-subway/comics/'
+			hubUrl: 'https://gusbus.space/smallweb-subway/comics/',
+			// The Smallweb Subway's own mark, drawn inline on its page (svg1), bundled here.
+			iconUrl: '/ring-icons/smallway.svg'
 		},
 		capabilities: [],
 		read: readSmallwayComics

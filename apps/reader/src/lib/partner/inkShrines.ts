@@ -97,7 +97,12 @@ export function scrapeInkShrines(document: unknown): PartnerCandidate[] {
 
 export const inkShrinesSource = livePartnerSource(
 	{
-		ring: { id: 'ink-shrines', name: 'Ink Shrines', hubUrl: INK_SHRINES_URL },
+		ring: {
+			id: 'ink-shrines',
+			name: 'Ink Shrines',
+			hubUrl: INK_SHRINES_URL,
+			iconUrl: 'https://www.inkshrines.sloanesloane.com/images/sparkle.png'
+		},
 		capabilities: ['thumbnails', 'tags'],
 		read: scrapeInkShrines
 	},

@@ -21,7 +21,11 @@
 	let spike = $state(false);
 
 	const DIAG: Array<{ key: DiagKey; title: string; note: string }> = [
-		{ key: 'meter', title: 'Frame meter', note: 'Slow frames after each partner ring scroll' },
+		{
+			key: 'meter',
+			title: 'Frame meter',
+			note: 'Slow frames after each scroll: partner rings, Feeds and You'
+		},
 		{ key: 'noStack', title: 'Partner cards flat', note: 'No 3D stack; reopen the ring to apply' },
 		{
 			key: 'cssStack',
@@ -29,7 +33,22 @@
 			note: 'The fold that juddered after a relaunch; restart the app to apply'
 		},
 		{ key: 'noBackdrop', title: 'No partner backdrop', note: 'Hides the blurred member mosaic' },
-		{ key: 'noThumbs', title: 'No partner thumbnails', note: 'Hides member pictures on cards' }
+		{ key: 'noThumbs', title: 'No partner thumbnails', note: 'Hides member pictures on cards' },
+		{
+			key: 'noCardGlass',
+			title: 'No glass on video posts',
+			note: 'Feeds: plain cards where a video waits behind a post; reopen Feeds'
+		},
+		{
+			key: 'eagerCards',
+			title: 'Draw every card up front',
+			note: 'Feeds: no drawing as cards near the screen; reopen Feeds'
+		},
+		{
+			key: 'noLibraryThumbs',
+			title: 'No Library pictures',
+			note: 'Library: icons in place of kept pictures'
+		}
 	];
 
 	/**

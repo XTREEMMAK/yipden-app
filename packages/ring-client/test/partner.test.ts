@@ -108,6 +108,19 @@ describe('readPartnerRing', () => {
 		}
 	});
 
+	it('keeps a ring mark bundled with the client, and refuses anything posing as one', () => {
+		const withIcon = (iconUrl: string) => {
+			const base = fixtureAdapter();
+			return readPartnerRing({ ...base, ring: { ...base.ring, iconUrl } }, fixture).ring.iconUrl;
+		};
+		expect(withIcon('/ring-icons/smallway.svg')).toBe('/ring-icons/smallway.svg');
+		expect(withIcon('https://ring.example/icon.png')).toBe('https://ring.example/icon.png');
+		expect(withIcon('//evil.example/icon.png')).toBeUndefined();
+		expect(withIcon('/ring-icons/../../secret')).toBeUndefined();
+		expect(withIcon('javascript:alert(1)')).toBeUndefined();
+		expect(withIcon('http://ring.example/icon.png')).toBeUndefined();
+	});
+
 	it('never throws, whatever the document or the adapter does', () => {
 		for (const document of [null, undefined, 42, 'text', [], { sites: 'no' }]) {
 			expect(() => readPartnerRing(fixtureAdapter(), document)).not.toThrow();

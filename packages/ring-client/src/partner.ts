@@ -39,7 +39,7 @@ export interface PartnerRingInfo {
 	name: string;
 	/** The ring's own front door. Every member card links here, not to IndieNodes. */
 	hubUrl: string;
-	/** The ring's own small mark (its favicon or logo), https only. Drawn beside its name. */
+	/** The ring's own small mark (its favicon or logo), https, or bundled with the client (`/ring-icons/…`). */
 	iconUrl?: string;
 	/** The ring's own button or badge, such as an 88x31, https only. Drawn in its header. */
 	badgeUrl?: string;
@@ -117,6 +117,16 @@ function text(value: unknown, max: number): string | undefined {
 	return trimmed || undefined;
 }
 
+/**
+ * A ring's mark bundled with the client itself (`/ring-icons/smallway.svg`), for a ring whose mark
+ * has no address of its own (drawn inline in its page). A path on the client's own origin only:
+ * one leading slash, no host, nothing climbing out with `..`.
+ */
+function bundledPath(value: unknown): string | undefined {
+	if (typeof value !== 'string') return undefined;
+	return /^\/(?!\/)[\w./-]{1,200}$/.test(value) && !value.includes('..') ? value : undefined;
+}
+
 /** A member id when the ring gave none: stable for the same name and address. */
 function derivedId(name: string, url: string): string {
 	const slug = name
@@ -152,7 +162,7 @@ export function readPartnerRing(adapter: PartnerAdapter, document: unknown): Par
 
 	const info: PartnerRingInfo = { id: adapter.ring.id, name, hubUrl: hub };
 	// Art is optional and only ever an https address: a ring that supplies none simply has none.
-	const icon = normalizeUrl(adapter.ring.iconUrl);
+	const icon = normalizeUrl(adapter.ring.iconUrl) ?? bundledPath(adapter.ring.iconUrl);
 	if (icon) info.iconUrl = icon;
 	const badge = normalizeUrl(adapter.ring.badgeUrl);
 	if (badge) info.badgeUrl = badge;

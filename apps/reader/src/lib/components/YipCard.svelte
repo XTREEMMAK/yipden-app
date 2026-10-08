@@ -51,6 +51,7 @@
 
 <script lang="ts">
 	import { onDestroy, tick } from 'svelte';
+	import { diagnostics } from '$lib/diagnostics.svelte.js';
 	import { prefersReducedMotion } from '$lib/motion.js';
 	import { sourceColor as sourceColorOf } from '$lib/sources.js';
 	import { youtubeLinkIn } from '$lib/embeds/source.js';
@@ -98,6 +99,14 @@
 	 * A YouTube video the post links or embeds, without being one itself (a Bluesky post sharing a
 	 * video, a blog post embedding one): shown inside the post as a preview that opens on YouTube.
 	 */
+	/** Debug builds: the glass switched off, to see whether it is what a stutter follows. */
+	const diagNoGlass = __YIPDEN_DEBUG__ && diagnostics?.noCardGlass === true;
+
+	/** The shared video's picture, for the post's glass when the video waits behind it. */
+	let videoArt = $derived.by(() => {
+		const id = linkedVideo ? youtubeVideoId(linkedVideo) : null;
+		return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null;
+	});
 	let linkedVideo = $derived(
 		yip.feedKind === 'youtube' || youtubeId
 			? null
@@ -273,6 +282,12 @@
 			bind:this={postCard}
 			inert={showingVideo}
 		>
+			{#if linkedVideo && !concealed && videoArt && !diagNoGlass}
+				<!-- The post's glass: the video behind it, blurred once inside the card. -->
+				<span class="glass" aria-hidden="true"
+					><span class="glass-art" style:background-image={`url(${videoArt})`}></span></span
+				>
+			{/if}
 			<!-- The post itself: the whole card, under the buttons drawn over it. -->
 			<button
 				class="yip-hit"
@@ -450,9 +465,38 @@
 	 */
 	.has-video > .yip.text {
 		z-index: 3;
-		background: color-mix(in srgb, var(--surface) 72%, transparent);
-		-webkit-backdrop-filter: blur(22px) saturate(1.15);
-		backdrop-filter: blur(22px) saturate(1.15);
+	}
+
+	/*
+	 * Drawn as the card's own background, not a backdrop blur: a backdrop is redrawn every frame
+	 * the stack moves the card, which made these cards stutter as they came on screen. This blur is
+	 * painted once with the card. Clipped to the card's corners; scaled so the blur's soft edge
+	 * stays outside them; the card's own surface laid over it, mostly opaque, for the text.
+	 */
+	/* As specific as the rule that makes every other child of the post relative, and later. */
+	.yip.text > .glass {
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		overflow: hidden;
+		border-radius: inherit;
+		pointer-events: none;
+	}
+
+	.glass-art {
+		position: absolute;
+		inset: 0;
+		background-size: cover;
+		background-position: center;
+		filter: blur(22px) saturate(1.15);
+		transform: scale(1.25);
+	}
+
+	.glass::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: color-mix(in srgb, var(--surface) 76%, transparent);
 	}
 
 	.has-video > .av-hit {
@@ -672,15 +716,17 @@
 	.src {
 		padding: 5px 9px;
 		border-radius: 999px;
-		background: color-mix(in srgb, var(--src, transparent) 78%, rgba(0, 0, 0, 0.25));
+		/*
+		 * Solid, with no blur behind it: a blur under a card the stack moves is redrawn every frame
+		 * of a scroll, on every picture card at once (2026-10-07).
+		 */
+		background: color-mix(in srgb, var(--src, transparent) 86%, rgba(0, 0, 0, 0.45));
 		color: #fff;
 		font-family: var(--mono);
 		font-size: 10px;
 		font-weight: 500;
 		letter-spacing: 0.07em;
 		text-transform: uppercase;
-		-webkit-backdrop-filter: blur(8px);
-		backdrop-filter: blur(8px);
 	}
 
 	.ago {

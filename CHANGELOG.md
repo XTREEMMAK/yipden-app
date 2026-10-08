@@ -16,6 +16,11 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- Unfollow and Follow in You are icons. Smallway, Ink Shrines and WebcomicQuest show their own
+  marks. A ring member's text sample reads as words (no stray tags), stays inside its sheet, and
+  has a proper title.
+- Smoother scrolling: picture cards and video posts no longer redraw a blur every frame, and a
+  long Library draws its rows as they come on screen. Debug builds can measure Feeds and You.
 - You's Following rows open the person's profile; their settings are a sheet behind a settings
   button.
 - Feeds: an unread yip rings its creator's picture; a shared video waiting behind its post is

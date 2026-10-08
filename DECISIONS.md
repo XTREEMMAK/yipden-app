@@ -3616,3 +3616,28 @@ app's buttons and the car's, and never said it ended. Approved by the maintainer
   needs the network, so it was not kept; `embeds/bandcamp.test.ts` covers the app's side offline.
 - **iOS** would need the same through a `WKUserScript` added to all frames, in a small native
   plugin. Not built: there is no iOS host yet.
+
+## 2026-10-07 — Person icons, ring art, excerpts as words, and two stutters
+
+- **Unfollow and Follow are drawings:** a person with an x, a person with a check, from one
+  `PersonIcon`, the person glyph ROADMAP's audit wanted gathered. Their buttons keep their words
+  as their accessible names, and Unfollow's confirmation keeps its words.
+- **Ring art.** Smallway's mark is drawn inline in its page (`svg1`), so it is bundled
+  (`static/ring-icons/smallway.svg`, editor metadata stripped, no scripts) and the partner boundary
+  now also takes a path on the client's own origin for a ring's icon (one leading slash, no host,
+  no `..`). Ink Shrines and WebcomicQuest use the images their maintainer named. Ring icons are
+  drawn whole (`contain`), since a ring's mark can be tall.
+- **A text excerpt written as HTML is read as words.** Some members wrap an excerpt in `<p>`, and
+  the tags showed. Ring text with markup goes through `htmlToText` (paragraphs kept); plain text is
+  left as written. The slide is centred only while it fits (`safe center`), scrolls within itself,
+  wraps long words, and its title is a display heading rather than bold body text.
+- **Two stutters, on paper first.** Neither reproduces off the phone, so this is what the code
+  showed plus a way to measure:
+  - Feeds: every picture card's source chip and the new glass post used a backdrop blur, which is
+    redrawn every frame the stack moves a card. The chip is a solid tint now, and the glass is the
+    video's picture blurred once inside the card (the same look, painted with the card).
+  - Library: every row was laid out and drawn up front, and kept pictures are creators' full-size
+    images at 44px. Rows now skip rendering until they near the screen, keeping their height.
+  - **To find what is left:** the debug frame meter now also reports Feeds and You, and three new
+    debug switches each remove one suspect (glass on video posts, drawing cards on arrival in
+    Feeds, Library pictures).

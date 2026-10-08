@@ -6,6 +6,7 @@
 	import { verdicts } from '$lib/verdicts.svelte.js';
 	import { forumIndex } from '$lib/sites.svelte.js';
 	import { onMount } from 'svelte';
+	import PersonIcon from './PersonIcon.svelte';
 
 	/**
 	 * Liked or Not for me, as rows: the creator's badge when one was saved with the verdict, their
@@ -61,7 +62,14 @@
 		{#if kind === 'liked'}
 			{@const href = followHref(item)}
 			{#if href}
-				<button class="mini-btn" onclick={() => goto(href)}>Follow</button>
+				<button
+					class="icon-btn"
+					aria-label={`Follow ${item.name}`}
+					title="Follow"
+					onclick={() => goto(href)}
+				>
+					<PersonIcon mark="check" />
+				</button>
 			{/if}
 		{/if}
 		<button class="mini-btn" onclick={() => verdicts.clear(item.url)}>
@@ -138,6 +146,19 @@
 		font-size: 12.5px;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.icon-btn {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		padding: 0;
+		border: 1px solid var(--line);
+		border-radius: 999px;
+		background: var(--surface);
+		color: var(--ink);
 	}
 
 	.mini-btn {

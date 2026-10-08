@@ -104,7 +104,7 @@
 					/>
 				{:else}
 					<div class="text">
-						{#if slide.title}<h3>{slide.title}</h3>{/if}
+						{#if slide.title}<h3 class="slide-title">{slide.title}</h3>{/if}
 						<p>{slide.text}</p>
 					</div>
 				{/if}
@@ -199,7 +199,13 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		justify-content: center;
+		/*
+		 * Safe: centred while it fits, top-aligned once it does not. Plain centring pushed the top of
+		 * a long excerpt out of reach above the sheet (phone feedback, 2026-10-07).
+		 */
+		justify-content: safe center;
+		box-sizing: border-box;
+		min-width: 0;
 		gap: 10px;
 		min-height: 0;
 		margin: 0;
@@ -215,15 +221,24 @@
 		border-radius: 12px;
 	}
 
+	/* The whole width, scrolling within itself: a long passage never runs past the sheet. */
 	.text {
+		box-sizing: border-box;
+		width: 100%;
 		max-height: 100%;
+		min-height: 0;
 		overflow-y: auto;
 		text-align: left;
+		overflow-wrap: anywhere;
 	}
 
-	.text h3 {
-		margin: 0 0 8px;
-		font-size: 18px;
+	.slide-title {
+		margin: 0 0 12px;
+		font-family: var(--display);
+		font-size: 26px;
+		line-height: 1.1;
+		font-weight: 750;
+		letter-spacing: -0.02em;
 	}
 
 	.text p {

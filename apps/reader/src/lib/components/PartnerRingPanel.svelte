@@ -866,7 +866,8 @@
 		width: 32px;
 		height: 32px;
 		border-radius: 8px;
-		object-fit: cover;
+		/* Whole, not cropped: a ring's mark can be tall (Smallway's, Ink Shrines'). */
+		object-fit: contain;
 	}
 
 	.ring-badge {
