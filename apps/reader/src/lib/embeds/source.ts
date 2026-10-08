@@ -149,8 +149,17 @@ function safeHttps(url: string, host: RegExp): URL | null {
 }
 
 /** What the player's own buttons can do with it. Bandcamp's player offers no way in: its own controls only. */
+/**
+ * Whether the app's own buttons drive this platform's player and hear when it ends. Bandcamp
+ * only where the Android host bridged its player (see `bandcampBridged` in engines.ts); the flag
+ * is read here directly, so this module stays free of the engines and their platform scripts.
+ */
 export function embedControllable(provider: EmbedProvider): boolean {
-	return provider !== 'bandcamp';
+	if (provider !== 'bandcamp') return true;
+	return (
+		typeof window !== 'undefined' &&
+		(window as unknown as { __yipdenBandcampBridge?: number }).__yipdenBandcampBridge === 1
+	);
 }
 
 export const PROVIDER_NAMES: Record<EmbedProvider, string> = {

@@ -154,6 +154,29 @@ reader keep audio the page plays (see DECISIONS.md, 2026-10-02). What keeps that
   WebView are visible to the other. v0.9 has no cookies of its own, so nothing leaks today. This is
   the main constraint the v2.0 account work below has to respect.
 
+## Bandcamp's player, bridged (Android, 2026-10-07)
+
+Bandcamp's embedded player has no API. On Android, `MainActivity` adds one script,
+`assets/yipden/bandcamp-bridge.js`, to frames from `https://bandcamp.com` in the app's own WebView
+(`WebViewCompat.addDocumentStartJavaScript`), so the app's player can drive it like YouTube's.
+
+- **Where it runs:** only frames whose origin is exactly `https://bandcamp.com`, only in the app's
+  WebView (never the in-app browser's, which is another WebView), and only inside a frame: a
+  Bandcamp page opened by itself is left alone. A WebView without document-start scripts gets
+  nothing, and Bandcamp falls back to its own controls.
+- **What it accepts:** play, pause and seek, only from the app's own origin (written into the
+  script by `MainActivity`, never `*`). Play presses Bandcamp's own play button; pause and seek
+  touch the one `<audio>` element. Nothing else on the page is read or changed.
+- **What it says:** ready, playing or paused, the time, the duration and the end, posted only to
+  the app's origin. No page content, no cookies, no account state.
+- **What the app accepts back:** messages whose `source` is that frame's own window and whose
+  origin is `https://bandcamp.com`, in the bridge's own shape. Anything else is ignored
+  (`embeds/engines.ts`, tested in `embeds/bandcamp.test.ts`).
+- **What the app's page is told:** one flag, `window.__yipdenBandcampBridge`, added to the app's
+  own origin only, so the player knows Bandcamp can be driven.
+- **What it does not do:** fetch Bandcamp's audio itself, keep a stream address, or get past any
+  check Bandcamp makes. It is Bandcamp's player playing Bandcamp's stream, pressed by the app.
+
 ## Data on the device
 
 v0.9 stores follows, read state, cached yips, cached waveform peaks, saved links, verdicts,

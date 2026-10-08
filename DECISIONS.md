@@ -3593,3 +3593,26 @@ sites contract now describes, and it does not square with "links, not copies" in
   outages rather than a wrong address.
 - **Surf's seed posters and clips must not ship in a release** (ROADMAP): they were temporary
   seeds, and Surf gets its own opt-in procedure. The forum index's are fine as they are.
+
+## 2026-10-07 — Bandcamp's player, driven on Android
+
+Bandcamp's embedded player has no API, so a Bandcamp track stopped continuous play, ignored the
+app's buttons and the car's, and never said it ended. Approved by the maintainer, Android only:
+
+- **A script Android adds to Bandcamp's frames.** `MainActivity` uses `androidx.webkit`'s
+  `addDocumentStartJavaScript` (already in the build through Capacitor, now declared by the app)
+  to add `assets/yipden/bandcamp-bridge.js` to frames from `https://bandcamp.com` in the app's own
+  WebView. Inside Bandcamp's player there is one `<audio>` element and a play button: the script
+  reports play, pause, time, duration and the end, and takes play, pause and seek. An album plays
+  on to its next track in the same element, so an end counts only when nothing started again a
+  moment later. The trust rules are in docs/security.md.
+- **The app's page is told the bridge exists** (`window.__yipdenBandcampBridge`), so Bandcamp is
+  controllable like YouTube and SoundCloud there: the play button works, the clock runs, the car's
+  controls reach it, and continuous play goes into and out of it rather than stepping over it.
+  Without the flag (the web build, an old WebView, iOS) nothing changes from before.
+- **Proved in a real browser** before the phone: the bridge added to every frame by Playwright as
+  Android would, a ring track pointing at a real Bandcamp album. Pressing Play started Bandcamp's
+  player, the app's clock followed it, and the app's Pause and Play paused and resumed it. That test
+  needs the network, so it was not kept; `embeds/bandcamp.test.ts` covers the app's side offline.
+- **iOS** would need the same through a `WKUserScript` added to all frames, in a small native
+  plugin. Not built: there is no iOS host yet.

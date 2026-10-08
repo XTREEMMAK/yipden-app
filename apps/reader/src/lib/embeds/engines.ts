@@ -5,8 +5,9 @@ import { embedSrc, type EmbedSource } from './source.js';
  * Drives a platform's own player (YouTube, SoundCloud, Bandcamp) from the app's player: one
  * iframe in the host the full player gives it, loaded through the platform's own API, reporting
  * back what the app's audio element would. Proved on the phone by the embed spike (2026-10-06):
- * YouTube and SoundCloud take play, pause and seek from our buttons; Bandcamp has no API at all,
- * so it plays with its own controls and never says when it ends.
+ * YouTube and SoundCloud take play, pause and seek from our buttons. Bandcamp has no API at all:
+ * on Android a script the host adds to its frames stands in for one (`bandcampBridged`), and
+ * anywhere else it plays with its own controls and never says when it ends.
  *
  * Nothing here is loaded until a reader presses play on such a track: no platform is contacted
  * by a track merely sitting in the queue.
@@ -201,15 +202,82 @@ async function soundcloud(
 	};
 }
 
-/** Bandcamp: just its player. It has no API, so our buttons do nothing and nothing is reported. */
+/**
+ * Bandcamp: its own player, which has no API. On Android the app adds a small script to
+ * Bandcamp's frames (`bandcampBridged`, MainActivity, `assets/yipden/bandcamp-bridge.js`) that
+ * reports and takes play, pause and seek like the others. Anywhere else (the web build, an old
+ * WebView, iOS for now) our buttons do nothing and nothing is reported, as before.
+ */
 function bandcamp(
 	source: Extract<EmbedSource, { provider: 'bandcamp' }>,
 	host: HTMLElement,
+	events: EmbedEvents,
+	autoplay: boolean,
 	title: string
 ): EmbedEngine {
-	frame(host, embedSrc(source, location.origin), `${title}, Bandcamp player`);
-	const nothing = () => {};
-	return { play: nothing, pause: nothing, seek: nothing, destroy: () => host.replaceChildren() };
+	const el = frame(host, embedSrc(source, location.origin), `${title}, Bandcamp player`);
+	if (!bandcampBridged()) {
+		const nothing = () => {};
+		return { play: nothing, pause: nothing, seek: nothing, destroy: () => host.replaceChildren() };
+	}
+
+	const command = (name: 'play' | 'pause' | 'seek', value?: number) =>
+		el.contentWindow?.postMessage({ yipdenBandcamp: 1, command: name, value }, BANDCAMP_ORIGIN);
+	let wantPlay = autoplay;
+	const onMessage = (event: MessageEvent) => {
+		// Only that frame, from Bandcamp: the bridge's own messages and nothing posing as them.
+		if (event.source !== el.contentWindow || event.origin !== BANDCAMP_ORIGIN) return;
+		const data = event.data as { yipdenBandcamp?: number; type?: string; value?: unknown } | null;
+		if (!data || data.yipdenBandcamp !== 1) return;
+		const value = typeof data.value === 'number' && Number.isFinite(data.value) ? data.value : null;
+		switch (data.type) {
+			case 'ready':
+				if (wantPlay) command('play');
+				break;
+			case 'playing':
+				wantPlay = false;
+				events.playing(data.value === true);
+				break;
+			case 'time':
+				if (value !== null) events.time(value);
+				break;
+			case 'duration':
+				if (value !== null) events.duration(value);
+				break;
+			case 'ended':
+				events.ended();
+				break;
+		}
+	};
+	window.addEventListener('message', onMessage);
+	return {
+		play: () => {
+			wantPlay = true;
+			command('play');
+		},
+		pause: () => {
+			wantPlay = false;
+			command('pause');
+		},
+		seek: (seconds) => command('seek', seconds),
+		destroy: () => {
+			window.removeEventListener('message', onMessage);
+			host.replaceChildren();
+		}
+	};
+}
+
+const BANDCAMP_ORIGIN = 'https://bandcamp.com';
+
+/**
+ * Whether this app can read and drive Bandcamp's player: set on the app's own page by the
+ * Android host, and only when it added the bridge to Bandcamp's frames. False everywhere else.
+ */
+export function bandcampBridged(): boolean {
+	return (
+		typeof window !== 'undefined' &&
+		(window as unknown as { __yipdenBandcampBridge?: number }).__yipdenBandcampBridge === 1
+	);
 }
 
 export async function mountEmbed(
@@ -224,6 +292,6 @@ export async function mountEmbed(
 		case 'soundcloud':
 			return soundcloud(source, host, events, opts.autoplay, opts.title);
 		case 'bandcamp':
-			return bandcamp(source, host, opts.title);
+			return bandcamp(source, host, events, opts.autoplay, opts.title);
 	}
 }
