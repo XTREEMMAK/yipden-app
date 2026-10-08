@@ -143,6 +143,7 @@ function foldOf(card: HTMLElement): HTMLElement {
  * either keeps its already-computed style (if still mid-transition) or is left alone.
  */
 function layoutFallback(pane: HTMLElement): void {
+	if (__YIPDEN_DEBUG__ && diagnostics?.noFold) return;
 	const scrollTop = pane.scrollTop;
 	const viewport = pane.clientHeight - dockPx(pane);
 	const tiltIn = !pane.classList.contains('stack-flat');

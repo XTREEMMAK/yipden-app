@@ -27,6 +27,10 @@
 		{report.slow}/{report.frames} slow · worst {report.worst}ms
 		{#if report.split}<br />script {report.split.script} · render {report.split.render} · other {report
 				.split.other}{/if}
+		{#if report.card}<br />card {report.card.index + 1}/{report.card.of} ({report.card.what}) · {report
+				.card.pictures.length
+				? report.card.pictures.join(', ')
+				: 'no pictures'}{/if}
 	</p>
 {/if}
 

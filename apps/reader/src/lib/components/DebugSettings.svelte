@@ -45,6 +45,11 @@
 			note: 'Feeds: no drawing as cards near the screen; reopen Feeds'
 		},
 		{
+			key: 'noFold',
+			title: 'No fold on Yips cards',
+			note: 'Feeds: no tilt, fade or dim as cards move; reopen Feeds'
+		},
+		{
 			key: 'noPredecode',
 			title: 'No decoding ahead of the screen',
 			note: 'Feeds: pictures decode as a card arrives; reopen Feeds'

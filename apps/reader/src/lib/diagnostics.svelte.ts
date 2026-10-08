@@ -5,6 +5,8 @@
  * `__YIPDEN_DEBUG__`, so a release build reads none of them.
  */
 
+import { picturesOf } from './actions/predecode.js';
+
 export const DIAG_KEYS = {
 	meter: 'yipden:diag:meter',
 	noStack: 'yipden:diag:noStack',
@@ -14,7 +16,8 @@ export const DIAG_KEYS = {
 	noCardGlass: 'yipden:diag:noCardGlass',
 	eagerCards: 'yipden:diag:eagerCards',
 	noLibraryThumbs: 'yipden:diag:noLibraryThumbs',
-	noPredecode: 'yipden:diag:noPredecode'
+	noPredecode: 'yipden:diag:noPredecode',
+	noFold: 'yipden:diag:noFold'
 } as const;
 
 export type DiagKey = keyof typeof DIAG_KEYS;
@@ -42,6 +45,8 @@ class Diagnostics {
 	noLibraryThumbs = $state(read('noLibraryThumbs'));
 	/** Feeds: do not decode pictures ahead of the screen. */
 	noPredecode = $state(read('noPredecode'));
+	/** Cards keep their place but no tilt, fade or dim as they move: tests the fold itself. */
+	noFold = $state(read('noFold'));
 
 	set(key: DiagKey, on: boolean): void {
 		this[key] = on;
@@ -70,6 +75,11 @@ export interface ScrollReport {
 	 * picture decoder, the GPU and the compositor.
 	 */
 	split?: { script: number; render: number; other: number };
+	/**
+	 * The card at the bottom edge when the worst frame ran: its place in the pane, what kind of card,
+	 * and the pixel size of each picture it draws (filled in a moment after the rest).
+	 */
+	card?: { index: number; of: number; what: string; pictures: string[] };
 }
 
 /**
@@ -82,6 +92,7 @@ export function frameMeter(pane: HTMLElement | Window, onReport: (report: Scroll
 	let last = 0;
 	let quietSince = 0;
 	let frames: number[] = [];
+	let tops: number[] = [];
 	let longest: PerformanceEntry | null = null;
 	let observer: PerformanceObserver | null = null;
 	try {
@@ -94,6 +105,42 @@ export function frameMeter(pane: HTMLElement | Window, onReport: (report: Scroll
 	} catch {
 		// Not supported by this WebView: the report just has no split.
 	}
+	const describeCard = async (
+		box: HTMLElement,
+		scrollTop: number
+	): Promise<ScrollReport['card'] | undefined> => {
+		const cards = [...box.querySelectorAll<HTMLElement>('.yip-stack')];
+		const edge = scrollTop + box.clientHeight;
+		let index = -1;
+		let gap = Infinity;
+		cards.forEach((card, at) => {
+			const distance = Math.abs(card.offsetTop - edge);
+			if (distance < gap) {
+				gap = distance;
+				index = at;
+			}
+		});
+		const card = cards[index];
+		if (!card) return undefined;
+		const inner = card.querySelector<HTMLElement>('.yip, .topic, .post');
+		const what =
+			[...(inner?.classList ?? [])].filter((name) => !name.startsWith('svelte-')).join(' ') ||
+			'card';
+		const sizes = await Promise.all(
+			picturesOf(card).map(
+				(url) =>
+					new Promise<string>((resolve) => {
+						const image = new Image();
+						image.referrerPolicy = 'no-referrer';
+						image.onload = () => resolve(`${image.naturalWidth}x${image.naturalHeight}`);
+						image.onerror = () => resolve('?');
+						image.src = url;
+						setTimeout(() => resolve('?'), 1500);
+					})
+			)
+		);
+		return { index, of: cards.length, what, pictures: sizes };
+	};
 	const splitOf = (entry: PerformanceEntry | null): ScrollReport['split'] | undefined => {
 		const frame = entry as
 			(PerformanceEntry & { renderStart?: number; scripts?: Array<{ duration: number }> }) | null;
@@ -108,14 +155,19 @@ export function frameMeter(pane: HTMLElement | Window, onReport: (report: Scroll
 	};
 
 	const tick = (now: number) => {
-		if (last) frames.push(now - last);
+		if (last) {
+			frames.push(now - last);
+			tops.push('scrollTop' in pane ? pane.scrollTop : window.scrollY);
+		}
 		last = now;
 		if (now - quietSince > 400) {
 			raf = 0;
 			last = 0;
 			if (frames.length > 5) {
 				const split = splitOf(longest);
-				onReport({
+				const worstAt = frames.indexOf(Math.max(...frames));
+				const where = tops[worstAt] ?? 0;
+				const base: ScrollReport = {
 					...(split ? { split } : {}),
 					frames: frames.length,
 					slow: frames.filter((frame) => frame > 20).length,
@@ -126,9 +178,15 @@ export function frameMeter(pane: HTMLElement | Window, onReport: (report: Scroll
 							: 'classList' in pane && pane.classList.contains('stack')
 								? 'js'
 								: 'off'
-				});
+				};
+				onReport(base);
+				if (pane instanceof HTMLElement)
+					void describeCard(pane, where).then((card) => {
+						if (card) onReport({ ...base, card });
+					});
 			}
 			frames = [];
+			tops = [];
 			longest = null;
 			return;
 		}
