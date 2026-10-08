@@ -50,6 +50,7 @@
 </script>
 
 <script lang="ts">
+	import { downscaled } from '$lib/actions/downscaled.js';
 	import { onDestroy, tick } from 'svelte';
 	import { diagnostics } from '$lib/diagnostics.svelte.js';
 	import { prefersReducedMotion } from '$lib/motion.js';
@@ -225,7 +226,8 @@
 		>
 			<span
 				class="art"
-				style:background-image={!concealed && image ? `url(${image})` : washFor(yip.key)}
+				style:background-image={washFor(yip.key)}
+				use:downscaled={!concealed ? image : null}
 				aria-hidden="true"
 			></span>
 			<span class="shade" aria-hidden="true"></span>
@@ -628,6 +630,17 @@
 	.art {
 		position: absolute;
 		inset: 0;
+		background-size: cover;
+		background-position: center;
+	}
+
+	/* The picture itself, added by `downscaled` over the colour wash. */
+	.art :global(.pic) {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
 		background-size: cover;
 		background-position: center;
 	}

@@ -5,7 +5,7 @@
  * `__YIPDEN_DEBUG__`, so a release build reads none of them.
  */
 
-import { picturesOf } from './actions/predecode.js';
+import { picturesOf } from './actions/pictures.js';
 
 export const DIAG_KEYS = {
 	meter: 'yipden:diag:meter',
@@ -16,7 +16,7 @@ export const DIAG_KEYS = {
 	noCardGlass: 'yipden:diag:noCardGlass',
 	eagerCards: 'yipden:diag:eagerCards',
 	noLibraryThumbs: 'yipden:diag:noLibraryThumbs',
-	noPredecode: 'yipden:diag:noPredecode',
+	noDownscale: 'yipden:diag:noDownscale',
 	noFold: 'yipden:diag:noFold'
 } as const;
 
@@ -43,8 +43,8 @@ class Diagnostics {
 	eagerCards = $state(read('eagerCards'));
 	/** Library: an icon in place of each kept picture. */
 	noLibraryThumbs = $state(read('noLibraryThumbs'));
-	/** Feeds: do not decode pictures ahead of the screen. */
-	noPredecode = $state(read('noPredecode'));
+	/** Feeds: draw each card's picture as it is, not shrunk first. */
+	noDownscale = $state(read('noDownscale'));
 	/** Cards keep their place but no tilt, fade or dim as they move: tests the fold itself. */
 	noFold = $state(read('noFold'));
 
