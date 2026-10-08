@@ -19,9 +19,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
-- Yips decodes the pictures of cards that are about to come on screen, off the main thread, so a
-  card's first draw no longer waits for a full-size photo. Debug builds can switch this off, and the
-  frame meter now says where the worst frame went (script, drawing, or waiting).
+- Big photos on Yips cards are shrunk to about a megapixel before they are drawn, away from the main
+  thread, because the slow frames landed on the cards with the biggest pictures. The debug frame
+  meter says where the worst frame went and which card was arriving, and debug switches turn the
+  shrinking and the card fold off.
 - Yips remembers its filter (the kind of den and the person or folder) while you move around the
   app. The filter sheet eases between its tabs, calls them Show, Person and Folders, and has an icon
   beside each kind. Yips has a megaphone in the tab bar, forum cards show the forum's picture, and
