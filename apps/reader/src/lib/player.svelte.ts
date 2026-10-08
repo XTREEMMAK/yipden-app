@@ -201,15 +201,15 @@ class PlayerState {
 				if (this.source) return;
 				this.started();
 				this.playing = true;
-				this.updateMediaSessionState();
-				this.updateMediaSessionPosition();
+				this.currentTime = element.currentTime;
+				this.announce();
 			});
 			element.addEventListener('pause', () => {
 				if (__YIPDEN_DEBUG__ && !this.source) mediaLog?.add('audio element: pause');
 				if (this.source) return;
 				this.playing = false;
-				this.updateMediaSessionState();
-				this.updateMediaSessionPosition();
+				this.currentTime = element.currentTime;
+				this.announce();
 			});
 			element.addEventListener('ended', () => {
 				if (!this.source) this.continueOn();
@@ -552,9 +552,8 @@ class PlayerState {
 				if (!live()) return;
 				if (playing) this.started();
 				this.playing = playing;
-				this.updateMediaSessionState();
 				// The car and lock screen count on from the position they were last told.
-				this.updateMediaSessionPosition();
+				this.announce();
 			},
 			time: (seconds) => {
 				if (live()) this.currentTime = seconds;
@@ -856,8 +855,19 @@ class PlayerState {
 					? [{ src: this.embedArt ?? item.artUrl!, sizes: '512x512' }]
 					: []
 		}).catch(() => {});
-		this.updateMediaSessionState();
+		this.announce();
+	}
+
+	/**
+	 * Tell the system where playback is and whether it is playing, in that order. The plugin keeps
+	 * the last position it was given and publishes it with every state, and the position is only
+	 * sent when something happens, so a Pause told first went out with the position from when
+	 * playback began: a car saw "paused at 0:08", then "paused at 0:16", and took the jump for a
+	 * session still playing, until it asked again about ten seconds later (2026-10-08).
+	 */
+	private announce(): void {
 		this.updateMediaSessionPosition();
+		this.updateMediaSessionState();
 	}
 
 	/** What the system was last told, for the debug log only. */

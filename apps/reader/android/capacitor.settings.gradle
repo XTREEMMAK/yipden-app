@@ -15,4 +15,4 @@ include ':capgo-capacitor-inappbrowser'
 project(':capgo-capacitor-inappbrowser').projectDir = new File('../../../node_modules/.pnpm/@capgo+capacitor-inappbrowser@8.21.1_patch_hash=ac6b181c4c571c579bde877902328b78d673070_b0b336c1d372abee506aac830e542611/node_modules/@capgo/capacitor-inappbrowser/android')
 
 include ':capgo-capacitor-media-session'
-project(':capgo-capacitor-media-session').projectDir = new File('../../../node_modules/.pnpm/@capgo+capacitor-media-session@8.0.32_@capacitor+core@8.5.2/node_modules/@capgo/capacitor-media-session/android')
+project(':capgo-capacitor-media-session').projectDir = new File('../../../node_modules/.pnpm/@capgo+capacitor-media-session@8.0.32_patch_hash=d6d13c9968829df9f0695f714cd144f726d9fc_ec936bc914b733fec1f8a22eb966fbf8/node_modules/@capgo/capacitor-media-session/android')

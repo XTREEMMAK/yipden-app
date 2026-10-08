@@ -11,7 +11,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const session = vi.hoisted(() => ({
 	handlers: new Map<string, (details: { seekTime?: number | null }) => void>(),
-	positions: [] as Array<{ position?: number }>
+	positions: [] as Array<{ position?: number }>,
+	/** Everything the system was told, in order. */
+	told: [] as string[]
 }));
 
 vi.mock('@capgo/capacitor-media-session', () => ({
@@ -25,9 +27,12 @@ vi.mock('@capgo/capacitor-media-session', () => ({
 			}
 		),
 		setMetadata: vi.fn(async () => {}),
-		setPlaybackState: vi.fn(async () => {}),
+		setPlaybackState: vi.fn(async (state: { playbackState?: string }) => {
+			session.told.push(`state:${state.playbackState}`);
+		}),
 		setPositionState: vi.fn(async (state: { position?: number }) => {
 			session.positions.push(state);
+			session.told.push(`position:${state.position}`);
 		})
 	}
 }));
@@ -67,6 +72,7 @@ beforeEach(() => {
 	player.loop = false;
 	player.ended = false;
 	session.positions.length = 0;
+	session.told.length = 0;
 	// The handlers are wired the first time the audio element is made.
 	void player.audio;
 });
@@ -140,6 +146,21 @@ describe('the car and the lock screen', () => {
 		session.positions.length = 0;
 		player.seek(90);
 		expect(session.positions.at(-1)?.position).toBe(90);
+	});
+});
+
+describe('what the car is told on a pause', () => {
+	it('says where playback is before it says it has stopped', () => {
+		player.play([file('a')], 0);
+		const audio = player.audio;
+		Object.defineProperty(audio, 'currentTime', { value: 16, configurable: true });
+		session.told.length = 0;
+		audio.dispatchEvent(new Event('pause'));
+
+		// A state told first went out with the position from when playback began, and the car
+		// took "paused at 0:08, then at 0:16" for a session still playing.
+		expect(session.told.indexOf('position:16')).toBeGreaterThanOrEqual(0);
+		expect(session.told.indexOf('position:16')).toBeLessThan(session.told.indexOf('state:paused'));
 	});
 });
 
