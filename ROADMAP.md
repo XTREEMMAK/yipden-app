@@ -593,6 +593,26 @@ dependency. None may become ranking.
 3. **Search in Feeds**, over cached yips.
 4. **Text size setting.**
 
+## Parked for after 0.9.0: tightening (2026-10-08)
+
+Neither blocks a release; general function works. Both are open questions with what is known so far.
+
+1. **Car and earbud play/pause timing.** Play, Pause and Resume all work from a Tesla and from
+   Bluetooth earbuds. Earbuds wait about a second before the next press registers (the notification
+   shade answers at once, so it is the Bluetooth path). The Tesla shows Pause again right after a
+   Pause and corrects after about ten seconds, and only while YipDen is on screen with the phone
+   unlocked; locked, or with another media session open, it is instant. The app answers every command
+   in 1 to 3ms (media log). Done so far: the plugin patch (a paused session reports speed 0), the
+   detailed media log, and a debug switch for position-before-state, which made things worse.
+   Next steps: the three-state car test (locked, unlocked on the home screen, unlocked in YipDen
+   with the small player bar, then the full player) and, with wireless debugging,
+   `dumpsys media_session` and the Bluetooth log during a pause. See DECISIONS.md, 2026-10-08.
+2. **Yips scroll frame drops.** A few 60 to 130ms frames per scroll, spent waiting on the picture
+   decoder and the GPU, not on script, and landing on cards with the biggest photos. Big photos are
+   now shrunk before they are drawn (build 61), and the debug frame meter names the card and says
+   where the frame went. To be watched over time; the debug switches for the shrinking and the fold
+   are still there to compare.
+
 ## Browsing rings, and audio a reader finds (2026-10-02)
 
 Shipped on the branch, not yet seen on a phone:
