@@ -17,7 +17,8 @@ export const DIAG_KEYS = {
 	eagerCards: 'yipden:diag:eagerCards',
 	noLibraryThumbs: 'yipden:diag:noLibraryThumbs',
 	noDownscale: 'yipden:diag:noDownscale',
-	noFold: 'yipden:diag:noFold'
+	noFold: 'yipden:diag:noFold',
+	positionFirst: 'yipden:diag:positionFirst'
 } as const;
 
 export type DiagKey = keyof typeof DIAG_KEYS;
@@ -47,6 +48,8 @@ class Diagnostics {
 	noDownscale = $state(read('noDownscale'));
 	/** Cards keep their place but no tilt, fade or dim as they move: tests the fold itself. */
 	noFold = $state(read('noFold'));
+	/** Media session: tell the system the position before the state (the car test of build 64). */
+	positionFirst = $state(read('positionFirst'));
 
 	set(key: DiagKey, on: boolean): void {
 		this[key] = on;

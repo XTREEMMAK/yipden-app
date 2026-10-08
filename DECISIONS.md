@@ -3683,3 +3683,14 @@ showed the player as still playing, then flipped back to Pause. Earbuds and the 
 were unaffected, which is why the app's own log showed nothing wrong. `patches/` now carries a
 small patch (like the in-app browser's): the plugin reports speed 0 whenever the state is not
 playing. To confirm on the car; if it does not fix it, the media log is the next place to look.
+
+## 2026-10-08: Position before state made the Tesla worse, so it is only a debug switch
+
+After speed 0, the car still showed Pause for about ten seconds after a Pause. Telling the system the
+position before the state (build 64) was tried on the theory that the state went out with a stale
+position. On the Tesla it was worse: it showed another track and time, and a Play reached a paused
+YouTube video, which looks like the car or Android switching to another app's media session after our
+pause. The old order (state, then position) is back by default and the other is a debug switch. The
+open question is session priority, not our messages: to test without a debugger, clear other apps'
+media notifications (the paused YouTube one) and repeat the car test; with adb,
+`dumpsys media_session` after a car pause shows which session holds the media buttons.

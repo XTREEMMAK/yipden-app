@@ -45,6 +45,11 @@
 			note: 'Feeds: no drawing as cards near the screen; reopen Feeds'
 		},
 		{
+			key: 'positionFirst',
+			title: 'Car: position before play or pause',
+			note: 'Media session: the order tried in build 64, which made the Tesla worse'
+		},
+		{
 			key: 'noFold',
 			title: 'No fold on Yips cards',
 			note: 'Feeds: no tilt, fade or dim as cards move; reopen Feeds'

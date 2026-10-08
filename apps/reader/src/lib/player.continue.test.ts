@@ -150,17 +150,16 @@ describe('the car and the lock screen', () => {
 });
 
 describe('what the car is told on a pause', () => {
-	it('says where playback is before it says it has stopped', () => {
+	it('tells the state, then the position, unless the debug switch asks for the other order', () => {
 		player.play([file('a')], 0);
 		const audio = player.audio;
 		Object.defineProperty(audio, 'currentTime', { value: 16, configurable: true });
 		session.told.length = 0;
 		audio.dispatchEvent(new Event('pause'));
 
-		// A state told first went out with the position from when playback began, and the car
-		// took "paused at 0:08, then at 0:16" for a session still playing.
-		expect(session.told.indexOf('position:16')).toBeGreaterThanOrEqual(0);
-		expect(session.told.indexOf('position:16')).toBeLessThan(session.told.indexOf('state:paused'));
+		// Position first made a Tesla show another track and time (build 64), so state goes first.
+		expect(session.told.indexOf('state:paused')).toBeGreaterThanOrEqual(0);
+		expect(session.told.indexOf('state:paused')).toBeLessThan(session.told.indexOf('position:16'));
 	});
 });
 

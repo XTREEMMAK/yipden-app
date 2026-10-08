@@ -19,8 +19,6 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
-- The car and lock screen are told where playback is before they are told it has paused or played,
-  not after, so a Pause no longer goes out with the position from when playback began.
 - A paused session now tells Android its playback speed is zero (a patch to the media session
   plugin, which sent 1.0 even when paused). A car works its clock out from position and speed, so it
   went on counting and took the player to still be playing.

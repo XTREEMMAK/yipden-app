@@ -9,6 +9,7 @@ import {
 	soundcloudWaveform,
 	type EmbedSource
 } from './embeds/source.js';
+import { diagnostics } from './diagnostics.svelte.js';
 import { mediaLog } from './mediaLog.svelte.js';
 import { prefersReducedMotion } from './motion.js';
 import { store, type PeaksRecord } from './store/index.js';
@@ -859,15 +860,20 @@ class PlayerState {
 	}
 
 	/**
-	 * Tell the system where playback is and whether it is playing, in that order. The plugin keeps
-	 * the last position it was given and publishes it with every state, and the position is only
-	 * sent when something happens, so a Pause told first went out with the position from when
-	 * playback began: a car saw "paused at 0:08", then "paused at 0:16", and took the jump for a
-	 * session still playing, until it asked again about ten seconds later (2026-10-08).
+	 * Tell the system whether playback is playing, then where it is. Position first was tried (build
+	 * 64) on the theory that a Pause went out with the position from when playback began, which a car
+	 * could take for a session still playing; on the Tesla it made things worse (the car showed
+	 * another track and time, and a Play reached a paused YouTube video), so it is now only a debug
+	 * switch, to compare.
 	 */
 	private announce(): void {
-		this.updateMediaSessionPosition();
+		if (__YIPDEN_DEBUG__ && diagnostics?.positionFirst) {
+			this.updateMediaSessionPosition();
+			this.updateMediaSessionState();
+			return;
+		}
 		this.updateMediaSessionState();
+		this.updateMediaSessionPosition();
 	}
 
 	/** What the system was last told, for the debug log only. */
