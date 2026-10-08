@@ -51,12 +51,12 @@ async function routes(page: Page) {
 }
 
 async function followMedjed(page: Page) {
-	await page.goto('/follow?mode=sites');
-	await page.getByLabel('Site address').fill('medjed.example');
-	await page.getByRole('button', { name: 'Find site' }).click();
-	await expect(page.getByText('Medjed Notes').first()).toBeVisible({ timeout: 10_000 });
-	await page.getByRole('button', { name: /^Follow Medjed Notes/ }).click();
-	await expect(page.getByText('Following Medjed Notes')).toBeVisible();
+	await page.goto('/follow');
+	await page.getByLabel('Creator, website, or profile').fill('medjed.example');
+	await page.getByRole('button', { name: 'Find feeds' }).click();
+	await expect(page.getByText('Blog', { exact: true })).toBeVisible({ timeout: 10_000 });
+	await page.getByRole('button', { name: 'Just follow its posts as a site' }).click();
+	await expect(page.getByText(/^Following /)).toBeVisible();
 }
 
 test.describe('following sites', () => {
@@ -106,10 +106,12 @@ test.describe('following sites', () => {
 		);
 		// Discovery also tries the usual feed paths, so the feed is gone too.
 		await page.route(`${SITE}/feed.xml`, (route) => route.fulfill({ status: 404, body: '' }));
-		await page.goto('/follow?mode=sites');
-		await page.getByLabel('Site address').fill('medjed.example');
-		await page.getByRole('button', { name: 'Find site' }).click();
-		await expect(page.getByText('No feed found on that page.')).toBeVisible({ timeout: 10_000 });
-		await expect(page.getByRole('button', { name: /^Follow / })).toHaveCount(0);
+		await page.goto('/follow');
+		await page.getByLabel('Creator, website, or profile').fill('medjed.example');
+		await page.getByRole('button', { name: 'Find feeds' }).click();
+		await expect(page.getByText('No feeds found on that page.')).toBeVisible({ timeout: 10_000 });
+		await expect(page.getByRole('button', { name: 'Just follow its posts as a site' })).toHaveCount(
+			0
+		);
 	});
 });

@@ -55,9 +55,9 @@ test.describe('You', () => {
 	test('shows an empty state with nobody followed', async ({ page }) => {
 		await page.goto('/you');
 		await expect(
-			page.getByText('You are not following anyone yet. Discover is a good place to start.')
+			page.getByText('You are not following any dens yet. Discover is a good place to start.')
 		).toBeVisible();
-		await expect(page.getByText('0 people', { exact: false })).toBeVisible();
+		await expect(page.getByText('0 dens', { exact: false })).toBeVisible();
 	});
 
 	test('lists a followed person with their feed count', async ({ page }) => {
@@ -316,7 +316,7 @@ test.describe('You', () => {
 		await expect(page.getByRole('status')).toContainText('Unfollowed Lena Ofori');
 		await expect(page.getByText('Lena Ofori')).toHaveCount(0);
 		await expect(
-			page.getByText('You are not following anyone yet. Discover is a good place to start.')
+			page.getByText('You are not following any dens yet. Discover is a good place to start.')
 		).toBeVisible();
 	});
 

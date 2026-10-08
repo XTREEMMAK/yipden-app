@@ -459,7 +459,7 @@
 							No sites yet. Follow a site from Surf, or paste its address in Follow, to see its new
 							posts here.
 						</p>
-						<a class="forums-btn" href="/follow?mode=sites">Follow a site</a>
+						<a class="forums-btn" href="/follow">Follow a den</a>
 					</div>
 				{:else}
 					{#each siteFollows.follows.filter((follow) => follow.status !== 'ok') as follow (follow.id)}
@@ -525,7 +525,7 @@
 							No forums yet. Paste a link to any page of a public forum in Follow (the front page, a
 							category, even one thread) to follow the forum or some of its categories.
 						</p>
-						<a class="forums-btn" href="/follow?mode=forums">Follow a forum</a>
+						<a class="forums-btn" href="/follow">Follow a den</a>
 					</div>
 				{:else}
 					{#each forums.follows.filter((follow) => follow.status !== 'ok') as follow (follow.id)}

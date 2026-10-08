@@ -69,6 +69,9 @@
 	let refreshing = $state(false);
 	const PULL_THRESHOLD = 64;
 
+	/** Everything followed: people, sites and forums are all dens. */
+	let denCount = $derived(you.rows.length + siteFollows.follows.length + forums.forums.length);
+
 	onMount(() => {
 		void creatorNotes.load();
 		void you.load();
@@ -548,8 +551,8 @@
 				<h3 class="grp-h">
 					Following
 					<span>
-						{you.rows.length}
-						{you.rows.length === 1 ? 'person' : 'people'}
+						{denCount}
+						{denCount === 1 ? 'den' : 'dens'}
 						{'·'}
 						{you.rows.reduce((sum, row) => sum + row.feeds.length, 0)} feeds
 					</span>
@@ -557,9 +560,9 @@
 				<div class="rows">
 					{#if !you.loaded}
 						<p class="empty">Loading{'…'}</p>
-					{:else if you.rows.length === 0}
+					{:else if you.rows.length + siteFollows.follows.length + forums.forums.length === 0}
 						<p class="empty">
-							You are not following anyone yet. Discover is a good place to start.
+							You are not following any dens yet. Discover is a good place to start.
 						</p>
 					{:else}
 						{#each you.rows as row, personIndex (row.person.id)}
@@ -644,30 +647,39 @@
 							</div>
 						{/each}
 					{/if}
+					<!--
+					Sites and forums are dens too. They are not people, so their settings live on a screen of
+					their own, one tap from the row; here they sit in the one list, tagged by kind.
+				-->
+					{#each siteFollows.follows as follow (follow.id)}
+						<a class="srow den-row" href="/you/sites">
+							<span
+								class="av"
+								style:background-image={follow.iconUrl ? `url(${follow.iconUrl})` : ''}
+							></span>
+							<span class="tt">
+								<b>{follow.title}</b>
+								<small>Site {'·'} {hostOf(follow.siteUrl)}</small>
+							</span>
+							<svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"
+								><path d="m9 6 6 6-6 6" /></svg
+							>
+						</a>
+					{/each}
+					{#each forums.forums as forum (forum.forumUrl)}
+						<a class="srow den-row" href="/you/forums">
+							<span class="av" style:background-image={forum.logoUrl ? `url(${forum.logoUrl})` : ''}
+							></span>
+							<span class="tt">
+								<b>{forum.title}</b>
+								<small>Forum {'·'} {hostOf(forum.forumUrl)}</small>
+							</span>
+							<svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"
+								><path d="m9 6 6 6-6 6" /></svg
+							>
+						</a>
+					{/each}
 				</div>
-				<a class="forums-link" href="/you/sites">
-					<span class="tt">
-						<b>Sites</b>
-						<small>
-							{siteFollows.follows.length
-								? `${siteFollows.follows.length} followed · ${siteFollows.activeCount} new ${siteFollows.activeCount === 1 ? 'post' : 'posts'}`
-								: 'Follow a site by its feed'}
-						</small>
-					</span>
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-				</a>
-				<!-- Forums are not people, so they are a screen of their own, one tap from here. -->
-				<a class="forums-link" href="/you/forums">
-					<span class="tt">
-						<b>Forums</b>
-						<small>
-							{forums.forums.length
-								? `${forums.forums.length} followed · ${forums.activeCount} active ${forums.activeCount === 1 ? 'topic' : 'topics'}`
-								: 'Follow a public forum, whole or by category'}
-						</small>
-					</span>
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-				</a>
 			</div>
 		{/if}
 	</div>
@@ -973,35 +985,40 @@
 		font-weight: 400;
 	}
 
-	.forums-link {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		min-height: 56px;
-		padding: 10px 14px;
-		border: 1px solid var(--line);
-		border-radius: var(--r-group);
-		background: var(--surface);
-		color: var(--ink);
+	/* A site or a forum in the one list of dens: a link to where it is managed. */
+	.den-row {
 		text-decoration: none;
 	}
 
-	.forums-link .tt {
+	.den-row .av {
+		flex: none;
+		width: 40px;
+		height: 40px;
+		border-radius: 999px;
+		background-color: var(--brand-soft);
+		background-position: center;
+		background-size: cover;
+	}
+
+	.den-row .tt {
 		flex: 1;
 		min-width: 0;
 	}
 
-	.forums-link b,
-	.forums-link small {
+	.den-row b,
+	.den-row small {
 		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
-	.forums-link small {
+	.den-row small {
 		color: var(--muted);
 		font-size: 12.5px;
 	}
 
-	.forums-link svg {
+	.den-row .chevron {
 		flex: none;
 		width: 18px;
 		height: 18px;

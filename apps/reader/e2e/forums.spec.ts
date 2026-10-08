@@ -173,7 +173,7 @@ test.describe('forums', () => {
 		await expect(page.getByText('Following Discourse Meta')).toBeVisible({ timeout: 30_000 });
 
 		await page.goto('/you');
-		await page.getByRole('link', { name: /^Forums/ }).click();
+		await page.getByRole('link', { name: /Discourse Meta/ }).click();
 		await expect(page.getByRole('heading', { name: 'Forums', level: 2 })).toBeVisible();
 		const forum = page.getByRole('region', { name: 'Discourse Meta' });
 		await expect(forum).toContainText('The whole forum');

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Segmented from '$components/Segmented.svelte';
 	import { kindLabel } from '$lib/sources.js';
 	import { hostOf } from '$lib/hosts.js';
 	import { goto } from '$app/navigation';
@@ -35,29 +34,14 @@
 	 */
 
 	type Phase =
-		| 'idle'
-		| 'looking'
-		| 'results'
-		| 'followed'
-		| 'forum'
-		| 'forum-followed'
-		| 'site'
-		| 'site-followed';
+		'idle' | 'looking' | 'results' | 'followed' | 'forum' | 'forum-followed' | 'site-followed';
 
 	/**
-	 * Who or what is being followed. People and forums are different intents with different words,
-	 * so each has its own heading and field (phone feedback, 2026-10-06). A forum link pasted under
-	 * People is still recognized; that is a kindness, not the way in.
+	 * What is being followed is a den: a person, a site or a forum. The reader does not say which.
+	 * A forum link is recognized as one; a creator in the ring or a website is a person, who can also
+	 * be followed as just the posts of one feed, which is how a site is followed.
 	 */
-	let mode = $state<'people' | 'sites' | 'forums'>('people');
-	/** A site's address read for its feeds, and the one the reader picked to follow it by. */
-	let siteFound = $state<{
-		title: string;
-		siteUrl: string;
-		iconUrl: string | null;
-		feeds: DiscoveredFeed[];
-	} | null>(null);
-	let siteFeedUrl = $state<string | null>(null);
+	let siteFound = $state<{ title: string; siteUrl: string; iconUrl: string | null } | null>(null);
 
 	let phase = $state<Phase>('idle');
 	let input = $state('');
@@ -88,8 +72,6 @@
 			// Arrived from a link (a partner ring's "Find feeds"): fill the address in and look it
 			// up, which checks the ring's own known feeds before it touches the site.
 			const params = new URL(location.href).searchParams;
-			const wanted = params.get('mode');
-			if (wanted === 'forums' || wanted === 'sites') mode = wanted;
 			const prefill = params.get('url')?.trim();
 			if (prefill && phase === 'idle') {
 				input = prefill;
@@ -182,7 +164,7 @@
 		}
 	}
 
-	async function lookupUrl(url: string, forumOnly = false) {
+	async function lookupUrl(url: string) {
 		error = null;
 		phase = 'looking';
 		result = null;
@@ -203,11 +185,6 @@
 			phase = 'forum';
 			return;
 		}
-		if (forumOnly) {
-			phase = 'idle';
-			error = `${hostOf(url)} is not a public forum YipDen can read. Discourse forums work today. To follow a person's site or profile, switch to People.`;
-			return;
-		}
 
 		try {
 			const found = await discoverWithDeadline(url);
@@ -225,41 +202,20 @@
 		}
 	}
 
-	/** A site is followed by one of its feeds: read its address, then let the reader pick which. */
-	async function lookupSite(url: string) {
-		error = null;
-		phase = 'looking';
-		siteFound = null;
-		try {
-			const found = await discoverWithDeadline(url);
-			siteFound = {
-				title: found.title ?? hostOf(found.canonicalUrl),
-				siteUrl: found.canonicalUrl,
-				iconUrl: found.iconUrl ?? null,
-				feeds: found.feeds
-			};
-			// The first feed found is the site's own main one; the reader can pick another.
-			siteFeedUrl = found.feeds[0]?.url ?? null;
-			phase = 'site';
-		} catch (cause) {
-			phase = 'idle';
-			error =
-				cause instanceof DiscoveryTimeoutError
-					? `Finding feeds on ${hostOf(url)} took too long. Try again when the site is responding.`
-					: `Could not read ${hostOf(url)}. Check the address, or try again when you are online.`;
-		}
-	}
-
-	async function followSite() {
-		if (!siteFound || !siteFeedUrl || busy) return;
+	/** The posts of one feed, as a site's den, without making its owner a person. */
+	async function followPostsOnly() {
+		const feed = chosenFeeds[0];
+		if (!result || !feed || busy) return;
 		busy = true;
 		try {
+			const title = result.title ?? hostOf(result.canonicalUrl);
 			await siteFollows.follow({
-				siteUrl: siteFound.siteUrl,
-				feedUrl: siteFeedUrl,
-				title: siteFound.title,
-				iconUrl: siteFound.iconUrl
+				siteUrl: result.canonicalUrl,
+				feedUrl: feed.url,
+				title,
+				iconUrl: result.iconUrl ?? null
 			});
+			siteFound = { title, siteUrl: result.canonicalUrl, iconUrl: result.iconUrl ?? null };
 			phase = 'site-followed';
 		} catch {
 			error = 'Could not save that follow. There may be no room left on this phone.';
@@ -274,24 +230,6 @@
 	}
 
 	async function runFind() {
-		if (mode === 'sites') {
-			const url = asUrl(input);
-			if (!url) {
-				error = 'Paste the site’s address first.';
-				return;
-			}
-			await lookupSite(url);
-			return;
-		}
-		if (mode === 'forums') {
-			const url = asUrl(input);
-			if (!url) {
-				error = 'Paste a link to the forum, or to any page on it, first.';
-				return;
-			}
-			await lookupUrl(url, true);
-			return;
-		}
 		const localMatches = searchRing(ring.all, input, 2);
 		const local =
 			localMatches.find((entry) => isExactRingMatch(entry, input)) ??
@@ -351,19 +289,12 @@
 		}
 	}
 
-	function setMode(next: 'people' | 'sites' | 'forums') {
-		if (mode === next) return;
-		mode = next;
-		again();
-	}
-
 	function again() {
 		followedPersonId = null;
 		forumFound = null;
 		forumMembersOnly = null;
 		forumFollowed = null;
 		siteFound = null;
-		siteFeedUrl = null;
 		phase = 'idle';
 		result = null;
 		selectedRing = null;
@@ -385,46 +316,17 @@
 
 <div class="scroll">
 	<header class="head" in:fly={flyIn()}>
-		<Segmented
-			label="What to follow"
-			options={[
-				{ value: 'people', label: 'People' },
-				{ value: 'sites', label: 'Sites' },
-				{ value: 'forums', label: 'Forums' }
-			]}
-			value={mode}
-			onchange={setMode}
-		/>
 		<p class="eyebrow">Follow a den</p>
-		{#if mode === 'people'}
-			<h2 class="screen-title">Follow a <em>person</em>, not a platform.</h2>
-			<p class="lede">
-				A den is where someone lives on the web. Type a creator name or paste any website or
-				profile. YipDen checks the IndieNodes ring first, then reads the web only when it needs to.
-			</p>
-		{:else if mode === 'sites'}
-			<h2 class="screen-title">Follow a <em>site</em>, and read what it posts.</h2>
-			<p class="lede">
-				Paste a site’s address. If it has a feed, its new posts arrive in Feeds under Sites. A site
-				with no feed can still be saved from Surf.
-			</p>
-		{:else}
-			<h2 class="screen-title">Follow a <em>forum</em>, whole or in part.</h2>
-			<p class="lede">
-				Paste a link to a public forum, or to any page on it. Follow the whole forum or only the
-				categories you want; new topics arrive in Feeds under Forums.
-			</p>
-		{/if}
+		<h2 class="screen-title">Follow a <em>person</em>, not a platform.</h2>
+		<p class="lede">
+			A den is where someone lives on the web: a person, a site or a forum. Type a creator name or
+			paste any website, profile or forum link. YipDen checks the IndieNodes ring first, then reads
+			the web only when it needs to.
+		</p>
 	</header>
 
 	<form class="find" onsubmit={find} novalidate in:fly={flyIn({ delay: 40 })}>
-		<label for="followUrl"
-			>{mode === 'people'
-				? 'Creator, website, or profile'
-				: mode === 'sites'
-					? 'Site address'
-					: 'Forum link'}</label
-		>
+		<label for="followUrl">Creator, website, or profile</label>
 		<div class="field">
 			<input
 				id="followUrl"
@@ -434,30 +336,20 @@
 				autocomplete="off"
 				autocapitalize="off"
 				spellcheck="false"
-				placeholder={mode === 'people'
-					? 'Lena or lenaofori.com'
-					: mode === 'sites'
-						? 'example.neocities.org'
-						: 'forum.example.com'}
+				placeholder="Lena or lenaofori.com"
 				bind:value={input}
 				role="combobox"
 				aria-autocomplete="list"
 				aria-controls="ringMatches"
-				aria-expanded={mode === 'people' && phase === 'idle' && ringMatches.length > 0}
+				aria-expanded={phase === 'idle' && ringMatches.length > 0}
 				aria-describedby={error ? 'findErr' : undefined}
 				aria-invalid={error ? 'true' : undefined}
 			/>
 			<button class="btn-brand" type="submit" disabled={phase === 'looking'}>
-				{phase === 'looking'
-					? 'Looking…'
-					: mode === 'people'
-						? 'Find feeds'
-						: mode === 'sites'
-							? 'Find site'
-							: 'Find forum'}
+				{phase === 'looking' ? 'Looking…' : 'Find feeds'}
 			</button>
 		</div>
-		{#if mode === 'people' && phase === 'idle' && ringMatches.length > 0}
+		{#if phase === 'idle' && ringMatches.length > 0}
 			<div class="ring-matches" id="ringMatches" aria-label="People already in IndieNodes">
 				<p class="match-label">Already in IndieNodes</p>
 				{#each ringMatches as entry (entry.id)}
@@ -565,54 +457,19 @@
 						? 'Pick at least one place'
 						: `Follow ${personName} in ${chosenFeeds.length} ${chosenFeeds.length === 1 ? 'place' : 'places'}`}
 				</button>
+				<button
+					class="btn-quiet wide"
+					type="button"
+					onclick={followPostsOnly}
+					disabled={!chosenFeeds.length || busy}
+				>
+					Just follow its posts as a site
+				</button>
 			{/if}
 
 			<p class="fine">
 				This follow stays on your phone. Nothing is posted anywhere, and {personName} is not notified.
 			</p>
-		{:else if phase === 'site' && siteFound}
-			<div class="person" in:fly={flyIn()}>
-				<span
-					class="av"
-					style:background-image={siteFound.iconUrl ? `url(${siteFound.iconUrl})` : ''}
-				></span>
-				<span class="person-copy">
-					<b>{siteFound.title}</b>
-					<small>
-						{siteFound.feeds.length === 0
-							? 'No feed found on that page.'
-							: `Found ${siteFound.feeds.length} ${siteFound.feeds.length === 1 ? 'feed' : 'feeds'}`}
-					</small>
-				</span>
-			</div>
-			{#if siteFound.feeds.length === 0}
-				<p class="fine">
-					Some sites do not publish a feed. If you know its feed address, paste that instead.
-				</p>
-			{:else}
-				<fieldset class="found" in:fly={flyIn({ delay: 40 })}>
-					<legend class="eyebrow">Follow it by</legend>
-					{#each siteFound.feeds as feed, index (feed.url)}
-						<label class="frow" for="site-feed-{index}">
-							<span class="ft">
-								<b>{labelFor(feed)}</b>
-								<code>{shortUrl(feed.url)}</code>
-							</span>
-							<input
-								id="site-feed-{index}"
-								type="radio"
-								name="siteFeed"
-								value={feed.url}
-								bind:group={siteFeedUrl}
-							/>
-						</label>
-					{/each}
-				</fieldset>
-				<button class="btn-brand wide" type="button" onclick={followSite} disabled={busy}>
-					Follow {siteFound.title}
-				</button>
-			{/if}
-			<p class="fine">This follow stays on your phone. Nothing is posted anywhere.</p>
 		{:else if phase === 'site-followed' && siteFound}
 			<div class="person done" in:fly={flyIn()}>
 				<span

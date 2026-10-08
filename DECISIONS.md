@@ -3654,3 +3654,13 @@ goes through the same robots-honouring fetcher as any feed, and a site that says
 follow and how often it is checked, never its cursor, last check, or posts.
 Considered and left: turning a followed site into a person automatically. That is the conflict
 this split exists to avoid (a person owning a site is evidence, not a fact YipDen may assume).
+
+## 2026-10-08: A den is whatever is followed; Follow and You show one list
+
+Showing "person" and "site" as separate things confused readers, since one is often the other. The
+word for both, in copy, is a **den** (not "Yippers", which is too close to a slur). Storage stays
+separate: ring people, site follows and forum follows are different records, and a person is never
+made from a site automatically. Follow is a single box; a forum link is recognized as one, and a
+website result offers "follow the person" or "just its posts as a site". You has one list with
+kind tags. Feeds still has People | Sites | Forums as its source switch; whether those become one
+stream or a Dens filter is open.

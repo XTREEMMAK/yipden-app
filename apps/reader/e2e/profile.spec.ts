@@ -168,19 +168,16 @@ test.describe('Comic pages kept from a creator', () => {
 	});
 });
 
-test.describe('Follow, People or Forums', () => {
-	test('a forum has its own heading and field, and a site that is not one is turned back', async ({
+test.describe('Follow, one box for every den', () => {
+	test('a website that is not a forum is read as a person, with no switch to choose first', async ({
 		page
 	}) => {
 		await seed(page);
 		await page.goto('/follow?mode=forums');
-		await expect(page.getByRole('heading', { name: /Follow a forum/ })).toBeVisible();
-		await page.getByLabel('Forum link').fill('lenaofori.com');
-		await page.getByRole('button', { name: 'Find forum' }).click();
-		await expect(page.getByText(/is not a public forum YipDen can read/)).toBeVisible();
-
-		await page.getByRole('radio', { name: 'People' }).click();
 		await expect(page.getByRole('heading', { name: /Follow a person/ })).toBeVisible();
-		await expect(page.getByLabel('Creator, website, or profile')).toBeVisible();
+		await expect(page.getByRole('radio', { name: 'Forums' })).toHaveCount(0);
+		await page.getByLabel('Creator, website, or profile').fill('lenaofori.com');
+		await page.getByRole('button', { name: 'Find feeds' }).click();
+		await expect(page.getByRole('button', { name: /^Follow Lena Ofori in/ })).toBeVisible();
 	});
 });
