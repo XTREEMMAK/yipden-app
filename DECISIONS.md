@@ -3673,3 +3673,13 @@ All and Posts; Watch and Listen stay people's. This reverses the 2026-10-05 rule
 mix into the people's panes, on the reader's word that the split was confusing. The way back is the
 filter's Show tab: People, Sites or Forums alone. Merging keeps each source's own order and slots
 place cards in by time, so people's yips are never re-ranked. "Everything" in the pills is "All".
+
+## 2026-10-08: The media session plugin is patched so a pause reports speed zero
+
+`@capgo/capacitor-media-session` turned a playback rate of 0 into 1.0 and sent that speed with every
+state, including paused. Android's own rule is that a paused session has speed 0, and a Tesla (and
+likely other cars) draws its clock from position and speed, so after a Pause it kept counting and
+showed the player as still playing, then flipped back to Pause. Earbuds and the notification shade
+were unaffected, which is why the app's own log showed nothing wrong. `patches/` now carries a
+small patch (like the in-app browser's): the plugin reports speed 0 whenever the state is not
+playing. To confirm on the car; if it does not fix it, the media log is the next place to look.

@@ -8,3 +8,4 @@ allowBuilds:
 
 patchedDependencies:
   '@capgo/capacitor-inappbrowser@8.21.1': patches/@capgo__capacitor-inappbrowser@8.21.1.patch
+  '@capgo/capacitor-media-session@8.0.32': patches/@capgo__capacitor-media-session@8.0.32.patch

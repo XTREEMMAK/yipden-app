@@ -6,6 +6,7 @@ settings:
 
 patchedDependencies:
   '@capgo/capacitor-inappbrowser@8.21.1': ac6b181c4c571c579bde877902328b78d673070b2354bdeac637ebbcc379bbf4
+  '@capgo/capacitor-media-session@8.0.32': d6d13c9968829df9f0695f714cd144f726d9fc7b3bd3ee841b26470b95dd8609
 
 importers:
 
@@ -58,7 +59,7 @@ importers:
         version: 8.21.1(patch_hash=ac6b181c4c571c579bde877902328b78d673070b2354bdeac637ebbcc379bbf4)(@capacitor/core@8.5.2)
       '@capgo/capacitor-media-session':
         specifier: ^8.0.32
-        version: 8.0.32(@capacitor/core@8.5.2)
+        version: 8.0.32(patch_hash=d6d13c9968829df9f0695f714cd144f726d9fc7b3bd3ee841b26470b95dd8609)(@capacitor/core@8.5.2)
       '@rgrove/parse-xml':
         specifier: ^5.0.0
         version: 5.0.0
@@ -1990,7 +1991,7 @@ snapshots:
     dependencies:
       '@capacitor/core': 8.5.2
 
-  '@capgo/capacitor-media-session@8.0.32(@capacitor/core@8.5.2)':
+  '@capgo/capacitor-media-session@8.0.32(patch_hash=d6d13c9968829df9f0695f714cd144f726d9fc7b3bd3ee841b26470b95dd8609)(@capacitor/core@8.5.2)':
     dependencies:
       '@capacitor/core': 8.5.2
 

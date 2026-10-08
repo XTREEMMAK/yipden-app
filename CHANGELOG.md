@@ -19,6 +19,9 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- A paused session now tells Android its playback speed is zero (a patch to the media session
+  plugin, which sent 1.0 even when paused). A car works its clock out from position and speed, so it
+  went on counting and took the player to still be playing.
 - The IndieNodes ring is checked again after half an hour (it was six), partner rings after six
   hours (a day), and on Android the check asks caches in between to confirm with the origin. A pull
   to refresh during a check now follows it with its own instead of being swallowed. The README

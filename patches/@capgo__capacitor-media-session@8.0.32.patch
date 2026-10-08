@@ -1,0 +1,16 @@
+diff --git a/android/src/main/java/com/capgo/mediasession/MediaSessionService.java b/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
+index e2c1f052c568618637015c022b305cbb71325133..3ce62b4b01897b61063f085003d6e80df7af1ddc 100644
+--- a/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
++++ b/android/src/main/java/com/capgo/mediasession/MediaSessionService.java
+@@ -336,7 +336,10 @@ public class MediaSessionService extends Service {
+         }
+ 
+         if (playbackStateUpdate && playbackStateBuilder != null) {
+-            playbackStateBuilder.setState(playbackState, position, playbackSpeed);
++            // A paused session reports speed 0: a car or headset works out its clock from position
++            // plus speed, so at 1.0 it kept counting, and took the session to still be playing.
++            float reportedSpeed = playbackState == PlaybackStateCompat.STATE_PLAYING ? playbackSpeed : 0f;
++            playbackStateBuilder.setState(playbackState, position, reportedSpeed);
+             mediaSession.setPlaybackState(playbackStateBuilder.build());
+             playbackStateUpdate = false;
+         }
