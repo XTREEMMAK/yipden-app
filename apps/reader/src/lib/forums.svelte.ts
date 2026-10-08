@@ -150,7 +150,7 @@ class ForumsState {
 	}
 
 	/** The digest: every topic still active, newest activity first. Chronological, never ranked. */
-	get digest(): DigestTopic[] {
+	digest: DigestTopic[] = $derived.by(() => {
 		const follows = new Map(this.follows.map((follow) => [follow.id, follow]));
 		return this.topics.map((record) => {
 			const follow = follows.get(record.followId);
@@ -169,7 +169,7 @@ class ForumsState {
 				isNew: record.seenPostNumber === undefined
 			};
 		});
-	}
+	});
 
 	/** Topics with something the reader has not seen. */
 	get activeCount(): number {

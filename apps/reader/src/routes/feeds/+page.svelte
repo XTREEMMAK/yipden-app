@@ -194,6 +194,17 @@
 		return items;
 	}
 
+	/**
+	 * Every pane's cards, worked out once per change and not on every read of the template: merging
+	 * people's yips with places is a sort and a walk of the whole list.
+	 */
+	let streams = $derived({
+		everything: streamOf('everything'),
+		posts: streamOf('posts'),
+		watch: streamOf('watch'),
+		listen: streamOf('listen')
+	});
+
 	/** A card that scrolled off the top counts as read, when the reader turned that on. */
 	function markScrolledPast(key: string) {
 		const yip = feeds.panes[feeds.filter].find((candidate) => candidate.key === key);
@@ -366,7 +377,7 @@
 				>
 					{#if feeds.status === 'loading'}
 						<p class="empty">Loading{'…'}</p>
-					{:else if streamOf(filter.key).length === 0}
+					{:else if streams[filter.key].length === 0}
 						<div class="empty-wrap">
 							<p class="empty">
 								{feeds.scopeLabel
@@ -384,7 +395,7 @@
 							{@render placeNotes()}
 						{/if}
 						<div class="stack-list">
-							{#each streamOf(filter.key) as item, index (item.key)}
+							{#each streams[filter.key] as item, index (item.key)}
 								<div in:fly={flyIn({ delay: staggerDelay(index) })}>
 									<div class="yip-stack" data-key={item.key}>
 										<div class="yip-rail">

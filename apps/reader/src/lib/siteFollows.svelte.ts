@@ -122,7 +122,7 @@ class SiteFollowsState {
 	}
 
 	/** The digest: every post kept, newest first. Chronological, never ranked. */
-	get digest(): DigestUpdate[] {
+	digest: DigestUpdate[] = $derived.by(() => {
 		const follows = new Map(this.follows.map((follow) => [follow.id, follow]));
 		return this.updates.map((record) => {
 			const follow = follows.get(record.followId);
@@ -133,7 +133,7 @@ class SiteFollowsState {
 				isNew: record.seenAt === undefined
 			};
 		});
-	}
+	});
 
 	/** Posts the reader has not opened. */
 	get activeCount(): number {

@@ -335,9 +335,8 @@
 		<p class="eyebrow">Follow</p>
 		<h2 class="screen-title">Build your <em>den</em>.</h2>
 		<p class="lede">
-			Add the people and places you like from around the web: a creator, a website, a forum, a
-			member of the IndieNodes ring. Type a name or paste a link, and what they share shows up in
-			Yips. YipDen checks the IndieNodes ring first, then reads the web only when it needs to.
+			Add the people and places you like: a creator, a website, a forum, an IndieNodes member. Type
+			a name or paste a link, and what they share shows up in Yips.
 		</p>
 	</header>
 
@@ -410,7 +409,7 @@
 					></span
 				>
 				<b>Creators</b>
-				<small>Their feeds, wherever they post</small>
+				<small>Their feeds, anywhere</small>
 			</li>
 			<li>
 				<span class="k-ic"
@@ -421,7 +420,7 @@
 					></span
 				>
 				<b>Websites</b>
-				<small>New posts from any site with a feed</small>
+				<small>Sites with a feed</small>
 			</li>
 			<li>
 				<span class="k-ic"
@@ -430,7 +429,7 @@
 					></span
 				>
 				<b>Forums</b>
-				<small>Whole, or just the categories you pick</small>
+				<small>Whole or by category</small>
 			</li>
 			<li>
 				<span class="k-ic"
@@ -439,7 +438,7 @@
 					></span
 				>
 				<b>IndieNodes</b>
-				<small>Members of the webring, ready to follow</small>
+				<small>Webring members</small>
 			</li>
 		</ul>
 	{/if}
@@ -804,9 +803,8 @@
 
 	.den-art {
 		align-self: flex-start;
-		width: 168px;
+		width: 132px;
 		height: auto;
-		margin-bottom: 4px;
 		overflow: visible;
 	}
 
@@ -852,29 +850,43 @@
 		grid-template-columns: 1fr 1fr;
 		gap: 10px;
 		margin: 0;
-		padding: 18px 20px 0;
+		padding: 14px 20px 0;
 		list-style: none;
 	}
 
 	.kinds li {
-		display: flex;
-		flex-direction: column;
-		gap: 3px;
-		padding: 12px;
+		display: grid;
+		grid-template-columns: 34px 1fr;
+		grid-template-areas:
+			'ic title'
+			'ic note';
+		column-gap: 10px;
+		align-items: center;
+		padding: 10px;
 		border: 1px solid var(--line);
 		border-radius: var(--r-group);
 		background: var(--surface);
 	}
 
 	.kinds b {
+		grid-area: title;
 		font-size: 14.5px;
 		font-weight: 650;
 	}
 
 	.kinds small {
+		grid-area: note;
 		color: var(--muted);
 		font-size: 12.5px;
 		line-height: 1.35;
+	}
+
+	/* A short screen gives up the drawing and the notes before anything is cut off. */
+	@media (max-height: 680px) {
+		.den-art,
+		.kinds small {
+			display: none;
+		}
 	}
 
 	.k-ic {
@@ -882,7 +894,7 @@
 		place-items: center;
 		width: 34px;
 		height: 34px;
-		margin-bottom: 4px;
+		grid-area: ic;
 		border-radius: 999px;
 		background: var(--brand-soft);
 		color: var(--brand-text);
