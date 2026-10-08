@@ -1,17 +1,29 @@
 <script lang="ts">
 	import Sheet from './Sheet.svelte';
 	import { feeds, type FeedsScope } from '$lib/feeds.svelte.js';
+	import { forums } from '$lib/forums.svelte.js';
+	import { siteFollows } from '$lib/siteFollows.svelte.js';
 
 	/**
-	 * Feeds' Filter sheet: everyone, one folder, or one person. The same shape as Discover's
+	 * Feeds' Filter sheet: which dens to read (people, sites, forums), then for people everyone, one
+	 * folder, or one person. The same shape as Discover's
 	 * Filter sheet, a single choice that closes the sheet. Folders are made under You.
 	 */
 
 	interface Props {
 		onclose: () => void;
+		/** Which kind of den Feeds is reading now, and how to change it. */
+		source: 'people' | 'sites' | 'forums';
+		onsource: (next: 'people' | 'sites' | 'forums') => void;
 	}
 
-	let { onclose }: Props = $props();
+	let { onclose, source, onsource }: Props = $props();
+
+	const SOURCES = $derived([
+		{ value: 'people' as const, label: 'People', count: feeds.unreadCount },
+		{ value: 'sites' as const, label: 'Sites', count: siteFollows.activeCount },
+		{ value: 'forums' as const, label: 'Forums', count: forums.activeCount }
+	]);
 
 	/** Past this many people the list gets a box to narrow it. */
 	const SEARCH_FROM = 12;
@@ -30,6 +42,12 @@
 
 	function choose(scope: FeedsScope) {
 		void feeds.setScope(scope);
+		onsource('people');
+		onclose();
+	}
+
+	function chooseSource(next: 'people' | 'sites' | 'forums') {
+		onsource(next);
 		onclose();
 	}
 </script>
@@ -42,10 +60,24 @@
 	class="filter-sheet"
 >
 	<div class="sheet-list" role="radiogroup" aria-label="Filter your feeds">
+		<h3 class="sheet-sec">Read</h3>
+		{#each SOURCES as option (option.value)}
+			<button
+				class="sheet-row"
+				role="radio"
+				aria-checked={source === option.value}
+				onclick={() => chooseSource(option.value)}
+			>
+				<span class="sheet-name">{option.label}</span>
+				{#if option.count > 0}<small class="sheet-hint">{option.count} new</small>{/if}
+			</button>
+		{/each}
+
+		<h3 class="sheet-sec">Whose yips</h3>
 		<button
 			class="sheet-row"
 			role="radio"
-			aria-checked={feeds.scope.kind === 'all'}
+			aria-checked={source === 'people' && feeds.scope.kind === 'all'}
 			onclick={() => choose({ kind: 'all' })}
 		>
 			<span class="sheet-av" aria-hidden="true">
@@ -63,7 +95,9 @@
 			<button
 				class="sheet-row"
 				role="radio"
-				aria-checked={feeds.scope.kind === 'folder' && feeds.scope.name === folder.name}
+				aria-checked={source === 'people' &&
+					feeds.scope.kind === 'folder' &&
+					feeds.scope.name === folder.name}
 				onclick={() => choose({ kind: 'folder', name: folder.name })}
 			>
 				<span class="sheet-av" aria-hidden="true">
@@ -91,7 +125,9 @@
 				<button
 					class="sheet-row"
 					role="radio"
-					aria-checked={feeds.scope.kind === 'person' && feeds.scope.id === person.id}
+					aria-checked={source === 'people' &&
+						feeds.scope.kind === 'person' &&
+						feeds.scope.id === person.id}
 					onclick={() => choose({ kind: 'person', id: person.id })}
 				>
 					<!-- Their own picture when they have one; a plain person otherwise. -->

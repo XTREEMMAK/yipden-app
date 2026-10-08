@@ -169,12 +169,10 @@ test.describe('Comic pages kept from a creator', () => {
 });
 
 test.describe('Follow, one box for every den', () => {
-	test('a website that is not a forum is read as a person, with no switch to choose first', async ({
-		page
-	}) => {
+	test('a website is read as a person, with no switch to choose first', async ({ page }) => {
 		await seed(page);
 		await page.goto('/follow?mode=forums');
-		await expect(page.getByRole('heading', { name: /Follow a person/ })).toBeVisible();
+		await expect(page.getByRole('heading', { name: /Build your den/ })).toBeVisible();
 		await expect(page.getByRole('radio', { name: 'Forums' })).toHaveCount(0);
 		await page.getByLabel('Creator, website, or profile').fill('lenaofori.com');
 		await page.getByRole('button', { name: 'Find feeds' }).click();

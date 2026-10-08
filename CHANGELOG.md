@@ -21,7 +21,8 @@ Every notable change to YipDen, newest first. The format follows
 
 - What you follow is a den, whether a person, a site or a forum. Follow is one box with no switch
   to choose first, and a website's result can be followed as a person or as just its posts. You has
-  one Following list, with sites and forums in it tagged by kind.
+  one Following list, with sites and forums in it tagged by kind. Follow reads "Build your den".
+  Feeds' People | Sites | Forums switch moved into its Filter sheet.
 - Unfollow and Follow in You are icons. Smallway, Ink Shrines and WebcomicQuest show their own
   marks. A ring member's text sample reads as words (no stray tags), stays inside its sheet, and
   has a proper title.

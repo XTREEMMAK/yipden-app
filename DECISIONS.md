@@ -3662,5 +3662,5 @@ word for both, in copy, is a **den** (not "Yippers", which is too close to a slu
 separate: ring people, site follows and forum follows are different records, and a person is never
 made from a site automatically. Follow is a single box; a forum link is recognized as one, and a
 website result offers "follow the person" or "just its posts as a site". You has one list with
-kind tags. Feeds still has People | Sites | Forums as its source switch; whether those become one
-stream or a Dens filter is open.
+kind tags. Follow's heading is "Build your den". Feeds has no top switch: which kind to read (People,
+Sites, Forums) is the first section of the Filter sheet. Whether they become one stream is open.

@@ -174,7 +174,7 @@ test.describe('The player', () => {
 			.click();
 		await page.getByRole('button', { name: 'Collapse the player' }).click();
 
-		await page.getByRole('link', { name: 'You' }).click();
+		await page.getByRole('link', { name: 'You', exact: true }).click();
 		await expect(page.getByRole('button', { name: 'Open the player' })).toBeVisible();
 	});
 
@@ -187,7 +187,7 @@ test.describe('The player', () => {
 			.getByRole('button', { name: /Low Tide/ })
 			.click();
 		await page.getByRole('button', { name: 'Collapse the player' }).click();
-		await page.getByRole('link', { name: 'You' }).click();
+		await page.getByRole('link', { name: 'You', exact: true }).click();
 		await page.getByRole('button', { name: 'Unfollow Lena Ofori' }).click();
 		await page.getByRole('button', { name: 'Unfollow', exact: true }).click();
 
@@ -473,7 +473,7 @@ test.describe('The player', () => {
 		// Minimized takes no room: the dock is back to the tab bar alone.
 		await expect(page.locator('html')).toHaveAttribute('data-mini', 'false');
 		// Minimized, not dismissed: it is still there on another screen.
-		await page.getByRole('link', { name: 'You' }).click();
+		await page.getByRole('link', { name: 'You', exact: true }).click();
 		await expect(page.getByRole('button', { name: /^Show the player/ })).toBeVisible();
 	});
 

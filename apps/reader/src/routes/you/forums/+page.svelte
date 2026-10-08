@@ -108,7 +108,7 @@
 				No forums yet. Paste a link to any page of a public forum in Follow to follow the forum or
 				some of its categories.
 			</p>
-			<a class="btn" href="/follow">Follow a den</a>
+			<a class="btn" href="/follow">Build your den</a>
 		{:else}
 			{#each forums.forums as forum, index (forum.forumUrl)}
 				<section

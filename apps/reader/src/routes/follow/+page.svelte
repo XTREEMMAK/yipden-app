@@ -312,16 +312,16 @@
 	}
 </script>
 
-<svelte:head><title>Follow</title></svelte:head>
+<svelte:head><title>Build your den</title></svelte:head>
 
 <div class="scroll">
 	<header class="head" in:fly={flyIn()}>
-		<p class="eyebrow">Follow a den</p>
-		<h2 class="screen-title">Follow a <em>person</em>, not a platform.</h2>
+		<p class="eyebrow">Follow</p>
+		<h2 class="screen-title">Build your <em>den</em>, not a platform.</h2>
 		<p class="lede">
-			A den is where someone lives on the web: a person, a site or a forum. Type a creator name or
-			paste any website, profile or forum link. YipDen checks the IndieNodes ring first, then reads
-			the web only when it needs to.
+			Add anyone or anywhere you like on the web: a creator, a website, a forum, a member of the
+			IndieNodes ring. Type a name or paste a link. YipDen checks the ring first, then reads the web
+			only when it needs to.
 		</p>
 	</header>
 

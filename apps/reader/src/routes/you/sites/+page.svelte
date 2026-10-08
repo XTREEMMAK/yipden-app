@@ -57,7 +57,7 @@
 				No sites yet. Follow one from Surf, or paste its address in Follow, to read its new posts in
 				Feeds.
 			</p>
-			<a class="btn" href="/follow">Follow a den</a>
+			<a class="btn" href="/follow">Build your den</a>
 		{:else}
 			{#each siteFollows.follows as follow, index (follow.id)}
 				<section

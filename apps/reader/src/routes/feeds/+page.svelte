@@ -1,7 +1,6 @@
 <script lang="ts">
 	import FrameMeter from '$components/FrameMeter.svelte';
 	import { diagnostics } from '$lib/diagnostics.svelte.js';
-	import Segmented from '$components/Segmented.svelte';
 	import { hostOf } from '$lib/hosts.js';
 	import { profileHref } from '$lib/creatorProfile.svelte.js';
 	import { onMount } from 'svelte';
@@ -242,17 +241,9 @@
 			{/if}
 		</h2>
 		<div class="head-row">
-			<Segmented
-				label="What to read"
-				options={[
-					{ value: 'people', label: 'People' },
-					{ value: 'sites', label: 'Sites', badge: siteFollows.activeCount },
-					{ value: 'forums', label: 'Forums', badge: forums.activeCount }
-				]}
-				value={source}
-				onchange={(next) => (source = next as Source)}
-			/>
-			{#if !onPlaces && feeds.scopeLabel}
+			{#if onPlaces}
+				<span class="scope">{onSites ? 'Sites' : 'Forums'}</span>
+			{:else if feeds.scopeLabel}
 				{#if scopedPerson}
 					<a
 						class="scope"
@@ -263,33 +254,21 @@
 					<span class="scope">{feeds.scopeLabel}</span>
 				{/if}
 			{/if}
-			{#if onPlaces}
-				<a
-					class="scope-btn"
-					href={onSites ? '/you/sites' : '/you/forums'}
-					aria-label={onSites ? 'Manage your sites' : 'Manage your forums'}
-				>
-					<svg viewBox="0 0 24 24" aria-hidden="true">
-						<path d="M4 6h10M4 12h16M4 18h7M18 4v4M14 6h8" />
-					</svg>
-				</a>
-			{:else}
-				<button
-					bind:this={scopeButton}
-					class="scope-btn"
-					class:is-active={feeds.scope.kind !== 'all'}
-					onclick={() => (scopeSheetOpen = true)}
-					aria-haspopup="dialog"
-					aria-expanded={scopeSheetOpen}
-					aria-label={feeds.scopeLabel
-						? `Filter your feeds: ${feeds.scopeLabel}`
-						: 'Filter your feeds'}
-				>
-					<svg viewBox="0 0 24 24" aria-hidden="true">
-						<path d="M4 5h16M7 12h10M10 19h4" />
-					</svg>
-				</button>
-			{/if}
+			<button
+				bind:this={scopeButton}
+				class="scope-btn"
+				class:is-active={onPlaces || feeds.scope.kind !== 'all'}
+				onclick={() => (scopeSheetOpen = true)}
+				aria-haspopup="dialog"
+				aria-expanded={scopeSheetOpen}
+				aria-label={feeds.scopeLabel
+					? `Filter your feeds: ${feeds.scopeLabel}`
+					: 'Filter your feeds'}
+			>
+				<svg viewBox="0 0 24 24" aria-hidden="true">
+					<path d="M4 5h16M7 12h10M10 19h4" />
+				</svg>
+			</button>
 		</div>
 
 		<div class="pills" role="tablist" aria-label="Filter yips" hidden={onPlaces}>
@@ -459,7 +438,7 @@
 							No sites yet. Follow a site from Surf, or paste its address in Follow, to see its new
 							posts here.
 						</p>
-						<a class="forums-btn" href="/follow">Follow a den</a>
+						<a class="forums-btn" href="/follow">Build your den</a>
 					</div>
 				{:else}
 					{#each siteFollows.follows.filter((follow) => follow.status !== 'ok') as follow (follow.id)}
@@ -525,7 +504,7 @@
 							No forums yet. Paste a link to any page of a public forum in Follow (the front page, a
 							category, even one thread) to follow the forum or some of its categories.
 						</p>
-						<a class="forums-btn" href="/follow">Follow a den</a>
+						<a class="forums-btn" href="/follow">Build your den</a>
 					</div>
 				{:else}
 					{#each forums.follows.filter((follow) => follow.status !== 'ok') as follow (follow.id)}
@@ -573,7 +552,7 @@
 </div>
 
 {#if scopeSheetOpen}
-	<FeedsFilterSheet onclose={closeScopeSheet} />
+	<FeedsFilterSheet onclose={closeScopeSheet} {source} onsource={(next) => (source = next)} />
 {/if}
 
 <style>

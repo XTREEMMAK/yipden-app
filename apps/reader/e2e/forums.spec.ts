@@ -98,11 +98,15 @@ test.describe('forums', () => {
 		await expect(page.getByText('Following Discourse Meta')).toBeVisible({ timeout: 30_000 });
 
 		await page.getByRole('button', { name: 'See its topics in Feeds' }).click();
-		const source = page.getByRole('radiogroup', { name: 'What to read' });
-		await expect(source.getByRole('radio', { name: /^Forums/ })).toHaveAttribute(
-			'aria-checked',
-			'true'
-		);
+		// Forums is the kind being read; the filter sheet says so.
+		await page.getByRole('button', { name: /^Filter your feeds/ }).click();
+		const source = page.getByRole('dialog').getByRole('radio', { name: /^Forums/ });
+		await expect(source).toHaveAttribute('aria-checked', 'true');
+		await page
+			.getByRole('dialog')
+			.getByRole('radio', { name: /^Forums/ })
+			.click();
+		await expect(page.getByRole('dialog')).toBeHidden();
 		// The people's four pills step aside while Forums is shown.
 		await expect(page.getByRole('tablist', { name: 'Filter yips' })).toBeHidden();
 		const pane = page.getByRole('region', { name: 'Forums' });
@@ -120,7 +124,11 @@ test.describe('forums', () => {
 		await expect(pane.locator('.topic', { hasText: firstTitle })).toContainText('No new replies');
 
 		// People is the other side of the switch: the four pills, and no forum topic among them.
-		await source.getByRole('radio', { name: 'People' }).click();
+		await page.getByRole('button', { name: /^Filter your feeds/ }).click();
+		await page
+			.getByRole('dialog')
+			.getByRole('radio', { name: /^People/ })
+			.click();
 		const pills = page.getByRole('tablist', { name: 'Filter yips' });
 		await expect(pills.getByRole('tab')).toHaveText(['Everything', 'Posts', 'Watch', 'Listen']);
 		await expect(page.getByRole('tabpanel', { name: 'Everything' }).locator('.topic')).toHaveCount(
