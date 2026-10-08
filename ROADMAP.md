@@ -673,10 +673,46 @@ contract is [docs/sites-contract.md](docs/sites-contract.md); the reasoning is i
 4. **Search across both sides, and a site page with "Made by" from evidence only.**
 5. **Release blocker:** Surf's bundled seed posters and clips (`static/sites/`) must not ship in a
    release: they were temporary seeds. Surf needs its own opt-in procedure for owners
-   (docs/sites-contract.md) before any capture ships. The forum index's media is fine.
+   (docs/sites-contract.md) before any capture ships. The forum index's media is fine. The
+   procedure is drafted: see "The sites index as its own repository" below.
 
 To judge on the phone: does Surf feel like YipDen or a second app inside it; does the hero still
 feel central; do clips judder in the stack, and what do they cost in data.
+
+### The sites index as its own repository (`yipden-sites`; drafted 2026-10-08, held)
+
+Where Surf's data really comes from: a repository modelled on `indienodes-ring`, so the index is
+published as static files (`sites.json`, `forums.json`) and the app only reads it. Agreed with the
+maintainer: `XTREEMMAK/yipden-sites`, served at `sites.yipden.com`, captures at `media.yipden.com`,
+the three proofs (meta tag, well-known file, `rel="me"`), reviewed by the maintainer.
+
+**Drafted and tested locally, not created or pushed.** A complete working repo (82 tests): the record
+schema, intake from GitHub issue forms (in place of the ring's n8n intake), the ownership proofs,
+capture rules, capture and prune scripts, a health check that notices withdrawn consent, ten
+workflows, the docs, and three pages for yipden.com. It is in a scratch folder
+(`scratchpad/yipden-sites/` of the session that built it), which is temporary: move it somewhere
+permanent before relying on it. Its own docs are the reference: `docs/decisions.md`,
+`docs/operations.md` (the setup checklist), `docs/app-integration.md`.
+
+Decided in the draft: `ring.json` is **not** merged into `sites.json` (separate consent, separate
+meaning; joined by address in the app); every page proof is read from a page's `<head>` only (a
+guestbook can plant HTML in a body); the ring's own verification tag does not count here (it is
+consent to the ring, not to a capture); a verified site's proof being removed is consent withdrawn;
+a `nominated` site is listed with no capture of ours until its owner verifies; MP4, not WebM.
+
+Still to do, in order, when it is picked up:
+
+1. Create the repository, the labels, the secrets and the protected environment, and choose the
+   object store (R2 or Spaces): `docs/operations.md`.
+2. Run the workflows once for real (they were only parsed): intake, build, capture, prune. Check
+   the MP4 step, which needs ffmpeg with H.264, on a runner.
+3. Import the app's seed as nominated records (`scripts/import-seed.js`).
+4. The app: fetch `sites.json` and `forums.json` instead of the bundled seed, drop the bundled
+   posters and clips (that clears the release blocker above), "Suggest a site" and "Is this your
+   site?" links, and the app's `docs/sites-contract.md` gains the new fields.
+5. The three pages on yipden.com.
+6. Later: the shared package for URL safety (ported from the ring), n8n for the health streaks,
+   and at v2.0 Postgres (which side is authoritative is decided then).
 
 ## iOS (audited 2026-10-07; not started)
 
