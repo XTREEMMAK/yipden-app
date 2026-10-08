@@ -3694,3 +3694,14 @@ pause. The old order (state, then position) is back by default and the other is 
 open question is session priority, not our messages: to test without a debugger, clear other apps'
 media notifications (the paused YouTube one) and repeat the car test; with adb,
 `dumpsys media_session` after a car pause shows which session holds the media buttons.
+
+## 2026-10-08: Surf ships empty in 0.9.0
+
+Surf's seed was always a temporary trial, and nothing may be captured of a site whose owner has not
+agreed, so the first release carries no sites, posters or clips. Chosen over delaying for the
+`yipden-sites` index or shipping text-only cards: the smallest change that clears the blocker. The
+seed is imported only behind `__YIPDEN_DEBUG__`, and `pnpm build` runs `scripts/strip-surf-seed.mjs`,
+which deletes the media and fails the build if the list or its media is still in the output (so a
+future import cannot leak it back). Surf stays in Discover with an honest empty note; hiding the
+segment instead is a one-line change if it reads badly in the store. The forum index stays: its
+media is fine.

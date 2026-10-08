@@ -275,7 +275,7 @@
 				</p>
 			{/if}
 			{#if index.status === 'ready' && !index.all.length}
-				<p class="hidden-note">No {index.noun} to show yet.</p>
+				<p class="hidden-note empty-note">{index.emptyNote}</p>
 			{/if}
 			{#if hiddenCount}
 				<p class="hidden-note">
@@ -400,6 +400,11 @@
 		margin: 12px 16px 0;
 		color: rgba(255, 255, 255, 0.7);
 		font-size: 13px;
+	}
+
+	.empty-note {
+		font-size: 14.5px;
+		line-height: 1.5;
 	}
 
 	.stack-tail {

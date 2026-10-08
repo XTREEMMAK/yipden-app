@@ -695,10 +695,14 @@ contract is [docs/sites-contract.md](docs/sites-contract.md); the reasoning is i
    You > Sites, and travels in the backup. A site with no feed can still be saved and visited.
    Left for later: a hand-pasted feed address in Sites mode, and a "caught up" push.
 4. **Search across both sides, and a site page with "Made by" from evidence only.**
-5. **Release blocker:** Surf's bundled seed posters and clips (`static/sites/`) must not ship in a
-   release: they were temporary seeds. Surf needs its own opt-in procedure for owners
-   (docs/sites-contract.md) before any capture ships. The forum index's media is fine. The
-   procedure is drafted: see "The sites index as its own repository" below.
+5. **Release blocker, cleared 2026-10-08: Surf ships empty.** The bundled seed (a dozen sites, their
+   posters and clips in `static/sites/`) was always temporary, so a release build holds none of it:
+   the list is imported only in debug builds, `scripts/strip-surf-seed.mjs` (part of `pnpm build`)
+   removes the media and fails the build if any of the seed is still in it, and Surf shows "Surf is on
+   its way". A debug build keeps the seed to try Surf. Surf still needs its own opt-in procedure for
+   owners (docs/sites-contract.md) before any capture ships, and a real index to fill it; the
+   forum index's media is fine and ships. The procedure is drafted: see "The sites index as its own
+   repository" below.
 
 To judge on the phone: does Surf feel like YipDen or a second app inside it; does the hero still
 feel central; do clips judder in the stack, and what do they cost in data.

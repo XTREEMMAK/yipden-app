@@ -1,4 +1,3 @@
-import sitesSeed from './sites/seed.json';
 import forumsSeed from './sites/forums-seed.json';
 import { SITE_CATEGORIES, type SiteEntry, type SitesDocument } from './sites/types.js';
 import { validateSites } from './sites/validate.js';
@@ -54,11 +53,27 @@ export function categoriesOf(entries: readonly SiteEntry[]): Array<{ key: string
 		});
 }
 
+/**
+ * Surf's bundled seed was always temporary: a dozen sites, their posters and clips, kept to judge
+ * the idea on a phone. A release carries none of it (decided 2026-10-08), so Surf ships empty until
+ * the real index exists. The seed is imported only behind `__YIPDEN_DEBUG__`, so a release build
+ * does not hold the list at all, and `scripts/strip-surf-seed.mjs` removes the posters and clips and
+ * fails the build if any of it got in.
+ */
+const EMPTY_SURF = { version: '0.1', generated_at: '2026-10-08T00:00:00Z', entries: [] };
+
+async function surfDocument(): Promise<unknown> {
+	if (!__YIPDEN_DEBUG__) return EMPTY_SURF;
+	return (await import('./sites/seed.json')).default;
+}
+
 interface IndexSource {
 	/** Where its list remembers its place (`explored.views`). */
 	viewId: string;
 	/** What one entry is called, for search and empty states: "sites", "forums". */
 	noun: string;
+	/** What the panel says when there is nothing to list at all. */
+	emptyNote?: string;
 	load(): Promise<{ document: unknown; localMedia: boolean }>;
 }
 
@@ -87,6 +102,7 @@ export class IndexState {
 
 	readonly viewId: string;
 	readonly noun: string;
+	readonly emptyNote: string;
 	private readonly source: IndexSource;
 	private started: Promise<void> | null = null;
 
@@ -94,6 +110,7 @@ export class IndexState {
 		this.source = source;
 		this.viewId = source.viewId;
 		this.noun = source.noun;
+		this.emptyNote = source.emptyNote ?? `No ${source.noun} to show yet.`;
 	}
 
 	load(): Promise<void> {
@@ -130,7 +147,9 @@ export class IndexState {
 export const sites = new IndexState({
 	viewId: 'surf',
 	noun: 'sites',
-	load: async () => ({ document: sitesSeed, localMedia: true })
+	emptyNote:
+		'Surf is on its way: a visual index of indie sites, each listed with its owner’s say-so. Nothing is listed yet.',
+	load: async () => ({ document: await surfDocument(), localMedia: true })
 });
 
 export const forumIndex = new IndexState({

@@ -19,6 +19,9 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- Surf ships empty in a release: its bundled sites, posters and clips were a trial and are only in
+  debug builds. The release build checks itself and fails if any of the seed got in. Surf says it is
+  on its way until there is a real index; Forums are unchanged.
 - A paused session now tells Android its playback speed is zero (a patch to the media session
   plugin, which sent 1.0 even when paused). A car works its clock out from position and speed, so it
   went on counting and took the player to still be playing.
