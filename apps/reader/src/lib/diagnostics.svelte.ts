@@ -13,7 +13,8 @@ export const DIAG_KEYS = {
 	noThumbs: 'yipden:diag:noThumbs',
 	noCardGlass: 'yipden:diag:noCardGlass',
 	eagerCards: 'yipden:diag:eagerCards',
-	noLibraryThumbs: 'yipden:diag:noLibraryThumbs'
+	noLibraryThumbs: 'yipden:diag:noLibraryThumbs',
+	noPredecode: 'yipden:diag:noPredecode'
 } as const;
 
 export type DiagKey = keyof typeof DIAG_KEYS;
@@ -39,6 +40,8 @@ class Diagnostics {
 	eagerCards = $state(read('eagerCards'));
 	/** Library: an icon in place of each kept picture. */
 	noLibraryThumbs = $state(read('noLibraryThumbs'));
+	/** Feeds: do not decode pictures ahead of the screen. */
+	noPredecode = $state(read('noPredecode'));
 
 	set(key: DiagKey, on: boolean): void {
 		this[key] = on;
@@ -61,6 +64,12 @@ export interface ScrollReport {
 	worst: number;
 	/** Which card stack the pane is running: scroll-driven CSS, or the per-frame JS fallback. */
 	stack: 'css' | 'js' | 'off';
+	/**
+	 * Where the worst frame went, when the WebView says (Chrome's long-animation-frame, frames over
+	 * 50ms): running script, style and drawing work, and everything else, which is waiting for the
+	 * picture decoder, the GPU and the compositor.
+	 */
+	split?: { script: number; render: number; other: number };
 }
 
 /**
@@ -73,6 +82,30 @@ export function frameMeter(pane: HTMLElement | Window, onReport: (report: Scroll
 	let last = 0;
 	let quietSince = 0;
 	let frames: number[] = [];
+	let longest: PerformanceEntry | null = null;
+	let observer: PerformanceObserver | null = null;
+	try {
+		observer = new PerformanceObserver((list) => {
+			for (const entry of list.getEntries()) {
+				if (!longest || entry.duration > longest.duration) longest = entry;
+			}
+		});
+		observer.observe({ type: 'long-animation-frame', buffered: false });
+	} catch {
+		// Not supported by this WebView: the report just has no split.
+	}
+	const splitOf = (entry: PerformanceEntry | null): ScrollReport['split'] | undefined => {
+		const frame = entry as
+			(PerformanceEntry & { renderStart?: number; scripts?: Array<{ duration: number }> }) | null;
+		if (!frame || !frame.scripts) return undefined;
+		const script = frame.scripts.reduce((sum, item) => sum + item.duration, 0);
+		const render = frame.renderStart ? frame.startTime + frame.duration - frame.renderStart : 0;
+		return {
+			script: Math.round(script),
+			render: Math.round(render),
+			other: Math.max(0, Math.round(frame.duration - script - render))
+		};
+	};
 
 	const tick = (now: number) => {
 		if (last) frames.push(now - last);
@@ -81,7 +114,9 @@ export function frameMeter(pane: HTMLElement | Window, onReport: (report: Scroll
 			raf = 0;
 			last = 0;
 			if (frames.length > 5) {
+				const split = splitOf(longest);
 				onReport({
+					...(split ? { split } : {}),
 					frames: frames.length,
 					slow: frames.filter((frame) => frame > 20).length,
 					worst: Math.round(Math.max(...frames)),
@@ -94,6 +129,7 @@ export function frameMeter(pane: HTMLElement | Window, onReport: (report: Scroll
 				});
 			}
 			frames = [];
+			longest = null;
 			return;
 		}
 		raf = requestAnimationFrame(tick);
@@ -106,6 +142,7 @@ export function frameMeter(pane: HTMLElement | Window, onReport: (report: Scroll
 	pane.addEventListener('scroll', onScroll, { passive: true });
 
 	return () => {
+		observer?.disconnect();
 		pane.removeEventListener('scroll', onScroll);
 		cancelAnimationFrame(raf);
 	};

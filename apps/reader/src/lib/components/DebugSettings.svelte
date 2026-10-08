@@ -45,6 +45,11 @@
 			note: 'Feeds: no drawing as cards near the screen; reopen Feeds'
 		},
 		{
+			key: 'noPredecode',
+			title: 'No decoding ahead of the screen',
+			note: 'Feeds: pictures decode as a card arrives; reopen Feeds'
+		},
+		{
 			key: 'noLibraryThumbs',
 			title: 'No Library pictures',
 			note: 'Library: icons in place of kept pictures'

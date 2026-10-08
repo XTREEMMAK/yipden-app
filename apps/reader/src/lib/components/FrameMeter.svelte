@@ -25,6 +25,8 @@
 	<p class="meter" aria-live="polite">
 		{label}
 		{report.slow}/{report.frames} slow · worst {report.worst}ms
+		{#if report.split}<br />script {report.split.script} · render {report.split.render} · other {report
+				.split.other}{/if}
 	</p>
 {/if}
 

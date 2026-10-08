@@ -1,5 +1,6 @@
 import { diagnostics } from '../diagnostics.svelte.js';
 import { prefersReducedMotion } from '../motion.js';
+import { picturesOf, predecode } from './predecode.js';
 import '../styles/card-stack.css';
 
 /**
@@ -245,6 +246,24 @@ export function cardStack(pane: HTMLElement, options: CardStackOptions = {}) {
 	);
 
 	/*
+	 * Pictures decoded ahead: a card within two and a half screens below the one being read has its
+	 * pictures decoded now, off the main thread, so its first draw does not wait for the decoder.
+	 */
+	const nearObserver =
+		__YIPDEN_DEBUG__ && diagnostics?.noPredecode
+			? null
+			: new IntersectionObserver(
+					(entries) => {
+						for (const entry of entries) {
+							if (!entry.isIntersecting || !active) continue;
+							nearObserver?.unobserve(entry.target);
+							predecode(picturesOf(entry.target as HTMLElement));
+						}
+					},
+					{ root: pane, rootMargin: '0px 0px 250% 0px' }
+				);
+
+	/*
 	 * Room after the last card so it can scroll all the way to the top, leaving the card before it
 	 * fully tipped away instead of half hidden behind it. How much depends on the last card's own
 	 * height, which varies (media, text, grouped), and on anything that follows it before the tail
@@ -282,6 +301,8 @@ export function cardStack(pane: HTMLElement, options: CardStackOptions = {}) {
 		observed = cards;
 		observer.disconnect();
 		tailObserver.disconnect();
+		nearObserver?.disconnect();
+		for (const card of cards) nearObserver?.observe(card);
 		if (useScrollDriven) for (const card of cards) observer.observe(card);
 		const last = cards[cards.length - 1];
 		if (last) tailObserver.observe(last);
@@ -315,6 +336,7 @@ export function cardStack(pane: HTMLElement, options: CardStackOptions = {}) {
 		},
 		destroy() {
 			observer.disconnect();
+			nearObserver?.disconnect();
 			mutationObserver.disconnect();
 			tailObserver.disconnect();
 			pane.removeEventListener('scroll', onScroll);
