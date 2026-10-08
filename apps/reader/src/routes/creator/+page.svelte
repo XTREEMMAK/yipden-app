@@ -90,12 +90,13 @@
 	/** Their own picture: what their site shows of them, else their icon. */
 	let avatar = $derived(facts?.photoUrl ?? person?.iconUrl ?? facts?.iconUrl ?? null);
 
-	// A followed person with no picture of their own keeps the one their site gave here, so Feeds
-	// and You show it too, not only this profile (phone feedback, 2026-10-07).
+	// A followed person keeps the picture this profile shows, so Feeds and You show it too (phone
+	// feedback, 2026-10-07). Their own photo wins over whatever was stored before, which may be an
+	// icon that no longer loads: You kept showing nothing while this profile showed the photo.
 	$effect(() => {
 		const followed = person;
-		const found = facts?.photoUrl ?? facts?.iconUrl ?? null;
-		if (!followed || followed.iconUrl || !found) return;
+		const found = facts?.photoUrl ?? (followed?.iconUrl ? null : (facts?.iconUrl ?? null));
+		if (!followed || !found || followed.iconUrl === found) return;
 		const updated = { ...followed, iconUrl: found };
 		person = updated;
 		void store.updatePerson(updated);

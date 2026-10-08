@@ -19,6 +19,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- Yips remembers its filter (the kind of den and the person or folder) while you move around the
+  app. The filter sheet eases between its tabs, calls them Show, Person and Folders, and has an icon
+  beside each kind. Yips has a megaphone in the tab bar, forum cards show the forum's picture, and
+  Follow has a doorway drawing and four cards for what a den can hold.
 - Feeds is now Yips: one stream where a followed site's posts and a forum's topics sit among
   people's yips, newest first. Its header is one line (All, Posts, Watch, Listen and the filter),
   and the filter has three tabs: Show (everything, people, sites, forums), Person and Folder.
@@ -72,6 +76,8 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- A followed person's picture shows in You when their profile finds a better one than the icon
+  stored for them, instead of the profile showing it and You never doing so.
 - In a car or on the lock screen, the scrubber moves the track, Play plays (it could pause), and
   the position stays right for YouTube and SoundCloud tracks. A queue playing on by itself steps
   over Bandcamp tracks, which cannot be started from there, instead of stopping at one.

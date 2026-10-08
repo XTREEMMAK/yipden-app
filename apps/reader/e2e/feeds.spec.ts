@@ -279,7 +279,7 @@ test.describe('Feeds', () => {
 		await page.getByRole('button', { name: 'Filter your yips' }).click();
 		const sheet = page.getByRole('dialog', { name: 'Filter your yips' });
 		await expect(sheet.getByRole('radio', { name: 'Everything you follow' })).toBeChecked();
-		await sheet.getByRole('radio', { name: 'Folder', exact: true }).click();
+		await sheet.getByRole('radio', { name: 'Folders', exact: true }).click();
 		await sheet.getByRole('radio', { name: /^Music/ }).click();
 
 		await expect(sheet).toHaveCount(0);

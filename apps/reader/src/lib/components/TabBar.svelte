@@ -145,13 +145,9 @@
 					>
 				{:else if tab.label === 'Yips'}
 					<svg viewBox="0 0 24 24"
-						><rect x="4" y="4" width="16" height="7" rx="2.5" /><rect
-							x="4"
-							y="14"
-							width="16"
-							height="6"
-							rx="2.5"
-						/></svg
+						><path d="M3.5 10v4h3.2l7.3 4.5v-13L6.7 10z" /><path
+							d="M7.2 14.2l1.2 5h2.4l-1-3.6"
+						/><path d="M17 9.2a4 4 0 0 1 0 5.6M19.6 6.6a8 8 0 0 1 0 10.8" /></svg
 					>
 				{:else if tab.label === 'Follow'}
 					<svg viewBox="0 0 24 24"

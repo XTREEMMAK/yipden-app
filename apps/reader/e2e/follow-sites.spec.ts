@@ -117,3 +117,19 @@ test.describe('following sites', () => {
 		);
 	});
 });
+
+test.describe('the Yips filter', () => {
+	test('is kept when you leave Yips and come back', async ({ page }) => {
+		await routes(page);
+		await followMedjed(page);
+		await page.goto('/feeds');
+		await page.getByRole('button', { name: /^Filter your yips/ }).click();
+		await page.getByRole('radio', { name: /^Sites/ }).click();
+		await expect(page.getByRole('button', { name: 'Filter your yips: Sites' })).toBeVisible();
+
+		await page.getByRole('link', { name: 'You', exact: true }).click();
+		await expect(page).toHaveURL(/\/you/);
+		await page.getByRole('link', { name: 'Yips', exact: true }).click();
+		await expect(page.getByRole('button', { name: 'Filter your yips: Sites' })).toBeVisible();
+	});
+});

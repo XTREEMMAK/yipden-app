@@ -316,6 +316,22 @@
 
 <div class="scroll">
 	<header class="head" in:fly={flyIn()}>
+		{#if phase === 'idle'}
+			<!-- A doorway into the den, stepping stones leading in: only before a search fills the page. -->
+			<svg class="den-art" viewBox="0 0 240 96" aria-hidden="true">
+				<path class="ground" d="M0 84h240" />
+				<path class="arch-fill" d="M92 84V50a28 28 0 0 1 56 0v34z" />
+				<path class="arch" d="M84 84V50a36 36 0 0 1 72 0v34" />
+				<path class="glow" d="M100 84V52a20 20 0 0 1 40 0v32z" />
+				<circle class="star" cx="52" cy="22" r="2.5" />
+				<circle class="star" cx="188" cy="30" r="2" />
+				<circle class="star" cx="206" cy="14" r="1.6" />
+				<ellipse class="stone s1" cx="30" cy="84" rx="9" ry="3.2" />
+				<ellipse class="stone s2" cx="56" cy="86" rx="8" ry="3" />
+				<ellipse class="stone s3" cx="198" cy="84" rx="9" ry="3.2" />
+				<ellipse class="stone s4" cx="172" cy="86" rx="8" ry="3" />
+			</svg>
+		{/if}
 		<p class="eyebrow">Follow</p>
 		<h2 class="screen-title">Build your <em>den</em>.</h2>
 		<p class="lede">
@@ -382,6 +398,51 @@
 			<p class="err" id="findErr">{error}</p>
 		{/if}
 	</form>
+
+	{#if phase === 'idle' && !input.trim()}
+		<ul class="kinds" aria-label="What a den can hold" in:fly={flyIn({ delay: 80 })}>
+			<li>
+				<span class="k-ic"
+					><svg viewBox="0 0 24 24" aria-hidden="true"
+						><circle cx="12" cy="9" r="3.6" /><path
+							d="M5 19.5c.8-3.6 3.6-5.4 7-5.4s6.2 1.8 7 5.4"
+						/></svg
+					></span
+				>
+				<b>Creators</b>
+				<small>Their feeds, wherever they post</small>
+			</li>
+			<li>
+				<span class="k-ic"
+					><svg viewBox="0 0 24 24" aria-hidden="true"
+						><circle cx="12" cy="12" r="9" /><path
+							d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z"
+						/></svg
+					></span
+				>
+				<b>Websites</b>
+				<small>New posts from any site with a feed</small>
+			</li>
+			<li>
+				<span class="k-ic"
+					><svg viewBox="0 0 24 24" aria-hidden="true"
+						><path d="M4 5h16v10H9l-5 4z" /><path d="M8 9h8M8 12h5" /></svg
+					></span
+				>
+				<b>Forums</b>
+				<small>Whole, or just the categories you pick</small>
+			</li>
+			<li>
+				<span class="k-ic"
+					><svg viewBox="0 0 24 24" aria-hidden="true"
+						><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="3" /></svg
+					></span
+				>
+				<b>IndieNodes</b>
+				<small>Members of the webring, ready to follow</small>
+			</li>
+		</ul>
+	{/if}
 
 	<div class="results">
 		{#if phase === 'looking'}
@@ -739,6 +800,102 @@
 		margin: 0;
 		font-size: 13px;
 		color: var(--error);
+	}
+
+	.den-art {
+		align-self: flex-start;
+		width: 168px;
+		height: auto;
+		margin-bottom: 4px;
+		overflow: visible;
+	}
+
+	.den-art path,
+	.den-art ellipse,
+	.den-art circle {
+		stroke: none;
+	}
+
+	.den-art .ground {
+		stroke: var(--line);
+		stroke-width: 2;
+		stroke-linecap: round;
+	}
+
+	.den-art .arch {
+		fill: none;
+		stroke: var(--brand);
+		stroke-width: 3;
+		stroke-linecap: round;
+	}
+
+	.den-art .arch-fill {
+		fill: var(--brand-soft);
+	}
+
+	.den-art .glow {
+		fill: var(--brand);
+		opacity: 0.18;
+	}
+
+	.den-art .star {
+		fill: var(--brand);
+		opacity: 0.45;
+	}
+
+	.den-art .stone {
+		fill: var(--line);
+	}
+
+	.kinds {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 10px;
+		margin: 0;
+		padding: 18px 20px 0;
+		list-style: none;
+	}
+
+	.kinds li {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+		padding: 12px;
+		border: 1px solid var(--line);
+		border-radius: var(--r-group);
+		background: var(--surface);
+	}
+
+	.kinds b {
+		font-size: 14.5px;
+		font-weight: 650;
+	}
+
+	.kinds small {
+		color: var(--muted);
+		font-size: 12.5px;
+		line-height: 1.35;
+	}
+
+	.k-ic {
+		display: grid;
+		place-items: center;
+		width: 34px;
+		height: 34px;
+		margin-bottom: 4px;
+		border-radius: 999px;
+		background: var(--brand-soft);
+		color: var(--brand-text);
+	}
+
+	.k-ic svg {
+		width: 18px;
+		height: 18px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
 	}
 
 	.results {

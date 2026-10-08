@@ -37,6 +37,8 @@ export interface ForumsDeps {
 export interface DigestTopic {
 	record: ForumTopicRecord;
 	forumTitle: string;
+	/** The forum's own picture, where it has one. */
+	logoUrl: string | null;
 	categoryName: string | null;
 	/** Posts the reader has not seen: all of its replies, for a topic never opened. */
 	newReplies: number;
@@ -161,6 +163,7 @@ class ForumsState {
 			return {
 				record,
 				forumTitle: follow?.title ?? new URL(record.forumUrl).hostname,
+				logoUrl: follow?.logoUrl ?? null,
 				categoryName,
 				newReplies,
 				isNew: record.seenPostNumber === undefined

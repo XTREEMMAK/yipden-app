@@ -51,6 +51,8 @@ class FeedsState {
 	feedIcons = $state<Map<string, string>>(new Map());
 	/** Kept for the session only: a relaunch starts back at everyone. */
 	scope = $state<FeedsScope>({ kind: 'all' });
+	/** Which kind of den is read, kept with the scope so leaving Yips and coming back changes nothing. */
+	kind = $state<'all' | 'people' | 'sites' | 'forums'>('all');
 	folders = $derived<FolderSummary[]>(folderList(this.people.values()));
 	/** The folder or person Feeds is narrowed to, for the header and the empty state. */
 	scopeLabel = $derived.by(() => {

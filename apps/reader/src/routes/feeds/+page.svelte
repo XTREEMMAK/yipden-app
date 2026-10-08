@@ -48,8 +48,7 @@
 	 * four and a place's posts never mix into the people's panes: a site or a forum is a place, not
 	 * a person (decided 2026-10-05).
 	 */
-	type Kind = 'all' | 'people' | 'sites' | 'forums';
-	let kind = $state<Kind>('all');
+	let kind = $derived(feeds.kind);
 	/** The one person Feeds is narrowed to, whose name then opens their profile. */
 	let scopedPerson = $derived(
 		feeds.scope.kind === 'person' ? (feeds.people.get(feeds.scope.id) ?? null) : null
@@ -64,7 +63,7 @@
 
 	$effect(() => {
 		const pane = page.url.searchParams.get('pane');
-		if (pane === 'forums' || pane === 'sites') kind = pane;
+		if (pane === 'forums' || pane === 'sites') feeds.kind = pane;
 	});
 	let viewport: HTMLDivElement | undefined;
 
@@ -508,7 +507,7 @@
 {/snippet}
 
 {#if scopeSheetOpen}
-	<FeedsFilterSheet onclose={closeScopeSheet} {kind} onkind={(next) => (kind = next)} />
+	<FeedsFilterSheet onclose={closeScopeSheet} {kind} onkind={(next) => (feeds.kind = next)} />
 {/if}
 
 <style>

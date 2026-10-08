@@ -28,11 +28,26 @@
 	);
 
 	const KINDS = $derived([
-		{ value: 'all' as const, label: 'Everything you follow', count: 0 },
-		{ value: 'people' as const, label: 'People', count: feeds.unreadCount },
-		{ value: 'sites' as const, label: 'Sites', count: siteFollows.activeCount },
-		{ value: 'forums' as const, label: 'Forums', count: forums.activeCount }
+		{ value: 'all' as const, label: 'Everything you follow', count: 0, icon: 'all' },
+		{ value: 'people' as const, label: 'People', count: feeds.unreadCount, icon: 'people' },
+		{ value: 'sites' as const, label: 'Sites', count: siteFollows.activeCount, icon: 'sites' },
+		{ value: 'forums' as const, label: 'Forums', count: forums.activeCount, icon: 'forums' }
 	]);
+
+	/**
+	 * The tab's content changes size when the tab does. Its box follows the content's measured
+	 * height, eased, so the sheet grows and shrinks instead of jumping.
+	 */
+	function followHeight(box: HTMLElement) {
+		const inner = box.firstElementChild as HTMLElement;
+		const set = () => (box.style.height = `${inner.offsetHeight}px`);
+		set();
+		// No easing for the first measure: the sheet opens at its size.
+		requestAnimationFrame(() => (box.style.transition = ''));
+		const watcher = new ResizeObserver(set);
+		watcher.observe(inner);
+		return { destroy: () => watcher.disconnect() };
+	}
 
 	/** Past this many people the list gets a box to narrow it. */
 	const SEARCH_FROM = 12;
@@ -76,90 +91,125 @@
 			options={[
 				{ value: 'show', label: 'Show' },
 				{ value: 'person', label: 'Person' },
-				{ value: 'folder', label: 'Folder' }
+				{ value: 'folder', label: 'Folders' }
 			]}
 			value={tab}
 			onchange={(next) => (tab = next)}
 		/>
 	</div>
 
-	{#if tab === 'show'}
-		<div class="sheet-list" role="radiogroup" aria-label="Show">
-			{#each KINDS as option (option.value)}
-				<button
-					class="sheet-row"
-					role="radio"
-					aria-checked={kind === option.value && feeds.scope.kind === 'all'}
-					onclick={() => chooseKind(option.value)}
-				>
-					<span class="sheet-name">{option.label}</span>
-					{#if option.count > 0}<small class="sheet-hint">{option.count} new</small>{/if}
-				</button>
-			{/each}
-		</div>
-	{:else if tab === 'folder'}
-		<div class="sheet-list" role="radiogroup" aria-label="Folder">
-			{#each feeds.folders as folder (folder.name)}
-				<button
-					class="sheet-row"
-					role="radio"
-					aria-checked={feeds.scope.kind === 'folder' && feeds.scope.name === folder.name}
-					onclick={() => chooseScope({ kind: 'folder', name: folder.name })}
-				>
-					<span class="sheet-av" aria-hidden="true">
-						<svg viewBox="0 0 24 24"><path d="M3.5 7.5h6l2 2h9v9h-17z" /></svg>
-					</span>
-					<span class="sheet-name">{folder.name}</span>
-					<small class="sheet-hint">{folder.count}</small>
-				</button>
+	<div class="swap" use:followHeight>
+		<div class="swap-inner">
+			{#if tab === 'show'}
+				<div class="sheet-list" role="radiogroup" aria-label="Show">
+					{#each KINDS as option (option.value)}
+						<button
+							class="sheet-row"
+							role="radio"
+							aria-checked={kind === option.value && feeds.scope.kind === 'all'}
+							onclick={() => chooseKind(option.value)}
+						>
+							<span class="sheet-av" aria-hidden="true">
+								<svg viewBox="0 0 24 24">
+									{#if option.icon === 'all'}
+										<path d="M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4" />
+									{:else if option.icon === 'people'}
+										<circle cx="12" cy="9" r="3.6" /><path
+											d="M5 19.5c.8-3.6 3.6-5.4 7-5.4s6.2 1.8 7 5.4"
+										/>
+									{:else if option.icon === 'sites'}
+										<circle cx="12" cy="12" r="9" /><path
+											d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z"
+										/>
+									{:else}
+										<path d="M4 5h16v10H9l-5 4z" /><path d="M8 9h8M8 12h5" />
+									{/if}
+								</svg>
+							</span>
+							<span class="sheet-name">{option.label}</span>
+							{#if option.count > 0}<small class="sheet-hint">{option.count} new</small>{/if}
+						</button>
+					{/each}
+				</div>
+			{:else if tab === 'folder'}
+				<div class="sheet-list" role="radiogroup" aria-label="Folders">
+					{#each feeds.folders as folder (folder.name)}
+						<button
+							class="sheet-row"
+							role="radio"
+							aria-checked={feeds.scope.kind === 'folder' && feeds.scope.name === folder.name}
+							onclick={() => chooseScope({ kind: 'folder', name: folder.name })}
+						>
+							<span class="sheet-av" aria-hidden="true">
+								<svg viewBox="0 0 24 24"><path d="M3.5 7.5h6l2 2h9v9h-17z" /></svg>
+							</span>
+							<span class="sheet-name">{folder.name}</span>
+							<small class="sheet-hint">{folder.count}</small>
+						</button>
+					{:else}
+						<p class="sheet-note">No folders yet. Put someone in one from You.</p>
+					{/each}
+				</div>
 			{:else}
-				<p class="sheet-note">No folders yet. Put someone in one from You.</p>
-			{/each}
-		</div>
-	{:else}
-		<div class="sheet-list" role="radiogroup" aria-label="Person">
-			{#if people.length > SEARCH_FROM}
-				<input
-					class="sheet-search"
-					type="search"
-					placeholder="Find a person"
-					aria-label="Find a person"
-					bind:value={query}
-				/>
-			{/if}
-			{#each shownPeople as person (person.id)}
-				<button
-					class="sheet-row"
-					role="radio"
-					aria-checked={feeds.scope.kind === 'person' && feeds.scope.id === person.id}
-					onclick={() => chooseScope({ kind: 'person', id: person.id })}
-				>
-					<!-- Their own picture when they have one; a plain person otherwise. -->
-					<span
-						class="sheet-av"
-						class:pic={Boolean(person.iconUrl)}
-						style:background-image={person.iconUrl ? `url(${person.iconUrl})` : ''}
-						aria-hidden="true"
-					>
-						{#if !person.iconUrl}
-							<svg viewBox="0 0 24 24"
-								><circle cx="12" cy="9" r="3.6" /><path
-									d="M5 19.5c.8-3.6 3.6-5.4 7-5.4s6.2 1.8 7 5.4"
-								/></svg
+				<div class="sheet-list" role="radiogroup" aria-label="Person">
+					{#if people.length > SEARCH_FROM}
+						<input
+							class="sheet-search"
+							type="search"
+							placeholder="Find a person"
+							aria-label="Find a person"
+							bind:value={query}
+						/>
+					{/if}
+					{#each shownPeople as person (person.id)}
+						<button
+							class="sheet-row"
+							role="radio"
+							aria-checked={feeds.scope.kind === 'person' && feeds.scope.id === person.id}
+							onclick={() => chooseScope({ kind: 'person', id: person.id })}
+						>
+							<!-- Their own picture when they have one; a plain person otherwise. -->
+							<span
+								class="sheet-av"
+								class:pic={Boolean(person.iconUrl)}
+								style:background-image={person.iconUrl ? `url(${person.iconUrl})` : ''}
+								aria-hidden="true"
 							>
-						{/if}
-					</span>
-					<span class="sheet-name">{person.name}</span>
-					{#if person.folder}<small class="sheet-hint">{person.folder}</small>{/if}
-				</button>
-			{:else}
-				<p class="sheet-note">{people.length ? 'Nobody by that name.' : 'Nobody followed yet.'}</p>
-			{/each}
+								{#if !person.iconUrl}
+									<svg viewBox="0 0 24 24"
+										><circle cx="12" cy="9" r="3.6" /><path
+											d="M5 19.5c.8-3.6 3.6-5.4 7-5.4s6.2 1.8 7 5.4"
+										/></svg
+									>
+								{/if}
+							</span>
+							<span class="sheet-name">{person.name}</span>
+							{#if person.folder}<small class="sheet-hint">{person.folder}</small>{/if}
+						</button>
+					{:else}
+						<p class="sheet-note">
+							{people.length ? 'Nobody by that name.' : 'Nobody followed yet.'}
+						</p>
+					{/each}
+				</div>
+			{/if}
 		</div>
-	{/if}
+	</div>
 </Sheet>
 
 <style>
+	/* Eased to the tab's height, so switching tabs never jumps the sheet. */
+	.swap {
+		overflow: hidden;
+		transition: height var(--dur-m, 0.25s) var(--ease, ease);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.swap {
+			transition: none;
+		}
+	}
+
 	.tabs {
 		display: flex;
 		padding: 0 16px 8px;

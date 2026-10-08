@@ -42,6 +42,11 @@
 	aria-label={`${record.title}. ${what}, ${age}. ${source}. Opens on the forum.`}
 >
 	<span class="src">
+		<span class="icon" style:background-image={topic.logoUrl ? `url(${topic.logoUrl})` : ''}>
+			{#if !topic.logoUrl}<span aria-hidden="true"
+					>{topic.forumTitle.trim().charAt(0).toUpperCase() || '?'}</span
+				>{/if}
+		</span>
 		<span class="chip">Forum</span>
 		<small>{source}</small>
 	</span>
@@ -97,6 +102,22 @@
 		align-items: center;
 		gap: 8px;
 		min-width: 0;
+	}
+
+	.icon {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 24px;
+		height: 24px;
+		border-radius: 7px;
+		background-color: var(--brand-soft);
+		background-size: contain;
+		background-position: center;
+		background-repeat: no-repeat;
+		color: var(--brand-ink);
+		font-size: 12px;
+		font-weight: 700;
 	}
 
 	.chip {
