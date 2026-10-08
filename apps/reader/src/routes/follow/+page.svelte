@@ -395,12 +395,12 @@
 			value={mode}
 			onchange={setMode}
 		/>
-		<p class="eyebrow">Follow</p>
+		<p class="eyebrow">Follow a den</p>
 		{#if mode === 'people'}
 			<h2 class="screen-title">Follow a <em>person</em>, not a platform.</h2>
 			<p class="lede">
-				Type a creator name or paste any website or profile. YipDen checks the IndieNodes ring
-				first, then reads the web only when it needs to.
+				A den is where someone lives on the web. Type a creator name or paste any website or
+				profile. YipDen checks the IndieNodes ring first, then reads the web only when it needs to.
 			</p>
 		{:else if mode === 'sites'}
 			<h2 class="screen-title">Follow a <em>site</em>, and read what it posts.</h2>
