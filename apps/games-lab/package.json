@@ -1,0 +1,36 @@
+{
+  "name": "@yipden/games-lab",
+  "version": "0.9.0",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test:e2e": "playwright test",
+    "android:apk": "node ../../tooling/games/android-apk.mjs",
+    "android:publish": "node ../../tooling/games/publish-apk.mjs"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@yipden/game-contracts": "workspace:*",
+    "@yipden/game-host": "workspace:*",
+    "@yipden/realm-player": "workspace:*",
+    "@yipden/stray": "workspace:*"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@playwright/test": "^1.63.0",
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.70.3",
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.0"
+  }
+}

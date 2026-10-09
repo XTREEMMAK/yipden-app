@@ -1,0 +1,19 @@
+{
+  "name": "@yipden/realm-core",
+  "version": "0.9.0",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.1"
+  }
+}

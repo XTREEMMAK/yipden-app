@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 11 and lower read this instead of data_extraction_rules.xml. allowBackup="false"
+    already turns their backups off; this says the same thing a second way, so a future change
+    to that flag cannot quietly start copying the encrypted database or its key (kept by the
+    sqlite plugin in shared preferences) to a cloud account.
+-->
+<full-backup-content>
+    <exclude domain="root" path="." />
+    <exclude domain="file" path="." />
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="external" path="." />
+</full-backup-content>

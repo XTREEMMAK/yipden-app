@@ -126,3 +126,9 @@ licensed under GPL-3.0-or-later, and that you grant the maintainer the right to 
 under other terms, including in official app store builds of YipDen, where the GPL's terms and the
 stores' terms cannot both be met by a third party. If you cannot agree to that, please open an
 issue to discuss instead of a pull request. Sign off your commits (`git commit -s`) to confirm it.
+
+## Game development
+
+Games are optional and reader builds default to thin. The separate Games Lab supports fast
+browser work and independent Android APKs. See [docs/games-development.md](docs/games-development.md)
+for the current scaffold, worktrees, profiles, testing and download-server workflow.

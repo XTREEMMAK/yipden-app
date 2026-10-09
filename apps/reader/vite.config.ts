@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vitest/config';
+import { gameBuild } from '@yipden/game-contracts/vite';
 import { devFetchProxy } from './vite-plugins/dev-fetch-proxy.js';
 
 const packageJson = JSON.parse(
@@ -44,7 +45,7 @@ function debugTools(command: string): boolean {
 }
 
 export default defineConfig(({ command }) => ({
-	plugins: [sveltekit(), devFetchProxy()],
+	plugins: [gameBuild({ surface: 'reader', fallback: 'thin' }), sveltekit(), devFetchProxy()],
 	define: {
 		__APP_VERSION__: JSON.stringify(packageJson.version),
 		__BUILD_COMMIT__: JSON.stringify(buildCommit()),

@@ -15,7 +15,8 @@
     "cap:sync": "pnpm build && cap sync android",
     "android:apk": "VITE_YIPDEN_DEBUG=1 YIPDEN_DEBUG_BUILD=$(node scripts/stamp-apk.mjs next) pnpm cap:sync && (cd android && ./gradlew assembleDebug) && node scripts/stamp-apk.mjs",
     "android:install": "pnpm android:apk && adb install -r android/app/build/outputs/apk/debug/app-debug.apk",
-    "android:live": "cap sync android && cd android && ./gradlew installDebug"
+    "android:live": "cap sync android && cd android && ./gradlew installDebug",
+    "check:games": "node ../../tooling/games/check-build.mjs build"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "8.1.1",
@@ -26,7 +27,11 @@
     "@capgo/capacitor-media-session": "^8.0.32",
     "@rgrove/parse-xml": "^5.0.0",
     "@yipden/feeds": "workspace:*",
-    "@yipden/ring-client": "workspace:*"
+    "@yipden/ring-client": "workspace:*",
+    "@yipden/game-contracts": "workspace:*",
+    "@yipden/game-host": "workspace:*",
+    "@yipden/realm-player": "workspace:*",
+    "@yipden/stray": "workspace:*"
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.2",

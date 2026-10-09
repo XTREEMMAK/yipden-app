@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The launch splash, behind the white mark: brand orange by day, matching the launcher icon. -->
+    <color name="splash_background">#C2410C</color>
+</resources>

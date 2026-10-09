@@ -1,0 +1,23 @@
+{
+  "name": "@yipden/game-contracts",
+  "version": "0.9.0",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./virtual": "./src/virtual.d.ts",
+    "./vite": "./src/vite.ts",
+    "./profile": "./src/profile.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.1",
+    "vite": "^8.3.0"
+  }
+}

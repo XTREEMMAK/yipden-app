@@ -1,0 +1,8 @@
+.realm-player-scaffold {
+	padding: 20px;
+	border: 2px solid #aa612b;
+	border-radius: 12px;
+}
+.realm-player-scaffold p {
+	line-height: 1.6;
+}

@@ -40,6 +40,58 @@ importers:
         specifier: ^8.70.1
         version: 8.70.1(eslint@10.11.0)(typescript@5.9.3)
 
+  apps/games-lab:
+    dependencies:
+      '@capacitor/app':
+        specifier: ^8.1.1
+        version: 8.1.1(@capacitor/core@8.5.2)
+      '@capacitor/core':
+        specifier: ^8.5.2
+        version: 8.5.2
+      '@yipden/game-contracts':
+        specifier: workspace:*
+        version: link:../../packages/game-contracts
+      '@yipden/game-host':
+        specifier: workspace:*
+        version: link:../../packages/game-host
+      '@yipden/realm-player':
+        specifier: workspace:*
+        version: link:../../packages/realm-player
+      '@yipden/stray':
+        specifier: workspace:*
+        version: link:../../packages/stray
+    devDependencies:
+      '@capacitor/android':
+        specifier: ^8.5.2
+        version: 8.5.2(@capacitor/core@8.5.2)
+      '@capacitor/cli':
+        specifier: ^8.5.2
+        version: 8.5.2
+      '@playwright/test':
+        specifier: ^1.63.0
+        version: 1.63.0
+      '@sveltejs/adapter-static':
+        specifier: ^3.0.10
+        version: 3.0.10(@sveltejs/kit@2.70.3(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.1(@typescript-eslint/types@8.70.1))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)))(svelte@5.57.1(@typescript-eslint/types@8.70.1))(typescript@5.9.3)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)))
+      '@sveltejs/kit':
+        specifier: ^2.70.3
+        version: 2.70.3(@sveltejs/vite-plugin-svelte@7.3.0(svelte@5.57.1(@typescript-eslint/types@8.70.1))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)))(svelte@5.57.1(@typescript-eslint/types@8.70.1))(typescript@5.9.3)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2))
+      '@sveltejs/vite-plugin-svelte':
+        specifier: ^7.3.0
+        version: 7.3.0(svelte@5.57.1(@typescript-eslint/types@8.70.1))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2))
+      svelte:
+        specifier: ^5.57.1
+        version: 5.57.1(@typescript-eslint/types@8.70.1)
+      svelte-check:
+        specifier: ^4.7.6
+        version: 4.7.6(picomatch@4.0.7)(svelte@5.57.1(@typescript-eslint/types@8.70.1))(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^8.3.0
+        version: 8.3.0(@types/node@26.6.2)(esbuild@0.28.2)
+
   apps/reader:
     dependencies:
       '@capacitor-community/sqlite':
@@ -66,9 +118,21 @@ importers:
       '@yipden/feeds':
         specifier: workspace:*
         version: link:../../packages/feeds
+      '@yipden/game-contracts':
+        specifier: workspace:*
+        version: link:../../packages/game-contracts
+      '@yipden/game-host':
+        specifier: workspace:*
+        version: link:../../packages/game-host
+      '@yipden/realm-player':
+        specifier: workspace:*
+        version: link:../../packages/realm-player
       '@yipden/ring-client':
         specifier: workspace:*
         version: link:../../packages/ring-client
+      '@yipden/stray':
+        specifier: workspace:*
+        version: link:../../packages/stray
     devDependencies:
       '@capacitor/android':
         specifier: ^8.5.2
@@ -132,6 +196,59 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1(@types/node@26.6.2)(jsdom@30.1.1)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2))
 
+  packages/game-contracts:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vite:
+        specifier: ^8.3.0
+        version: 8.3.0(@types/node@26.6.2)(esbuild@0.28.2)
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@types/node@26.6.2)(jsdom@30.1.1)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2))
+
+  packages/game-host:
+    dependencies:
+      '@yipden/game-contracts':
+        specifier: workspace:*
+        version: link:../game-contracts
+    devDependencies:
+      svelte:
+        specifier: ^5.57.1
+        version: 5.57.1(@typescript-eslint/types@8.70.1)
+      svelte-check:
+        specifier: ^4.7.6
+        version: 4.7.6(picomatch@4.0.7)(svelte@5.57.1(@typescript-eslint/types@8.70.1))(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@types/node@26.6.2)(jsdom@30.1.1)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2))
+
+  packages/realm-core:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@types/node@26.6.2)(jsdom@30.1.1)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2))
+
+  packages/realm-player:
+    dependencies:
+      '@yipden/game-contracts':
+        specifier: workspace:*
+        version: link:../game-contracts
+      '@yipden/realm-core':
+        specifier: workspace:*
+        version: link:../realm-core
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/ring-client:
     devDependencies:
       ajv:
@@ -146,6 +263,16 @@ importers:
       vitest:
         specifier: ^5.0.1
         version: 5.0.1(@types/node@26.6.2)(jsdom@30.1.1)(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2))
+
+  packages/stray:
+    dependencies:
+      '@yipden/game-contracts':
+        specifier: workspace:*
+        version: link:../game-contracts
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
 packages:
 

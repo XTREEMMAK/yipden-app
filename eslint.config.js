@@ -12,6 +12,7 @@ export default tseslint.config(
 			'**/.svelte-kit/**',
 			'**/coverage/**',
 			'apps/reader/android/**',
+			'apps/games-lab/android/**',
 			'docs/reference/**',
 			'tmp/**',
 			'brand/**',

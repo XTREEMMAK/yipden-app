@@ -8,6 +8,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- Optional game build profiles and a separate Games Lab for browser and APK testing. The initial
+  Realm and Stray entries are player scaffolds; the supplied Realm prototype can be opened as a
+  lab-only reference. Reader builds default to thin with no game implementations or assets.
+
 - Follow a site by its feed. Follow has a Sites side, a Surf card that lists a feed has a Follow
   button, and the new posts arrive in Feeds under Sites. Sites are managed in You and are in the
   backup.

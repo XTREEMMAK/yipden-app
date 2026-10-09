@@ -514,6 +514,59 @@ Out of scope for v0.9 in the brief, so none of this starts before it ships:
 - Watch yips: they open the creator's page. Whether video ever plays in app is unsettled and
   the brief says it does not.
 
+### Game layer (planned after release; prototyping, 2026-10-09)
+
+**Initial setup authorized 2026-10-09, on `games/foundation` in a separate worktree.** Games Lab,
+shared host contracts, Realm/Stray lifecycle scaffolds, legacy Realm map validation, thin/realm/
+stray/all profiles, graph/asset guards, and separate lab APK identities are scaffolded. The Realm
+reference prototype remains playable by explicit lab reference opt-in; gameplay is not migrated.
+See [docs/games-development.md](docs/games-development.md). The Stray's open decisions are recorded
+in [docs/stray-handoff.md](docs/stray-handoff.md). The foundation is committed on
+`games/foundation` but remains separate from reader `main` until review and merge. Realm production
+work follows: typed simulation, Threlte/two-stick
+input, FMOD and live-page feasibility, then the first complete creator-page route and device
+playtest. The editor, publishing service and billing remain unbuilt.
+
+Two games are being prototyped for viability, one materially more complex than the other. If
+either graduates to full development, keep it in this repository: repository placement and
+runtime loading are separate decisions, and the reader and a built-in game need atomic changes
+to their shared contract. The small game can live under `apps/reader/src/lib/games/`; substantial
+framework-independent rules, state or simulation from the complex game can become a plain
+TypeScript workspace package under `packages/`, following the existing package boundaries. A
+separate repository is only reconsidered if a game becomes an independently released product,
+needs separate ownership or licensing, or adopts a toolchain that cannot reasonably share this
+build.
+
+Neither game may join the app's startup graph. A Play screen or game registry carries metadata
+and loader functions only; the game component, engine, CSS, audio and asset imports sit behind a
+dynamic `import()` run by the explicit Play action. Do not add the games to the tab bar's eager
+preload path, and do not import them from the root layout. If navigation uses a link rather than
+the Play button importing the module directly, opt that link out of SvelteKit code preloading.
+A production-build check should confirm that cold launch neither requests nor executes either
+game chunk. Lazy chunks still ship inside the Capacitor APK, so unusually large game assets may
+later need a measured on-demand asset plan; that installation-size question does not by itself
+justify another repository.
+
+Any saved game state stays behind the app's `Store` interface. Each game also needs a small host
+boundary for starting, pausing/resuming and destroying itself so leaving Play releases animation
+loops, WebGL/canvas resources, audio and event listeners rather than leaving a second app running
+under the reader.
+
+Games may have private, game-specific scores, progress and achievements. They must not reward or
+rank reading, following, saving, creator interaction, return frequency or time spent in YipDen,
+and they must never influence the reader or discovery surfaces. Playing stays account-free. A
+future account may optionally sync game state, but may not become a condition of play. In
+particular, there is no app-wide level, reading streak, daily-login reward or engagement
+leaderboard: game progression measures play inside that game, not use of the reader around it.
+
+The reader must also support a thin build with no games. The game registry is the capability
+boundary: in a thin build it resolves to an empty registry, no launcher is shown, and no game
+implementation, engine, CSS, audio or asset enters the build graph or the packaged app. Launcher
+visibility is derived from whether the registry has entries, never hard-coded in the app shell.
+Keep game assets imported from their game modules rather than in the reader's unconditional
+static assets. Test both production profiles: the full build loads each game only after an
+explicit Play action, and the thin build contains no game chunks or game assets at all.
+
 ## v2.0: backend
 
 `apps/api` and `packages/db`, Better Auth with magic link and IndieAuth, and a sync `Store`

@@ -1,3 +1,4 @@
+/// <reference types="@yipden/game-contracts/virtual" />
 declare global {
 	const __APP_VERSION__: string;
 	const __BUILD_COMMIT__: string;
