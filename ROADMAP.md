@@ -521,8 +521,9 @@ shared host contracts, Realm/Stray lifecycle scaffolds, legacy Realm map validat
 stray/all profiles, graph/asset guards, and separate lab APK identities are scaffolded. The Realm
 reference prototype remains playable by explicit lab reference opt-in; gameplay is not migrated.
 See [docs/games-development.md](docs/games-development.md). The Stray's open decisions are recorded
-in [docs/stray-handoff.md](docs/stray-handoff.md). Reader `main` remains separate; nothing is merged
-or committed by this setup. Realm production work follows: typed simulation, Threlte/two-stick
+in [docs/stray-handoff.md](docs/stray-handoff.md). The foundation is committed on
+`games/foundation` but remains separate from reader `main` until review and merge. Realm production
+work follows: typed simulation, Threlte/two-stick
 input, FMOD and live-page feasibility, then the first complete creator-page route and device
 playtest. The editor, publishing service and billing remain unbuilt.
 

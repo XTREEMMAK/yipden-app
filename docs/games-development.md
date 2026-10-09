@@ -9,10 +9,10 @@ prototype reference; its production handoff is still pending.
 - Reader: `/home/xtreemmak/projects/node/yipden-app`, branch `main`.
 - Games foundation: `/home/xtreemmak/projects/node/yipden-app-games`, branch `games/foundation`.
 
-The initial game changes are uncommitted. Do not create dependent Realm/Stray worktrees and assume
-these files will appear in them: linked worktrees check out commits, not another tree's uncommitted
-files. Once the reviewed foundation is committed, branch `games/realm` and `games/stray` from that
-same foundation revision. Keep separate dependency installations, build folders and strict ports.
+The initial foundation is committed and published on `games/foundation`. After that foundation is
+reviewed, branch `games/realm` and `games/stray` from its accepted revision; after it merges, start
+later game branches from the updated `origin/main`. Keep separate dependency installations, build
+folders and strict ports.
 One owner integrates changes to contracts, workspace manifests/lockfile, reader adapters and saves.
 Independent game agents should own their game packages and tests, not concurrently edit shared files.
 
