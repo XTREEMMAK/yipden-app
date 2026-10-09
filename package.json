@@ -14,7 +14,14 @@
     "check": "pnpm -r check",
     "test": "pnpm -r test",
     "lint": "prettier --check . && eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "games:dev": "pnpm --filter @yipden/games-lab dev",
+    "games:dev:references": "YIPDEN_GAME_REFERENCES=1 pnpm --filter @yipden/games-lab dev",
+    "games:check": "pnpm --filter @yipden/game-contracts --filter @yipden/game-host --filter @yipden/realm-core --filter @yipden/realm-player --filter @yipden/stray --filter @yipden/games-lab check",
+    "games:test": "pnpm --filter @yipden/game-contracts --filter @yipden/game-host --filter @yipden/realm-core test",
+    "games:verify": "node tooling/games/verify.mjs",
+    "games:apk": "pnpm --filter @yipden/games-lab android:apk",
+    "games:publish": "pnpm --filter @yipden/games-lab android:publish"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

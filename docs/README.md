@@ -27,3 +27,7 @@ interaction states, reduced motion and dark mode behavior.
 canvas generated artwork, the simulated playback clock, toasts claiming a link "opens", and
 its structure. It is one file of plain DOM and JS. Port the patterns into Svelte components,
 never the code as written.
+
+Game development: [games-development.md](games-development.md) covers isolated worktrees,
+build profiles, browser testing and separate APK delivery. [stray-handoff.md](stray-handoff.md)
+records The Stray prototype and its remaining decisions.

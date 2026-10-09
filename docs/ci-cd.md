@@ -6,14 +6,14 @@ GitHub Actions, on push and pull request to `main`, on Node 24, with actions pin
 SHAs rather than tags. This mirrors how `indienodes-app` and `indienodes-ring` already run, so
 there is one set of habits across the projects rather than three.
 
-| Step                | Command                          | Why it is in this order                                            |
-| ------------------- | -------------------------------- | ------------------------------------------------------------------ |
-| Install             | `pnpm install --frozen-lockfile` | A lockfile that does not match the manifests fails here, not later |
-| Typecheck           | `pnpm check`                     | Cheapest signal, catches the most                                  |
-| Lint and formatting | `pnpm lint`                      | Prettier and ESLint                                                |
-| Unit tests          | `pnpm test`                      | Every package                                                      |
-| Web build           | `pnpm build`                     | Proves `adapter-static` still produces a build                     |
-| End to end          | Playwright                       | Against the static build, using fixture feeds, never the network   |
+| Step                                       | Command                          | Why it is in this order                                            |
+| ------------------------------------------ | -------------------------------- | ------------------------------------------------------------------ |
+| Install                                    | `pnpm install --frozen-lockfile` | A lockfile that does not match the manifests fails here, not later |
+| Typecheck                                  | `pnpm check`                     | Cheapest signal, catches the most                                  |
+| Lint and formatting                        | `pnpm lint`                      | Prettier and ESLint                                                |
+| Unit tests                                 | `pnpm test`                      | Every package                                                      |
+| Web build                                  | `pnpm build`                     | Proves `adapter-static` still produces a build                     |
+| End to end (local; not in reader workflow) | Playwright                       | Against the static build, using fixture feeds, never the network   |
 
 For CI to actually block a merge it has to be marked required in the repository's branch
 protection settings. That is a GitHub setting, not something a workflow file can express.
@@ -23,8 +23,11 @@ protection settings. That is a GitHub setting, not something a workflow file can
 The APK is **not** built on every push. It is slow, it needs the Android SDK on the runner, and
 nothing about it gates correctness that the web build has not already checked.
 
-A tag matching `v*` builds a debug APK and attaches it to the run as an artifact, so there is
-always a downloadable build for a given version without anyone needing the toolchain.
+The checked-in reader CI currently does not build APKs on tags and does not run the reader
+Playwright suite. The earlier tag-artifact description was a planned workflow, not implemented.
+Local numbered APKs are built with `pnpm android:apk`; the current LAN download server serves
+that output directory directly. See [games-development.md](games-development.md) for isolated
+game APK building/publication and the games profile workflow.
 
 **Release signing is not set up**, deliberately. It needs a Play Console identity and an upload
 keystore, and a keystore committed or handed around before then is a liability with no
@@ -61,3 +64,10 @@ Versions start at 0.0.1 and follow semantic versioning. The version is canonical
 
 Every release updates [CHANGELOG.md](../CHANGELOG.md). Anything that departed from the brief is
 recorded in [DECISIONS.md](../DECISIONS.md) when the decision is made, not at release time.
+
+## Games profile checks
+
+`games.yml` runs on game branch pushes, main pull requests and manual dispatch. It checks the
+shared packages and four Games Lab production profiles plus thin/all reader browser checks.
+Ignored reference prototypes are not CI inputs. Android builds stay local/on demand; a passing
+browser workflow does not establish physical-phone performance or native integration.

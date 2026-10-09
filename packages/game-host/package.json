@@ -1,0 +1,27 @@
+{
+  "name": "@yipden/game-host",
+  "version": "0.9.0",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./session": "./src/session.ts"
+  },
+  "scripts": {
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.1",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.7.6"
+  },
+  "peerDependencies": {
+    "svelte": "^5.0.0"
+  },
+  "dependencies": {
+    "@yipden/game-contracts": "workspace:*"
+  }
+}

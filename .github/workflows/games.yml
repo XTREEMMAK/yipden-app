@@ -1,0 +1,27 @@
+name: Games
+
+on:
+  push:
+    branches: ['games/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  profiles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: corepack enable
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm games:check
+      - run: pnpm games:test
+      - run: pnpm --filter @yipden/games-lab exec playwright install --with-deps chromium
+      - run: pnpm games:verify

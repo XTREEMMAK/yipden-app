@@ -48,3 +48,12 @@ apps/reader/android/app/src/main/assets/capacitor.plugins.json
 
 # The design prototype every screen was built against. Kept locally, not published.
 docs/reference/
+
+# Games Lab native build/copy output (separate from the reader).
+apps/games-lab/android/.gradle/
+apps/games-lab/android/local.properties
+apps/games-lab/android/.game-build-lock
+apps/games-lab/android/capacitor-cordova-android-plugins/
+apps/games-lab/android/app/src/main/assets/public/
+apps/games-lab/android/app/src/main/assets/capacitor.config.json
+apps/games-lab/android/app/src/main/assets/capacitor.plugins.json

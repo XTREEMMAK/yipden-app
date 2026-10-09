@@ -3715,3 +3715,34 @@ spike and the origins only it needed (`open.spotify.com`, `embed-cdn.spotifycdn.
 `www.youtube.com` as a frame source) are gone from the code and the CSP. Spotify has no player in the
 app, so a Spotify track opens on Spotify; whether an embed keeps playing in the background stays a
 device-pass question. `CLAUDE.md` now records the commands and the rules for a new session.
+
+## 2026-10-09 — Games develop beside the reader, with a separate test host
+
+Authorized after the game planning pass. Keep one repository and use `games/foundation` in a
+separate worktree; reader `main` remains independent. No game changes are committed/merged in
+this initial setup. The game registry resolves at build time: thin by default for the reader,
+Realm by default for Games Lab, with realm/stray/all profiles and fail-closed exclusion checks.
+The You launcher derives from registry contents and disables SvelteKit preloading. The root
+layout and tab bar have no game imports.
+
+A separate static Games Lab hosts the same player entries through a cancellable lifecycle
+contract. Its Android flavors install alongside the reader with independent application IDs.
+The provided Realm HTML remains playable as a clearly labeled lab-only reference, included only
+by explicit build opt-in. References are removed on background/exit, ending their runs. They
+never enter reader builds, and are not represented as migrated gameplay or a native live-page
+integration. The initial core extraction is prototype layout validation; both players are
+lifecycle scaffolds. No Threlte/FMOD/animation/native game library is added yet.
+
+Prototype direct localStorage is confined to the optional lab references. Production player
+saves are not enabled; their Store/backup/version contract remains to be decided. The Stray's
+activation/day/eligibility policies remain open in docs/stray-handoff.md. Games are account-free
+and cannot reward or rank reading. The editor remains a separate future desktop application.
+
+The supplied APK server is a Python directory server bound to 192.168.10.55:8920 over the current
+reader debug output. Reuse it by copying uniquely named, SHA-256 checked game APKs into `games/`,
+without replacing reader APKs, changing its counter or restarting the server. The game build
+records its profile/revision/build identifier and verifies the actual APK's assets. Worktrees
+keep independent build outputs; a build lock guards each lab's cap sync/native assembly.
+
+Details and limitations are in docs/games-development.md, including the deferred live WebView,
+full-page capture, FMOD/CSP and real-device acceptance work.

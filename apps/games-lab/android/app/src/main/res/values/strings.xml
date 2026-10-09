@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">YipDen Games Lab</string>
+    <string name="title_activity_main">YipDen Games Lab</string>
+    <string name="package_name">com.yipden.gamelab</string>
+    <string name="custom_url_scheme">com.yipden.gamelab</string>
+</resources>

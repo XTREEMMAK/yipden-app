@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { games } from 'virtual:yipden-games';
 	import Sheet from '$components/Sheet.svelte';
 	import PersonIcon from '$components/PersonIcon.svelte';
 	import FrameMeter from '$components/FrameMeter.svelte';
@@ -506,6 +507,15 @@
 		</a>
 	</header>
 
+	{#if games.length}
+		<a
+			class="games-link"
+			href="/play/"
+			data-sveltekit-preload-data="false"
+			data-sveltekit-preload-code="false">Play games</a
+		>
+	{/if}
+
 	<div class="groups">
 		<!-- Three intents, one at a time: who you read, what you kept, whom you have judged. -->
 		<div
@@ -845,6 +855,12 @@
 {/if}
 
 <style>
+	.games-link {
+		display: flex;
+		align-items: center;
+		min-height: 44px;
+		margin: 0 20px 16px;
+	}
 	/* Anchors the pull overlay to this scroll area rather than whatever ancestor is positioned. */
 	.scroll {
 		position: relative;
