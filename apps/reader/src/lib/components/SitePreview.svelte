@@ -7,6 +7,10 @@
 	import { shelf } from '$lib/shelf.svelte.js';
 	import { washFor } from '$lib/ring.svelte.js';
 	import { saveSite, siteLayout, visitSite } from '$lib/siteActions.js';
+	import { siteFollows } from '$lib/siteFollows.svelte.js';
+	import { categoryLabel, tagLabel } from '$lib/sites.svelte.js';
+	import { openExternal } from '$lib/platform/external.js';
+	import { toast } from '$lib/toast.svelte.js';
 	import type { SiteEntry } from '$lib/sites/types.js';
 
 	/**
@@ -30,16 +34,38 @@
 	let onShelf = $derived(shelf.has(entry.url));
 	/** Under reduced motion the still is the preview. */
 	let moving = $derived(!!entry.preview_url && !prefersReducedMotion());
+	let siteFeed = $derived(entry.feeds?.[0]);
+	let siteFollowed = $derived(siteFeed !== undefined && siteFollows.isFollowing(entry.url));
 
 	$effect(() => {
 		closeButton?.focus();
 	});
 
-	onMount(() => closeOnBack('yipdenSitePreview', () => onclose()));
+	onMount(() => {
+		void siteFollows.load();
+		return closeOnBack('yipdenSitePreview', () => onclose());
+	});
 
 	function visit() {
 		onclose();
 		visitSite(entry);
+	}
+
+	async function followSite() {
+		if (!siteFeed) return;
+		await siteFollows.follow({
+			siteUrl: entry.url,
+			feedUrl: siteFeed.url,
+			title: entry.title
+		});
+		toast.show(`Following ${entry.title}. Its posts arrive in Yips.`);
+	}
+
+	function providerLabel(provider: string): string {
+		return provider
+			.split(/[-_]/)
+			.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+			.join(' ');
 	}
 </script>
 
@@ -81,7 +107,30 @@
 
 	<div class="caption">
 		<h2>{entry.title}</h2>
-		<p class="host">{hostOf(entry.url)}{desktopFirst ? ' · Best on desktop' : ''}</p>
+		<p class="kind">{categoryLabel(entry.category)}</p>
+		<p class="host">
+			{hostOf(entry.url)}{entry.hosting
+				? ` · Hosted on ${providerLabel(entry.hosting.provider)}`
+				: ''}{desktopFirst ? ' · Best on desktop' : ''}
+		</p>
+		{#if entry.blurb}<p class="blurb">{entry.blurb}</p>{/if}
+		{#if entry.makers?.length}
+			<p class="makers">
+				Made by
+				{#each entry.makers as maker, index (maker.url)}
+					{#if index > 0},
+					{/if}<a href={`/creator?site=${encodeURIComponent(maker.url)}`}>{maker.name}</a>
+				{/each}
+			</p>
+		{/if}
+		{#if entry.tags.length}
+			<p class="tags">{entry.tags.map(tagLabel).join(' · ')}</p>
+		{/if}
+		{#if entry.listing?.manage_url}
+			<button class="manage" type="button" onclick={() => openExternal(entry.listing!.manage_url!)}>
+				Is this your site? Claim, correct or remove this listing
+			</button>
+		{/if}
 	</div>
 
 	<div class="acts">
@@ -95,6 +144,15 @@
 			<button class="secondary" aria-pressed={onShelf} onclick={() => saveSite(entry)}>
 				{onShelf ? 'Saved' : 'Save'}
 			</button>
+		{/if}
+		{#if siteFeed}
+			{#if siteFollowed}
+				<a class="secondary" href="/you/sites" aria-label={`Following ${entry.title}: manage`}
+					>Following</a
+				>
+			{:else}
+				<button class="secondary" onclick={followSite}>Follow site</button>
+			{/if}
 		{/if}
 		<button bind:this={closeButton} class="secondary" onclick={onclose}>Close</button>
 	</div>
@@ -112,6 +170,7 @@
 		padding: calc(16px + env(safe-area-inset-top, 0px)) 20px
 			calc(16px + env(safe-area-inset-bottom, 0px));
 		color: #fff;
+		overflow-y: auto;
 	}
 
 	.backdrop {
@@ -191,6 +250,51 @@
 		letter-spacing: 0.05em;
 	}
 
+	.kind,
+	.blurb,
+	.makers,
+	.tags {
+		margin: 6px auto 0;
+		max-width: 560px;
+	}
+
+	.kind {
+		font-size: 13px;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+
+	.blurb {
+		color: rgba(255, 255, 255, 0.9);
+		font-size: 14px;
+		line-height: 1.45;
+	}
+
+	.makers,
+	.tags {
+		color: rgba(255, 255, 255, 0.78);
+		font-size: 13px;
+		line-height: 1.4;
+	}
+
+	.makers a {
+		color: #fff;
+		font-weight: 650;
+	}
+
+	.manage {
+		min-height: 44px;
+		margin-top: 8px;
+		padding: 6px 12px;
+		border: 0;
+		background: none;
+		color: rgba(255, 255, 255, 0.78);
+		font: inherit;
+		font-size: 13px;
+		text-decoration: underline;
+	}
+
 	.acts {
 		display: flex;
 		flex-wrap: wrap;
@@ -199,7 +303,11 @@
 	}
 
 	.primary,
-	.secondary {
+	.secondary,
+	a.secondary {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		min-height: 48px;
 		padding: 0 20px;
 		border: 0;
@@ -207,6 +315,7 @@
 		font-family: var(--body);
 		font-size: 15px;
 		font-weight: 600;
+		text-decoration: none;
 	}
 
 	/* A fixed ink on white, as elsewhere on the always dark Discover. */

@@ -1,5 +1,13 @@
 import { KNOWN_LAYOUTS, normalizeUrl } from '@yipden/ring-client';
-import type { SiteEntry, SiteFeed, SitesDocument, SitesValidation } from './types.js';
+import type {
+	SiteEntry,
+	SiteFeed,
+	SiteHosting,
+	SiteListing,
+	SiteMaker,
+	SitesDocument,
+	SitesValidation
+} from './types.js';
 
 /**
  * Check a parsed sites document and keep what is usable, the same way `ring-client` reads the
@@ -61,6 +69,49 @@ function feeds(value: unknown): SiteFeed[] | undefined {
 	return found.length ? found : undefined;
 }
 
+function listing(value: unknown): SiteListing | undefined {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+	const raw = value as Record<string, unknown>;
+	if (raw.level !== 'basic' && raw.level !== 'owner-approved') return undefined;
+	const found: SiteListing = { level: raw.level };
+	const approvedAt = text(raw.approved_at, 40);
+	const manageUrl = normalizeUrl(raw.manage_url);
+	if (approvedAt) found.approved_at = approvedAt;
+	if (manageUrl) found.manage_url = manageUrl;
+	return found;
+}
+
+function hosting(value: unknown): SiteHosting | undefined {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+	const raw = value as Record<string, unknown>;
+	const provider = text(raw.provider, 60)?.toLowerCase();
+	if (!provider) return undefined;
+	const found: SiteHosting = { provider };
+	const profileUrl = normalizeUrl(raw.profile_url);
+	if (profileUrl) found.profile_url = profileUrl;
+	return found;
+}
+
+function makers(value: unknown): SiteMaker[] | undefined {
+	if (!Array.isArray(value)) return undefined;
+	const found: SiteMaker[] = [];
+	const seen = new Set<string>();
+	for (const candidate of value.slice(0, 8)) {
+		if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) continue;
+		const raw = candidate as Record<string, unknown>;
+		const name = text(raw.name, 120);
+		const url = normalizeUrl(raw.url);
+		const evidence = text(raw.evidence, 40)?.toLowerCase();
+		if (!name || !url || !evidence || seen.has(url)) continue;
+		seen.add(url);
+		const maker: SiteMaker = { name, url, evidence };
+		const personId = text(raw.person_id, 80);
+		if (personId) maker.person_id = personId;
+		found.push(maker);
+	}
+	return found.length ? found : undefined;
+}
+
 function entryFrom(raw: Record<string, unknown>, localMedia: boolean): SiteEntry | string {
 	const id = typeof raw.id === 'string' ? raw.id : '';
 	if (!ID_PATTERN.test(id)) return 'missing or malformed id';
@@ -85,6 +136,9 @@ function entryFrom(raw: Record<string, unknown>, localMedia: boolean): SiteEntry
 		poster_url: media(raw.poster_url, localMedia),
 		preview_url: media(raw.preview_url, localMedia),
 		feeds: feeds(raw.feeds),
+		listing: listing(raw.listing),
+		hosting: hosting(raw.hosting),
+		makers: makers(raw.makers),
 		layout: KNOWN_LAYOUTS.find((layout) => layout === raw.layout),
 		added_at: text(raw.added_at, 40),
 		software: text(raw.software, 40)?.toLowerCase(),
@@ -94,6 +148,9 @@ function entryFrom(raw: Record<string, unknown>, localMedia: boolean): SiteEntry
 		if (value === undefined) delete entry[key];
 		else entry[key] = value;
 	}
+	// A nomination permits a listing, not a YipDen-hosted moving capture. A basic listing may still
+	// use the remote sharing image its site offers to link previews.
+	if (entry.listing?.level === 'basic') delete entry.preview_url;
 	return entry;
 }
 

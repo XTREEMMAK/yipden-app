@@ -3746,3 +3746,28 @@ keep independent build outputs; a build lock guards each lab's cap sync/native a
 
 Details and limitations are in docs/games-development.md, including the deferred live WebView,
 full-page capture, FMOD/CSP and real-device acceptance work.
+
+## 2026-10-09 — Surf is the curated map of sites; wider search stays visibly outside it
+
+A Person is a creator identity across places; as in IndieNodes, that may be a human, band, game
+studio or named collective. A Site is one bounded web place that may have zero, one or several
+verified makers. A Page belongs to a site, and a Platform hosts sites or profiles. These remain
+separate records: following a Person gathers that identity's sources, while following a Site reads
+only that site's feed. A site never creates a person by inference, and a host is provenance rather
+than category.
+
+Anyone may nominate a basic Surf listing. It may use the site's own remote `og:image` and a detected
+feed, but nomination does not permit a YipDen-hosted poster or clip. Owner submission or claim makes
+an owner-approved listing and can authorize captures. Verified `makers[]`, `hosting` and `listing`
+are additive site fields; claim, correction and removal live in the full preview. A site without a
+known feed simply has no Follow action.
+
+Surf stays deliberately curated instead of trying to ingest all of NeoCities or Marginalia.
+Marginalia is an attributed external route both after the Surf collection and when a Surf query has
+no matches; its results never mix into Surf cards. NeoCities may be listed once as a community or
+resource, while each hosted website remains its own Site.
+
+Surf cards are shorter (16:9 art, three-line blurbs and three visible tags), spaced 24px apart, and
+held whole for 24px of scroll before the exit fold begins. The full preview carries the longer
+metadata. The hold is a Surf-only option on the shared card stack, so Feeds and Forums keep their
+existing motion.

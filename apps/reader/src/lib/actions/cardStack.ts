@@ -72,15 +72,18 @@ export function cardPlacement(
 	height: number,
 	viewport: number,
 	/** False keeps a rising card flat and opaque: see `CardStackOptions.flatEntry`. */
-	tiltIn = true
+	tiltIn = true,
+	/** Distance a pinned card remains whole before its exit fold begins. */
+	exitHold = 0
 ): CardPlacement {
 	if (height <= 0) return null;
 	const pin = pinOffset(height, viewport);
-	if (relative < pin - height - 40 || relative > viewport + height) return null;
+	const exitStart = pin - Math.max(0, exitHold);
+	if (relative < exitStart - height - 40 || relative > viewport + height) return null;
 
-	if (relative < pin) {
+	if (relative < exitStart) {
 		// Rising off the top: tip back and dim as it goes.
-		const exit = Math.min(1, (pin - relative) / height);
+		const exit = Math.min(1, (exitStart - relative) / height);
 		return {
 			transformOrigin: '50% 0%',
 			// The sink is outside the perspective, so it is not shrunk with the card (see the CSS).
@@ -115,8 +118,13 @@ export function cardPlacement(
  * keep their buttons. Where the next card overlaps a pinned one, the next card is drawn on top
  * and takes the tap anyway, so nothing else needs refusing.
  */
-export function isBehind(relative: number, height: number, viewport = Infinity): boolean {
-	return height > 0 && relative < pinOffset(height, viewport) - height / 2;
+export function isBehind(
+	relative: number,
+	height: number,
+	viewport = Infinity,
+	exitHold = 0
+): boolean {
+	return height > 0 && relative < pinOffset(height, viewport) - Math.max(0, exitHold) - height / 2;
 }
 
 /**
@@ -146,6 +154,7 @@ function layoutFallback(pane: HTMLElement): void {
 	const scrollTop = pane.scrollTop;
 	const viewport = pane.clientHeight - dockPx(pane);
 	const tiltIn = !pane.classList.contains('stack-flat');
+	const exitHold = Number.parseFloat(pane.dataset.stackExitHold ?? '') || 0;
 
 	for (const card of pane.querySelectorAll<HTMLElement>('.yip-stack')) {
 		const fold = foldOf(card);
@@ -155,15 +164,15 @@ function layoutFallback(pane: HTMLElement): void {
 		// The scroller holds it there, as it holds any card at the top; only the offset differs.
 		const top = pin < 0 ? `${pin}px` : '';
 		if (fold.style.top !== top) fold.style.top = top;
-		const placement = cardPlacement(relative, height, viewport, tiltIn);
-		card.classList.toggle('behind', isBehind(relative, height, viewport));
+		const placement = cardPlacement(relative, height, viewport, tiltIn, exitHold);
+		card.classList.toggle('behind', isBehind(relative, height, viewport, exitHold));
 
 		/*
 		 * Folded away. Its place has left the top of the pane, but the drawn card is still held
 		 * there by its rail for another screen of scrolling, so it has to stay gone: put back to
 		 * its resting style here, every folded card reappeared at the top as a ghost.
 		 */
-		if (relative <= pin - height) {
+		if (relative <= pin - exitHold - height) {
 			if (fold.style.visibility !== 'hidden') {
 				resetCard(fold);
 				fold.style.opacity = '0';
@@ -201,16 +210,23 @@ export interface CardStackOptions {
 	 * behind it: two cards printed on top of each other, one of them leaning. Defaults to false.
 	 */
 	flatEntry?: boolean;
+	/** Pixels a pinned card remains flat before it begins folding away. Defaults to zero. */
+	exitHold?: number;
 }
 
 export function cardStack(pane: HTMLElement, options: CardStackOptions = {}) {
 	if (prefersReducedMotion()) return {};
 
+	const exitHold = Math.max(0, options.exitHold ?? 0);
 	const useScrollDriven =
-		__YIPDEN_DEBUG__ && diagnostics?.cssStack === true && supportsScrollDrivenAnimation();
+		exitHold === 0 &&
+		__YIPDEN_DEBUG__ &&
+		diagnostics?.cssStack === true &&
+		supportsScrollDrivenAnimation();
 	let active = options.active !== false;
 	pane.classList.add('stack');
 	if (options.flatEntry) pane.classList.add('stack-flat');
+	if (exitHold) pane.dataset.stackExitHold = String(exitHold);
 
 	/*
 	 * Feeds changes pane in one frame, with no slide, so the classes change in that same frame: the
@@ -319,7 +335,8 @@ export function cardStack(pane: HTMLElement, options: CardStackOptions = {}) {
 			mutationObserver.disconnect();
 			tailObserver.disconnect();
 			pane.removeEventListener('scroll', onScroll);
-			pane.classList.remove('stack', 'stack-pin', 'stack-sda');
+			pane.classList.remove('stack', 'stack-pin', 'stack-sda', 'stack-flat');
+			delete pane.dataset.stackExitHold;
 			for (const card of pane.querySelectorAll<HTMLElement>('.yip-stack')) {
 				resetCard(foldOf(card));
 				foldOf(card).style.top = '';

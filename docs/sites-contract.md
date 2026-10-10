@@ -11,12 +11,20 @@ bundled in `apps/reader/src/lib/sites/seed.json`, with its posters and clips in
 
 ## People and sites
 
-ring.json lists **people**: creators, followed across everywhere they publish. This document lists
-**sites**: places on the web, visited, saved and, when they publish a feed, followed the way a forum
-is. What a listing is comes from the document that lists it, never from guessing about the person
-behind it. The same human can be a person in the ring and the owner of a site here; the two are
-linked only by evidence (an h-card, a `rel=me`, a site under a ring member's own address), never
-merged, and a site never becomes a person by itself.
+ring.json lists **people**: creator identities followed across everywhere they publish. A creator
+identity can be a human, band, game studio or named collective, as it can in IndieNodes. This
+document lists **sites**: bounded places on the web, visited, saved and, when they publish a feed,
+followed by that feed alone.
+
+A **page** is an item inside a site; it can be visited or saved, but does not become a Surf entry. A
+**platform** hosts sites or profiles; it is neither their category nor their maker. NeoCities is a
+platform and community, while `someone.neocities.org` is an independent site.
+
+What a listing is comes from the document that lists it, never from guessing about the identity
+behind it. The same creator can be a person in the ring and the verified maker of a site here; the
+two are linked only by evidence (an h-card, a `rel=me`, a site under a ring member's own address),
+never merged, and a site never becomes a person by itself. In short: **a person is a source of
+authorship across places; a site is a place that may have authors.**
 
 ## The one rule
 
@@ -40,6 +48,23 @@ meaning. Unknown fields survive untouched, and an unknown `category` is kept rat
       "poster_url": "https://media.example/sites/medjed.jpg",
       "preview_url": "https://media.example/sites/medjed.mp4",
       "feeds": [{ "type": "rss", "url": "https://medjed.nekoweb.org/rss.xml" }],
+      "listing": {
+        "level": "owner-approved",
+        "approved_at": "2026-10-09",
+        "manage_url": "https://sites.yipden.com/listings/medjed"
+      },
+      "hosting": {
+        "provider": "nekoweb",
+        "profile_url": "https://nekoweb.org/site/medjed"
+      },
+      "makers": [
+        {
+          "name": "Example creator",
+          "url": "https://example.net/",
+          "person_id": "example-creator",
+          "evidence": "rel-me"
+        }
+      ],
       "layout": "mobile-friendly",
       "explicit": false,
       "added_at": "2026-10-07"
@@ -53,8 +78,10 @@ Required on every entry: `id` (lowercase words joined by hyphens), `url` (public
 
 Optional: `tags` (lowercase; namespaced tags such as `fandom:sonic` are ordinary tags), `blurb`,
 `poster_url` (a still, shown first and always), `preview_url` (a short muted scroll clip, MP4 for the
-real feed), `feeds[]`, `layout` (`mobile-friendly` or `desktop-first`, absent means mobile friendly),
-`explicit` (hidden unless the reader opts in, the same switch as the ring's), `added_at`.
+real feed), `feeds[]`, `listing` (`basic` or `owner-approved`, with an optional management URL),
+`hosting` (provider and optional host profile URL), `makers[]` (verified creator identities and the
+evidence linking them), `layout` (`mobile-friendly` or `desktop-first`, absent means mobile
+friendly), `explicit` (hidden unless the reader opts in, the same switch as the ring's), `added_at`.
 
 Known categories: `shrines`, `fandom`, `personal`, `blogs`, `webrings`, `resources`.
 
@@ -72,9 +99,8 @@ communities, gathered by hand. Seed: `apps/reader/src/lib/sites/forums-seed.json
 The publisher works these out when it checks a forum (software, a readable feed or API, robots.txt,
 a bot wall) and should re-check them, since a forum's robots.txt can change.
 
-There is deliberately no owner field. Who made a site is worked out from the site itself, by the
-same evidence ladder the Creator Database uses; a submitter's claim may be added later as weak
-evidence.
+There is deliberately no unverified owner field. `makers[]` is emitted only after the publisher
+checks the same evidence ladder the Creator Database uses. A submitter's claim alone is not enough.
 
 ## Getting into the index, and permission (agreed 2026-10-07, not built)
 
@@ -88,7 +114,9 @@ Three different permissions, and passing the checks gives only the second:
    Surf checks. It is what webrings and directories have always done.
 3. **Capturing it** (a poster, a scroll clip, kept on our storage) copies its owner's work, and
    needs its owner's say-so:
-   - **Owner submission is the main way in**, through the PR pipeline: consent by design.
+   - **Anyone may nominate a basic listing.** A nomination permits listing and review, not capture.
+   - **Owner submission or claim makes the richer listing**, through the PR pipeline: consent by
+     design.
    - **A nominated site starts without our captures.** It shows the picture it offers for sharing
      (`og:image`), no clip, until its owner claims or approves the listing.
    - **Every "no" a site can say is honored**: robots.txt (wildcards included), `noindex`, and
@@ -96,8 +124,13 @@ Three different permissions, and passing the checks gives only the second:
      no capture.
    - **Captures are small and credited**: low resolution, a few seconds, the site's name and a link
      on every card.
-   - **Opt-out and takedown come before scale**: an "Is this your site?" link on every card, and a
-     stated time within which a site is removed from the index and from storage.
+   - **Opt-out and takedown come before scale**: an "Is this your site?" link in every full preview,
+     and a stated time within which a site is removed from the index and from storage.
+
+Surf search covers this curated document only. Its end and no-match states link, with plain
+attribution and an external-open marker, to Marginalia Search for the wider small web. Marginalia
+results never silently become Surf entries; a result may be resolved into its containing site for
+Follow, or nominated through the same review path as anything else.
 
 The 12 sites in today's seed were chosen by the maintainer, not submitted by their owners, so the
 same rules apply to them once the pipeline exists.

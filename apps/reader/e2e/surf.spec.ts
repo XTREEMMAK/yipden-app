@@ -91,6 +91,24 @@ test('Surf is chosen beside the rings, takes only the bar above its cards, and i
 	await expect(page.getByRole('button', { name: 'Shuffle the ring' })).toBeVisible();
 });
 
+test('a typical Surf card fits before it folds, with a clear gap before the next one', async ({
+	page
+}) => {
+	await openDiscover(page);
+	await choose(page, 'Surf');
+
+	const panel = surf(page);
+	const cards = panel.locator('.cards > li');
+	const first = (await cards.nth(0).boundingBox())!;
+	const second = (await cards.nth(1).boundingBox())!;
+	const viewport = (await panel.locator('.scroll').boundingBox())!;
+	const media = (await cards.nth(0).locator('.media').boundingBox())!;
+
+	expect(first.height).toBeLessThan(viewport.height - 88);
+	expect(second.y - (first.y + first.height)).toBeGreaterThanOrEqual(23);
+	expect(media.width / media.height).toBeCloseTo(16 / 9, 1);
+});
+
 test('a category narrows Surf, from the row or the sheet, and search finds a site by its tags', async ({
 	page
 }) => {
@@ -111,6 +129,31 @@ test('a category narrows Surf, from the row or the sheet, and search finds a sit
 	await expect(surf(page).getByRole('heading', { level: 3 })).toHaveText(['shishka shrines']);
 	await page.getByRole('button', { name: 'Close search' }).click();
 	await expect(surf(page).getByRole('heading', { name: 'Medjed' })).toBeVisible();
+});
+
+test('the edge and no-match state send wider searches to Marginalia without mixing results', async ({
+	page
+}) => {
+	await page.addInitScript(() => {
+		(window as unknown as { opened: string[] }).opened = [];
+		window.open = (url) => {
+			(window as unknown as { opened: string[] }).opened.push(String(url));
+			return null;
+		};
+	});
+	await openDiscover(page);
+	await choose(page, 'Surf');
+	const wider = surf(page).getByRole('button', {
+		name: 'Search the wider small web with Marginalia'
+	});
+	await expect(wider).toBeVisible();
+
+	await search(page, 'garden wiki');
+	await expect(surf(page).getByText('No sites match “garden wiki”.')).toBeVisible();
+	await wider.click();
+	expect(await page.evaluate(() => (window as unknown as { opened: string[] }).opened.at(-1))).toBe(
+		'https://marginalia-search.com/search?query=garden%20wiki'
+	);
 });
 
 test('Not for me takes a site out of Surf, with a way back named', async ({ page }) => {

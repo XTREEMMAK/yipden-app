@@ -82,6 +82,62 @@ describe('validateSites', () => {
 		expect(entry.explicit).toBe(false);
 	});
 
+	it('reads additive listing, hosting and verified-maker metadata safely', () => {
+		const entry = validateSites(
+			doc(
+				site({
+					listing: {
+						level: 'owner-approved',
+						approved_at: '2026-10-09',
+						manage_url: 'https://sites.yipden.com/listings/a-site'
+					},
+					hosting: { provider: 'NeoCities', profile_url: 'https://neocities.org/site/a-site' },
+					makers: [
+						{
+							name: 'A Creator',
+							url: 'https://creator.example/',
+							person_id: 'a-creator',
+							evidence: 'REL-ME'
+						},
+						{ name: '', url: 'https://invalid.example/', evidence: 'claim' }
+					]
+				})
+			)
+		).document.entries[0]!;
+
+		expect(entry.listing).toEqual({
+			level: 'owner-approved',
+			approved_at: '2026-10-09',
+			manage_url: 'https://sites.yipden.com/listings/a-site'
+		});
+		expect(entry.hosting).toEqual({
+			provider: 'neocities',
+			profile_url: 'https://neocities.org/site/a-site'
+		});
+		expect(entry.makers).toEqual([
+			{
+				name: 'A Creator',
+				url: 'https://creator.example/',
+				person_id: 'a-creator',
+				evidence: 'rel-me'
+			}
+		]);
+	});
+
+	it('lets a basic listing use remote sharing art but never a moving capture', () => {
+		const entry = validateSites(
+			doc(
+				site({
+					listing: { level: 'basic' },
+					poster_url: 'https://a.example/share.jpg',
+					preview_url: 'https://media.example/a.mp4'
+				})
+			)
+		).document.entries[0]!;
+		expect(entry.poster_url).toBe('https://a.example/share.jpg');
+		expect(entry.preview_url).toBeUndefined();
+	});
+
 	it('never throws on a document of the wrong shape, and caps a huge one', () => {
 		expect(validateSites(null).document.entries).toEqual([]);
 		expect(validateSites([]).dropped[0]!.reason).toBe('document is not an object');

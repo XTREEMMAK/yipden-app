@@ -24,6 +24,29 @@ export interface SiteFeed {
 	url: string;
 }
 
+/** How a site entered Surf. Basic listings never authorize YipDen-hosted captures. */
+export interface SiteListing {
+	level: 'basic' | 'owner-approved';
+	approved_at?: string;
+	/** The index publisher's page for claiming, correcting or removing this listing. */
+	manage_url?: string;
+}
+
+/** Where a site is hosted. This is provenance, never the site's category. */
+export interface SiteHosting {
+	provider: string;
+	/** The site's own page at its host, useful when it has a custom domain. */
+	profile_url?: string;
+}
+
+/** A creator identity linked to a site only after the index publisher verifies the evidence. */
+export interface SiteMaker {
+	name: string;
+	url: string;
+	person_id?: string;
+	evidence: string;
+}
+
 export interface SiteEntry {
 	id: string;
 	url: string;
@@ -36,6 +59,10 @@ export interface SiteEntry {
 	/** A short muted scroll clip, played only while its card is on screen. */
 	preview_url?: string;
 	feeds?: SiteFeed[];
+	/** Absent on old documents; treated as an owner-approved legacy listing. */
+	listing?: SiteListing;
+	hosting?: SiteHosting;
+	makers?: SiteMaker[];
 	/** Only a recognized value survives; absent is mobile friendly. */
 	layout?: SiteLayout;
 	explicit: boolean;

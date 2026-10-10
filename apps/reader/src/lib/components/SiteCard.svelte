@@ -158,7 +158,7 @@
 		{/if}
 		{#if entry.tags.length}
 			<p class="tags">
-				{#each entry.tags.slice(0, 4) as tag (tag)}
+				{#each entry.tags.slice(0, 3) as tag (tag)}
 					<span>{tagLabel(tag)}</span>
 				{/each}
 			</p>
@@ -279,7 +279,7 @@
 		position: relative;
 		display: block;
 		width: 100%;
-		aspect-ratio: 16 / 11;
+		aspect-ratio: 16 / 9;
 		padding: 0;
 		border: 0;
 		border-bottom: 1px solid rgba(255, 255, 255, 0.16);
@@ -387,10 +387,15 @@
 	}
 
 	.blurb {
+		display: -webkit-box;
+		overflow: hidden;
 		margin: 0;
 		color: rgba(255, 255, 255, 0.9);
 		font-size: 15px;
 		line-height: 1.45;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
 	}
 
 	.host {

@@ -10,6 +10,7 @@
 	import { verdicts } from '$lib/verdicts.svelte.js';
 	import { forums } from '$lib/forums.svelte.js';
 	import { siteFollows } from '$lib/siteFollows.svelte.js';
+	import { openExternal } from '$lib/platform/external.js';
 	import { categoryLabel, tagLabel, type IndexState } from '$lib/sites.svelte.js';
 	import IndexFilterSheet from './IndexFilterSheet.svelte';
 	import SiteCard from './SiteCard.svelte';
@@ -91,6 +92,15 @@
 			)
 		)
 			index.tag = null;
+	}
+
+	function searchMarginalia() {
+		const query = index.query.trim();
+		openExternal(
+			query
+				? `https://marginalia-search.com/search?query=${encodeURIComponent(query)}`
+				: 'https://marginalia-search.com/'
+		);
 	}
 
 	/*
@@ -219,6 +229,7 @@
 
 <section
 	class="surf"
+	class:sites-index={index.noun === 'sites'}
 	data-noswipe
 	aria-label={label}
 	transition:fade={{ duration: prefersReducedMotion() ? 0 : duration.s }}
@@ -226,7 +237,7 @@
 	<div
 		class="scroll"
 		bind:this={scroller}
-		use:cardStack={{ flatEntry: true }}
+		use:cardStack={{ flatEntry: true, exitHold: index.noun === 'sites' ? 24 : 0 }}
 		use:tuckMini
 		onscroll={onScroll}
 	>
@@ -284,6 +295,19 @@
 				</p>
 			{/if}
 			<p class="hidden-note">Places, not people. Nothing here is ranked.</p>
+			{#if index.noun === 'sites'}
+				<div class="wider-web">
+					<p>
+						{shown.length
+							? 'You’ve reached the edge of Surf.'
+							: 'Surf is a curated collection. The wider small web is still out there.'}
+					</p>
+					<button type="button" onclick={searchMarginalia}>
+						Search the wider small web with Marginalia
+						<span aria-hidden="true">↗</span>
+					</button>
+				</div>
+			{/if}
 			<div class="stack-tail" aria-hidden="true"></div>
 		</div>
 	</div>
@@ -396,6 +420,10 @@
 		list-style: none;
 	}
 
+	.sites-index .cards {
+		gap: 24px;
+	}
+
 	.hidden-note {
 		margin: 12px 16px 0;
 		color: rgba(255, 255, 255, 0.7);
@@ -405,6 +433,32 @@
 	.empty-note {
 		font-size: 14.5px;
 		line-height: 1.5;
+	}
+
+	.wider-web {
+		margin: 20px 12px 0;
+		padding: 18px;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: var(--r-card);
+		background: rgba(255, 255, 255, 0.06);
+	}
+
+	.wider-web p {
+		margin: 0 0 12px;
+		color: rgba(255, 255, 255, 0.78);
+		font-size: 14px;
+		line-height: 1.45;
+	}
+
+	.wider-web button {
+		min-height: 44px;
+		padding: 8px 14px;
+		border: 0;
+		border-radius: 999px;
+		background: #fff;
+		color: #1f1410;
+		font: inherit;
+		font-weight: 650;
 	}
 
 	.stack-tail {

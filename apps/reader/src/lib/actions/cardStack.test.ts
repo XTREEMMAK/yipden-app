@@ -67,6 +67,16 @@ describe('cardPlacement', () => {
 			expect(placement.transform).toContain('translateY(32px)');
 			expect(placement.transform).toContain('rotateX(-10deg)');
 		});
+
+		it('can hold a pinned card whole before beginning its exit fold', () => {
+			const hold = 24;
+			expect(cardPlacement(-hold, CARD_HEIGHT, VIEWPORT, false, hold)?.transform).toBe('none');
+			expect(
+				cardPlacement(-hold - CARD_HEIGHT / 2, CARD_HEIGHT, VIEWPORT, false, hold)?.opacity
+			).toBe(0.5);
+			expect(isBehind(-CARD_HEIGHT / 2, CARD_HEIGHT, VIEWPORT, hold)).toBe(false);
+			expect(isBehind(-hold - CARD_HEIGHT / 2 - 1, CARD_HEIGHT, VIEWPORT, hold)).toBe(true);
+		});
 	});
 
 	describe('rising from the bottom', () => {

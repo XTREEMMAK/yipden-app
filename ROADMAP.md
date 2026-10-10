@@ -754,6 +754,13 @@ contract is [docs/sites-contract.md](docs/sites-contract.md); the reasoning is i
    owners (docs/sites-contract.md) before any capture ships, and a real index to fill it; the
    forum index's media is fine and ships. The procedure is drafted: see "The sites index as its own
    repository" below.
+6. **Surf's boundary and intake (decided 2026-10-09; reader support built, publisher pending).**
+   Surf is a curated index of Sites, distinct from People, Pages and hosting Platforms. Anyone may
+   nominate a basic listing with remote `og:image`; only an owner-approved listing may carry a
+   YipDen-hosted capture. Additive `listing`, `hosting` and verified `makers` metadata are understood
+   by the reader. Marginalia is a plainly attributed external search at the end and no-match state,
+   never a mixed result source. The held `yipden-sites` repository still needs its nomination,
+   claim, correction and removal workflow updated to publish this contract.
 
 To judge on the phone: does Surf feel like YipDen or a second app inside it; does the hero still
 feel central; do clips judder in the stack, and what do they cost in data.

@@ -23,6 +23,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- Surf is defined as a curated index of sites, distinct from people, pages and hosting platforms.
+  Anyone may nominate a basic listing, while stored captures require owner approval. Cards are
+  shorter and wait before folding; full previews carry hosting and verified-maker details; and
+  attributed Marginalia search sits outside Surf at its edge and no-match state.
 - Surf ships empty in a release: its bundled sites, posters and clips were a trial and are only in
   debug builds. The release build checks itself and fails if any of the seed got in. Surf says it is
   on its way until there is a real index; Forums are unchanged.
