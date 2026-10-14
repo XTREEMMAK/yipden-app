@@ -48,7 +48,9 @@ export function identitiesOfUrl(raw: string): string[] {
 	} else if (BLUESKY_HOSTS.has(host)) {
 		if (parts[0] === 'profile' && parts[1]) out.add(`bsky:${parts[1].toLowerCase()}`);
 	} else if (parts.length >= 1 && parts[0]!.startsWith('@') && parts[0]!.length > 1) {
-		out.add(`fedi:${parts[0]!.slice(1).toLowerCase()}@${host}`);
+		// A Mastodon profile's feed is the profile address with `.rss` on the end: one account.
+		const user = parts[0]!.slice(1).replace(/\.(rss|atom|json)$/i, '');
+		out.add(`fedi:${user.toLowerCase()}@${host}`);
 	} else if (parts[0] === 'users' && parts[1]) {
 		out.add(`fedi:${parts[1].toLowerCase()}@${host}`);
 	}

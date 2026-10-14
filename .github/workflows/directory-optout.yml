@@ -1,0 +1,50 @@
+# Run by the "Is this you?" n8n workflow once the maintainer has approved a removal. It receives
+# only the entry's id (already public in people.json); nothing the person wrote reaches GitHub.
+name: Directory opt-out
+
+on:
+  workflow_dispatch:
+    inputs:
+      id:
+        description: The people.json entry id to remove
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  optout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: corepack enable
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The id goes through the environment, never into the shell's own text.
+      - name: Remove and hash
+        env:
+          ENTRY_ID: ${{ inputs.id }}
+        run: |
+          case "$ENTRY_ID" in
+            *[!a-z0-9-]*|'') echo "Not an entry id."; exit 1 ;;
+          esac
+          pnpm directory:optout --id "$ENTRY_ID"
+          pnpm directory:check
+      - name: Open a pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="directory-optout-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add directory/people.json directory/optouts.json
+          git commit -m "Directory: an approved opt-out"
+          git push origin "$branch"
+          gh pr create --title "Directory: an approved opt-out" \
+            --body "Removes a listing and adds its opt-out hashes, after a moderated request."

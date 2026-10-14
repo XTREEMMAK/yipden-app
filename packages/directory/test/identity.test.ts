@@ -37,6 +37,12 @@ describe('identities of an address', () => {
 		);
 	});
 
+	it('reads a Mastodon profile’s feed as the same account, so an opt-out by handle reaches it', () => {
+		expect(identitiesOfUrl('https://social.example/@Gone.rss')).toContain(
+			'fedi:gone@social.example'
+		);
+	});
+
 	it('refuses anything that is not a public https address', () => {
 		expect(identitiesOfUrl('http://example.com/')).toEqual([]);
 		expect(identitiesOfUrl('https://localhost/')).toEqual([]);

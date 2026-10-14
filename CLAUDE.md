@@ -15,6 +15,9 @@ pnpm check       # typecheck every package
 pnpm lint        # prettier --check, then eslint
 cd apps/reader && npx playwright test --project=phone   # end to end, 390x844; builds a debug build
 cd apps/reader && pnpm android:apk                      # a numbered debug APK, see below
+pnpm directory:check     # the creator directory is clean (also run by pnpm test)
+pnpm directory:resolve   # record every form of a listed person (network; run when adding)
+pnpm directory:optout    # remove someone and hash them into optouts.json
 ```
 
 Format only the files you changed (`npx prettier --write <files>`). Prettier run over a whole

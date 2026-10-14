@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yipden.com/directory/schema/optouts.schema.json",
+  "title": "YipDen directory opt-outs",
+  "description": "SHA-256 hashes (hex) of 'yipden-optout-v1:' followed by a normalized identity of someone who asked not to be listed. Holds no names.",
+  "type": "object",
+  "required": ["version", "hashes"],
+  "properties": {
+    "version": { "type": "string" },
+    "hashes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    }
+  }
+}

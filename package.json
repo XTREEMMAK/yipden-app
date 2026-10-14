@@ -12,7 +12,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "check": "pnpm -r check",
-    "test": "pnpm -r test",
+    "test": "pnpm -r test && pnpm directory:check",
     "lint": "prettier --check . && eslint .",
     "format": "prettier --write .",
     "games:dev": "pnpm --filter @yipden/games-lab dev",
@@ -21,7 +21,10 @@
     "games:test": "pnpm --filter @yipden/game-contracts --filter @yipden/game-host --filter @yipden/realm-core test",
     "games:verify": "node tooling/games/verify.mjs",
     "games:apk": "pnpm --filter @yipden/games-lab android:apk",
-    "games:publish": "pnpm --filter @yipden/games-lab android:publish"
+    "games:publish": "pnpm --filter @yipden/games-lab android:publish",
+    "directory:check": "node --import ./tooling/directory/ts-hook.mjs tooling/directory/check.mjs",
+    "directory:resolve": "node --import ./tooling/directory/ts-hook.mjs tooling/directory/resolve.mjs",
+    "directory:optout": "node --import ./tooling/directory/ts-hook.mjs tooling/directory/optout.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

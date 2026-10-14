@@ -115,13 +115,14 @@ The plan, in order; the reasons are in DECISIONS.md, 2026-10-14. Each phase is c
 typecheck, lint, tests and the directory checks pass.
 
 0. **Record and push.** Done 2026-10-14.
-1. **Split out Yip Realm** into `yiprealm` (private, no licence file until one is chosen; Android
+1. **Split out Yip Realm** (repo created 2026-10-14, private, 61 commits of history; awaiting review
+   before removal here) into `yiprealm` (private, no licence file until one is chosen; Android
    ID `com.yipden.yiprealm`), with history: `realm-core`, `realm-player`, `realm-editor`,
    `apps/realm-editor`, Games Lab, the games tooling, workflow and docs, and copies of
    `game-contracts` and `game-host`. Checkpoint, then remove Realm from here (The Stray stays).
-2. **`packages/directory`**, tests first: types, sources, shared loading, identifiers and hashing,
+2. **`packages/directory`** (done 2026-10-14), tests first: types, sources, shared loading, identifiers and hashing,
    dedupe, rotation and filters. Fixtures: the real `ring.json`, an opted-out sample, the test seed.
-3. **`directory/`**: `people.json` (empty until a creator's 14 days pass), `optouts.json`, schemas,
+3. **`directory/`** (done 2026-10-14): `people.json` (empty until a creator's 14 days pass), `optouts.json`, schemas,
    README, the test seed and its release check, and `directory:check`, `:resolve`, `:optout`, with
    a workflow n8n can trigger.
 4. **Creator lists a reader adds** (directory format and `ring.json`).

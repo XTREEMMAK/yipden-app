@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Keeps Surf's seed out of a release.
+ * Keeps debug seeds out of a release: Surf's seed, and the creator directory's test seed.
  *
  * Surf's bundled sites, posters and clips were only ever a trial (2026-10-08). A plain build, which
  * is what a release is made from, drops the posters and clips from the built app, then fails if the
@@ -23,8 +23,18 @@ function files(dir) {
 	});
 }
 
-// Something only the seed says: a site it lists, and the folder its media lived in.
-const marks = ['strawberryreverie.neocities.org', '/sites/medjed.', '/sites/deltaring.'];
+// Something only a debug seed says. Surf's: a site it lists, and the folder its media lived in.
+// The creator directory's test seed (directory/seed): its people's pages and channel, and the
+// example who opted out. They are listed for real only by being published in people.json, which
+// the app fetches; nothing of the test seed may ever be in a release (DECISIONS.md, 2026-10-14).
+const marks = [
+	'strawberryreverie.neocities.org',
+	'/sites/medjed.',
+	'/sites/deltaring.',
+	'jerichords.carrd.co',
+	'UCY_lC-yhnqr9M3Umye24TbA',
+	'opted-out.example.com'
+];
 const leaks = files(build).filter((path) => {
 	if (!/\.(js|json|html|css)$/.test(path)) return false;
 	const text = readFileSync(path, 'utf8');
@@ -32,8 +42,10 @@ const leaks = files(build).filter((path) => {
 });
 
 if (existsSync(join(build, 'sites')) || leaks.length) {
-	console.error("Surf's seed is in this release build:");
+	console.error('A debug seed (Surf or the directory test seed) is in this release build:');
 	for (const path of leaks) console.error(`  ${path}`);
 	process.exit(1);
 }
-console.log('Surf ships empty: no seed list, no posters or clips in the build.');
+console.log(
+	'No debug seeds in the build: Surf ships empty, and the directory test seed is absent.'
+);

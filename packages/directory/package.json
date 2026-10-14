@@ -20,6 +20,8 @@
     "@yipden/ring-client": "workspace:*"
   },
   "devDependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "typescript": "^5.9.3",
     "vitest": "^5.0.1"
   }
