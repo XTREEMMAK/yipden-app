@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-10-14T00:00:00Z",
+  "note": "TEST SEED. For unit tests and debug builds only; a release must never contain it. Public details only, from the creator's own page.",
+  "entries": [
+    {
+      "id": "jericho-george",
+      "name": "Jericho George",
+      "note": "Video game music, tech insights and streams, gathered on one page.",
+      "site_url": "https://jerichords.carrd.co/",
+      "thumb_url": "https://jerichords.carrd.co/assets/images/card.jpg",
+      "tags": ["video-game-music", "composer"],
+      "feeds": [
+        {
+          "type": "youtube",
+          "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCY_lC-yhnqr9M3Umye24TbA"
+        }
+      ],
+      "identities": ["youtube:@jerichordsplays"],
+      "listing": "curated",
+      "added_at": "2026-10-14"
+    },
+    {
+      "id": "opted-out-example",
+      "name": "Opted Out Example",
+      "note": "A test person who asked not to be listed. Must never appear anywhere.",
+      "site_url": "https://opted-out.example.com/",
+      "tags": ["test"],
+      "listing": "curated",
+      "added_at": "2026-10-14"
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-10-14T00:00:00Z",
+  "entries": [
+    {
+      "id": "nori-again",
+      "name": "Nori Jammy (curated copy)",
+      "site_url": "https://frammyjammy.com/suzu-and-jack/",
+      "tags": ["comic"],
+      "listing": "curated"
+    },
+    {
+      "id": "opted-out",
+      "name": "Opted Out",
+      "site_url": "https://www.opted-out.example.com",
+      "tags": ["art"]
+    },
+    {
+      "id": "fedi-gone",
+      "name": "Gone From The Fediverse",
+      "feeds": [{ "type": "mastodon", "url": "https://social.example/@Gone.rss" }],
+      "identities": ["fedi:gone@social.example"]
+    },
+    {
+      "id": "hidden",
+      "name": "Hidden By Choice",
+      "site_url": "https://hidden.example.com/",
+      "discoverable": false
+    },
+    {
+      "id": "bluesky-only",
+      "name": "Bluesky Only",
+      "feeds": [
+        {
+          "type": "bluesky",
+          "url": "https://bsky.app/profile/someone.example.com/rss",
+          "verified": true
+        }
+      ],
+      "tags": ["Photography"],
+      "listing": "confirmed",
+      "future_field": { "kept": true }
+    },
+    { "id": "no-name", "site_url": "https://nameless.example.com/" },
+    { "id": "Bad Id", "name": "Bad Id", "site_url": "https://bad.example.com/" },
+    { "id": "http-only", "name": "Plain HTTP", "site_url": "http://insecure.example.com/" },
+    {
+      "id": "bad-thumb",
+      "name": "Bad Thumb",
+      "site_url": "https://thumb.example.com/",
+      "thumb_url": "javascript:alert(1)",
+      "listing": "famous"
+    }
+  ]
+}
