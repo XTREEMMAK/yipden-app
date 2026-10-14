@@ -139,9 +139,9 @@ typecheck, lint, tests and the directory checks pass.
 9. **Verify**, then the release gate below. The listing needs yipden.com live with a reviewed
    privacy policy.
 
-Outside the code: create the five n8n credentials and a GitHub token (Actions write on this
-repository), allow Actions to open pull requests here, push the workflows; deploy yipden.com with
-its webhook and Turnstile keys; contact Jericho
+Outside the code: the n8n credentials, tables and workflows are in place (2026-10-14); switch on
+Directory Request and Directory Review in n8n, allow Actions to open pull requests here, and
+deploy yipden.com with its webhook and Turnstile keys; contact Jericho
 George; choose Yip Realm's licence; add the games disclosure to IndieNodes' signup.
 
 ## Now: known problems
@@ -539,6 +539,13 @@ adapter, validate it at the boundary, and normalize only a small common member s
 such as IndieNodes media and feed metadata remain capability-gated instead of forcing every ring
 into the richest schema. Initial support should be explicit per ring, with fixtures for each
 adapter; do not accept arbitrary remote JSON as if all ring formats were interchangeable.
+
+Cover placement by the person listed (noted 2026-10-14, after the first real listings): today the
+curator sets a directory entry's `thumb_position` with a debug build's Place cover, and ring
+members set theirs in IndieNodes. Next, "Is this you?" on yipden.com shows the person their cover
+as the hero crops it, with the same two sliders; the position travels with a Correct request, and
+on approval n8n dispatches a workflow here that writes it into `people.json` as a pull request, as
+the opt-out does. Owner control with no account, and every change still reviewed.
 
 Out of scope for v0.9 in the brief, so none of this starts before it ships:
 
