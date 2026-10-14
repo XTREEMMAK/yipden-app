@@ -28,9 +28,9 @@ Every notable change to YipDen, newest first. The format follows
   its Person and Folders tabs.
 - **Switch Discover's sources** on or off in Settings: IndieNodes, YipDen's directory, each
   partner ring, each list you added.
-- Optional game build profiles and a separate Games Lab for browser and APK testing. The initial
-  Realm and Stray entries are player scaffolds; the supplied Realm prototype can be opened as a
-  lab-only reference. Reader builds default to thin with no game implementations or assets.
+- Optional game build profiles (`thin` or `stray`). The Stray is a player scaffold; reader builds
+  default to thin with no game implementations or assets. Yip Realm and its Games Lab moved to
+  their own repository before release.
 
 - Follow a site by its feed. Follow has a Sites side, a Surf card that lists a feed has a Follow
   button, and the new posts arrive in Feeds under Sites. Sites are managed in You and are in the

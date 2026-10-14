@@ -9,7 +9,7 @@ function deferred<T>() {
 	return { promise, resolve };
 }
 const host: GameHost = {
-	surface: 'lab',
+	surface: 'reader',
 	beforeStart: () => {},
 	page: null,
 	requestExit: vi.fn(),
@@ -18,7 +18,7 @@ const host: GameHost = {
 const options = { target: {} as HTMLElement, host };
 const session = (): GameSession => ({ pause: vi.fn(), resume: vi.fn(), destroy: vi.fn() });
 function entry(load: GameEntry['load']): GameEntry {
-	return { id: 'realm', title: 'Realm', description: '', load };
+	return { id: 'stray', title: 'The Stray', description: '', load };
 }
 
 describe('host lifecycle', () => {

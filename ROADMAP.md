@@ -115,11 +115,12 @@ The plan, in order; the reasons are in DECISIONS.md, 2026-10-14. Each phase is c
 typecheck, lint, tests and the directory checks pass.
 
 0. **Record and push.** Done 2026-10-14.
-1. **Split out Yip Realm** (repo created 2026-10-14, private, 61 commits of history; awaiting review
-   before removal here) into `yiprealm` (private, no licence file until one is chosen; Android
-   ID `com.yipden.yiprealm`), with history: `realm-core`, `realm-player`, `realm-editor`,
-   `apps/realm-editor`, Games Lab, the games tooling, workflow and docs, and copies of
-   `game-contracts` and `game-host`. Checkpoint, then remove Realm from here (The Stray stays).
+1. **Split out Yip Realm.** Done 2026-10-14: `XTREEMMAK/yiprealm` is private, MPL-2.0, Android
+   ID `com.yipden.yiprealm`, with its history and everything listed for it (`realm-core`,
+   `realm-player`, `realm-editor`, `apps/realm-editor`, Games Lab, the games tooling, workflow and
+   docs, and copies of `game-contracts` and `game-host`); its Games CI passes. Realm is removed
+   from here; The Stray stays, built in the reader with the `thin` or `stray` profile
+   (DECISIONS.md).
 2. **`packages/directory`** (done 2026-10-14), tests first: types, sources, shared loading, identifiers and hashing,
    dedupe, rotation and filters. Fixtures: the real `ring.json`, an opted-out sample, the test seed.
 3. **`directory/`** (done 2026-10-14): `people.json` (empty until a creator's 14 days pass), `optouts.json`, schemas,
@@ -142,7 +143,7 @@ typecheck, lint, tests and the directory checks pass.
 Outside the code: the n8n credentials, tables and workflows are in place (2026-10-14); switch on
 Directory Request and Directory Review in n8n, allow Actions to open pull requests here, and
 deploy yipden.com with its webhook and Turnstile keys; contact Jericho
-George; choose Yip Realm's licence; add the games disclosure to IndieNodes' signup.
+George; add the games disclosure to IndieNodes' signup. (Yip Realm's licence is chosen: MPL-2.0.)
 
 ## Now: known problems
 
@@ -558,6 +559,11 @@ Out of scope for v0.9 in the brief, so none of this starts before it ships:
 
 ### Game layer (planned after release; prototyping, 2026-10-09)
 
+**Yip Realm has moved to [`yiprealm`](https://github.com/XTREEMMAK/yiprealm) (2026-10-14)**, which
+supersedes what is said below about keeping both games here; the Realm parts of this section are
+history, and Realm's own roadmap is in that repository. The Stray stays here, and the rules below on
+the startup graph, the thin build, the `Store` and no rewards for reading still apply to it.
+
 **Initial setup authorized 2026-10-09, on `games/foundation` in a separate worktree.** Games Lab,
 shared host contracts, Realm/Stray lifecycle scaffolds, legacy Realm map validation, thin/realm/
 stray/all profiles, graph/asset guards, and separate lab APK identities are scaffolded. The Realm
@@ -787,60 +793,25 @@ contract is [docs/sites-contract.md](docs/sites-contract.md); the reasoning is i
    button), checked at its own pace, read as a newest-first digest under Sites, managed at
    You > Sites, and travels in the backup. A site with no feed can still be saved and visited.
    Left for later: a hand-pasted feed address in Sites mode, and a "caught up" push.
-4. **Search across both sides, and a site page with "Made by" from evidence only.**
+4. **Search across both sides, and a site page with "Made by" from evidence only.** Parked while
+   Surf is hidden.
 5. **Release blocker, cleared 2026-10-08: Surf ships empty.** The bundled seed (a dozen sites, their
    posters and clips in `static/sites/`) was always temporary, so a release build holds none of it:
    the list is imported only in debug builds, `scripts/strip-surf-seed.mjs` (part of `pnpm build`)
    removes the media and fails the build if any of the seed is still in it, and Surf shows "Surf is on
-   its way". A debug build keeps the seed to try Surf. Surf still needs its own opt-in procedure for
-   owners (docs/sites-contract.md) before any capture ships, and a real index to fill it; the
-   forum index's media is fine and ships. The procedure is drafted: see "The sites index as its own
-   repository" below.
-6. **Surf's boundary and intake (decided 2026-10-09; reader support built, publisher pending).**
-   Surf is a curated index of Sites, distinct from People, Pages and hosting Platforms. Anyone may
-   nominate a basic listing with remote `og:image`; only an owner-approved listing may carry a
-   YipDen-hosted capture. Additive `listing`, `hosting` and verified `makers` metadata are understood
-   by the reader. Marginalia is a plainly attributed external search at the end and no-match state,
-   never a mixed result source. The held `yipden-sites` repository still needs its nomination,
-   claim, correction and removal workflow updated to publish this contract.
+   its way". A debug build keeps the seed to try Surf. The forum index's media is fine and ships.
+6. **Surf's boundary (decided 2026-10-09; reader support built).** Surf is a curated index of
+   Sites, distinct from People, Pages and hosting Platforms. Additive `listing`, `hosting` and
+   verified `makers` metadata are understood by the reader. Marginalia is a plainly attributed
+   external search at the end and no-match state, never a mixed result source.
 
-To judge on the phone: does Surf feel like YipDen or a second app inside it; does the hero still
-feel central; do clips judder in the stack, and what do they cost in data.
-
-### The sites index as its own repository (`yipden-sites`; drafted 2026-10-08, held)
-
-Where Surf's data really comes from: a repository modelled on `indienodes-ring`, so the index is
-published as static files (`sites.json`, `forums.json`) and the app only reads it. Agreed with the
-maintainer: `XTREEMMAK/yipden-sites`, served at `sites.yipden.com`, captures at `media.yipden.com`,
-the three proofs (meta tag, well-known file, `rel="me"`), reviewed by the maintainer.
-
-**Drafted and tested locally, not created or pushed.** A complete working repo (82 tests): the record
-schema, intake from GitHub issue forms (in place of the ring's n8n intake), the ownership proofs,
-capture rules, capture and prune scripts, a health check that notices withdrawn consent, ten
-workflows, the docs, and three pages for yipden.com. It is in a scratch folder
-(`scratchpad/yipden-sites/` of the session that built it), which is temporary: move it somewhere
-permanent before relying on it. Its own docs are the reference: `docs/decisions.md`,
-`docs/operations.md` (the setup checklist), `docs/app-integration.md`.
-
-Decided in the draft: `ring.json` is **not** merged into `sites.json` (separate consent, separate
-meaning; joined by address in the app); every page proof is read from a page's `<head>` only (a
-guestbook can plant HTML in a body); the ring's own verification tag does not count here (it is
-consent to the ring, not to a capture); a verified site's proof being removed is consent withdrawn;
-a `nominated` site is listed with no capture of ours until its owner verifies; MP4, not WebM.
-
-Still to do, in order, when it is picked up:
-
-1. Create the repository, the labels, the secrets and the protected environment, and choose the
-   object store (R2 or Spaces): `docs/operations.md`.
-2. Run the workflows once for real (they were only parsed): intake, build, capture, prune. Check
-   the MP4 step, which needs ffmpeg with H.264, on a runner.
-3. Import the app's seed as nominated records (`scripts/import-seed.js`).
-4. The app: fetch `sites.json` and `forums.json` instead of the bundled seed, drop the bundled
-   posters and clips (that clears the release blocker above), "Suggest a site" and "Is this your
-   site?" links, and the app's `docs/sites-contract.md` gains the new fields.
-5. The three pages on yipden.com.
-6. Later: the shared package for URL safety (ported from the ring), n8n for the health streaks,
-   and at v2.0 Postgres (which side is authoritative is decided then).
+**Surf has no index behind it any more (2026-10-14).** Surf and Forums are hidden from Discover
+(people-first, DECISIONS.md 2026-10-14), and the `yipden-sites` repository that was to publish
+Surf's listings was dropped without being created; its draft is gone. Following a site or a forum
+by pasted link stays. If Surf ever returns it needs a new source and its own owner opt-in before
+any capture ships; until then the reader's sites code, the debug seed and
+[docs/sites-contract.md](docs/sites-contract.md) (whose example `manage_url` still points at
+`sites.yipden.com`) are kept as they are, not extended.
 
 ## iOS (audited 2026-10-07; not started)
 

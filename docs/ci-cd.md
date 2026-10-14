@@ -26,8 +26,8 @@ nothing about it gates correctness that the web build has not already checked.
 The checked-in reader CI currently does not build APKs on tags and does not run the reader
 Playwright suite. The earlier tag-artifact description was a planned workflow, not implemented.
 Local numbered APKs are built with `pnpm android:apk`; the current LAN download server serves
-that output directory directly. See [games-development.md](games-development.md) for isolated
-game APK building/publication and the games profile workflow.
+that output directory directly. See [games-development.md](games-development.md) for the games
+profile workflow.
 
 **Release signing is not set up**, deliberately. It needs a Play Console identity and an upload
 keystore, and a keystore committed or handed around before then is a liability with no
@@ -68,6 +68,6 @@ recorded in [DECISIONS.md](../DECISIONS.md) when the decision is made, not at re
 ## Games profile checks
 
 `games.yml` runs on game branch pushes, main pull requests and manual dispatch. It checks the
-shared packages and four Games Lab production profiles plus thin/all reader browser checks.
-Ignored reference prototypes are not CI inputs. Android builds stay local/on demand; a passing
+shared game packages and the thin and stray reader profiles with browser checks. Ignored
+reference prototypes are not CI inputs. Android builds stay local/on demand; a passing
 browser workflow does not establish physical-phone performance or native integration.

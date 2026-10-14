@@ -30,7 +30,6 @@
     "@yipden/feeds": "workspace:*",
     "@yipden/game-contracts": "workspace:*",
     "@yipden/game-host": "workspace:*",
-    "@yipden/realm-player": "workspace:*",
     "@yipden/ring-client": "workspace:*",
     "@yipden/stray": "workspace:*"
   },

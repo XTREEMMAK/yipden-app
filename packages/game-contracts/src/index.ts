@@ -1,6 +1,6 @@
 /** Host capabilities are injected. No engine, framework, native API or storage implementation. */
-export type GameId = 'realm' | 'stray';
-export type GameProfile = 'thin' | GameId | 'all';
+export type GameId = 'stray';
+export type GameProfile = 'thin' | GameId;
 export type JsonValue =
 	null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
@@ -15,7 +15,7 @@ export interface GamePage {
 }
 
 export interface GameHost {
-	surface: 'reader' | 'lab';
+	surface: 'reader';
 	saves: GameSaveStore;
 	page: GamePage | null;
 	beforeStart(): void | Promise<void>;

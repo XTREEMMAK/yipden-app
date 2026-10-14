@@ -1,7 +1,7 @@
 # The Stray: scaffold handoff
 
-Status: reference prototype supplied, initial player boundary scaffolded. Realm is the first
-production focus. This document records observed behavior and open decisions; it does not resolve
+Status: reference prototype supplied, initial player boundary scaffolded. The Stray is the one
+game left in this repository (Yip Realm moved to `yiprealm`, 2026-10-14). This document records observed behavior and open decisions; it does not resolve
 those decisions by treating the prototype's mock reader as the production application.
 
 ## Supplied behavior
@@ -42,6 +42,6 @@ inputs; do not read global time, DOM or storage inside the planner. Only activat
 may consume page interactions. Progress stays game-local and never changes reader/discovery
 ordering, gives a reading reward, introduces a streak, or requires an account.
 
-Games Lab may show the supplied reference with an explicit reference opt-in. Its iframe is
-removed on close/background; this intentionally resets an in-progress reference run. The
-production pause/resume policy and persistent state have not been implemented.
+The supplied reference is opened by hand from `tmp/games_handoffs/`; Games Lab, which could show
+it in an iframe, left with Yip Realm. The production pause/resume policy and persistent state have
+not been implemented.

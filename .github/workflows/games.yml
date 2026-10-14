@@ -23,5 +23,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm games:check
       - run: pnpm games:test
-      - run: pnpm --filter @yipden/games-lab exec playwright install --with-deps chromium
+      - run: pnpm --filter @yipden/reader exec playwright install --with-deps chromium
       - run: pnpm games:verify

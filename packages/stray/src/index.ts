@@ -10,7 +10,7 @@ export async function mount({ target, signal }: GameMountOptions): Promise<GameS
 	heading.textContent = 'The Stray player scaffold';
 	const description = document.createElement('p');
 	description.textContent =
-		'The hunt is not migrated yet. Its handoff must settle activation, day/timezone policy and eligible destinations. Realm is the first development focus.';
+		'The hunt is not migrated yet. Its handoff must settle activation, day/timezone policy and eligible destinations.';
 	const status = document.createElement('p');
 	status.textContent = 'Session active';
 	status.setAttribute('role', 'status');

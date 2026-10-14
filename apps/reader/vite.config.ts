@@ -45,7 +45,7 @@ function debugTools(command: string): boolean {
 }
 
 export default defineConfig(({ command }) => ({
-	plugins: [gameBuild({ surface: 'reader', fallback: 'thin' }), sveltekit(), devFetchProxy()],
+	plugins: [gameBuild({ fallback: 'thin' }), sveltekit(), devFetchProxy()],
 	define: {
 		__APP_VERSION__: JSON.stringify(packageJson.version),
 		__BUILD_COMMIT__: JSON.stringify(buildCommit()),

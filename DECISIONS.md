@@ -3905,3 +3905,25 @@ They are now `<img referrerpolicy="no-referrer">` through one action, `actions/p
 keeps each frame's shape and its cover or contain, and sits under whatever else the frame holds.
 The page's own referrer policy stays as it is, because the in-app embeds need one. Discover's hero
 is unchanged: on the phone it already loads its pictures natively.
+
+## 2026-10-14: The yipden-sites index is dropped
+
+The `yipden-sites` repository, drafted 2026-10-08 to publish Surf's listings and owner-approved
+captures, is dropped without being created, and its draft is gone. With Surf and Forums hidden by
+people-first discovery (above), YipDen is a creator reader, and a second published index with its
+own intake, proofs and capture pipeline is work for a surface no reader sees. Surf's reader code,
+its debug seed and `docs/sites-contract.md` stay as they are; if Surf returns, it starts from a
+new source and its own owner opt-in.
+
+## 2026-10-14: Yip Realm removed here; The Stray builds in the reader alone
+
+With `yiprealm` holding Realm, Games Lab and the games tooling, this repository keeps only The
+Stray and the shared host. Removed: `realm-core`, `realm-player`, `apps/games-lab`, the lab APK
+and publish scripts, and the `games:dev`, `games:apk` and `games:publish` commands. The build
+profiles are `thin` and `stray`; `realm` and `all` are gone, since with one game `all` would only
+repeat `stray`. `GameHost.surface` is `reader` only, and the reference-prototype plumbing
+(`YIPDEN_GAME_REFERENCES`, the references virtual module) went with the lab, the only surface that
+served it. The Stray is tried in the reader (a debug APK built with `YIPDEN_GAMES=stray`), not in a
+lab APK of its own; if its production work needs a fast separate host again, that is a new
+decision. `game-contracts` and `game-host` now exist in both repositories and may drift; neither
+imports the other's copy.

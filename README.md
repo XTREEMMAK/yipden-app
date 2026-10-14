@@ -130,6 +130,6 @@ issue to discuss instead of a pull request. Sign off your commits (`git commit -
 
 ## Game development
 
-Games are optional and reader builds default to thin. The separate Games Lab supports fast
-browser work and independent Android APKs. See [docs/games-development.md](docs/games-development.md)
-for the current scaffold, worktrees, profiles, testing and download-server workflow.
+Games are optional and reader builds default to thin. The Stray is the one game here, a scaffold
+for now; Yip Realm has its own repository. See [docs/games-development.md](docs/games-development.md)
+for the profiles and their checks.
