@@ -19,6 +19,10 @@ Every notable change to YipDen, newest first. The format follows
 - **Surf and Forums are hidden from Discover**: Discover is people. Following a site or a forum
   by pasting its address still works. Discover's wording no longer assumes a single webring, and
   About says plainly: no AI features, no ranking, no accounts, no tracking.
+- **Settings is an index of categories** (Appearance, Start & Discover, Reading & playback, Your
+  data), each its own page, instead of one long list.
+- **Yips' filter** offers Sites and Forums only when you follow one, and has Everyone at the top of
+  its Person and Folders tabs.
 - **Switch Discover's sources** on or off in Settings: IndieNodes, YipDen's directory, each
   partner ring, each list you added.
 - Optional game build profiles and a separate Games Lab for browser and APK testing. The initial

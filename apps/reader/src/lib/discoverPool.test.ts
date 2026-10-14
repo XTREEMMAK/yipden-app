@@ -72,6 +72,7 @@ beforeEach(() => {
 		member('sam', 'https://maddox79.neocities.org/')
 	];
 	ring.pool = [];
+	ring.poolReady = false;
 	ring.index = 0;
 	ring.filter = 'all';
 	ring.kind = 'all';

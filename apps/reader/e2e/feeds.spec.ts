@@ -171,7 +171,7 @@ test.describe('Feeds', () => {
 
 	test('scrolling a card off the top marks it read, when the setting is on', async ({ page }) => {
 		await seed(page);
-		await page.goto('/you/settings');
+		await page.goto('/you/settings?s=reading');
 		await page.getByRole('switch', { name: 'Mark as read when scrolled past' }).click();
 		await page.goto('/feeds');
 
@@ -278,7 +278,9 @@ test.describe('Feeds', () => {
 
 		await page.getByRole('button', { name: 'Filter your yips' }).click();
 		const sheet = page.getByRole('dialog', { name: 'Filter your yips' });
-		await expect(sheet.getByRole('radio', { name: 'Everything you follow' })).toBeChecked();
+		// Following people only, there is no Show tab: it opens on Person, with Everyone first.
+		await expect(sheet.getByRole('radio', { name: 'Show', exact: true })).toHaveCount(0);
+		await expect(sheet.getByRole('radio', { name: 'Everyone' })).toBeChecked();
 		await sheet.getByRole('radio', { name: 'Folders', exact: true }).click();
 		await sheet.getByRole('radio', { name: /^Music/ }).click();
 
@@ -298,8 +300,7 @@ test.describe('Feeds', () => {
 		await page.keyboard.press('Escape');
 		await expect(sheet).toHaveCount(0);
 		await page.getByRole('button', { name: 'Filter your yips: Cy Marsh' }).click();
-		await sheet.getByRole('radio', { name: 'Show', exact: true }).click();
-		await sheet.getByRole('radio', { name: 'Everything you follow' }).click();
+		await sheet.getByRole('radio', { name: 'Everyone' }).click();
 		await expect(everything.getByText('A plain post')).toBeVisible();
 		await expect(everything.getByText('An essay by Cy')).toBeVisible();
 	});

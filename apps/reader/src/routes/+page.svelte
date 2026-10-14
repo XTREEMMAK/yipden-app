@@ -739,7 +739,7 @@
 	/>
 	<div class="scrim" aria-hidden="true"></div>
 
-	{#if ring.status === 'loading'}
+	{#if ring.status === 'loading' || !ring.poolReady}
 		<div class="loading" out:fade={{ duration: prefersReducedMotion() ? 0 : duration.l }}>
 			<RingLoader />
 		</div>
@@ -1008,7 +1008,7 @@
 					</div>
 				</div>
 			{/key}
-		{:else if ring.status !== 'loading'}
+		{:else if ring.status !== 'loading' && ring.poolReady}
 			<div class="body-inner">
 				<span class="glass-chip">Nothing to show</span>
 				<h1 class="hero-name">Nobody here yet.</h1>

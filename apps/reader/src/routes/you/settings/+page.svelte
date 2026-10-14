@@ -2,6 +2,9 @@
 	import { browserGuide } from '$lib/browserGuide.svelte.js';
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import { discoverSources } from '$lib/discoverSources.svelte.js';
+	import { startPage } from '$lib/startPage.svelte.js';
 	import { fly } from 'svelte/transition';
 	import { flyIn, staggerDelay } from '$lib/motion.js';
 	import { prefs } from '$lib/prefs.svelte.js';
@@ -51,6 +54,47 @@
 		}
 	];
 
+	/**
+	 * Settings is a short index of categories, each its own page (`?s=…`), so nothing is one long
+	 * list (phone feedback, 2026-10-14) and the phone's Back returns to the index.
+	 */
+	const SECTIONS = [
+		{ key: 'appearance', title: 'Appearance', icon: 'appearance' },
+		{ key: 'discover', title: 'Start & Discover', icon: 'discover' },
+		{ key: 'reading', title: 'Reading & playback', icon: 'reading' },
+		{ key: 'data', title: 'Your data', icon: 'data' },
+		...(__YIPDEN_DEBUG__ ? [{ key: 'debug', title: 'Debug', icon: 'debug' }] : [])
+	] as const;
+	type SectionKey = (typeof SECTIONS)[number]['key'];
+
+	let section = $derived(
+		(SECTIONS.find((entry) => entry.key === page.url.searchParams.get('s'))?.key ??
+			null) as SectionKey | null
+	);
+	let sectionTitle = $derived(SECTIONS.find((entry) => entry.key === section)?.title ?? 'Settings');
+
+	/** One line under each category, saying what it is set to now. */
+	let summaries = $derived<Record<SectionKey, string>>({
+		appearance: `${THEMES.find((entry) => entry.key === theme.current)?.label ?? ''} · ${SKINS.find((entry) => entry.key === theme.skin)?.label ?? ''}`,
+		discover: `Opens on ${startPage.value === 'yips' ? 'Yips' : 'Discover'} · ${
+			discoverSources.lists.length
+				? `${discoverSources.lists.length} ${discoverSources.lists.length === 1 ? 'list' : 'lists'} added`
+				: 'sources and lists'
+		}`,
+		reading: `Posts from the last ${prefs.maxAgeDays} days · sounds ${prefs.sounds ? 'on' : 'off'}`,
+		data: 'Backups, OPML, cached yips',
+		debug: 'Frame meter, media log, switches'
+	});
+
+	function openSection(key: SectionKey) {
+		void goto(`?s=${key}`);
+	}
+
+	function back() {
+		if (section) void goto('/you/settings');
+		else void goto('/you');
+	}
+
 	let segEls: HTMLButtonElement[] = [];
 	let segIndicator = $state({ left: 0, width: 0 });
 	let importing = $state(false);
@@ -67,10 +111,13 @@
 
 	$effect(() => {
 		void theme.current;
-		measureSeg();
+		void section;
+		void tick().then(measureSeg);
 	});
 
 	onMount(() => {
+		void startPage.load();
+		void discoverSources.readSettings();
 		// Reached only from You, which already loads both; defensive in case that ever changes.
 		void you.load();
 		void shelf.load();
@@ -184,249 +231,289 @@
 
 <div class="scroll" inert={aboutOpen} aria-hidden={aboutOpen}>
 	<header class="head" in:fly={flyIn()}>
-		<button class="back" onclick={() => goto('/you')} aria-label="Back to You">
+		<button class="back" onclick={back} aria-label={section ? 'Back to Settings' : 'Back to You'}>
 			<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
 		</button>
-		<h2 class="screen-title">Settings</h2>
+		<h2 class="screen-title">{sectionTitle}</h2>
 	</header>
 
 	<div class="groups">
-		<section class="grp" in:fly={flyIn({ delay: staggerDelay(0) })}>
-			<h3 class="grp-h">Appearance</h3>
-			<div class="appearance-stack">
-				<div class="appearance-setting">
-					<p class="setting-label">Brightness</p>
-					<div class="seg" role="radiogroup" aria-label="Brightness">
-						<span
-							class="seg-ind"
-							aria-hidden="true"
-							style:transform={`translateX(${segIndicator.left}px)`}
-							style:width={`${segIndicator.width}px`}
-						></span>
-						{#each THEMES as entry, index (entry.key)}
-							<button
-								bind:this={segEls[index]}
-								role="radio"
-								aria-checked={theme.current === entry.key}
-								onclick={() => theme.set(entry.key)}
-							>
-								{entry.label}
-							</button>
-						{/each}
+		{#if !section}
+			<nav class="rows" aria-label="Settings" in:fly={flyIn({ delay: staggerDelay(0) })}>
+				{#each SECTIONS as entry (entry.key)}
+					<button class="srow link" onclick={() => openSection(entry.key)}>
+						<span class="sec-ic" aria-hidden="true">
+							<svg viewBox="0 0 24 24">
+								{#if entry.icon === 'appearance'}
+									<circle cx="12" cy="12" r="8" /><path d="M12 4a8 8 0 0 0 0 16z" />
+								{:else if entry.icon === 'discover'}
+									<circle cx="12" cy="12" r="9" /><path d="M15.5 8.5l-2 5-5 2 2-5z" />
+								{:else if entry.icon === 'reading'}
+									<path d="M4 6h16M4 12h16M4 18h10" />
+								{:else if entry.icon === 'data'}
+									<path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+								{:else}
+									<path d="M8 8l-4 4 4 4M16 8l4 4-4 4" />
+								{/if}
+							</svg>
+						</span>
+						<span class="tt">
+							<b>{entry.title}</b>
+							<small>{summaries[entry.key]}</small>
+						</span>
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+					</button>
+				{/each}
+			</nav>
+		{/if}
+
+		{#if section === 'appearance'}
+			<section class="grp" in:fly={flyIn({ delay: staggerDelay(0) })}>
+				<h3 class="grp-h visually-hidden">Appearance</h3>
+				<div class="appearance-stack">
+					<div class="appearance-setting">
+						<p class="setting-label">Brightness</p>
+						<div class="seg" role="radiogroup" aria-label="Brightness">
+							<span
+								class="seg-ind"
+								aria-hidden="true"
+								style:transform={`translateX(${segIndicator.left}px)`}
+								style:width={`${segIndicator.width}px`}
+							></span>
+							{#each THEMES as entry, index (entry.key)}
+								<button
+									bind:this={segEls[index]}
+									role="radio"
+									aria-checked={theme.current === entry.key}
+									onclick={() => theme.set(entry.key)}
+								>
+									{entry.label}
+								</button>
+							{/each}
+						</div>
+					</div>
+
+					<div class="appearance-setting">
+						<p class="setting-label">Color skin</p>
+						<div class="skin-grid" role="radiogroup" aria-label="Color skin">
+							{#each SKINS as entry (entry.key)}
+								<button
+									class="skin-option"
+									role="radio"
+									aria-label={entry.label}
+									aria-checked={theme.skin === entry.key}
+									onclick={() => theme.setSkin(entry.key)}
+								>
+									<span class="skin-swatches" aria-hidden="true">
+										{#each entry.colors as color}
+											<i style:background={color}></i>
+										{/each}
+									</span>
+									<strong>{entry.label}</strong>
+									<small>{entry.description}</small>
+								</button>
+							{/each}
+						</div>
 					</div>
 				</div>
+			</section>
+		{/if}
 
-				<div class="appearance-setting">
-					<p class="setting-label">Color skin</p>
-					<div class="skin-grid" role="radiogroup" aria-label="Color skin">
-						{#each SKINS as entry (entry.key)}
-							<button
-								class="skin-option"
-								role="radio"
-								aria-label={entry.label}
-								aria-checked={theme.skin === entry.key}
-								onclick={() => theme.setSkin(entry.key)}
-							>
-								<span class="skin-swatches" aria-hidden="true">
-									{#each entry.colors as color}
-										<i style:background={color}></i>
-									{/each}
-								</span>
-								<strong>{entry.label}</strong>
-								<small>{entry.description}</small>
-							</button>
-						{/each}
+		{#if section === 'discover'}
+			<div class="discover-settings" in:fly={flyIn({ delay: staggerDelay(0) })}>
+				<DiscoverSettings />
+			</div>
+		{/if}
+
+		{#if section === 'reading'}
+			<section class="grp" in:fly={flyIn({ delay: staggerDelay(0) })}>
+				<h3 class="grp-h">Playback</h3>
+				<div class="rows">
+					<div class="srow">
+						<span class="tt">
+							<b>Sounds</b>
+							<small>A little yip and buzz when you like someone</small>
+						</span>
+						<Switch
+							id="sounds"
+							label="Sounds"
+							checked={prefs.sounds}
+							onchange={(on) => prefs.setSounds(on)}
+						/>
+					</div>
+					<div class="srow">
+						<span class="tt">
+							<b>Shuffle music</b>
+							<small>Mix up a member{"'"}s tracks</small>
+						</span>
+						<Switch
+							id="shuffle-music"
+							label="Shuffle music"
+							checked={prefs.shuffleMusic}
+							onchange={(on) => prefs.setShuffleMusic(on)}
+						/>
 					</div>
 				</div>
-			</div>
-		</section>
+			</section>
 
-		<div class="discover-settings" in:fly={flyIn({ delay: staggerDelay(1) })}>
-			<DiscoverSettings />
-		</div>
+			<section class="grp" in:fly={flyIn({ delay: staggerDelay(2) })}>
+				<h3 class="grp-h">Yips</h3>
+				<div class="rows">
+					<div class="srow">
+						<span class="tt">
+							<b>Mark as read when scrolled past</b>
+							<small>A card counts as read once it leaves the top of the screen</small>
+						</span>
+						<Switch
+							id="mark-read-on-scroll"
+							label="Mark as read when scrolled past"
+							checked={prefs.markReadOnScroll}
+							onchange={(on) => prefs.setMarkReadOnScroll(on)}
+						/>
+					</div>
+					<div class="srow">
+						<span class="tt">
+							<b>Open creators' sites in YipDen</b>
+							<small
+								>Android: Visit opens the site here, with a button to keep audio you find on it</small
+							>
+						</span>
+						<Switch
+							id="sites-in-app"
+							label="Open creators' sites in YipDen"
+							checked={prefs.sitesInApp}
+							onchange={(on) => prefs.setSitesInApp(on)}
+						/>
+					</div>
+					<button class="srow guide-row" onclick={() => browserGuide.show()}>
+						<span class="tt">
+							<b>How finding works</b>
+							<small
+								>Keeping tracks, comic pages, screenshots and passages from creators' sites</small
+							>
+						</span>
+					</button>
+					<div class="srow slider-row">
+						<span class="tt">
+							<b>Keep posts from the last {prefs.maxAgeDays} days</b>
+							<small>Older posts are not saved. Each follow can override this.</small>
+						</span>
+						<input
+							class="age-slider"
+							type="range"
+							min={MIN_MAX_AGE_DAYS}
+							max={MAX_MAX_AGE_DAYS}
+							step="1"
+							value={prefs.maxAgeDays}
+							aria-label="Days of posts to keep"
+							oninput={(event) => (prefs.maxAgeDays = Number(event.currentTarget.value))}
+							onchange={(event) => prefs.setMaxAgeDays(Number(event.currentTarget.value))}
+						/>
+					</div>
+				</div>
+			</section>
+		{/if}
 
-		<section class="grp" in:fly={flyIn({ delay: staggerDelay(1) })}>
-			<h3 class="grp-h">Playback</h3>
-			<div class="rows">
-				<div class="srow">
-					<span class="tt">
-						<b>Sounds</b>
-						<small>A little yip and buzz when you like someone</small>
-					</span>
-					<Switch
-						id="sounds"
-						label="Sounds"
-						checked={prefs.sounds}
-						onchange={(on) => prefs.setSounds(on)}
-					/>
-				</div>
-				<div class="srow">
-					<span class="tt">
-						<b>Shuffle music</b>
-						<small>Mix up a member{"'"}s tracks</small>
-					</span>
-					<Switch
-						id="shuffle-music"
-						label="Shuffle music"
-						checked={prefs.shuffleMusic}
-						onchange={(on) => prefs.setShuffleMusic(on)}
-					/>
-				</div>
-			</div>
-		</section>
-
-		<section class="grp" in:fly={flyIn({ delay: staggerDelay(2) })}>
-			<h3 class="grp-h">Feeds</h3>
-			<div class="rows">
-				<div class="srow">
-					<span class="tt">
-						<b>Mark as read when scrolled past</b>
-						<small>A card counts as read once it leaves the top of the screen</small>
-					</span>
-					<Switch
-						id="mark-read-on-scroll"
-						label="Mark as read when scrolled past"
-						checked={prefs.markReadOnScroll}
-						onchange={(on) => prefs.setMarkReadOnScroll(on)}
-					/>
-				</div>
-				<div class="srow">
-					<span class="tt">
-						<b>Open creators' sites in YipDen</b>
-						<small
-							>Android: Visit opens the site here, with a button to keep audio you find on it</small
-						>
-					</span>
-					<Switch
-						id="sites-in-app"
-						label="Open creators' sites in YipDen"
-						checked={prefs.sitesInApp}
-						onchange={(on) => prefs.setSitesInApp(on)}
-					/>
-				</div>
-				<button class="srow guide-row" onclick={() => browserGuide.show()}>
-					<span class="tt">
-						<b>How finding works</b>
-						<small>Keeping tracks, comic pages, screenshots and passages from creators' sites</small
-						>
-					</span>
-				</button>
-				<div class="srow slider-row">
-					<span class="tt">
-						<b>Keep posts from the last {prefs.maxAgeDays} days</b>
-						<small>Older posts are not saved. Each follow can override this.</small>
-					</span>
-					<input
-						class="age-slider"
-						type="range"
-						min={MIN_MAX_AGE_DAYS}
-						max={MAX_MAX_AGE_DAYS}
-						step="1"
-						value={prefs.maxAgeDays}
-						aria-label="Days of posts to keep"
-						oninput={(event) => (prefs.maxAgeDays = Number(event.currentTarget.value))}
-						onchange={(event) => prefs.setMaxAgeDays(Number(event.currentTarget.value))}
-					/>
-				</div>
-			</div>
-		</section>
-
-		{#if __YIPDEN_DEBUG__}
+		{#if __YIPDEN_DEBUG__ && section === 'debug'}
 			{#await import('$components/DebugSettings.svelte') then { default: DebugSettings }}
 				<DebugSettings />
 			{/await}
 		{/if}
 
-		<section class="grp" in:fly={flyIn({ delay: staggerDelay(3) })}>
-			<h3 class="grp-h">Your follows file</h3>
-			<div class="rows">
-				<button
-					class="srow link"
-					onclick={exportFollows}
-					disabled={!you.rows.length && !shelf.items.length}
-				>
-					<span class="tt">
-						<b>Export as OPML</b>
-						<small>Your follows, and your Saved links, for any other reader</small>
-					</span>
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
-				</button>
-				<button class="srow link" onclick={importFollows} disabled={importing}>
-					<span class="tt">
-						<b>{importing ? 'Importing…' : 'Import OPML'}</b>
-						<small>Bring follows in from another reader</small>
-					</span>
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-				</button>
-				<button class="srow link" onclick={clearCachedYips}>
-					<span class="tt">
-						<b>Clear cached yips</b>
-						<small>Your follows stay put</small>
-					</span>
-				</button>
-			</div>
-		</section>
-
-		<section class="grp" in:fly={flyIn({ delay: staggerDelay(3) })}>
-			<h3 class="grp-h">YipDen backup</h3>
-			<div class="rows">
-				<button class="srow link" onclick={exportYipDenBackup} disabled={backupBusy}>
-					<span class="tt">
-						<b>Export full backup</b>
-						<small>Follows, Shelf, sources, preferences, read state, and cached yips</small>
-					</span>
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
-				</button>
-				<button class="srow link" onclick={chooseYipDenBackup} disabled={backupBusy}>
-					<span class="tt">
-						<b>Preview backup import</b>
-						<small>Nothing changes until you confirm</small>
-					</span>
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-				</button>
-				{#if backupPreview}
-					<div class="backup-preview" aria-live="polite">
+		{#if section === 'data'}
+			<section class="grp" in:fly={flyIn({ delay: staggerDelay(0) })}>
+				<h3 class="grp-h">Your follows file</h3>
+				<div class="rows">
+					<button
+						class="srow link"
+						onclick={exportFollows}
+						disabled={!you.rows.length && !shelf.items.length}
+					>
 						<span class="tt">
-							<b>Ready to restore</b>
-							<small>
-								{backupPreview.people} people · {backupPreview.feeds} sources · {backupPreview.yips}
-								cached yips{backupPreview.shelf ? ` · ${backupPreview.shelf} Shelf links` : ''}.
-								Existing data is kept; source conflicts are skipped.
-							</small>
+							<b>Export as OPML</b>
+							<small>Your follows, and your Saved links, for any other reader</small>
 						</span>
-						<span class="backup-actions">
-							<button class="mini-btn" onclick={() => (backupPreview = null)}>Cancel</button>
-							<button class="mini-btn restore" onclick={importYipDenBackup} disabled={backupBusy}>
-								{backupBusy ? 'Restoring…' : 'Restore'}
-							</button>
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
+					</button>
+					<button class="srow link" onclick={importFollows} disabled={importing}>
+						<span class="tt">
+							<b>{importing ? 'Importing…' : 'Import OPML'}</b>
+							<small>Bring follows in from another reader</small>
 						</span>
-					</div>
-				{/if}
-			</div>
-		</section>
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+					</button>
+					<button class="srow link" onclick={clearCachedYips}>
+						<span class="tt">
+							<b>Clear cached yips</b>
+							<small>Your follows stay put</small>
+						</span>
+					</button>
+				</div>
+			</section>
 
-		<section class="grp" in:fly={flyIn({ delay: staggerDelay(4) })}>
-			<h3 class="grp-h">About</h3>
-			<div class="rows">
-				<button
-					bind:this={aboutButton}
-					class="srow link"
-					type="button"
-					aria-haspopup="dialog"
-					onclick={openAbout}
-				>
-					<span class="tt">
-						<b>About YipDen</b>
-						<small>Version, privacy, history, source, and attributions</small>
-					</span>
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-				</button>
-			</div>
-		</section>
+			<section class="grp" in:fly={flyIn({ delay: staggerDelay(3) })}>
+				<h3 class="grp-h">YipDen backup</h3>
+				<div class="rows">
+					<button class="srow link" onclick={exportYipDenBackup} disabled={backupBusy}>
+						<span class="tt">
+							<b>Export full backup</b>
+							<small>Follows, Shelf, sources, preferences, read state, and cached yips</small>
+						</span>
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" /></svg>
+					</button>
+					<button class="srow link" onclick={chooseYipDenBackup} disabled={backupBusy}>
+						<span class="tt">
+							<b>Preview backup import</b>
+							<small>Nothing changes until you confirm</small>
+						</span>
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+					</button>
+					{#if backupPreview}
+						<div class="backup-preview" aria-live="polite">
+							<span class="tt">
+								<b>Ready to restore</b>
+								<small>
+									{backupPreview.people} people · {backupPreview.feeds} sources · {backupPreview.yips}
+									cached yips{backupPreview.shelf ? ` · ${backupPreview.shelf} Shelf links` : ''}.
+									Existing data is kept; source conflicts are skipped.
+								</small>
+							</span>
+							<span class="backup-actions">
+								<button class="mini-btn" onclick={() => (backupPreview = null)}>Cancel</button>
+								<button class="mini-btn restore" onclick={importYipDenBackup} disabled={backupBusy}>
+									{backupBusy ? 'Restoring…' : 'Restore'}
+								</button>
+							</span>
+						</div>
+					{/if}
+				</div>
+			</section>
+		{/if}
 
-		<p class="fine" in:fly={flyIn({ delay: staggerDelay(5) })}>
-			Chronological, no AI, and every yip links out to its creator.
-		</p>
+		{#if !section}
+			<section class="grp" in:fly={flyIn({ delay: staggerDelay(1) })}>
+				<h3 class="grp-h">About</h3>
+				<div class="rows">
+					<button
+						bind:this={aboutButton}
+						class="srow link"
+						type="button"
+						aria-haspopup="dialog"
+						onclick={openAbout}
+					>
+						<span class="tt">
+							<b>About YipDen</b>
+							<small>Version, privacy, history, source, and attributions</small>
+						</span>
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+					</button>
+				</div>
+			</section>
+
+			<p class="fine" in:fly={flyIn({ delay: staggerDelay(2) })}>
+				Chronological, no AI, and every yip links out to its creator.
+			</p>
+		{/if}
 	</div>
 
 	<Toast />
@@ -484,6 +571,28 @@
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
+	}
+
+	/* Each category's own icon, in the index. */
+	.sec-ic {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 36px;
+		height: 36px;
+		border-radius: 10px;
+		background: var(--brand-soft);
+		color: var(--brand-text);
+	}
+
+	.sec-ic svg {
+		width: 19px;
+		height: 19px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
 	}
 
 	.discover-settings {

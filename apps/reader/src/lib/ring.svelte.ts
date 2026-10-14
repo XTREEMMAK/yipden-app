@@ -143,6 +143,8 @@ class RingState {
 	 * reader's lists, merged (one card per person, opt-outs dropped), featured person first.
 	 */
 	pool = $state<DiscoverEntry[]>([]);
+	/** False until the first pool is built: Discover keeps its loader up rather than "nobody". */
+	poolReady = $state(false);
 	status = $state<'loading' | RingSource>('loading');
 	error = $state<string | null>(null);
 	fetchedAt = $state<string | null>(null);
@@ -329,6 +331,16 @@ class RingState {
 	async rebuild(): Promise<void> {
 		const token = ++this.rebuilding;
 		await discoverSources.readSettings();
+		// The first card is today's featured person, picked from every source, so it is the same
+		// person on every launch: wait (briefly) for the directory and the reader's lists before
+		// choosing. Offline, a saved copy answers at once; nothing waits longer than three seconds.
+		if (!this.pool.length) {
+			await Promise.race([
+				discoverSources.load(),
+				new Promise((resolve) => setTimeout(resolve, 3000))
+			]);
+			if (token !== this.rebuilding) return;
+		}
 		const lists: DirectoryPerson[][] = [];
 		if (discoverSources.isOn('indienodes')) {
 			lists.push(
@@ -364,6 +376,7 @@ class RingState {
 			const today = featuredToday(merged);
 			const at = today ? ordered.findIndex((entry) => entry.id === toEntry(today).id) : 0;
 			this.pool = at > 0 ? [...ordered.slice(at), ...ordered.slice(0, at)] : ordered;
+			this.poolReady = true;
 			return;
 		}
 

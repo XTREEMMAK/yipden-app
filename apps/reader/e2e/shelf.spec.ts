@@ -235,7 +235,7 @@ test.describe('a desktop first member in Discover', () => {
 
 		// Through the existing follows file, not a second export; the export tools live in
 		// Settings, not on You itself.
-		await page.goto('/you/settings');
+		await page.goto('/you/settings?s=data');
 		const [download] = await Promise.all([
 			page.waitForEvent('download'),
 			page.getByRole('button', { name: /Export as OPML/ }).click()

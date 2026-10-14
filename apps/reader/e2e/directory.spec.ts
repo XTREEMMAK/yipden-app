@@ -105,7 +105,7 @@ test.describe('the start page', () => {
 		await page.goto('/');
 		await expect(page).toHaveURL(/\/feeds/);
 
-		await page.goto('/you/settings');
+		await page.goto('/you/settings?s=discover');
 		const start = page.getByRole('radiogroup', { name: 'Start on' });
 		await start.getByRole('radio', { name: 'Discover' }).click();
 		await expect(page).toHaveURL(/\/you\/settings/);
@@ -145,7 +145,7 @@ test.describe('creator lists a reader adds', () => {
 			);
 		});
 
-		await page.goto('/you/settings');
+		await page.goto('/you/settings?s=discover');
 		await page.getByLabel('Address').fill(LIST);
 		await page.getByLabel('Name (optional)').fill('A friend’s picks');
 		await page.getByRole('button', { name: 'Add list' }).click();
@@ -158,7 +158,7 @@ test.describe('creator lists a reader adds', () => {
 		await expect(page.getByText('From A friend’s picks')).toBeVisible();
 
 		// A wrong address is said at once.
-		await page.goto('/you/settings');
+		await page.goto('/you/settings?s=discover');
 		await page.getByLabel('Address').fill('https://nothing.example.org/list.json');
 		await page.getByRole('button', { name: 'Add list' }).click();
 		await expect(page.getByRole('alert')).toBeVisible();

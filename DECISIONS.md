@@ -3865,3 +3865,15 @@ server-side removal form; the Stray's games-only opt-out, which ships with the g
   address: a link into another screen is left alone, and nothing moves mid-session.
 - **yipden.com must send one `Access-Control-Allow-Origin` header for `/directory/*`**, or the web
   build cannot read the directory (found when the domain answered with two).
+
+## 2026-10-14: Settings as categories; Yips' filter only offers what you follow; featured waits for every source
+
+- **Settings is an index**: Appearance, Start & Discover, Reading & playback, Your data (and Debug in
+  a debug build), each its own page at `/you/settings?s=…` so the phone's Back returns to the index.
+  One file still holds the logic. About stays a row on the index.
+- **Yips' filter offers Sites and Forums only to a reader who follows one** (by pasted link, which
+  still works). With neither, the Show tab, which could only say "everything" or "people", is gone,
+  and Everyone is the first row of the Person and Folders tabs.
+- **Discover's first card waits, up to three seconds, for every source**, so "Featured today" is
+  picked from everyone and is the same person on every launch (it was the ring's pick when the
+  directory answered second). Discover shows its loader meanwhile, never "Nobody here yet".

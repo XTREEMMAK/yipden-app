@@ -61,6 +61,13 @@
 			(kind === 'all' ? null : { people: 'People', sites: 'Sites', forums: 'Forums' }[kind])
 	);
 
+	// A kind of den the reader no longer follows any of (their last site unfollowed) is not a filter.
+	$effect(() => {
+		if (feeds.kind === 'sites' && siteFollows.loaded && !siteFollows.follows.length)
+			feeds.kind = 'all';
+		if (feeds.kind === 'forums' && forums.loaded && !forums.follows.length) feeds.kind = 'all';
+	});
+
 	$effect(() => {
 		const pane = page.url.searchParams.get('pane');
 		if (pane === 'forums' || pane === 'sites') feeds.kind = pane;

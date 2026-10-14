@@ -53,6 +53,7 @@ const ok = (ids: string[]) => ({
 function reset() {
 	ring.all = [];
 	ring.pool = [];
+	ring.poolReady = false;
 	ring.status = 'loading';
 	ring.index = 0;
 	ring.filter = 'all';

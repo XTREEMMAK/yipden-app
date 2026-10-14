@@ -65,6 +65,14 @@ async function withRing(page: Page, body: unknown = RING, status = 200) {
 	);
 	// Creator images live on creators' own servers. Never fetched in a test.
 	await page.route('https://example.com/**', (route) => route.abort());
+	// YipDen's directory is its own spec (directory.spec.ts): here it is reachable and empty.
+	await page.route('https://yipden.com/**', (route) =>
+		route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: '{"version":"1.0","entries":[],"hashes":[]}'
+		})
+	);
 }
 
 /** Opens the filter sheet and picks one option, same as a reader tapping the Filter button. */

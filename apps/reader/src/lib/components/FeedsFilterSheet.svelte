@@ -6,9 +6,12 @@
 	import { siteFollows } from '$lib/siteFollows.svelte.js';
 
 	/**
-	 * Yips' Filter sheet, in three tabs so no list runs long: what kind of den to read (all, people,
-	 * sites, forums), then one person, or one folder. Choosing closes the sheet. Folders are made
-	 * under You.
+	 * Yips' Filter sheet, in tabs so no list runs long: what kind of den to read, then one person, or
+	 * one folder. Choosing closes the sheet. Folders are made under You.
+	 *
+	 * Sites and Forums are offered only to a reader who follows one (pasted in Follow): Discover no
+	 * longer shows them (2026-10-14), so for most readers there is nothing but people, and then the
+	 * "Show" tab, which would only say "everything" or "people", is not there at all.
 	 */
 
 	type Kind = 'all' | 'people' | 'sites' | 'forums';
@@ -23,16 +26,31 @@
 	let { onclose, kind, onkind }: Props = $props();
 
 	type Tab = 'show' | 'person' | 'folder';
-	let tab = $state<Tab>(
-		feeds.scope.kind === 'person' ? 'person' : feeds.scope.kind === 'folder' ? 'folder' : 'show'
-	);
-
 	const KINDS = $derived([
 		{ value: 'all' as const, label: 'Everything you follow', count: 0, icon: 'all' },
 		{ value: 'people' as const, label: 'People', count: feeds.unreadCount, icon: 'people' },
-		{ value: 'sites' as const, label: 'Sites', count: siteFollows.activeCount, icon: 'sites' },
-		{ value: 'forums' as const, label: 'Forums', count: forums.activeCount, icon: 'forums' }
+		...(siteFollows.follows.length
+			? [{ value: 'sites' as const, label: 'Sites', count: siteFollows.activeCount, icon: 'sites' }]
+			: []),
+		...(forums.follows.length
+			? [{ value: 'forums' as const, label: 'Forums', count: forums.activeCount, icon: 'forums' }]
+			: [])
 	]);
+	/** Only worth a tab when there is something besides people to choose. */
+	let hasShow = $derived(KINDS.length > 2);
+
+	let tab = $state<Tab>(
+		feeds.scope.kind === 'person'
+			? 'person'
+			: feeds.scope.kind === 'folder'
+				? 'folder'
+				: siteFollows.follows.length || forums.follows.length
+					? 'show'
+					: 'person'
+	);
+	$effect(() => {
+		if (tab === 'show' && !hasShow) tab = 'person';
+	});
 
 	/**
 	 * The tab's content changes size when the tab does. Its box follows the content's measured
@@ -89,9 +107,9 @@
 		<Segmented
 			label="Filter by"
 			options={[
-				{ value: 'show', label: 'Show' },
-				{ value: 'person', label: 'Person' },
-				{ value: 'folder', label: 'Folders' }
+				...(hasShow ? [{ value: 'show' as const, label: 'Show' }] : []),
+				{ value: 'person' as const, label: 'Person' },
+				{ value: 'folder' as const, label: 'Folders' }
 			]}
 			value={tab}
 			onchange={(next) => (tab = next)}
@@ -133,6 +151,19 @@
 				</div>
 			{:else if tab === 'folder'}
 				<div class="sheet-list" role="radiogroup" aria-label="Folders">
+					<button
+						class="sheet-row"
+						role="radio"
+						aria-checked={feeds.scope.kind === 'all' && kind === 'all'}
+						onclick={() => chooseKind('all')}
+					>
+						<span class="sheet-av" aria-hidden="true">
+							<svg viewBox="0 0 24 24"
+								><path d="M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4" /></svg
+							>
+						</span>
+						<span class="sheet-name">Everyone</span>
+					</button>
 					{#each feeds.folders as folder (folder.name)}
 						<button
 							class="sheet-row"
@@ -152,6 +183,19 @@
 				</div>
 			{:else}
 				<div class="sheet-list" role="radiogroup" aria-label="Person">
+					<button
+						class="sheet-row"
+						role="radio"
+						aria-checked={feeds.scope.kind === 'all' && kind === 'all'}
+						onclick={() => chooseKind('all')}
+					>
+						<span class="sheet-av" aria-hidden="true">
+							<svg viewBox="0 0 24 24"
+								><path d="M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4" /></svg
+							>
+						</span>
+						<span class="sheet-name">Everyone</span>
+					</button>
 					{#if people.length > SEARCH_FROM}
 						<input
 							class="sheet-search"

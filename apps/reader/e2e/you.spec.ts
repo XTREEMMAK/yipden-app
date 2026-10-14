@@ -321,7 +321,7 @@ test.describe('You', () => {
 	});
 
 	test('switches theme and the document reflects it', async ({ page }) => {
-		await page.goto('/you/settings');
+		await page.goto('/you/settings?s=appearance');
 
 		await page.getByRole('radio', { name: 'Dark' }).click();
 		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -332,7 +332,7 @@ test.describe('You', () => {
 	});
 
 	test('theme choice survives a reload', async ({ page }) => {
-		await page.goto('/you/settings');
+		await page.goto('/you/settings?s=appearance');
 		await page.getByRole('radio', { name: 'Dark' }).click();
 
 		await page.reload();
@@ -341,7 +341,7 @@ test.describe('You', () => {
 	});
 
 	test('switches color skin and keeps it across reloads', async ({ page }) => {
-		await page.goto('/you/settings');
+		await page.goto('/you/settings?s=appearance');
 		await page.getByRole('radio', { name: 'Blue glass' }).click();
 
 		await expect(page.locator('html')).toHaveAttribute('data-skin', 'glass');
@@ -363,7 +363,7 @@ test.describe('You', () => {
 
 	test('exports a real OPML file naming the followed feed', async ({ page }) => {
 		await followLena(page);
-		await page.goto('/you/settings');
+		await page.goto('/you/settings?s=data');
 		await expect(page.getByRole('button', { name: 'Export as OPML' })).toBeEnabled();
 
 		const [download] = await Promise.all([
@@ -379,7 +379,7 @@ test.describe('You', () => {
 	});
 
 	test('the export button is disabled with nobody to export', async ({ page }) => {
-		await page.goto('/you/settings');
+		await page.goto('/you/settings?s=data');
 		await expect(page.getByRole('button', { name: 'Export as OPML' })).toBeDisabled();
 	});
 
@@ -391,7 +391,7 @@ test.describe('You', () => {
 				body: '{"version":"1.0","entries":[]}'
 			})
 		);
-		await page.goto('/you/settings');
+		await page.goto('/you/settings?s=data');
 
 		const opml =
 			'<?xml version="1.0"?><opml version="2.0"><body>' +
@@ -417,7 +417,7 @@ test.describe('You', () => {
 
 	test('exports a versioned full backup', async ({ page }) => {
 		await followLena(page);
-		await page.goto('/you/settings');
+		await page.goto('/you/settings?s=data');
 
 		const [download] = await Promise.all([
 			page.waitForEvent('download'),
@@ -431,7 +431,7 @@ test.describe('You', () => {
 	});
 
 	test('previews a full backup before restoring it', async ({ page }) => {
-		await page.goto('/you/settings');
+		await page.goto('/you/settings?s=data');
 		const backup = {
 			format: 'yipden-backup',
 			version: 1,
@@ -482,7 +482,7 @@ test.describe('You', () => {
 
 	test('clearing cached yips confirms without touching the follow list', async ({ page }) => {
 		await followLena(page);
-		await page.goto('/you/settings');
+		await page.goto('/you/settings?s=data');
 
 		await page.getByRole('button', { name: 'Clear cached yips' }).click();
 		await expect(page.getByRole('status')).toContainText('Cleared cached yips');
@@ -503,7 +503,7 @@ test.describe('You', () => {
 	});
 
 	test('every theme and skin radio clears the 44px minimum', async ({ page }) => {
-		await page.goto('/you/settings');
+		await page.goto('/you/settings?s=appearance');
 
 		for (const control of await page.getByRole('radio').all()) {
 			const box = await control.boundingBox();
