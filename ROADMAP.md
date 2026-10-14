@@ -133,12 +133,15 @@ typecheck, lint, tests and the directory checks pass.
 7. **Copy pass**: app strings, the About sheet, README. Done 2026-10-14.
 8. **yipden-web**: the form's "Yes, that's me" and "Join IndieNodes" (done 2026-10-14), the
    directory files served live from this repository's `main` through Caddy (done 2026-10-14), the
-   n8n workflow and its runbook (waiting on the n8n specifics: notification channel, storage,
-   GitHub token); the design in its own session.
+   n8n workflows and their runbook (generated, done 2026-10-14: Gotify, a Data Table, signed
+   review links, GitHub dispatch of `directory-optout`; not pushed to n8n until the credentials
+   exist, see yipden-web's `docs/n8n-runbook.md`); the design in its own session.
 9. **Verify**, then the release gate below. The listing needs yipden.com live with a reviewed
    privacy policy.
 
-Outside the code: deploy yipden.com and its n8n webhook and Turnstile keys; contact Jericho
+Outside the code: create the five n8n credentials and a GitHub token (Actions write on this
+repository), allow Actions to open pull requests here, push the workflows; deploy yipden.com with
+its webhook and Turnstile keys; contact Jericho
 George; choose Yip Realm's licence; add the games disclosure to IndieNodes' signup.
 
 ## Now: known problems
