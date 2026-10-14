@@ -536,12 +536,12 @@ test.describe('You', () => {
 		await expect(dialog).toBeVisible();
 		await expect(dialog.getByText(`v${APP_VERSION} · build`, { exact: false })).toBeVisible();
 		await expect(
-			dialog.getByText(/Everyone in Discover comes from the IndieNodes webring/)
+			dialog.getByText(/Discover shows creators from the IndieNodes ring/)
 		).toBeVisible();
 		await expect(
 			dialog.getByRole('heading', { name: 'A doorway, not a destination.' })
 		).toBeVisible();
-		await expect(dialog.getByText(/Every yip links out to its creator’s own site/)).toBeVisible();
+		await expect(dialog.getByText(/Every yip links to the\s+creator who made it/)).toBeVisible();
 		await expect(
 			dialog.getByRole('heading', { name: 'Your den stays on your device.' })
 		).toBeVisible();

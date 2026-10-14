@@ -43,7 +43,7 @@ async function routes(page: Page, extra: (page: Page) => Promise<void> = async (
 }
 
 async function filterTo(page: Page, label: string) {
-	await page.getByRole('button', { name: /^Filter the ring/ }).click();
+	await page.getByRole('button', { name: /^Filter Discover/ }).click();
 	await page.getByRole('radio', { name: label, exact: true }).click();
 }
 
@@ -62,7 +62,7 @@ test.describe('Discover’s people', () => {
 
 		// Walk everyone: the example who opted out is never among them.
 		await filterTo(page, 'Any');
-		await page.getByRole('button', { name: 'Browse members' }).click();
+		await page.getByRole('button', { name: 'Browse people' }).click();
 		const list = page.getByRole('dialog');
 		await expect(list.getByText('Jericho George')).toBeVisible();
 		await expect(list.getByText('Ada Reed')).toBeVisible();
@@ -152,7 +152,7 @@ test.describe('creator lists a reader adds', () => {
 		await expect(page.getByRole('switch', { name: 'A friend’s picks' })).toBeVisible();
 
 		await page.goto('/');
-		await page.getByRole('button', { name: 'Browse members' }).click();
+		await page.getByRole('button', { name: 'Browse people' }).click();
 		await expect(page.getByRole('dialog').getByText('Mo Kim')).toBeVisible();
 		await page.getByRole('dialog').getByText('Mo Kim').click();
 		await expect(page.getByText('From A friend’s picks')).toBeVisible();

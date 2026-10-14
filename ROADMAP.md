@@ -128,9 +128,9 @@ typecheck, lint, tests and the directory checks pass.
 4. **Creator lists a reader adds** (directory format and `ring.json`). Done 2026-10-14.
 5. **Settings, storage and start page**, in the backup. Done 2026-10-14.
 6. **Discover on the merged list**: Featured today, source labels, "Is this you?", filters; Surf
-   and Forums hidden. Built 2026-10-14 apart from hiding Surf and Forums (with the copy pass).
+   and Forums hidden. Built 2026-10-14.
    Checkpoint: a numbered APK.
-7. **Copy pass**: app strings, the About sheet, README.
+7. **Copy pass**: app strings, the About sheet, README. Done 2026-10-14.
 8. **yipden-web**: the form's "Yes, that's me" and "Join IndieNodes", the n8n workflow and its
    runbook; the design in its own session.
 9. **Verify**, then the release gate below. The listing needs yipden.com live with a reviewed

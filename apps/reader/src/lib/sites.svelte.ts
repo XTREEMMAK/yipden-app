@@ -161,6 +161,12 @@ export const forumIndex = new IndexState({
 export type DiscoverView = 'people' | 'surf' | 'forums';
 
 /**
+ * Surf and the forum index are hidden from Discover (2026-10-14): Discover is people. Following a
+ * site or a forum by pasting its address still works. The code stays for later; this is the switch.
+ */
+export const PLACES_IN_DISCOVER = false;
+
+/**
  * Which side of Discover is showing: People (the ring's hero, the default), Surf or Forums. Saved,
  * so a reader who lives in one comes back to it.
  */
@@ -176,11 +182,14 @@ class DiscoverState {
 		this.viewRead = true;
 		await store.init();
 		const saved = await store.getSetting<string>('discoverView');
-		if (saved === 'surf' || saved === 'forums' || saved === 'people') this.view = saved;
+		if (saved === 'people' || (PLACES_IN_DISCOVER && (saved === 'surf' || saved === 'forums'))) {
+			this.view = saved;
+		}
 		void this.index?.load();
 	}
 
 	setView(view: DiscoverView): void {
+		if (!PLACES_IN_DISCOVER && view !== 'people') return;
 		this.view = view;
 		void store.setSetting('discoverView', view);
 		void this.index?.load();

@@ -275,7 +275,7 @@ test.describe('Discover WebGL hero', () => {
 		await expect(heading).not.toHaveText(first ?? '');
 		await ringPrev(page);
 		await expect(heading).toHaveText(first ?? '');
-		await page.getByRole('button', { name: 'Shuffle the ring' }).click();
+		await page.getByRole('button', { name: 'Shuffle' }).click();
 		await page.waitForTimeout(300);
 
 		expect(errors).toEqual([]);

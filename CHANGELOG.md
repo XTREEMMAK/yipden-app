@@ -16,6 +16,9 @@ Every notable change to YipDen, newest first. The format follows
   directory format or a webring's ring.json); its people join Discover, labelled with the list's
   name. Lists travel in your backup.
 - **Start on Yips or Discover**, in Settings. YipDen opens on Discover while you follow no one.
+- **Surf and Forums are hidden from Discover**: Discover is people. Following a site or a forum
+  by pasting its address still works. Discover's wording no longer assumes a single webring, and
+  About says plainly: no AI features, no ranking, no accounts, no tracking.
 - **Switch Discover's sources** on or off in Settings: IndieNodes, YipDen's directory, each
   partner ring, each list you added.
 - Optional game build profiles and a separate Games Lab for browser and APK testing. The initial

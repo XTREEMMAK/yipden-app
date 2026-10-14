@@ -1,4 +1,8 @@
+// Surf and the forum index are hidden from Discover (PLACES_IN_DISCOVER, 2026-10-14). These
+// tests come back on with them.
 import { expect, test, type Page } from '@playwright/test';
+
+test.skip(true, 'Surf and the forum index are hidden from Discover (PLACES_IN_DISCOVER).');
 
 /**
  * Discover's Surf side (the sites-surf experiment), against the seed bundled with the app.
@@ -223,7 +227,7 @@ test("a card's picture opens its whole preview, which Close and Back both shut",
 	await expect(surf(page)).toBeVisible();
 });
 
-test.describe('Forums', () => {
+test.describe.skip('Forums', () => {
 	const forumsPanel = (page: Page) => page.getByRole('region', { name: 'Forums' });
 
 	test('lists the forum index, following only what YipDen can read, and saying why not', async ({

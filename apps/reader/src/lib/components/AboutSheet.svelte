@@ -175,7 +175,7 @@
 	</header>
 
 	<div class="body">
-		<p class="intro">A mobile reader for the indie web. Follow people, not platforms.</p>
+		<p class="intro">A Creator Database for your phone. Follow people, not platforms.</p>
 		<nav class="jump" aria-label="About sections">
 			<button type="button" onclick={() => scrollToSection('about-discover')}>Discover</button>
 			<button type="button" onclick={() => scrollToSection('about-posture')}>Posture</button>
@@ -189,11 +189,13 @@
 
 		<section class="about-section" id="about-discover">
 			<p class="eyebrow">How Discover works</p>
-			<h3>A ring, not a ranking.</h3>
+			<h3>People, not a ranking.</h3>
 			<p>
-				Everyone in Discover comes from the IndieNodes webring, a directory of independent creators
-				who chose to be listed. Each day opens on the same member for everyone, and you walk the
-				rest by swiping. Nothing is ranked or recommended.
+				Discover shows creators from the IndieNodes ring, who chose to be listed, and from YipDen’s
+				own directory, which lists creators by hand. Anyone YipDen lists can ask to be removed, and
+				is. Each card says where the person came from. You can add other creator lists, and switch
+				any source off, in Settings. Each day features the same person for everyone, and you walk
+				the rest by swiping. Nothing is ranked or recommended.
 			</p>
 		</section>
 
@@ -201,9 +203,9 @@
 			<p class="eyebrow">Posture</p>
 			<h3>A doorway, not a destination.</h3>
 			<p>
-				Every yip links out to its creator’s own site. Nothing is ranked, and reading never needs an
-				account or a change to anyone’s site. Links you save for later stay on this phone, in your
-				Shelf, until you choose to export them.
+				YipDen has no AI features, no ranking, no accounts and no tracking. Every yip links to the
+				creator who made it, wherever they publish. Reading never needs an account or a change to
+				anyone’s site. Links you save for later stay on this phone until you choose to export them.
 			</p>
 		</section>
 

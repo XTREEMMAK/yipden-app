@@ -40,7 +40,13 @@
 	import { celebrateLike, tick } from '$lib/sound.js';
 	import PartnerRingPanel from '$components/PartnerRingPanel.svelte';
 	import IndexPanel from '$components/IndexPanel.svelte';
-	import { categoryLabel, discover, forumIndex, sites } from '$lib/sites.svelte.js';
+	import {
+		categoryLabel,
+		discover,
+		forumIndex,
+		PLACES_IN_DISCOVER,
+		sites
+	} from '$lib/sites.svelte.js';
 	import Segmented from '$components/Segmented.svelte';
 
 	/**
@@ -222,7 +228,7 @@
 	let ringSheetOpen = $state(false);
 	let ringButton = $state<HTMLButtonElement | undefined>(undefined);
 	let ringSheetClose = $state<HTMLButtonElement | undefined>(undefined);
-	let ringLabel = $derived(partners.selected?.ring.name ?? 'IndieNodes');
+	let ringLabel = $derived(partners.selected?.ring.name ?? 'Everyone');
 
 	/** The ring picker names every ring as a webring, without doubling a name that already says so. */
 	function webringName(name: string): string {
@@ -838,7 +844,7 @@
 						onclick={() => (filterSheetOpen = true)}
 						aria-haspopup="dialog"
 						aria-expanded={filterSheetOpen}
-						aria-label={filtering ? `Filter the ring: ${filterLabel}` : 'Filter the ring'}
+						aria-label={filtering ? `Filter Discover: ${filterLabel}` : 'Filter Discover'}
 					>
 						<svg viewBox="0 0 24 24" aria-hidden="true">
 							<path d="M4 5h16M7 12h10M10 19h4" />
@@ -855,7 +861,7 @@
 							onclick={() => (membersSheetOpen = true)}
 							aria-haspopup="dialog"
 							aria-expanded={membersSheetOpen}
-							aria-label="Browse members"
+							aria-label="Browse people"
 						>
 							<svg viewBox="0 0 24 24" aria-hidden="true">
 								<path d="M4 6h16M4 12h16M4 18h10" />
@@ -871,7 +877,7 @@
 							else ring.shuffle();
 						}}
 						aria-pressed={ring.shuffled}
-						aria-label="Shuffle the ring"
+						aria-label="Shuffle"
 					>
 						<svg viewBox="0 0 24 24" aria-hidden="true">
 							<path d="M3 7h3.5c2 0 3.3 1 4.3 2.6l2.4 4.8C14.2 16 15.5 17 17.5 17H21" />
@@ -1005,11 +1011,11 @@
 		{:else if ring.status !== 'loading'}
 			<div class="body-inner">
 				<span class="glass-chip">Nothing to show</span>
-				<h1 class="hero-name">The ring is quiet.</h1>
+				<h1 class="hero-name">Nobody here yet.</h1>
 				<p class="hero-why">
 					{ring.error
-						? 'Could not reach the ring, and there is no saved copy on this phone yet.'
-						: 'No members matched that filter.'}
+						? 'Could not reach Discover’s sources, and nothing is saved on this phone yet.'
+						: 'Nobody matched that filter.'}
 				</p>
 			</div>
 		{/if}
@@ -1074,12 +1080,12 @@
 		data-noswipe
 		role="dialog"
 		aria-modal="true"
-		aria-label="Filter the ring"
+		aria-label="Filter Discover"
 		in:fly={flyIn({ y: 40 })}
 		out:fly={flyIn({ y: 40 })}
 	>
 		<div class="sheet-head">
-			<h2>Filter the ring</h2>
+			<h2>Filter Discover</h2>
 			<button
 				bind:this={filterSheetClose}
 				class="sheet-close"
@@ -1313,18 +1319,20 @@
 			and forums. A segment rather than one long list, so each stays one tap away however many
 			rings join.
 		-->
-		<div class="sheet-switch">
-			<Segmented
-				label="What to discover"
-				options={[
-					{ value: 'webrings', label: 'Webrings' },
-					{ value: 'surf', label: 'Surf' },
-					{ value: 'forums', label: 'Forums' }
-				]}
-				value={sheetKind}
-				onchange={chooseKind}
-			/>
-		</div>
+		{#if PLACES_IN_DISCOVER}
+			<div class="sheet-switch">
+				<Segmented
+					label="What to discover"
+					options={[
+						{ value: 'webrings', label: 'Webrings' },
+						{ value: 'surf', label: 'Surf' },
+						{ value: 'forums', label: 'Forums' }
+					]}
+					value={sheetKind}
+					onchange={chooseKind}
+				/>
+			</div>
+		{/if}
 		<div
 			class="sheet-body"
 			class:sized={sheetBodySized}
@@ -1340,7 +1348,8 @@
 							onclick={() => chooseRing(null)}
 						>
 							<img class="sheet-icon" src="/ring-icons/indienodes.svg" alt="" />
-							IndieNodes Webring
+							Everyone
+							<small class="sheet-hint">IndieNodes, YipDen and your lists</small>
 						</button>
 						{#each partners.rings as entry (entry.ring.id)}
 							<button
@@ -1419,12 +1428,12 @@
 		data-noswipe
 		role="dialog"
 		aria-modal="true"
-		aria-label="Browse members"
+		aria-label="Browse people"
 		in:fly={flyIn({ y: 40 })}
 		out:fly={flyIn({ y: 40 })}
 	>
 		<div class="sheet-head">
-			<h2>Browse members</h2>
+			<h2>Browse people</h2>
 			<button
 				bind:this={membersSheetClose}
 				class="sheet-close"

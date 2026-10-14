@@ -383,8 +383,8 @@
 				bind:this={back}
 				class="back"
 				onclick={close}
-				aria-label="Back to IndieNodes Webring"
-				title="Back to IndieNodes Webring"
+				aria-label="Back to everyone"
+				title="Back to everyone"
 			>
 				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
 			</button>

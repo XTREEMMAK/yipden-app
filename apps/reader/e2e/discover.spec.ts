@@ -69,7 +69,7 @@ async function withRing(page: Page, body: unknown = RING, status = 200) {
 
 /** Opens the filter sheet and picks one option, same as a reader tapping the Filter button. */
 async function chooseFilter(page: Page, label: string) {
-	await page.getByRole('button', { name: /^Filter the ring/ }).click();
+	await page.getByRole('button', { name: /^Filter Discover/ }).click();
 	await page.getByRole('radio', { name: label, exact: true }).click();
 }
 
@@ -122,9 +122,9 @@ test.describe('Discover', () => {
 
 		await chooseFilter(page, 'Comics');
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Bo Quill');
-		await expect(page.getByRole('button', { name: /^Filter the ring/ })).toHaveAttribute(
+		await expect(page.getByRole('button', { name: /^Filter Discover/ })).toHaveAttribute(
 			'aria-label',
-			'Filter the ring: Comics'
+			'Filter Discover: Comics'
 		);
 	});
 
@@ -164,8 +164,8 @@ test.describe('Discover', () => {
 		page
 	}) => {
 		await page.goto('/');
-		const trigger = page.getByRole('button', { name: /^Filter the ring/ });
-		const sheet = page.getByRole('dialog', { name: 'Filter the ring' });
+		const trigger = page.getByRole('button', { name: /^Filter Discover/ });
+		const sheet = page.getByRole('dialog', { name: 'Filter Discover' });
 
 		await trigger.click();
 		await expect(sheet).toBeVisible();
@@ -183,8 +183,8 @@ test.describe('Discover', () => {
 	test('browses members and jumps straight to the one picked', async ({ page }) => {
 		await page.goto('/');
 		const heading = page.getByRole('heading', { level: 1 });
-		const trigger = page.getByRole('button', { name: 'Browse members' });
-		const sheet = page.getByRole('dialog', { name: 'Browse members' });
+		const trigger = page.getByRole('button', { name: 'Browse people' });
+		const sheet = page.getByRole('dialog', { name: 'Browse people' });
 
 		await trigger.click();
 		await expect(sheet).toBeVisible();
@@ -197,8 +197,8 @@ test.describe('Discover', () => {
 
 	test('the members sheet closes on Escape and returns focus to the trigger', async ({ page }) => {
 		await page.goto('/');
-		const trigger = page.getByRole('button', { name: 'Browse members' });
-		const sheet = page.getByRole('dialog', { name: 'Browse members' });
+		const trigger = page.getByRole('button', { name: 'Browse people' });
+		const sheet = page.getByRole('dialog', { name: 'Browse people' });
 
 		await trigger.click();
 		await expect(sheet).toBeVisible();
@@ -209,7 +209,7 @@ test.describe('Discover', () => {
 
 	test('the shuffle button turns shuffle back off', async ({ page }) => {
 		await page.goto('/');
-		const shuffle = page.getByRole('button', { name: 'Shuffle the ring' });
+		const shuffle = page.getByRole('button', { name: 'Shuffle' });
 
 		await expect(shuffle).toHaveAttribute('aria-pressed', 'false');
 		await shuffle.click();
@@ -296,7 +296,7 @@ test.describe('Discover', () => {
 	test('every control clears the 44px minimum', async ({ page }) => {
 		await page.goto('/');
 
-		for (const name of ['Shuffle the ring', 'Filter the ring', 'Browse members']) {
+		for (const name of ['Shuffle', 'Filter Discover', 'Browse people']) {
 			const box = await page.getByRole('button', { name }).boundingBox();
 			expect(box?.width ?? 0, name).toBeGreaterThanOrEqual(44);
 			expect(box?.height ?? 0, name).toBeGreaterThanOrEqual(44);
@@ -322,8 +322,8 @@ test.describe('Discover with no network', () => {
 		await page.route('https://ring.indienodes.us/ring.json', (route) => route.abort());
 		await page.goto('/');
 
-		await expect(page.getByText('The ring is quiet.')).toBeVisible();
-		await expect(page.getByText(/no saved copy on this phone/)).toBeVisible();
+		await expect(page.getByText('Nobody here yet.')).toBeVisible();
+		await expect(page.getByText(/nothing is saved on this phone yet/)).toBeVisible();
 	});
 
 	test('renders the last good copy when the ring cannot be reached', async ({ page }) => {

@@ -61,14 +61,14 @@ async function withRing(page: Page) {
 }
 
 async function chooseFilter(page: Page, label: string) {
-	await page.getByRole('button', { name: /^Filter the ring/ }).click();
+	await page.getByRole('button', { name: /^Filter Discover/ }).click();
 	await page.getByRole('radio', { name: label, exact: true }).click();
 }
 
-/** Counts members through the Browse members sheet, the replacement for the old node counter. */
+/** Counts members through the Browse people sheet, the replacement for the old node counter. */
 async function expectMemberCount(page: Page, count: number) {
-	await page.getByRole('button', { name: 'Browse members' }).click();
-	const sheet = page.getByRole('dialog', { name: 'Browse members' });
+	await page.getByRole('button', { name: 'Browse people' }).click();
+	const sheet = page.getByRole('dialog', { name: 'Browse people' });
 	await expect(sheet.locator('.sheet-row')).toHaveCount(count);
 	await page.keyboard.press('Escape');
 	await expect(sheet).not.toBeVisible();
@@ -410,16 +410,16 @@ test.describe('partner rings in Discover', () => {
 		await withRing(page);
 		await page.goto('/');
 		await page.getByRole('button', { name: /^What to discover/ }).click();
-		const kind = page.getByRole('radiogroup', { name: 'What to discover' });
-		await expect(kind.getByRole('radio')).toHaveText(['Webrings', 'Surf', 'Forums']);
+		// Surf and Forums are hidden from Discover (2026-10-14): no kind switch, only the rings.
+		await expect(page.getByRole('radiogroup', { name: 'What to discover' })).toHaveCount(0);
 		await expect(page.getByRole('radiogroup', { name: 'Webrings' }).getByRole('radio')).toHaveText([
-			/IndieNodes Webring/
+			/Everyone/
 		]);
 		await page.keyboard.press('Escape');
 
 		// Filtering by category still works and is unaffected: it never depended on a ring
 		// being registered, and the button that opens it says "Filter", not "What to discover".
-		await expect(page.getByRole('button', { name: /^Filter the ring/ })).toBeVisible();
+		await expect(page.getByRole('button', { name: /^Filter Discover/ })).toBeVisible();
 	});
 
 	test.describe('with the fixture ring', () => {
@@ -541,12 +541,12 @@ test.describe('partner rings in Discover', () => {
 		test('the switcher sits next to Shuffle, on its own, not inside Filter', async ({ page }) => {
 			await page.goto('/');
 			const switcher = page.getByRole('button', { name: /^What to discover/ });
-			const shuffle = page.getByRole('button', { name: 'Shuffle the ring' });
+			const shuffle = page.getByRole('button', { name: 'Shuffle' });
 			await expect(switcher).toBeVisible();
-			await expect(switcher).toHaveAttribute('aria-label', 'What to discover: IndieNodes');
+			await expect(switcher).toHaveAttribute('aria-label', 'What to discover: Everyone');
 
 			// Filter opens its own sheet, with no ring choice inside it: the two are separate now.
-			await page.getByRole('button', { name: /^Filter the ring/ }).click();
+			await page.getByRole('button', { name: /^Filter Discover/ }).click();
 			await expect(page.getByRole('radiogroup', { name: 'What to discover' })).toHaveCount(0);
 			await page.keyboard.press('Escape');
 
@@ -570,7 +570,7 @@ test.describe('partner rings in Discover', () => {
 			const panel = page.getByRole('region', { name: 'Fixture Ring members' });
 			// The hero underneath is out of reach while the ring is showing: it cannot take focus.
 			const heroFocusable = await page.evaluate(() =>
-				['Shuffle the ring', 'Filter the ring'].map((label) => {
+				['Shuffle', 'Filter Discover'].map((label) => {
 					const match = [...document.querySelectorAll<HTMLElement>('.discover button')].find(
 						(button) =>
 							!button.closest('.partner') &&
@@ -702,7 +702,7 @@ test.describe('partner rings in Discover', () => {
 			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
 			await expect(panel).toBeVisible();
-			await page.getByRole('button', { name: 'Back to IndieNodes Webring' }).click();
+			await page.getByRole('button', { name: 'Back to everyone' }).click();
 			await expect(panel).toHaveCount(0);
 			expect(await page.evaluate(() => window.history.state?.yipdenRing ?? null)).toBeNull();
 		});
@@ -780,7 +780,7 @@ test.describe('partner rings in Discover', () => {
 			await expect(bar).toHaveClass(/solid/);
 			expect(await bar.evaluate((node) => getComputedStyle(node).backdropFilter)).toBe('none');
 
-			await page.getByRole('button', { name: 'Back to IndieNodes Webring' }).click();
+			await page.getByRole('button', { name: 'Back to everyone' }).click();
 			await expect(drift).not.toHaveClass(/paused/);
 			await expect(bar).not.toHaveClass(/solid/);
 		});
@@ -803,7 +803,7 @@ test.describe('partner rings in Discover', () => {
 			await expectMemberCount(page, 3);
 			await page.getByRole('button', { name: /^What to discover/ }).click();
 			await page.getByRole('radio', { name: /Fixture Ring/ }).click();
-			await page.getByRole('button', { name: 'Back to IndieNodes Webring' }).click();
+			await page.getByRole('button', { name: 'Back to everyone' }).click();
 
 			// Back on the hero, in a ring of three, with the shuffle and swipe untouched.
 			await expect(page.getByRole('heading', { level: 1 })).toBeVisible();

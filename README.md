@@ -22,7 +22,8 @@
 
 One person publishes on their own site, on Bluesky, and on YouTube. YipDen pulls all of it
 into one feed, in the order it was published, with no ranking and no account. Discovery comes
-from the [IndieNodes](https://ring.indienodes.us) webring and other webrings.
+from the [IndieNodes](https://ring.indienodes.us) ring, YipDen's own hand-picked directory of
+creators (any of whom can ask to be removed), partner rings, and creator lists you add yourself.
 
 Creative people are scattered across a site, a Bandcamp, an Instagram and three other places.
 YipDen gathers that into **one profile per creator**, from what their own site says about them
@@ -37,9 +38,9 @@ episode, a track, a new post on a site, a topic on a forum.
 
 ### What is in the app
 
-- **Discover**: the IndieNodes ring and partner rings one creator at a time, plus **Surf**, a
-  visual index of indie sites, and a short list of forums worth knowing. Surf is an early
-  experiment.
+- **Discover**: creators one at a time, from the IndieNodes ring, YipDen's directory, partner
+  rings and lists you add, each card saying where the person came from. Featured today is the
+  same for everyone. "Is this you?" lets anyone YipDen listed ask to be removed or corrected.
 - **Follow**: build your den. One box takes a name or a link and works out whether it is a
   person, a site or a forum. A forum can be followed whole or by category, and a site by its feed.
 - **Yips**: everything in your den, newest first, never ranked. Filter by what kind of thing (all,
