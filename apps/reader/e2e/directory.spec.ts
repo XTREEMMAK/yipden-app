@@ -136,6 +136,24 @@ test.describe('the start page', () => {
 	});
 });
 
+test.describe('pictures', () => {
+	test('a followed person’s avatar is drawn with no referrer, which YouTube’s avatar host needs', async ({
+		page
+	}) => {
+		await routes(page);
+		await page.goto('/');
+		await filterTo(page, 'Watch');
+		await page.getByRole('button', { name: /Follow all/ }).click();
+		await expect(page.getByRole('button', { name: /Following/ })).toBeVisible({ timeout: 15_000 });
+
+		await page.goto('/you');
+		// In the app the page is https://localhost/, and yt3.googleusercontent.com refuses that
+		// referrer (429). A CSS background cannot drop it; an <img> can.
+		const avatar = page.locator('img[src="https://jerichords.carrd.co/assets/images/card.jpg"]');
+		await expect(avatar.first()).toHaveAttribute('referrerpolicy', 'no-referrer');
+	});
+});
+
 test.describe('creator lists a reader adds', () => {
 	test('a list added in Settings brings its people into Discover, labelled with its name', async ({
 		page

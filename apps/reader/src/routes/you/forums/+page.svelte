@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { picture } from '$lib/actions/picture.js';
 	import { goto } from '$app/navigation';
 	import type { ForumCategory } from '@yipden/feeds';
 	import { onMount } from 'svelte';
@@ -117,8 +118,7 @@
 					in:fly={flyIn({ delay: staggerDelay(index) })}
 				>
 					<div class="forum-head">
-						<span class="logo" style:background-image={forum.logoUrl ? `url(${forum.logoUrl})` : ''}
-						></span>
+						<span class="logo" use:picture={forum.logoUrl}></span>
 						<span class="copy">
 							<b id={`forum-${index}`}>{forum.title}</b>
 							<small>{followedLabel(forum)}</small>

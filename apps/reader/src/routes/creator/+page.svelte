@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { picture } from '$lib/actions/picture.js';
 	import { sourceColor } from '$lib/sources.js';
 	import { hostOf } from '$lib/hosts.js';
 	import { onMount } from 'svelte';
@@ -300,21 +301,13 @@
 		</header>
 		<p class="empty">That is not a creator’s address YipDen can open.</p>
 	{:else}
-		<header
-			class="hero"
-			style:background-image={cover ? `url(${cover})` : washFor(key)}
-			in:fly={flyIn()}
-		>
+		<header class="hero" style:background-image={washFor(key)} use:picture={cover} in:fly={flyIn()}>
 			<span class="hero-shade" aria-hidden="true"></span>
 			<button class="back on-art" onclick={back} aria-label="Back">
 				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
 			</button>
 			<div class="who">
-				<span
-					class="avatar"
-					style:background-image={avatar ? `url(${avatar})` : ''}
-					aria-hidden="true"
-				>
+				<span class="avatar" use:picture={avatar} aria-hidden="true">
 					{#if !avatar}
 						<svg viewBox="0 0 24 24"
 							><circle cx="12" cy="9" r="3.6" /><path

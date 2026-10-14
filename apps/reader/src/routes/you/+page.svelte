@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { picture } from '$lib/actions/picture.js';
 	import { games } from 'virtual:yipden-games';
 	import Sheet from '$components/Sheet.svelte';
 	import PersonIcon from '$components/PersonIcon.svelte';
@@ -581,12 +582,7 @@
 							<div class="follow-person">
 								<div class="srow person-row">
 									<a class="person-toggle" href={profileHref(row.person.siteUrl)}>
-										<span
-											class="av"
-											style:background-image={row.person.iconUrl
-												? `url(${row.person.iconUrl})`
-												: ''}
-										></span>
+										<span class="av" use:picture={row.person.iconUrl}></span>
 										<span class="tt">
 											<b>{row.person.name}</b>
 											<small>
@@ -663,10 +659,7 @@
 				-->
 					{#each siteFollows.follows as follow (follow.id)}
 						<a class="srow den-row" href="/you/sites">
-							<span
-								class="av"
-								style:background-image={follow.iconUrl ? `url(${follow.iconUrl})` : ''}
-							></span>
+							<span class="av" use:picture={follow.iconUrl}></span>
 							<span class="tt">
 								<b>{follow.title}</b>
 								<small>Site {'·'} {hostOf(follow.siteUrl)}</small>
@@ -678,8 +671,7 @@
 					{/each}
 					{#each forums.forums as forum (forum.forumUrl)}
 						<a class="srow den-row" href="/you/forums">
-							<span class="av" style:background-image={forum.logoUrl ? `url(${forum.logoUrl})` : ''}
-							></span>
+							<span class="av" use:picture={forum.logoUrl}></span>
 							<span class="tt">
 								<b>{forum.title}</b>
 								<small>Forum {'·'} {hostOf(forum.forumUrl)}</small>

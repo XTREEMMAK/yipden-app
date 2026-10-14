@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { picture } from '$lib/actions/picture.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import { hostOf } from '$lib/hosts.js';
 	import { App } from '@capacitor/app';
@@ -268,7 +269,8 @@
 	>
 		<div
 			class="pl-art"
-			style:background-image={player.artUrl ? `url(${player.artUrl})` : washFor(item.id)}
+			style:background-image={washFor(item.id)}
+			use:picture={player.artUrl}
 			aria-hidden="true"
 		></div>
 		<div class="pl-shade" aria-hidden="true"></div>

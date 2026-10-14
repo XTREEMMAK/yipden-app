@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { picture } from '$lib/actions/picture.js';
 	import Sheet from './Sheet.svelte';
 	import Segmented from './Segmented.svelte';
 	import { feeds, type FeedsScope } from '$lib/feeds.svelte.js';
@@ -216,7 +217,7 @@
 							<span
 								class="sheet-av"
 								class:pic={Boolean(person.iconUrl)}
-								style:background-image={person.iconUrl ? `url(${person.iconUrl})` : ''}
+								use:picture={person.iconUrl}
 								aria-hidden="true"
 							>
 								{#if !person.iconUrl}

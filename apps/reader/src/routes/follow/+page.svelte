@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { picture } from '$lib/actions/picture.js';
 	import { kindLabel } from '$lib/sources.js';
 	import { hostOf } from '$lib/hosts.js';
 	import { goto } from '$app/navigation';
@@ -374,10 +375,7 @@
 						disabled={ring.isFollowing(entry)}
 						onclick={() => chooseRing(entry)}
 					>
-						<span
-							class="match-av"
-							style:background-image={heroImage(entry) ? `url(${heroImage(entry)})` : ''}
-						></span>
+						<span class="match-av" use:picture={heroImage(entry)}></span>
 						<span class="match-copy">
 							<b>{entry.creator}</b>
 							<small>{hostOf(entry.source_url)}</small>
@@ -463,8 +461,7 @@
 				</p>
 			{:else}
 				<div class="person" in:fly={flyIn()}>
-					<span class="av" style:background-image={result.iconUrl ? `url(${result.iconUrl})` : ''}
-					></span>
+					<span class="av" use:picture={result.iconUrl}></span>
 					<span class="person-copy">
 						<b>{personName}</b>
 						<small>
@@ -532,10 +529,7 @@
 			</p>
 		{:else if phase === 'site-followed' && siteFound}
 			<div class="person done" in:fly={flyIn()}>
-				<span
-					class="av"
-					style:background-image={siteFound.iconUrl ? `url(${siteFound.iconUrl})` : ''}
-				></span>
+				<span class="av" use:picture={siteFound.iconUrl}></span>
 				<span class="person-copy">
 					<b>Following {siteFound.title}</b>
 					<small>Saved on this phone</small>
@@ -549,12 +543,7 @@
 			</div>
 		{:else if phase === 'forum' && forumMembersOnly}
 			<div class="person" in:fly={flyIn()}>
-				<span
-					class="av"
-					style:background-image={forumMembersOnly.logoUrl
-						? `url(${forumMembersOnly.logoUrl})`
-						: ''}
-				></span>
+				<span class="av" use:picture={forumMembersOnly.logoUrl}></span>
 				<span class="person-copy">
 					<b>{forumMembersOnly.title}</b>
 					<small>This forum is members-only.</small>
@@ -600,8 +589,7 @@
 			</div>
 		{:else if phase === 'followed' && result}
 			<div class="person done" in:fly={flyIn()}>
-				<span class="av" style:background-image={result.iconUrl ? `url(${result.iconUrl})` : ''}
-				></span>
+				<span class="av" use:picture={result.iconUrl}></span>
 				<span class="person-copy">
 					<b>Following {personName}</b>
 					<small>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { picture } from '$lib/actions/picture.js';
 	import { fade, fly } from 'svelte/transition';
 	import { duration, flyIn, gesture, prefersReducedMotion } from '$lib/motion.js';
 	import { player } from '$lib/player.svelte.js';
@@ -116,7 +117,8 @@
 		in:fade={{ duration: prefersReducedMotion() ? 0 : duration.s }}
 		onclick={() => (player.miniTucked = false)}
 		aria-label={`Show the player: ${item.title}`}
-		style:background-image={player.artUrl ? `url(${player.artUrl})` : washFor(item.id)}
+		style:background-image={washFor(item.id)}
+		use:picture={player.artUrl}
 	>
 		<span class="tucked-glyph" aria-hidden="true">
 			{#if player.playing}
@@ -147,9 +149,7 @@
 			<i style:width={`${progress * 100}%`}></i>
 		</div>
 		<button class="mini-open" onclick={() => player.expand()} aria-label="Open the player">
-			<span
-				class="mthumb"
-				style:background-image={player.artUrl ? `url(${player.artUrl})` : washFor(item.id)}
+			<span class="mthumb" style:background-image={washFor(item.id)} use:picture={player.artUrl}
 			></span>
 			<span class="mini-t">
 				<b>{item.title}</b>

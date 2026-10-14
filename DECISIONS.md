@@ -3893,3 +3893,15 @@ would be a setting that travels nowhere and fixes nothing for anyone else.
   truth and a separate page would only approximate it. A debug build's Discover has **Place cover**
   beside the source line: two sliders move the real hero live, and Copy gives the line to paste.
   Nothing is stored. Release builds drop it with `__YIPDEN_DEBUG__`.
+
+## 2026-10-14: Pictures send no referrer
+
+Followed creators' YouTube avatars were blank on the phone (Jericho George's, first). The Android
+app's pages are `https://localhost/`, and `yt3.googleusercontent.com` answers 429 to that
+referrer and 200 to none, every time. Avatars, logos and small card pictures were CSS
+backgrounds, which always send the page's referrer, so any host that refuses it showed nothing.
+
+They are now `<img referrerpolicy="no-referrer">` through one action, `actions/picture.ts`, which
+keeps each frame's shape and its cover or contain, and sits under whatever else the frame holds.
+The page's own referrer policy stays as it is, because the in-app embeds need one. Discover's hero
+is unchanged: on the phone it already loads its pictures natively.

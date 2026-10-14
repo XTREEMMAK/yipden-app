@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { picture } from '$lib/actions/picture.js';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { fly } from 'svelte/transition';
@@ -66,10 +67,7 @@
 					in:fly={flyIn({ delay: staggerDelay(index) })}
 				>
 					<div class="site-head">
-						<span
-							class="logo"
-							style:background-image={follow.iconUrl ? `url(${follow.iconUrl})` : ''}
-						></span>
+						<span class="logo" use:picture={follow.iconUrl}></span>
 						<span class="copy">
 							<b id={`site-${index}`}>{follow.title}</b>
 							<small>{hostOf(follow.siteUrl)}</small>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { picture } from '$lib/actions/picture.js';
 	import { fly } from 'svelte/transition';
 	import { flyIn } from '$lib/motion.js';
 	import { hostOf } from '$lib/hosts.js';
@@ -372,7 +373,7 @@
 	{#if !diag('noBackdrop')}
 		<div class="backdrop" aria-hidden="true">
 			{#each backdrop as src (src)}
-				<span style:background-image={`url(${CSS.escape(src)})`}></span>
+				<span use:picture={src}></span>
 			{/each}
 		</div>
 	{/if}

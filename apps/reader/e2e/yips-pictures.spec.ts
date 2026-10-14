@@ -89,7 +89,9 @@ test('a big picture on a card is shrunk, a small one is not', async ({ page }) =
 	await page.goto('/feeds');
 	const pane = page.locator('#pane-everything');
 	await expect(pane.locator('.art canvas.pic')).toHaveCount(1, { timeout: 20_000 });
-	await expect(pane.locator('.art span.pic')).toHaveCount(1);
+	// The small one is an <img> sent with no referrer (see picture.ts), not a background.
+	await expect(pane.locator('.art img.pic')).toHaveCount(1);
+	await expect(pane.locator('.art img.pic')).toHaveAttribute('referrerpolicy', 'no-referrer');
 	const [width, height] = await pane
 		.locator('.art canvas.pic')
 		.evaluate((canvas: HTMLCanvasElement) => [canvas.width, canvas.height] as const);

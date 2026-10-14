@@ -50,6 +50,7 @@
 </script>
 
 <script lang="ts">
+	import { picture } from '$lib/actions/picture.js';
 	import { downscaled } from '$lib/actions/downscaled.js';
 	import { onDestroy, tick } from 'svelte';
 	import { diagnostics } from '$lib/diagnostics.svelte.js';
@@ -232,7 +233,7 @@
 			></span>
 			<span class="shade" aria-hidden="true"></span>
 			<span class="top">
-				<span class="top-av" style:background-image={icon ? `url(${icon})` : ''} aria-hidden="true">
+				<span class="top-av" use:picture={icon} aria-hidden="true">
 					{#if !icon}
 						<svg viewBox="0 0 24 24"
 							><circle cx="12" cy="9" r="3.6" /><path
@@ -287,7 +288,7 @@
 			{#if linkedVideo && !concealed && videoArt && !diagNoGlass}
 				<!-- The post's glass: the video behind it, blurred once inside the card. -->
 				<span class="glass" aria-hidden="true"
-					><span class="glass-art" style:background-image={`url(${videoArt})`}></span></span
+					><span class="glass-art" use:picture={videoArt}></span></span
 				>
 			{/if}
 			<!-- The post itself: the whole card, under the buttons drawn over it. -->
@@ -301,7 +302,7 @@
 			<!-- The post: everything a reader sees first, shuffled behind the video when they ask. -->
 			<span class="front">
 				<span class="who">
-					<span class="av" style:background-image={icon ? `url(${icon})` : ''}></span>
+					<span class="av" use:picture={icon}></span>
 					<span class="wn">
 						<b>{authorName}</b>
 						<small>{sourceLabel(yip)} {'·'} {age}</small>
@@ -348,7 +349,7 @@
 				<button
 					bind:this={videoOpen}
 					class="video-open"
-					style:background-image={`url(https://i.ytimg.com/vi/${id}/hqdefault.jpg)`}
+					use:picture={`https://i.ytimg.com/vi/${id}/hqdefault.jpg`}
 					aria-label={`Watch the video ${authorName} shared, on YouTube`}
 					onclick={() => openVideo(linkedVideo!)}
 				>

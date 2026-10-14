@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { picture } from '$lib/actions/picture.js';
 	import type { Forum, ForumCategory } from '@yipden/feeds';
 	import { fly } from 'svelte/transition';
 	import { flyIn } from '$lib/motion.js';
@@ -71,7 +72,7 @@
 </script>
 
 <div class="forum" in:fly={flyIn()}>
-	<span class="logo" style:background-image={forum.logoUrl ? `url(${forum.logoUrl})` : ''}></span>
+	<span class="logo" use:picture={forum.logoUrl}></span>
 	<span class="copy">
 		<b>{forum.title}</b>
 		<small>This is a forum</small>

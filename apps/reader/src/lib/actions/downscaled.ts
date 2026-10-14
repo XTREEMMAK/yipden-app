@@ -75,9 +75,13 @@ export function downscaled(node: HTMLElement, url: string | null) {
 	}
 
 	function plain(src: string): void {
-		const child = document.createElement('span');
+		// An <img> with no referrer, not a background: see `picture.ts` for the host that refuses one.
+		const child = document.createElement('img');
 		child.className = 'pic';
-		child.style.backgroundImage = `url("${src.replace(/"/g, '%22')}")`;
+		child.alt = '';
+		child.referrerPolicy = 'no-referrer';
+		child.decoding = 'async';
+		child.src = src;
 		show(child);
 	}
 

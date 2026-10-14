@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { picture } from '$lib/actions/picture.js';
 	import { relativeAge } from '$lib/feeds.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
 	import { siteFollows, type DigestUpdate } from '$lib/siteFollows.svelte.js';
@@ -32,7 +33,7 @@
 	aria-label={`${record.title}. From ${update.siteTitle}, ${age}. Opens on ${hostOf(record.url)}.`}
 >
 	<span class="src">
-		<span class="icon" style:background-image={update.iconUrl ? `url(${update.iconUrl})` : ''}>
+		<span class="icon" use:picture={update.iconUrl}>
 			{#if !update.iconUrl}<span aria-hidden="true">{initial}</span>{/if}
 		</span>
 		<span class="chip">Site</span>

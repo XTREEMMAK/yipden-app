@@ -120,6 +120,10 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Fixed
 
+- YouTube channel avatars were blank in the Android app: YouTube's picture host refuses the
+  app's `https://localhost/` referrer. Avatars, logos and small card pictures are now drawn as
+  images sent with no referrer.
+
 - A followed person's picture shows in You when their profile finds a better one than the icon
   stored for them, instead of the profile showing it and You never doing so.
 - In a car or on the lock screen, the scrubber moves the track, Play plays (it could pause), and

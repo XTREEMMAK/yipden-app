@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { picture } from '$lib/actions/picture.js';
 	import type { RingEntry } from '@yipden/ring-client';
 	import { player } from '$lib/player.svelte.js';
 	import { ringPlayer } from '$lib/ringPlayer.svelte.js';
@@ -35,7 +36,8 @@
 		class="art"
 		class:is-current={isCurrent}
 		onclick={onPlay}
-		style:background-image={entry.thumb_url ? `url(${entry.thumb_url})` : washFor(entry.id)}
+		style:background-image={washFor(entry.id)}
+		use:picture={entry.thumb_url}
 		aria-label={isCurrent
 			? `${player.playing ? 'Pause' : 'Play'} ${entry.creator}`
 			: `Play ${entry.creator}`}

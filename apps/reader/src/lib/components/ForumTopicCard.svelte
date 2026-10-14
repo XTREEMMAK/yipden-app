@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { picture } from '$lib/actions/picture.js';
 	import { relativeAge } from '$lib/feeds.svelte.js';
 	import { forums, type DigestTopic } from '$lib/forums.svelte.js';
 	import { openExternal } from '$lib/platform/external.js';
@@ -42,7 +43,7 @@
 	aria-label={`${record.title}. ${what}, ${age}. ${source}. Opens on the forum.`}
 >
 	<span class="src">
-		<span class="icon" style:background-image={topic.logoUrl ? `url(${topic.logoUrl})` : ''}>
+		<span class="icon" use:picture={topic.logoUrl}>
 			{#if !topic.logoUrl}<span aria-hidden="true"
 					>{topic.forumTitle.trim().charAt(0).toUpperCase() || '?'}</span
 				>{/if}
