@@ -3771,3 +3771,72 @@ Surf cards are shorter (16:9 art, three-line blurbs and three visible tags), spa
 held whole for 24px of scroll before the exit fold begins. The full preview carries the longer
 metadata. The hold is a Surf-only option on the shared card stack, so Feeds and Forums keep their
 existing motion.
+
+## 2026-10-14: People-first discovery; YipDen is a creator reader, and Yip Realm leaves
+
+The brief is [docs/briefs/people-first.md](docs/briefs/people-first.md). It amends the v0.9 brief,
+and so do the answers below, given with a reviewer's two points in mind: YipDen risked becoming a
+walled garden, and it was trying to do too much (forums especially).
+
+**Identity.** YipDen is a Creator Database: "Follow people, not platforms." It is creator-focused,
+not a general indie-web tool, and a client of IndieNodes with a wider reach to the same audience,
+not a competitor. "Mobile Friendly IndieWeb Surfing Tool" is retired.
+
+**The rule changes.** "Public pages/discovery only for people who opted in (ring members)" becomes:
+
+> Discovery lists ring members (opted in) and creators curated by YipDen (listed with an opt-out).
+> Opt-outs are enforced in code and honored everywhere. Paste-a-link follows stay private to the
+> device.
+
+The curated directory lists a creator after contacting them privately and waiting 14 days without
+an objection, or after a yes. Only feeds a creator already publishes are listed, and their own
+images, never re-hosted. The basis for listing someone who did not answer is legitimate interest,
+not consent, which is why contact first and an always-honored opt-out are part of the rule.
+
+**Where we differ from the brief, on purpose:**
+
+- **Readers can add creator lists** (the walled-garden answer): a list in YipDen's directory format
+  or an IndieNodes-style `ring.json`, by URL, labelled "From <list name>", carried in the backup.
+  The brief left shared lists out of scope. Onionring lists and HTML members pages wait until
+  someone asks: each is its own fragile parser, and the likely use is other creator lists.
+- **YipDen's opt-out list applies to every source**, added lists included, so republishing a list
+  cannot get around an opt-out.
+- **Partner rings stay as sources**, each with its own toggle, and the ring switcher in Discover
+  stays. The Homebrew Webring was removed (2026-10-14): its members are hobby sites, not creators.
+- **Surf and Forums are hidden from Discover**; following a site or a forum by pasted link stays.
+- **Removals are moderated**, not automatic: requests reach the maintainer through n8n, and an
+  approved removal runs `directory:optout`. The brief said "no questions asked"; the request is
+  still honored, after a check that it is not someone unlisting a creator they dislike.
+- **"Is this you?"** offers remove, correct, "Yes, that's me" (confirmed, an opt-in that needs no
+  website), and "Join IndieNodes" only for a listing with a website, since membership needs a site
+  and the widget. The page lives in yipden-web (11ty, served from the maintainer's server).
+- **The Settings gear stays on You only**, and **About stays a sheet**, rewritten with the brief's
+  statements. **No auto-advance**: the 2026-09-24 decision stands.
+- **The new person type is `Person` inside `packages/directory`**, always imported as
+  `DirectoryPerson` in the app, because the stored followed-person is already `Person`.
+- **It ships in 0.9.0**, delaying signing and the listing.
+
+**Two caveats, written down so nobody claims more than is true:**
+
+- `optouts.json` holds SHA-256 hashes so it cannot be read as a list of names. It does not stop
+  someone who already suspects a person from hashing their address and checking. The app must be
+  able to check the list, so the hash cannot be secret; the real protection is that an opt-out
+  deletes the entry before anything is published, and the app's check is a backstop.
+- Every known form of a person is hashed (site with and without `www`, feed, Bluesky handle and
+  account ID, Mastodon `user@server` and profile URL, YouTube handle and channel ID), or a
+  re-listing under another form would slip through.
+
+**A test seed.** Jericho George (public details only) is the directory's test seed: unit-test
+fixture and debug builds only. A release build fails if the test seed is in it, and
+`directory:check` refuses its entries in the published list. He is listed for real only after
+being contacted and the 14 days passing.
+
+**The games.** Yip Realm (Realm, retitled) leaves this repository for its own, `yiprealm`: it is
+its own product, needs its own licence for FMOD, and a combat game would change the reader's store
+rating. YipDen will launch it when installed. The Stray stays, as the reader's discovery game:
+IndieNodes members (disclosed at their signup), confirmed creators, and curated creators who have
+not opted out of the games; never partner ring members or people from a reader's added lists.
+
+**Later, out of this change:** importing follows from YouTube, Bluesky or Mastodon accounts;
+onionring and HTML lists; ownership proofs for "Yes, that's me" (verified by hand for now); a
+server-side removal form; the Stray's games-only opt-out, which ships with the game.

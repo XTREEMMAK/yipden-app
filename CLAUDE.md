@@ -32,6 +32,12 @@ fixtures in `src/lib/partner/test-fixtures/`; restore them with `git checkout` i
 - A person, a site and a forum are different records (people from the ring, places from the sites
   index). Never turn a site into a person automatically; "made by" comes from evidence only.
 - What a reader follows is a **den**; what it shares is a **yip**; the tab is **Yips**.
+- `packages/directory` exports a `Person` (a person as a directory or ring lists them). The app's
+  stored followed-person is also `Person`, so in the app always import the directory's as
+  `import type { Person as DirectoryPerson } from '@yipden/directory'`.
+- Discovery lists ring members and creators curated with an opt-out (DECISIONS.md, 2026-10-14).
+  The opt-out list applies to every source. A test seed (Jericho George) is for tests and debug
+  builds only; a release must never contain it.
 - Surf's bundled seed is debug-only. A release (`pnpm build`) must hold none of it, and
   `scripts/strip-surf-seed.mjs` fails the build if it does.
 

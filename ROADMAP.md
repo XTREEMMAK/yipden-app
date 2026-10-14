@@ -109,6 +109,34 @@ Still open from this batch:
 Decided 2026-09-28: no dedicated IndieNodes posture page, in this app or its marketing site. About's
 own paragraph is where that information lives, permanently, not a placeholder for one.
 
+## Now: people-first discovery (approved 2026-10-14), then the 0.9.0 release
+
+The plan, in order; the reasons are in DECISIONS.md, 2026-10-14. Each phase is committed after
+typecheck, lint, tests and the directory checks pass.
+
+0. **Record and push.** Done 2026-10-14.
+1. **Split out Yip Realm** into `yiprealm` (private, no licence file until one is chosen; Android
+   ID `com.yipden.yiprealm`), with history: `realm-core`, `realm-player`, `realm-editor`,
+   `apps/realm-editor`, Games Lab, the games tooling, workflow and docs, and copies of
+   `game-contracts` and `game-host`. Checkpoint, then remove Realm from here (The Stray stays).
+2. **`packages/directory`**, tests first: types, sources, shared loading, identifiers and hashing,
+   dedupe, rotation and filters. Fixtures: the real `ring.json`, an opted-out sample, the test seed.
+3. **`directory/`**: `people.json` (empty until a creator's 14 days pass), `optouts.json`, schemas,
+   README, the test seed and its release check, and `directory:check`, `:resolve`, `:optout`, with
+   a workflow n8n can trigger.
+4. **Creator lists a reader adds** (directory format and `ring.json`).
+5. **Settings, storage and start page**, in the backup.
+6. **Discover on the merged list**: Featured today, source labels, "Is this you?", filters; Surf
+   and Forums hidden. Checkpoint: a numbered APK.
+7. **Copy pass**: app strings, the About sheet, README.
+8. **yipden-web**: the form's "Yes, that's me" and "Join IndieNodes", the n8n workflow and its
+   runbook; the design in its own session.
+9. **Verify**, then the release gate below. The listing needs yipden.com live with a reviewed
+   privacy policy.
+
+Outside the code: deploy yipden.com and its n8n webhook and Turnstile keys; contact Jericho
+George; choose Yip Realm's licence; add the games disclosure to IndieNodes' signup.
+
 ## Now: known problems
 
 ### 1. Waveforms never draw (fixed in the browser 2026-09-24; device check and one limit left)
