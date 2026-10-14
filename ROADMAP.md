@@ -131,8 +131,10 @@ typecheck, lint, tests and the directory checks pass.
    and Forums hidden. Built 2026-10-14.
    Checkpoint: a numbered APK.
 7. **Copy pass**: app strings, the About sheet, README. Done 2026-10-14.
-8. **yipden-web**: the form's "Yes, that's me" and "Join IndieNodes", the n8n workflow and its
-   runbook; the design in its own session.
+8. **yipden-web**: the form's "Yes, that's me" and "Join IndieNodes" (done 2026-10-14), the
+   directory files served live from this repository's `main` through Caddy (done 2026-10-14), the
+   n8n workflow and its runbook (waiting on the n8n specifics: notification channel, storage,
+   GitHub token); the design in its own session.
 9. **Verify**, then the release gate below. The listing needs yipden.com live with a reviewed
    privacy policy.
 
