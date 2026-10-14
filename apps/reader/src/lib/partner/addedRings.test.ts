@@ -6,7 +6,6 @@ import { webringTheMusicSource } from './webringTheMusic.js';
 import { smallwayComicsSource } from './smallwayComics.js';
 import { inkShrinesSource } from './inkShrines.js';
 import { webcomicQuestSource } from './webcomicQuest.js';
-import { homebrewSource } from './homebrewWebring.js';
 
 /**
  * The five rings added on 2026-10-07, each against a real capture of its own page or file (taken
@@ -90,23 +89,5 @@ describe('WebcomicQuest, from its member gallery', () => {
 			url: 'https://titancomic.net/'
 		});
 		expect(ring.members[0]?.thumbUrl).toMatch(/^https:\/\/webcomic\.quest\//);
-	});
-});
-
-describe('The Homebrew Webring, from members.json', () => {
-	const ring = readPartnerRing(homebrewSource.adapter, capture('homebrew-members.json'));
-
-	it('reads each member with their button and their own words', () => {
-		expect(ring.members).toHaveLength(63);
-		expect(ring.members[0]).toMatchObject({
-			name: 'beigestack',
-			url: 'https://maniksharma.xyz/',
-			thumbUrl: 'https://homebrew.cresentri.com/buttons/65.png'
-		});
-	});
-
-	it('reads nothing from a document that is not its JSON, rather than throwing', () => {
-		expect(homebrewSource.adapter.read('<html>')).toEqual([]);
-		expect(homebrewSource.adapter.read('{"members": 3}')).toEqual([]);
 	});
 });

@@ -23,6 +23,8 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Changed
 
+- The Homebrew Webring is no longer a built-in partner ring: Discover now lists creators, and its
+  members are console-modding hobby sites rather than creators' work.
 - Surf is defined as a curated index of sites, distinct from people, pages and hosting platforms.
   Anyone may nominate a basic listing, while stored captures require owner approval. Cards are
   shorter and wait before folding; full previews carry hosting and verified-maker details; and

@@ -68,7 +68,6 @@ export async function partnerSources(): Promise<PartnerSource[]> {
 		sources.push((await import('./smallwayComics.js')).smallwayComicsSource);
 		sources.push((await import('./inkShrines.js')).inkShrinesSource);
 		sources.push((await import('./webcomicQuest.js')).webcomicQuestSource);
-		sources.push((await import('./homebrewWebring.js')).homebrewSource);
 	}
 
 	return sources;

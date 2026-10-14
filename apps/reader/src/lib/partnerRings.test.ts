@@ -207,8 +207,7 @@ describe('the registry', () => {
 			'webringthemusic',
 			'smallway-comics',
 			'ink-shrines',
-			'webcomic-quest',
-			'homebrew-webring'
+			'webcomic-quest'
 		]);
 	});
 
