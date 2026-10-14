@@ -28,7 +28,9 @@ says nothing about anyone.
 3. **Only list what they already publish**: their site, and feeds they publish publicly. No
    scraping beyond the feed discovery `packages/feeds` already does.
 4. **Imagery is their own** (`thumb_url` from their site, avatar or feed image), never re-hosted
-   or edited.
+   or edited. Where it is cropped is ours to choose: in a debug build of the app, add the entry to
+   the test seed or a list, open them in Discover, press **Place cover**, and paste the
+   `thumb_position` it gives (percent from the left and the top) into their entry.
 5. Add the entry to `people.json` (see the schema), then:
 
 ```bash

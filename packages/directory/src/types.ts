@@ -65,6 +65,7 @@ export interface DirectoryEntry {
 	name: string;
 	note?: string;
 	thumb_url?: string;
+	/** Where the cover crop is anchored, in percent (as the ring's own `thumb_position`). */
 	thumb_position?: { x: number; y: number };
 	tags?: string[];
 	type?: string;

@@ -69,6 +69,26 @@ test.describe('Discover’s people', () => {
 		await expect(list.getByText('Opted Out Example')).toHaveCount(0);
 	});
 
+	test('a debug build places a cover live and gives the line to paste', async ({ page }) => {
+		await routes(page);
+		await page.goto('/');
+		await filterTo(page, 'Watch');
+		await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Jericho George/);
+		await page.getByRole('button', { name: 'Place cover' }).click();
+
+		const panel = page.getByRole('group', { name: /Place Jericho George.s cover/ });
+		// Starts from the listing's own position (the seed's), not the centre.
+		await expect(panel.locator('code')).toHaveText('"thumb_position": { "x": 78, "y": 35 }');
+		await panel.getByRole('slider').first().fill('20');
+		await expect(panel.locator('code')).toHaveText('"thumb_position": { "x": 20, "y": 35 }');
+		await panel.getByRole('button', { name: 'Centre' }).click();
+		await expect(panel.locator('code')).toHaveText('"thumb_position": { "x": 50, "y": 50 }');
+
+		await panel.getByRole('button', { name: 'Done' }).click();
+		await expect(panel).toHaveCount(0);
+		await expect(page.getByRole('button', { name: 'Place cover' })).toBeVisible();
+	});
+
 	test('a ring member says so, and offers no removal link', async ({ page }) => {
 		await routes(page);
 		await page.goto('/');

@@ -8,6 +8,9 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- Directory entries can say where their cover is cropped (`thumb_position`, in percent as the
+  ring's), so a face is not cropped off on a phone. Jericho George's test entry shows his face.
+
 - **People-first Discover.** Discover walks the IndieNodes ring and YipDen's own directory of
   creators together, one card per person, each saying where they came from ("IndieNodes member",
   "Listed by YipDen"). A creator YipDen listed can tap "Is this you?" to ask to be removed or

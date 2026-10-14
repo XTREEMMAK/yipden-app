@@ -28,6 +28,22 @@ describe('a directory document', () => {
 		expect(repaired.filter((entry) => entry.id === 'bad-thumb')).toHaveLength(2);
 	});
 
+	it('reads a cover position in percent, as the ring does, and drops one out of range', () => {
+		const entry = (id: string, thumb_position: unknown) => ({
+			id,
+			name: id,
+			site_url: `https://${id}.example.com/`,
+			thumb_position
+		});
+		const { document, repaired } = validateDirectory({
+			version: '1.0',
+			entries: [entry('placed', { x: 78, y: 35 }), entry('too-far', { x: 140, y: 50 })]
+		});
+		expect(document.entries[0]?.thumb_position).toEqual({ x: 78, y: 35 });
+		expect(document.entries[1]?.thumb_position).toBeUndefined();
+		expect(repaired.map((r) => r.id)).toEqual(['too-far']);
+	});
+
 	it('accepts a person with no website, and keeps fields it does not know', () => {
 		const only = document.entries.find((entry) => entry.id === 'bluesky-only')!;
 		expect(only.site_url).toBeUndefined();

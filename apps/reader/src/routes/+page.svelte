@@ -18,7 +18,8 @@
 		type RingFilterKey
 	} from '$lib/ring.svelte.js';
 	import { REMOVAL_URL } from '$lib/config.js';
-	import { heroImage, layoutOf } from '@yipden/ring-client';
+	import { heroImage, layoutOf, type RingFocalPoint } from '@yipden/ring-client';
+	import CoverPlacement from '$components/CoverPlacement.svelte';
 	import { followRingEntry } from '$lib/follow.js';
 	import { toast } from '$lib/toast.svelte.js';
 	import Toast from '$components/Toast.svelte';
@@ -67,6 +68,21 @@
 	let surfing = $derived(place !== null);
 	/** Anything covering the hero: a partner ring, or Surf. */
 	let heroCovered = $derived(partners.selected !== null || surfing);
+	/** Debug builds: the cover's focal point being placed (CoverPlacement), shown live in the hero. */
+	let placing = $state<RingFocalPoint | null>(null);
+	let placingId = $state<string | null>(null);
+	$effect(() => {
+		// A different person (a swipe, a filter) ends the placement: it belonged to the last one.
+		if (placingId !== null && ring.current?.id !== placingId) {
+			placing = null;
+			placingId = null;
+		}
+	});
+	function startPlacing() {
+		if (!ring.current) return;
+		placing = { ...(ring.current.thumb_position ?? { x: 50, y: 50 }) };
+		placingId = ring.current.id;
+	}
 	let fetchingCurrent = $derived(
 		ring.current ? feeds.fetching.has(`ring:${ring.current.id}`) : false
 	);
@@ -732,7 +748,7 @@
 		src={ring.heroImage}
 		wash={washFor(ring.current?.id ?? 'yipden')}
 		washColor={washColorFor(ring.current?.id ?? 'yipden')}
-		focal={ring.current?.thumb_position}
+		focal={placing ?? ring.current?.thumb_position}
 		direction={navDirection}
 		dragFraction={navFraction}
 		preload={neighbourPhotos}
@@ -745,7 +761,23 @@
 		</div>
 	{/if}
 
-	<header class="top" class:over-surf={surfing} inert={partners.selected !== null}>
+	{#if __YIPDEN_DEBUG__ && placing && ring.current}
+		<CoverPlacement
+			bind:point={placing}
+			name={ring.current.creator}
+			onDone={() => {
+				placing = null;
+				placingId = null;
+			}}
+		/>
+	{/if}
+
+	<header
+		class="top"
+		class:over-surf={surfing}
+		class:placing={placing !== null}
+		inert={partners.selected !== null || placing !== null}
+	>
 		{#if place && place.searchOpen}
 			<!-- Surf's search takes the whole bar while it is open, and gives it back on close. -->
 			<div class="surf-search">
@@ -927,6 +959,9 @@
 									aria-label={`Is this you, ${ring.current.creator}? Ask to be removed or corrected`}
 									>Is this you?</button
 								>
+							{/if}
+							{#if __YIPDEN_DEBUG__ && ring.heroImage && !placing}
+								<button class="is-you" use:tap={startPlacing}>Place cover</button>
 							{/if}
 						</p>
 					{/if}
@@ -1822,6 +1857,10 @@
 		margin: 0;
 		color: rgba(255, 255, 255, 0.78);
 		font-size: 13px;
+	}
+
+	.top.placing {
+		visibility: hidden;
 	}
 
 	.is-you {

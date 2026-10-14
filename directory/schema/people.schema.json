@@ -64,14 +64,15 @@
             "x": {
               "type": "number",
               "minimum": 0,
-              "maximum": 1
+              "maximum": 100
             },
             "y": {
               "type": "number",
               "minimum": 0,
-              "maximum": 1
+              "maximum": 100
             }
-          }
+          },
+          "description": "Where the cover crop is anchored, in percent from the left and the top, as the IndieNodes ring's thumb_position. Place it with a debug build's Place cover."
         },
         "tags": {
           "type": "array",

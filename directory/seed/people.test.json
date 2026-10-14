@@ -9,6 +9,7 @@
       "note": "Video game music, tech insights and streams, gathered on one page.",
       "site_url": "https://jerichords.carrd.co/",
       "thumb_url": "https://jerichords.carrd.co/assets/images/card.jpg",
+      "thumb_position": { "x": 78, "y": 35 },
       "tags": ["video-game-music", "composer"],
       "feeds": [
         {

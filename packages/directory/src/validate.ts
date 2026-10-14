@@ -91,12 +91,12 @@ export function validateDirectory(json: unknown): DirectoryValidation {
 				typeof position.x === 'number' &&
 				typeof position.y === 'number' &&
 				position.x >= 0 &&
-				position.x <= 1 &&
+				position.x <= 100 &&
 				position.y >= 0 &&
-				position.y <= 1;
+				position.y <= 100;
 			if (!ok) {
 				delete entry.thumb_position;
-				repair('thumb_position must be x and y between 0 and 1');
+				repair('thumb_position must be x and y between 0 and 100 (percent)');
 			}
 		}
 		entry.tags = Array.isArray(raw.tags)

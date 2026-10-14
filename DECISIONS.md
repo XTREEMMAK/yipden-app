@@ -3877,3 +3877,19 @@ server-side removal form; the Stray's games-only opt-out, which ships with the g
 - **Discover's first card waits, up to three seconds, for every source**, so "Featured today" is
   picked from everyone and is the same person on every launch (it was the ring's pick when the
   directory answered second). Discover shows its loader meanwhile, never "Nobody here yet".
+
+## 2026-10-14: Where a cover is placed, and who says so
+
+A cover is cropped hard: on a 390px phone the hero shows about a quarter of a wide picture, so a
+centred crop of Jericho George's card showed only a shoulder. Where the crop sits is set by
+`thumb_position`, and **the listing's own source is the authority**: a ring member sets theirs in
+IndieNodes (its join and update pages already have the editor), a directory entry has it in
+`people.json`, and an added list in its own file. A reader cannot move someone's picture: that
+would be a setting that travels nowhere and fixes nothing for anyone else.
+
+- The directory's `thumb_position` is **percent (0 to 100)**, as the ring's. It was 0 to 1, which
+  the hero would have read as the top-left corner; `people.json` was empty, so nothing moved.
+- **Preview** is in the app, because the app's crop (oversized, drifting, CSS then WebGL) is the
+  truth and a separate page would only approximate it. A debug build's Discover has **Place cover**
+  beside the source line: two sliders move the real hero live, and Copy gives the line to paste.
+  Nothing is stored. Release builds drop it with `__YIPDEN_DEBUG__`.
