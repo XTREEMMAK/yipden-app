@@ -17,6 +17,13 @@ export interface Person {
 	thumbUrl?: string;
 	thumbPosition?: { x: number; y: number };
 	tags: string[];
+	/**
+	 * What they make, in the ring's own words (`audio`, `comic`, `art`, `text`, `game`), and for
+	 * audio whether it is `music` or `spoken`: the same values Discover's chips filter ring members
+	 * by. Optional in the directory.
+	 */
+	type?: string;
+	form?: string;
 	siteUrl?: string;
 	feeds: PersonFeed[];
 	tracks?: { label: string; mediaUrl: string }[];
@@ -60,6 +67,8 @@ export interface DirectoryEntry {
 	thumb_url?: string;
 	thumb_position?: { x: number; y: number };
 	tags?: string[];
+	type?: string;
+	form?: string;
 	site_url?: string;
 	feeds?: { type: string; url: string; verified?: boolean }[];
 	tracks?: { label: string; media_url: string }[];

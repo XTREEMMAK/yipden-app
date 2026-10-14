@@ -45,7 +45,10 @@ const SETTING_KEYS: SettingKey[] = [
 	'sitesInApp',
 	'explored',
 	'layoutOverrides',
-	'forumQuietDays'
+	'forumQuietDays',
+	'startOn',
+	'discoverSources',
+	'addedLists'
 ];
 
 export interface YipDenBackup {
@@ -185,6 +188,42 @@ function readerTrackList(entry: unknown): entry is ReaderTrack[] {
 }
 
 /** Restored by merging into what is already here; this phone's own entry wins a clash. */
+/**
+ * Settings a backup carries that need checking first, since a backup file is untrusted. Each
+ * returns what to store (merged with what this phone already has), or null to skip it.
+ */
+const CHECKED_SETTINGS: Partial<
+	Record<SettingKey, (incoming: unknown, current: unknown) => unknown>
+> = {
+	startOn: (incoming) => (incoming === 'yips' || incoming === 'discover' ? incoming : null),
+	discoverSources: (incoming, current) => {
+		if (!record(incoming)) return null;
+		const valid = Object.fromEntries(
+			Object.entries(incoming).filter(
+				([key, value]) => key.length <= 120 && typeof value === 'boolean'
+			)
+		);
+		// A switch set on this phone stays as set here.
+		return { ...valid, ...(record(current) ? current : {}) };
+	},
+	addedLists: (incoming, current) => {
+		if (!Array.isArray(incoming)) return null;
+		const valid = incoming.filter(
+			(list): list is Record<string, unknown> =>
+				record(list) &&
+				typeof list.id === 'string' &&
+				/^[a-z0-9-]{1,60}$/.test(list.id) &&
+				text(list.name, 80) &&
+				https(list.url) &&
+				(list.format === 'directory' || list.format === 'ring') &&
+				text(list.addedAt, 100)
+		);
+		const mine = Array.isArray(current) ? (current as Array<{ id: string }>) : [];
+		const have = new Set(mine.map((list) => list.id));
+		return [...mine, ...valid.filter((list) => !have.has(list.id as string))].slice(0, 50);
+	}
+};
+
 const MERGED_SETTINGS = {
 	explored: exploredAt,
 	layoutOverrides: siteLayout
@@ -789,6 +828,14 @@ export async function restoreBackup(
 			const current =
 				creatorMap(await store.getSetting(key), (entry): entry is unknown => valid(entry)) ?? {};
 			await store.setSetting(key, { ...incoming, ...current });
+			report.settingsRestored += 1;
+			continue;
+		}
+		const check = CHECKED_SETTINGS[key];
+		if (check) {
+			const value = check(backup.settings[key], await store.getSetting(key));
+			if (value === null) continue;
+			await store.setSetting(key, value);
 			report.settingsRestored += 1;
 			continue;
 		}

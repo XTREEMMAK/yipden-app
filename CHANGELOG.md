@@ -8,6 +8,16 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- **People-first Discover.** Discover walks the IndieNodes ring and YipDen's own directory of
+  creators together, one card per person, each saying where they came from ("IndieNodes member",
+  "Listed by YipDen"). A creator YipDen listed can tap "Is this you?" to ask to be removed or
+  corrected. "Featured today" is drawn from everyone. Filters add Posts, Watch and Listen, and tags.
+- **Creator lists you add.** In Settings, add a list of creators by its address (YipDen's
+  directory format or a webring's ring.json); its people join Discover, labelled with the list's
+  name. Lists travel in your backup.
+- **Start on Yips or Discover**, in Settings. YipDen opens on Discover while you follow no one.
+- **Switch Discover's sources** on or off in Settings: IndieNodes, YipDen's directory, each
+  partner ring, each list you added.
 - Optional game build profiles and a separate Games Lab for browser and APK testing. The initial
   Realm and Stray entries are player scaffolds; the supplied Realm prototype can be opened as a
   lab-only reference. Reader builds default to thin with no game implementations or assets.

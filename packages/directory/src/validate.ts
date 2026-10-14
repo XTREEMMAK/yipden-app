@@ -117,6 +117,15 @@ export function validateDirectory(json: unknown): DirectoryValidation {
 			delete entry.listing;
 			repair('listing must be curated or confirmed');
 		}
+		for (const field of ['type', 'form'] as const) {
+			if (raw[field] === undefined) continue;
+			const value = text(raw[field], 40);
+			if (value) entry[field] = value.toLowerCase();
+			else {
+				delete entry[field];
+				repair(`${field} must be a short word`);
+			}
+		}
 		if (raw.discoverable !== undefined && typeof raw.discoverable !== 'boolean') {
 			delete entry.discoverable;
 			repair('discoverable must be true or false');

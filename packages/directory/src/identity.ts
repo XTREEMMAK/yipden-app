@@ -6,7 +6,9 @@ import { safeUrl } from '@yipden/ring-client';
  *
  * Each identity is a short `kind:value` string:
  *
- * - `url:example.com/path`: any address, host lowercased, `www.` and a trailing slash dropped
+ * - `url:example.com/path?query`: any address, host lowercased, `www.` and a trailing slash
+ *   dropped; its query kept (sorted, tracking parameters left out), since a query can be the
+ *   whole difference between two people (YouTube's feeds differ only by `channel_id`)
  * - `bsky:handle` or `bsky:did:plc:…`: a Bluesky account
  * - `youtube:@handle` or `youtube:UC…`: a YouTube channel, by handle or by channel ID
  * - `fedi:user@host`: a Mastodon (or other fediverse) account
@@ -28,12 +30,21 @@ function barePath(url: URL): string {
 	return path === '' ? '' : path;
 }
 
+/** The query that tells one address from another: sorted, with tracking parameters left out. */
+function bareQuery(url: URL): string {
+	const params = [...url.searchParams]
+		.filter(([key]) => !/^(utm_|fbclid$|gclid$|ref$|ref_src$)/i.test(key))
+		.sort(([a, av], [b, bv]) => (a === b ? av.localeCompare(bv) : a.localeCompare(b)));
+	if (!params.length) return '';
+	return `?${new URLSearchParams(params).toString()}`;
+}
+
 /** Every identity an address stands for: always its `url:` form, plus a platform form if any. */
 export function identitiesOfUrl(raw: string): string[] {
 	const url = safeUrl(raw);
 	if (!url) return [];
 	const host = bareHost(url);
-	const out = new Set<string>([`url:${host}${barePath(url)}`]);
+	const out = new Set<string>([`url:${host}${barePath(url)}${bareQuery(url)}`]);
 	const parts = url.pathname.split('/').filter(Boolean);
 
 	if (YOUTUBE_HOSTS.has(host)) {
@@ -41,10 +52,7 @@ export function identitiesOfUrl(raw: string): string[] {
 		if (first.startsWith('@')) out.add(`youtube:${first.toLowerCase()}`);
 		if (first === 'channel' && parts[1]) out.add(`youtube:${parts[1]}`);
 		const channelId = url.searchParams.get('channel_id');
-		if (first === 'feeds' && channelId) {
-			out.add(`youtube:${channelId}`);
-			out.add(`url:${host}/feeds/videos.xml?channel_id=${channelId}`);
-		}
+		if (first === 'feeds' && channelId) out.add(`youtube:${channelId}`);
 	} else if (BLUESKY_HOSTS.has(host)) {
 		if (parts[0] === 'profile' && parts[1]) out.add(`bsky:${parts[1].toLowerCase()}`);
 	} else if (parts.length >= 1 && parts[0]!.startsWith('@') && parts[0]!.length > 1) {
@@ -109,4 +117,29 @@ export async function hashIdentity(identity: string): Promise<string> {
 	const bytes = new TextEncoder().encode(`yipden-optout-v1:${identity}`);
 	const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
 	return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Where to send someone who taps "Visit" on a person with no website: their own page on the
+ * platform their first feed is on (a YouTube channel, a Bluesky or Mastodon profile), or that
+ * feed's address when there is no better page.
+ */
+export function homeOf(person: { siteUrl?: string; feeds: { url: string }[] }): string | null {
+	if (person.siteUrl) return person.siteUrl;
+	for (const feed of person.feeds) {
+		let url: URL;
+		try {
+			url = new URL(feed.url);
+		} catch {
+			continue;
+		}
+		const host = url.hostname.toLowerCase().replace(/^www\./, '');
+		const channel = url.searchParams.get('channel_id');
+		if (host === 'youtube.com' && channel) return `https://www.youtube.com/channel/${channel}`;
+		const bluesky = /^\/profile\/([^/]+)\/rss\/?$/.exec(url.pathname);
+		if (host === 'bsky.app' && bluesky) return `https://bsky.app/profile/${bluesky[1]}`;
+		const fedi = /^\/(@[^/]+?)\.(rss|atom|json)$/i.exec(url.pathname);
+		if (fedi) return `${url.origin}/${fedi[1]}`;
+	}
+	return person.feeds[0]?.url ?? null;
 }

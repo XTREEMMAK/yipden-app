@@ -125,10 +125,11 @@ typecheck, lint, tests and the directory checks pass.
 3. **`directory/`** (done 2026-10-14): `people.json` (empty until a creator's 14 days pass), `optouts.json`, schemas,
    README, the test seed and its release check, and `directory:check`, `:resolve`, `:optout`, with
    a workflow n8n can trigger.
-4. **Creator lists a reader adds** (directory format and `ring.json`).
-5. **Settings, storage and start page**, in the backup.
+4. **Creator lists a reader adds** (directory format and `ring.json`). Done 2026-10-14.
+5. **Settings, storage and start page**, in the backup. Done 2026-10-14.
 6. **Discover on the merged list**: Featured today, source labels, "Is this you?", filters; Surf
-   and Forums hidden. Checkpoint: a numbered APK.
+   and Forums hidden. Built 2026-10-14 apart from hiding Surf and Forums (with the copy pass).
+   Checkpoint: a numbered APK.
 7. **Copy pass**: app strings, the About sheet, README.
 8. **yipden-web**: the form's "Yes, that's me" and "Join IndieNodes", the n8n workflow and its
    runbook; the design in its own session.

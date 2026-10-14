@@ -7,7 +7,17 @@
 	import { pullToRefresh } from '$lib/actions/pullToRefresh.js';
 	import { duration, ease, flyIn, prefersReducedMotion, STAGGER_MS } from '$lib/motion.js';
 	import { fade, fly } from 'svelte/transition';
-	import { ring, washColorFor, washFor, type RingFilterKey } from '$lib/ring.svelte.js';
+	import {
+		KIND_FILTERS,
+		offersRemoval,
+		ring,
+		sourceLabel,
+		washColorFor,
+		washFor,
+		type KindFilterKey,
+		type RingFilterKey
+	} from '$lib/ring.svelte.js';
+	import { REMOVAL_URL } from '$lib/config.js';
 	import { heroImage, layoutOf } from '@yipden/ring-client';
 	import { followRingEntry } from '$lib/follow.js';
 	import { toast } from '$lib/toast.svelte.js';
@@ -148,7 +158,16 @@
 	}
 
 	let filterSheetOpen = $state(false);
-	let filterLabel = $derived(ring.chips.find((chip) => chip.key === ring.filter)?.label ?? 'All');
+	let filterLabel = $derived(
+		[
+			ring.filter !== 'all' ? ring.chips.find((chip) => chip.key === ring.filter)?.label : null,
+			ring.kind !== 'all' ? KIND_FILTERS.find((chip) => chip.key === ring.kind)?.label : null,
+			ring.tag
+		]
+			.filter(Boolean)
+			.join(', ') || 'All'
+	);
+	let filtering = $derived(ring.filter !== 'all' || ring.kind !== 'all' || ring.tag !== null);
 	let filterButton = $state<HTMLButtonElement | undefined>(undefined);
 	let filterSheetClose = $state<HTMLButtonElement | undefined>(undefined);
 
@@ -163,10 +182,35 @@
 
 	function chooseFilter(key: RingFilterKey) {
 		navDirection = 0;
-		// A category belongs to the IndieNodes ring, so choosing one returns to it.
+		// A category belongs to Discover's own list, so choosing one returns to it.
 		partners.select(null);
 		ring.setFilter(key);
 		closeFilterSheet();
+	}
+
+	function chooseFeedKind(key: KindFilterKey) {
+		navDirection = 0;
+		partners.select(null);
+		ring.setKind(key);
+		closeFilterSheet();
+	}
+
+	function chooseTag(tag: string | null) {
+		navDirection = 0;
+		partners.select(null);
+		ring.setTag(tag);
+		closeFilterSheet();
+	}
+
+	/** Where this person came from, said honestly: a ring member, YipDen's listing, or a list. */
+	let currentSource = $derived(ring.current ? sourceLabel(ring.current) : null);
+
+	/** "Is this you?": a listed creator can ask to be removed or corrected (yipden.com). */
+	function openRemoval() {
+		const entry = ring.current;
+		if (!entry) return;
+		const listing = entry.id.replace(/^yipden:/, '');
+		void openExternal(`${REMOVAL_URL}?listing=${encodeURIComponent(listing)}`);
 	}
 
 	/**
@@ -509,6 +553,7 @@
 			ring.isNodeOfTheDay ? 'chip' : null,
 			'name',
 			ring.current?.why ? 'why' : null,
+			currentSource ? 'source' : null,
 			where.length ? 'where' : null,
 			'actions'
 		].filter((line): line is string => line !== null)
@@ -788,19 +833,17 @@
 					<button
 						bind:this={filterButton}
 						class="round"
-						class:is-active={ring.filter !== 'all'}
+						class:is-active={filtering}
 						data-noswipe
 						onclick={() => (filterSheetOpen = true)}
 						aria-haspopup="dialog"
 						aria-expanded={filterSheetOpen}
-						aria-label={ring.filter === 'all'
-							? 'Filter the ring'
-							: `Filter the ring: ${filterLabel}`}
+						aria-label={filtering ? `Filter the ring: ${filterLabel}` : 'Filter the ring'}
 					>
 						<svg viewBox="0 0 24 24" aria-hidden="true">
 							<path d="M4 5h16M7 12h10M10 19h4" />
 						</svg>
-						{#if ring.filter !== 'all'}
+						{#if filtering}
 							<span class="filter-dot" aria-hidden="true"></span>
 						{/if}
 					</button>
@@ -853,7 +896,7 @@
 			{#key ring.current.id}
 				<div class="body-inner" out:exit>
 					{#if ring.isNodeOfTheDay}
-						<span class="glass-chip" in:fly|global={enter('chip')}>Node of the day</span>
+						<span class="glass-chip" in:fly|global={enter('chip')}>Featured today</span>
 					{/if}
 					<h1 class="hero-name" class:hop={hopping} in:fly|global={enter('name')}>
 						{ring.current.creator}
@@ -867,6 +910,19 @@
 					</h1>
 					{#if ring.current.why}
 						<p class="hero-why" in:fly|global={enter('why')}>{ring.current.why}</p>
+					{/if}
+					{#if currentSource}
+						<p class="hero-source" in:fly|global={enter('source')}>
+							<span>{currentSource}</span>
+							{#if offersRemoval(ring.current)}
+								<button
+									class="is-you"
+									use:tap={openRemoval}
+									aria-label={`Is this you, ${ring.current.creator}? Ask to be removed or corrected`}
+									>Is this you?</button
+								>
+							{/if}
+						</p>
 					{/if}
 					{#if where.length}
 						<div class="where" in:fly|global={enter('where')}>
@@ -1033,7 +1089,8 @@
 				<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
 			</button>
 		</div>
-		<div class="sheet-list" role="radiogroup" aria-label="Filter the ring">
+		<h3 class="sheet-sec">What they make</h3>
+		<div class="sheet-list" role="radiogroup" aria-label="What they make">
 			{#each ring.chips as chip (chip.key)}
 				<button
 					class="sheet-row"
@@ -1046,6 +1103,47 @@
 				</button>
 			{/each}
 		</div>
+		{#if ring.kinds.length > 2}
+			<h3 class="sheet-sec">How you'd follow them</h3>
+			<div class="sheet-list" role="radiogroup" aria-label="How you'd follow them">
+				{#each ring.kinds as chip (chip.key)}
+					<button
+						class="sheet-row"
+						role="radio"
+						aria-checked={ring.kind === chip.key}
+						onclick={() => chooseFeedKind(chip.key)}
+					>
+						<span class="sheet-dot" aria-hidden="true"></span>
+						{chip.label}
+					</button>
+				{/each}
+			</div>
+		{/if}
+		{#if ring.tags.length}
+			<h3 class="sheet-sec">Tags</h3>
+			<div class="sheet-list" role="radiogroup" aria-label="Tags">
+				<button
+					class="sheet-row"
+					role="radio"
+					aria-checked={ring.tag === null}
+					onclick={() => chooseTag(null)}
+				>
+					<span class="sheet-dot" aria-hidden="true"></span>
+					Any tag
+				</button>
+				{#each ring.tags as entry (entry.tag)}
+					<button
+						class="sheet-row"
+						role="radio"
+						aria-checked={ring.tag === entry.tag}
+						onclick={() => chooseTag(entry.tag)}
+					>
+						<span class="sheet-dot" aria-hidden="true"></span>
+						{entry.tag}
+					</button>
+				{/each}
+			</div>
+		{/if}
 	</div>
 {/if}
 
@@ -1693,6 +1791,40 @@
 		font-size: 16px;
 		line-height: 1.45;
 		color: rgba(255, 255, 255, 0.88);
+	}
+
+	/* The filter sheet's groups: what they make, how you'd follow them, tags. */
+	.sheet-sec {
+		margin: 12px 20px 2px;
+		font-family: var(--mono);
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+
+	/* Where this person came from, and for a YipDen listing the way to ask about it. */
+	.hero-source {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 4px 10px;
+		margin: 0;
+		color: rgba(255, 255, 255, 0.78);
+		font-size: 13px;
+	}
+
+	.is-you {
+		min-height: 44px;
+		padding: 0 4px;
+		border: 0;
+		background: none;
+		color: #fff;
+		font: inherit;
+		font-weight: 600;
+		text-decoration: underline;
+		text-underline-offset: 3px;
 	}
 
 	.where {

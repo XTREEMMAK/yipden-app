@@ -149,7 +149,10 @@ test.describe('Discover', () => {
 			'true'
 		);
 
+		// Following someone, a launch now opens on Yips (Settings, Start on), so back to Discover.
 		await page.reload();
+		await expect(page).toHaveURL(/\/feeds/);
+		await page.getByRole('link', { name: 'Discover', exact: true }).click();
 		await chooseFilter(page, 'Music');
 		await expect(page.getByRole('button', { name: /Following/ })).toHaveAttribute(
 			'aria-pressed',

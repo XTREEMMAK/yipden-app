@@ -8,6 +8,7 @@
 	import { MAX_MAX_AGE_DAYS, MIN_MAX_AGE_DAYS } from '$lib/age.js';
 	import { theme, type Skin, type Theme } from '$lib/theme.svelte.js';
 	import AboutSheet from '$components/AboutSheet.svelte';
+	import DiscoverSettings from '$components/DiscoverSettings.svelte';
 	import Switch from '$components/Switch.svelte';
 	import { you } from '$lib/you.svelte.js';
 	import { shelf } from '$lib/shelf.svelte.js';
@@ -239,6 +240,10 @@
 				</div>
 			</div>
 		</section>
+
+		<div class="discover-settings" in:fly={flyIn({ delay: staggerDelay(1) })}>
+			<DiscoverSettings />
+		</div>
 
 		<section class="grp" in:fly={flyIn({ delay: staggerDelay(1) })}>
 			<h3 class="grp-h">Playback</h3>
@@ -479,6 +484,12 @@
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
+	}
+
+	.discover-settings {
+		display: flex;
+		flex-direction: column;
+		gap: 24px;
 	}
 
 	.grp-h {

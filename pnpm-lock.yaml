@@ -115,6 +115,9 @@ importers:
       '@rgrove/parse-xml':
         specifier: ^5.0.0
         version: 5.0.0
+      '@yipden/directory':
+        specifier: workspace:*
+        version: link:../../packages/directory
       '@yipden/feeds':
         specifier: workspace:*
         version: link:../../packages/feeds

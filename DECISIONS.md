@@ -3840,3 +3840,28 @@ not opted out of the games; never partner ring members or people from a reader's
 **Later, out of this change:** importing follows from YouTube, Bluesky or Mastodon accounts;
 onionring and HTML lists; ownership proofs for "Yes, that's me" (verified by hand for now); a
 server-side removal form; the Stray's games-only opt-out, which ships with the game.
+
+## 2026-10-14: How the merged Discover is built
+
+- `ring.all` stays the IndieNodes ring's members only: Follow's "Already in IndieNodes", the
+  Listen pane's ring section and the player rely on it meaning that. Discover walks a separate
+  `ring.pool`: every enabled source merged by `@yipden/directory` (one card per person, the opted-in
+  listing winning, opt-outs dropped), in an order every device agrees on, featured person first.
+  Directory and list people are drawn in the ring's own shape, so the hero, previews and Follow need
+  nothing new; a person with no website gets their platform page as the address to visit.
+- **Nobody from YipDen's directory or a reader's lists is shown until the opt-out list has been
+  read** (from the network or a saved copy). An opt-out that could not be checked is not taken as
+  no opt-out.
+- **An address's identity keeps its query** (sorted, tracking parameters left out). Without it,
+  every YouTube channel feed was the same `url:youtube.com/feeds/videos.xml` and dedupe merged
+  different people; a test now checks two channels never collide.
+- **The directory test seed is bundled only in phone debug builds** (`VITE_YIPDEN_DIRECTORY_SEED=1`,
+  set by `android:apk`). End-to-end tests serve it through yipden.com's address instead, so they
+  exercise the real loading path; a release build fails if any of it is in the output.
+- **Discover's filter sheet** keeps the ring's "what they make" chips (directory entries may carry
+  the same optional `type`), and adds "How you'd follow them" (Posts, Watch, Listen) and the dozen
+  most used tags, all working across sources.
+- **The start page** is applied once, at launch, and only when the launch landed on Discover's
+  address: a link into another screen is left alone, and nothing moves mid-session.
+- **yipden.com must send one `Access-Control-Allow-Origin` header for `/directory/*`**, or the web
+  build cannot read the directory (found when the domain answered with two).

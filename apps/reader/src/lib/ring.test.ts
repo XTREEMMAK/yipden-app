@@ -18,6 +18,17 @@ vi.mock('./store/index.js', () => ({
 	}
 }));
 vi.mock('./platform/http.js', () => ({ httpFetch: net.fetch, isNative: () => false }));
+// YipDen's directory and a reader's lists are their own tests; here Discover walks the ring alone.
+vi.mock('./discoverSources.svelte.js', () => ({
+	discoverSources: {
+		readSettings: async () => {},
+		load: async () => {},
+		isOn: () => true,
+		optOutsKnown: false,
+		optOuts: new Set(),
+		people: []
+	}
+}));
 
 import { RING_FRESH_MS, ring, washColorFor, washFor } from './ring.svelte.js';
 
@@ -41,6 +52,7 @@ const ok = (ids: string[]) => ({
 
 function reset() {
 	ring.all = [];
+	ring.pool = [];
 	ring.status = 'loading';
 	ring.index = 0;
 	ring.filter = 'all';
@@ -121,14 +133,15 @@ describe('ring.load', () => {
 	it('keeps the reader on the same member when an update adds and removes others', async () => {
 		net.fetch.mockResolvedValue(ok(['a', 'b', 'c']));
 		await ring.load();
-		ring.index = ring.all.findIndex((member) => member.id === 'b');
+		ring.index = ring.visible.findIndex((member) => member.id === 'b');
 
 		net.fetch.mockResolvedValue(ok(['z', 'b', 'a']));
 		await ring.load(true);
 
 		expect(ring.current?.id).toBe('b');
 		expect(ring.all.map((member) => member.id).sort()).toEqual(['a', 'b', 'z']);
-		expect(ring.all.at(-1)?.id).toBe('z');
+		// What Discover walks keeps its order: the newcomer goes to the end.
+		expect(ring.pool.at(-1)?.id).toBe('z');
 	});
 
 	it('keeps the saved ring and reports the error when the network fails', async () => {

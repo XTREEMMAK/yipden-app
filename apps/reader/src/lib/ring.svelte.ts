@@ -4,7 +4,6 @@ import {
 	filterRing,
 	heroImage,
 	next as nextInRing,
-	nodeOfTheDay,
 	positionOf,
 	prev as prevInRing,
 	shuffle,
@@ -13,6 +12,18 @@ import {
 	type RingEntry,
 	type RingSource
 } from '@yipden/ring-client';
+import {
+	featuredToday,
+	homeOf,
+	kindsOf,
+	mergePeople,
+	personFromRingEntry,
+	rotationOrder,
+	tagCounts,
+	type FeedKind,
+	type Person as DirectoryPerson
+} from '@yipden/directory';
+import { discoverSources } from './discoverSources.svelte.js';
 import { httpFetch, isNative } from './platform/http.js';
 import { store } from './store/index.js';
 import { verdicts } from './verdicts.svelte.js';
@@ -38,6 +49,83 @@ export const RING_FILTERS = [
 
 export type RingFilterKey = (typeof RING_FILTERS)[number]['key'];
 
+/** How a person can be followed, matching Yips' own panes. */
+export const KIND_FILTERS = [
+	{ key: 'all', label: 'Any' },
+	{ key: 'posts', label: 'Posts' },
+	{ key: 'watch', label: 'Watch' },
+	{ key: 'listen', label: 'Listen' }
+] as const;
+
+export type KindFilterKey = (typeof KIND_FILTERS)[number]['key'];
+
+/**
+ * A person in Discover, in the ring's own shape so the hero, previews and Follow need nothing
+ * new, plus where they came from. Ring members keep their whole entry; people from YipDen's
+ * directory or a reader's list are drawn from what their listing gives.
+ */
+export type DiscoverEntry = RingEntry & {
+	yipdenSource: string;
+	yipdenSourceName: string;
+	yipdenListing: DirectoryPerson['listing'];
+};
+
+/** "IndieNodes member", "Listed by YipDen", or the reader's list's own name. */
+export function sourceLabel(entry: RingEntry): string | null {
+	const tagged = entry as Partial<DiscoverEntry>;
+	if (tagged.yipdenListing === 'member') return 'IndieNodes member';
+	if (tagged.yipdenListing === 'curated' || tagged.yipdenListing === 'confirmed') {
+		return 'Listed by YipDen';
+	}
+	if (tagged.yipdenListing === 'list') return `From ${tagged.yipdenSourceName}`;
+	return null;
+}
+
+/** Whether the card offers "Is this you?": anyone YipDen listed without their say-so yet. */
+export function offersRemoval(entry: RingEntry): boolean {
+	return (entry as Partial<DiscoverEntry>).yipdenListing === 'curated';
+}
+
+function entryFromPerson(person: DirectoryPerson): DiscoverEntry {
+	const entry: DiscoverEntry = {
+		id: person.id,
+		creator: person.name,
+		type: person.type ?? 'creator',
+		source_url: homeOf(person) ?? person.feeds[0]?.url ?? '',
+		tags: person.tags,
+		feeds: person.feeds.map((feed) => ({
+			type: feed.type,
+			url: feed.url,
+			verified: feed.verified
+		})),
+		yipdenSource: person.source,
+		yipdenSourceName: person.sourceName,
+		yipdenListing: person.listing
+	};
+	if (person.form) entry.form = person.form;
+	if (person.note) entry.why = person.note;
+	if (person.thumbUrl) entry.thumb_url = person.thumbUrl;
+	if (person.thumbPosition) entry.thumb_position = person.thumbPosition;
+	if (person.tracks?.length) {
+		entry.tracks = person.tracks.map((track) => ({
+			label: track.label,
+			media_url: track.mediaUrl
+		}));
+	}
+	return entry;
+}
+
+/** What a Discover entry can be followed for: its feeds' kinds, Listen for audio, Posts otherwise. */
+export function kindsOfEntry(entry: RingEntry): Set<FeedKind> {
+	const kinds = kindsOf(
+		personFromRingEntry(entry, { source: '', sourceName: '', listing: 'member' })
+	);
+	if (entry.type === 'audio') kinds.add('listen');
+	if (entry.trailer_url || entry.preview_url) kinds.add('watch');
+	if (!kinds.size) kinds.add('posts');
+	return kinds;
+}
+
 /**
  * How long a checked ring is trusted before Discover asks again, across launches too (the time of
  * the last check is saved). The ring changes when a member joins or edits their entry, and an
@@ -48,13 +136,22 @@ export type RingFilterKey = (typeof RING_FILTERS)[number]['key'];
 export const RING_FRESH_MS = 30 * 60 * 1000;
 
 class RingState {
-	/** Every discoverable member, in the order every client agrees on. */
+	/** Every discoverable IndieNodes member. Other screens rely on this meaning the ring alone. */
 	all = $state<RingEntry[]>([]);
+	/**
+	 * What Discover walks: the ring's members and the people from YipDen's directory and the
+	 * reader's lists, merged (one card per person, opt-outs dropped), featured person first.
+	 */
+	pool = $state<DiscoverEntry[]>([]);
 	status = $state<'loading' | RingSource>('loading');
 	error = $state<string | null>(null);
 	fetchedAt = $state<string | null>(null);
 
 	filter = $state<RingFilterKey>('all');
+	/** Posts, Watch or Listen, across every source. */
+	kind = $state<KindFilterKey>('all');
+	/** One tag, across every source. */
+	tag = $state<string | null>(null);
 	/** The member on screen. An index into `visible`. */
 	index = $state(0);
 	/** True while the reader is walking their own shuffled order. */
@@ -63,7 +160,7 @@ class RingState {
 	/** Site URLs this reader already follows, so the hero button tells the truth. */
 	following = $state<Set<string>>(new Set());
 
-	private shuffledOrder = $state<RingEntry[]>([]);
+	private shuffledOrder = $state<DiscoverEntry[]>([]);
 
 	/** Every member the reader has not marked not for me, in the ring's own order. */
 	shown = $derived(
@@ -73,31 +170,48 @@ class RingState {
 	);
 
 	visible = $derived.by(() => {
-		const ordered = this.shuffled ? this.shuffledOrder : this.all;
+		const ordered = this.shuffled ? this.shuffledOrder : this.pool;
 		// Creators marked not for me never come back up, in any filter or order.
-		const source = verdicts.hiddenKeys.size
+		let source: DiscoverEntry[] = verdicts.hiddenKeys.size
 			? ordered.filter((entry) => !verdicts.isHidden(entry.source_url))
 			: ordered;
+		const kind = this.kind;
+		if (kind !== 'all') source = source.filter((entry) => kindsOfEntry(entry).has(kind));
+		const tag = this.tag;
+		if (tag) {
+			source = source.filter((entry) => (entry.tags ?? []).some((t) => t.toLowerCase() === tag));
+		}
 		const chip = RING_FILTERS.find((entry) => entry.key === this.filter);
 		if (!chip || chip.key === 'all') return source;
 
 		return filterRing(source, {
 			types: [chip.type],
 			...('form' in chip && chip.form ? { forms: [chip.form] } : {})
-		});
+		}) as DiscoverEntry[];
 	});
 
 	current = $derived(this.visible[Math.min(this.index, this.visible.length - 1)] ?? null);
 
-	/** "Node of the day" only when the reader has not moved or filtered away from it. */
+	/** "Featured today" only when the reader has not moved or filtered away from it. */
 	isNodeOfTheDay = $derived(
-		this.filter === 'all' && !this.shuffled && this.index === 0 && this.current !== null
+		this.filter === 'all' &&
+			this.kind === 'all' &&
+			this.tag === null &&
+			!this.shuffled &&
+			this.index === 0 &&
+			this.current !== null
 	);
 
 	position = $derived.by(() => {
 		if (!this.current) return { index: 0, total: 0 };
-		if (this.filter === 'all' && !this.shuffled && !verdicts.hiddenKeys.size)
-			return positionOf(this.all, this.current.id);
+		if (
+			this.filter === 'all' &&
+			this.kind === 'all' &&
+			this.tag === null &&
+			!this.shuffled &&
+			!verdicts.hiddenKeys.size
+		)
+			return positionOf(this.pool, this.current.id);
 		return { index: this.index + 1, total: this.visible.length };
 	});
 
@@ -105,9 +219,23 @@ class RingState {
 
 	/** Which chips to show: a chip that would empty the screen is not offered. */
 	chips = $derived.by(() => {
-		const counts = new Map(typeFacets(this.all).map((facet) => [facet.type, facet.count]));
+		const counts = new Map(typeFacets(this.pool).map((facet) => [facet.type, facet.count]));
 		return RING_FILTERS.filter((chip) => chip.key === 'all' || (counts.get(chip.type) ?? 0) > 0);
 	});
+
+	/** Kinds with anyone in them. */
+	kinds = $derived.by(() => {
+		const present = new Set<FeedKind>();
+		for (const entry of this.pool) for (const kind of kindsOfEntry(entry)) present.add(kind);
+		return KIND_FILTERS.filter((chip) => chip.key === 'all' || present.has(chip.key));
+	});
+
+	/** The tags in use, most common first, a dozen at most. */
+	tags = $derived(
+		tagCounts(this.pool.map((entry) => ({ tags: entry.tags ?? [] }) as unknown as DirectoryPerson))
+			.filter((entry) => entry.count > 1)
+			.slice(0, 12)
+	);
 
 	/** When the network last answered, or the ring was last confirmed current. Saved as `ringCheckedAt`. */
 	private checkedAt = 0;
@@ -136,6 +264,8 @@ class RingState {
 
 	private async run(force: boolean): Promise<void> {
 		await store.init();
+		// YipDen's directory and the reader's lists load beside the ring, never behind it.
+		const sources = discoverSources.load(force).then(() => this.rebuild());
 
 		if (!this.all.length) {
 			const saved = await cachedRing({ read: () => store.readRing(), write: () => {} });
@@ -148,7 +278,7 @@ class RingState {
 		}
 
 		if (!force && this.all.length && Date.now() - this.checkedAt < RING_FRESH_MS) {
-			await this.refreshFollowing();
+			await Promise.all([this.refreshFollowing(), sources]);
 			return;
 		}
 
@@ -176,33 +306,72 @@ class RingState {
 			await store.setSetting('ringCheckedAt', new Date(this.checkedAt).toISOString());
 		}
 
-		await this.refreshFollowing();
+		await Promise.all([this.refreshFollowing(), sources]);
 	}
 
-	/**
-	 * Take a ring document onto the screen. The first one opens on the member every client sees
-	 * today; a later one keeps the reader's order and place, adding new members at the end and
-	 * dropping any that left, so a background update never moves what they are looking at.
-	 */
+	/** Take a ring document in, then rebuild what Discover walks from every source. */
 	private apply(result: FetchRingResult): void {
-		const entries = result.document.entries.filter(
+		this.all = result.document.entries.filter(
 			(entry) => entry.discoverable !== false && entry._placeholder !== true
 		);
 		this.status = result.source;
 		this.fetchedAt = result.fetchedAt;
+		void this.rebuild();
+	}
 
-		if (!this.all.length) {
-			const today = nodeOfTheDay(entries);
-			const at = today ? entries.findIndex((entry) => entry.id === today.id) : 0;
-			this.all = at > 0 ? [...entries.slice(at), ...entries.slice(0, at)] : entries;
+	private rebuilding = 0;
+
+	/**
+	 * Merge every enabled source into what Discover walks. The first pool opens on today's
+	 * featured person; a later one keeps the reader's order and place, adding newcomers at the end
+	 * and dropping anyone who left, so a background update never moves what they are looking at.
+	 */
+	async rebuild(): Promise<void> {
+		const token = ++this.rebuilding;
+		await discoverSources.readSettings();
+		const lists: DirectoryPerson[][] = [];
+		if (discoverSources.isOn('indienodes')) {
+			lists.push(
+				this.all.map((entry) =>
+					personFromRingEntry(entry, {
+						source: 'indienodes',
+						sourceName: 'IndieNodes',
+						listing: 'member'
+					})
+				)
+			);
+		}
+		// Nobody YipDen or a reader's list names is shown until the opt-out list has been read.
+		if (discoverSources.optOutsKnown) lists.push(...discoverSources.people);
+		const merged = await mergePeople(lists, discoverSources.optOuts);
+		if (token !== this.rebuilding) return;
+
+		const members = new Map(this.all.map((entry) => [`indienodes:${entry.id}`, entry]));
+		const toEntry = (person: DirectoryPerson): DiscoverEntry => {
+			const member = person.source === 'indienodes' ? members.get(person.id) : undefined;
+			return member
+				? {
+						...member,
+						yipdenSource: 'indienodes',
+						yipdenSourceName: 'IndieNodes',
+						yipdenListing: 'member'
+					}
+				: entryFromPerson(person);
+		};
+		const ordered = rotationOrder(merged).map(toEntry);
+
+		if (!this.pool.length) {
+			const today = featuredToday(merged);
+			const at = today ? ordered.findIndex((entry) => entry.id === toEntry(today).id) : 0;
+			this.pool = at > 0 ? [...ordered.slice(at), ...ordered.slice(0, at)] : ordered;
 			return;
 		}
 
 		const currentId = this.current?.id;
-		const fresh = new Map(entries.map((entry) => [entry.id, entry]));
-		const kept = this.all.flatMap((entry) => fresh.get(entry.id) ?? []);
-		const known = new Set(this.all.map((entry) => entry.id));
-		this.all = [...kept, ...entries.filter((entry) => !known.has(entry.id))];
+		const fresh = new Map(ordered.map((entry) => [entry.id, entry]));
+		const kept = this.pool.flatMap((entry) => fresh.get(entry.id) ?? []);
+		const known = new Set(this.pool.map((entry) => entry.id));
+		this.pool = [...kept, ...ordered.filter((entry) => !known.has(entry.id))];
 		if (this.shuffled) {
 			this.shuffledOrder = this.shuffledOrder.flatMap((entry) => fresh.get(entry.id) ?? []);
 		}
@@ -235,6 +404,16 @@ class RingState {
 		if (at >= 0) this.index = at;
 	}
 
+	setKind(key: KindFilterKey): void {
+		this.kind = key;
+		this.index = 0;
+	}
+
+	setTag(tag: string | null): void {
+		this.tag = tag;
+		this.index = 0;
+	}
+
 	setFilter(key: RingFilterKey): void {
 		this.filter = key;
 		this.index = 0;
@@ -247,7 +426,7 @@ class RingState {
 	 * where they just were instead of somewhere new.
 	 */
 	shuffle(): void {
-		this.shuffledOrder = shuffle(this.all, Date.now());
+		this.shuffledOrder = shuffle(this.pool, Date.now()) as DiscoverEntry[];
 		this.shuffled = true;
 		this.index = 0;
 	}

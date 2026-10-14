@@ -452,3 +452,44 @@ function emptyBackup() {
 		appearance: { theme: 'system', skin: 'original' }
 	};
 }
+
+describe('Discover’s sources and the start page in the backup', () => {
+	const list = {
+		id: 'friend-example-com-creators-json',
+		name: 'A friend’s picks',
+		url: 'https://friend.example.com/creators.json',
+		format: 'directory',
+		addedAt: '2026-10-14T00:00:00.000Z'
+	};
+
+	it('travel through export and restore', async () => {
+		const source = testStore();
+		await source.init();
+		await source.setSetting('startOn', 'discover');
+		await source.setSetting('discoverSources', { yipden: false });
+		await source.setSetting('addedLists', [list]);
+		const target = testStore();
+		await restoreBackup(parseBackup(JSON.stringify(await createBackup(source))).backup, target);
+		expect(await target.getSetting('startOn')).toBe('discover');
+		expect(await target.getSetting('discoverSources')).toEqual({ yipden: false });
+		expect(await target.getSetting('addedLists')).toEqual([list]);
+	});
+
+	it('refuse an unsafe list or a nonsense value, and keep what this phone already set', async () => {
+		const target = testStore();
+		await target.init();
+		await target.setSetting('discoverSources', { yipden: true });
+		const backup = {
+			...emptyBackup(),
+			settings: {
+				startOn: 'somewhere',
+				discoverSources: { yipden: false, indienodes: false, bad: 'yes' },
+				addedLists: [list, { ...list, id: 'evil', url: 'javascript:alert(1)' }]
+			}
+		};
+		await restoreBackup(parseBackup(JSON.stringify(backup)).backup, target);
+		expect(await target.getSetting('startOn')).toBeNull();
+		expect(await target.getSetting('discoverSources')).toEqual({ yipden: true, indienodes: false });
+		expect(await target.getSetting('addedLists')).toEqual([list]);
+	});
+});

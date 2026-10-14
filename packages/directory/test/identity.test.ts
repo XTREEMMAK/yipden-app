@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hashIdentity, identitiesOfInput, identitiesOfUrl } from '../src/index.js';
+import { hashIdentity, homeOf, identitiesOfInput, identitiesOfUrl } from '../src/index.js';
 
 describe('identities of an address', () => {
 	it('treats www, a trailing slash and case in the host as the same site', () => {
@@ -43,6 +43,18 @@ describe('identities of an address', () => {
 		);
 	});
 
+	it('never mistakes two YouTube channels for one, though their feeds share a path', () => {
+		const a = identitiesOfUrl('https://www.youtube.com/feeds/videos.xml?channel_id=UCaaa');
+		const b = identitiesOfUrl('https://www.youtube.com/feeds/videos.xml?channel_id=UCbbb');
+		expect(a.filter((identity) => b.includes(identity))).toEqual([]);
+	});
+
+	it('keeps a query, sorted, without tracking parameters', () => {
+		expect(identitiesOfUrl('https://example.com/feed?b=2&a=1&utm_source=x')).toEqual([
+			'url:example.com/feed?a=1&b=2'
+		]);
+	});
+
 	it('refuses anything that is not a public https address', () => {
 		expect(identitiesOfUrl('http://example.com/')).toEqual([]);
 		expect(identitiesOfUrl('https://localhost/')).toEqual([]);
@@ -74,5 +86,21 @@ describe('the opt-out hash', () => {
 		expect(a).toMatch(/^[0-9a-f]{64}$/);
 		expect(await hashIdentity('url:opted-out.example.com')).toBe(a);
 		expect(await hashIdentity('url:other.example.com')).not.toBe(a);
+	});
+});
+
+describe('a person’s home', () => {
+	it('is their site, or their page on the platform their feed is on', () => {
+		expect(homeOf({ siteUrl: 'https://me.example/', feeds: [] })).toBe('https://me.example/');
+		const feed = (url: string) => ({ feeds: [{ url }] });
+		expect(homeOf(feed('https://www.youtube.com/feeds/videos.xml?channel_id=UCabc'))).toBe(
+			'https://www.youtube.com/channel/UCabc'
+		);
+		expect(homeOf(feed('https://bsky.app/profile/me.example/rss'))).toBe(
+			'https://bsky.app/profile/me.example'
+		);
+		expect(homeOf(feed('https://social.example/@me.rss'))).toBe('https://social.example/@me');
+		expect(homeOf(feed('https://me.example/feed.xml'))).toBe('https://me.example/feed.xml');
+		expect(homeOf({ feeds: [] })).toBeNull();
 	});
 });

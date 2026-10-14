@@ -19,7 +19,13 @@ export type {
 	Person,
 	PersonFeed
 } from './types.js';
-export { hashIdentity, identitiesOf, identitiesOfInput, identitiesOfUrl } from './identity.js';
+export {
+	hashIdentity,
+	homeOf,
+	identitiesOf,
+	identitiesOfInput,
+	identitiesOfUrl
+} from './identity.js';
 export { validateDirectory, validateOptOuts, type DirectoryValidation } from './validate.js';
 export {
 	loadDocument,

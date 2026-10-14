@@ -481,6 +481,14 @@ test.describe('Discover WebGL hero', () => {
 				body: JSON.stringify({ version: '1.0', entries: members })
 			})
 		);
+		// YipDen's directory is not part of this test, and must not reach the real yipden.com.
+		await page.route('https://yipden.com/**', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: '{"version":"1.0","entries":[],"hashes":[]}'
+			})
+		);
 		// 1800x1800 is over the pixel budget, so every one of these is drawn smaller before upload.
 		const large = pixelPng(1800, 1800, (x) => (x < 900 ? [200, 40, 40] : [40, 40, 200]));
 		await page.route('https://example.com/**', (route) =>

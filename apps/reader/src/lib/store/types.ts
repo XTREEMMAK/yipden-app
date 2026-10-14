@@ -370,7 +370,11 @@ export type SettingKey =
 	| 'sitesInApp'
 	| 'forumQuietDays'
 	| 'browserGuideSeen'
-	| 'discoverView';
+	| 'discoverView'
+	| 'startOn'
+	| 'discoverSources'
+	| 'addedLists'
+	| 'directoryCache';
 
 /**
  * Cached waveform peaks, keyed by media URL and ETag so a track is decoded at most once.

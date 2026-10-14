@@ -18,7 +18,9 @@
       ],
       "identities": ["youtube:@jerichordsplays"],
       "listing": "curated",
-      "added_at": "2026-10-14"
+      "added_at": "2026-10-14",
+      "type": "audio",
+      "form": "music"
     },
     {
       "id": "opted-out-example",

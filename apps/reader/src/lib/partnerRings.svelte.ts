@@ -1,3 +1,4 @@
+import { discoverSources } from './discoverSources.svelte.js';
 import { readPartnerRing, type PartnerRingResult } from '@yipden/ring-client';
 import { partnerSources, type PartnerSource } from './partner/registry.js';
 import { store } from './store/index.js';
@@ -84,7 +85,11 @@ class PartnerRingsState {
 		// unless a reader opts in, since this app does not vet a partner ring's members itself.
 		const includeSensitive = (await store.getSetting<boolean>('includeExplicit')) === true;
 
-		const sources = await partnerSources();
+		// A ring the reader switched off in Settings is not read at all.
+		await discoverSources.readSettings();
+		const sources = (await partnerSources()).filter((source) =>
+			discoverSources.isOn(source.adapter.ring.id)
+		);
 		const cache = (await store.getSetting<PartnerCache>('partnerCache')) ?? {};
 
 		// The copies already on this phone go on screen first, so the ring switcher is there at

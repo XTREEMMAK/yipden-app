@@ -19,11 +19,14 @@
 	import { verdicts } from '$lib/verdicts.svelte.js';
 	import '$styles/app.css';
 	import { creatorNotes } from '$lib/creatorNotes.svelte.js';
+	import { goto } from '$app/navigation';
+	import { startPage } from '$lib/startPage.svelte.js';
 
 	let { children } = $props();
 	let ringQueueRestored = $state(false);
 
 	onMount(() => {
+		void openStartPage();
 		theme.hydrate();
 		void prefs.hydrate();
 		void verdicts.load();
@@ -36,6 +39,19 @@
 			stopKeyboard();
 		};
 	});
+
+	/**
+	 * The launch opens on the reader's chosen tab (Settings, Start on): Yips by default, Discover
+	 * while they follow no one. Only a launch that landed on Discover's address is moved, so a link
+	 * into another screen is left alone, and nothing moves later in the session.
+	 */
+	async function openStartPage() {
+		if (location.pathname !== '/') return;
+		const start = await startPage.forLaunch();
+		if (start === 'yips' && location.pathname === '/') {
+			await goto('/feeds', { replaceState: true });
+		}
+	}
 
 	/**
 	 * The phone keyboard goes over the tab bar, not under it.
