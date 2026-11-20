@@ -882,7 +882,7 @@ both have to follow the header's height as it changes.
 ## Distribution follow-up (2026-11-20)
 
 KJS Apps integration and real Android version reservations are implemented. First protected
-publication requires review of the specific candidate. Owner phone baseline and a real newer
+publication completed with reviewed build 902. Owner phone baseline and a real newer
 Obtainium update with data preservation remain pending, followed by a separate old-host
 retirement inventory. Stable signing and promotion remain separate release work.
 See [app-updates.md](docs/app-updates.md).

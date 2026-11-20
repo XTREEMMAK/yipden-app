@@ -1,5 +1,8 @@
 # Android updates through KJS Apps
 
+For phone setup, use [Set up YipDen in Obtainium](obtainium.md). Protected Builds
+currently serves **902**; phone baseline and the subsequent real update remain pending.
+
 YipDen uses the existing shared publisher in the sibling `j2chat-app` checkout:
 `tools/apk-distribution/publish_apk.py`, its complete `apps.json`, and its existing
 SSH upload, checksums, lock and atomic snapshots. Slug: `yipden`. No app backend,
@@ -215,8 +218,9 @@ addition was committed separately as `6bcef69`.
 ## Current candidate 902: fresh build requested by the owner
 
 On November 20, 2026, the owner declined historical-APK recovery and requested a fresh
-APK. Build 902 supersedes unpublished 901. **No upload or promotion was authorized or
-performed.** The existing old download-server process remains running.
+APK. Build 902 supersedes unpublished 901. The owner subsequently instructed the agent
+to continue, authorizing the reviewed first protected publication. **902 is published
+to Builds; no stable promotion occurred.** The old download-server process remains running.
 
 | Field               | Verified value                                                     |
 | ------------------- | ------------------------------------------------------------------ |
@@ -243,9 +247,31 @@ preservation and durable APK storage. Package/signing identity and app behavior 
 unchanged. Debug tools/seeds remain enabled. Stable signing, phone baseline and a real
 newer Obtainium update with data checks remain pending.
 
-Exact publication command **only after approval of build 902**:
+Publication command used for the approved build 902:
 
 ```sh
 cd /home/xtreemmak/projects/node/yipden-app/apps/reader
 pnpm apk:publish --bundle ../../build/apk-distribution/yipden-b902.zip --execute
 ```
+
+## First protected publication completed: November 20, 2026
+
+The owner said to continue and requested local Obtainium setup documentation. Uploaded
+only the reviewed `yipden-b902.zip` through the existing shared publisher with the complete
+registry. The live snapshot contains one current YipDen Builds APK, code 902, whose SHA-256
+matches the reviewed `7758f72e04e6638eaa60cb2c94f7f89f897ec0ee8efc1b9b5df6e938418ecbdc`.
+The previous live Chat 76/77 and Yip Realms 1346 history, APK bytes and icons were compared
+with the recorded inventory and preserved. YipDen Releases remains empty.
+
+All 16 public HTTPS GET/HEAD access checks passed: home/Releases returned 200 and
+the protected Builds resources returned 401. Checks cover the Builds page,
+metadata, history, APK and checksum. Results are retained locally in
+`build/apk-distribution/public-https-b902.json`; post-publication snapshot verification is
+in `build/apk-distribution/post-publication-b902.json`. Owner-authenticated HTTP download
+and phone installation/data checks require the owner's private on-device header; no
+credential was read or entered by the agent.
+
+Follow [the phone setup guide](obtainium.md), install 902 over the existing app and confirm
+Installed 902 / Latest 902 plus preserved followed people/settings. Then build, review and
+separately approve a higher candidate for the real Obtainium update test. Do not fake the
+Installed value, promote this debug APK or stop the old host as part of this publication.

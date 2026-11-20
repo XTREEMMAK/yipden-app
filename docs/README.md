@@ -13,6 +13,9 @@
 | [../ROADMAP.md](../ROADMAP.md)           | Where things stand, and what comes next                        |
 | [../DECISIONS.md](../DECISIONS.md)       | Every choice that differs from the brief, and why              |
 
+Phone updates: [Obtainium setup](obtainium.md) gives the exact source, authentication and
+version settings. [App updates](app-updates.md) records publication operations and checksums.
+
 ## reference/
 
 `reference/yipden-prototype.html` (kept locally and gitignored, so it is not in the published

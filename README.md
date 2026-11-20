@@ -89,7 +89,7 @@ including running on a real phone from a headless machine, is in
 [docs/android-testing.md](docs/android-testing.md).
 
 Android download channels, operator commands and Obtainium phone setup:
-[App updates](docs/app-updates.md).
+[App updates](docs/app-updates.md) and [Obtainium phone setup](docs/obtainium.md).
 
 ## Repo layout
 

@@ -3960,3 +3960,13 @@ old names. Candidate 902 was built from clean source with the same package/certi
 verified and prepared privately. Publication remains subject to the original explicit
 approval gate; this instruction did not approve uploading either 901 or 902. The old
 host stays running pending the original phone-update and retirement checks.
+
+## 2026-11-20: Publish reviewed build 902 to protected Builds
+
+The owner instructed the agent to continue after the build 902 candidate review and
+requested Obtainium documentation in this project. Publish only the reviewed exact
+902 bytes through the existing complete shared registry. No stable promotion or
+old-host retirement is authorized by this instruction. The live APK checksum and
+existing Chat/Yip Realms artifacts/history/icons were verified after publication.
+Phone setup is in [docs/obtainium.md](docs/obtainium.md); owner-authenticated download,
+baseline and real newer update/data-preservation checks remain pending.
