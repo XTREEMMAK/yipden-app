@@ -275,3 +275,10 @@ Follow [the phone setup guide](obtainium.md), install 902 over the existing app 
 Installed 902 / Latest 902 plus preserved followed people/settings. Then build, review and
 separately approve a higher candidate for the real Obtainium update test. Do not fake the
 Installed value, promote this debug APK or stop the old host as part of this publication.
+
+## Owner confirmation: Obtainium setup complete
+
+The owner reported "all set" after receiving the build 902 installation and baseline
+instructions. Record the phone setup as owner-confirmed complete. A separately
+published newer APK update and its data-preservation checks remain pending; this
+confirmation does not authorize stable promotion or retirement of the old host.
