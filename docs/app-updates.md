@@ -59,8 +59,8 @@ in [android-testing.md](android-testing.md), then:
 cd apps/reader
 pnpm android:apk
 # Prints verified metadata and the actual yipden-b<versionCode>.apk path.
-pnpm apk:inspect --file android/app/build/outputs/apk/debug/yipden-bCODE.apk
-pnpm apk:prepare --file android/app/build/outputs/apk/debug/yipden-bCODE.apk \
+pnpm apk:inspect --file ../../build/android-apks/yipden-bCODE.apk
+pnpm apk:prepare --file ../../build/android-apks/yipden-bCODE.apk \
   --notes ../../build/apk-distribution/notes.txt
 ```
 
@@ -71,6 +71,11 @@ remain phone-testable but cannot be prepared. Build and prepare together, and re
 the reviewed artifact's SHA-256. Preparation calls the existing publisher, which snapshots
 and verifies the input, pins package/certificate/floor and creates a private 0600 bundle
 at `build/apk-distribution/yipden-bCODE.zip`. No upload runs during ordinary builds.
+The project build archives the existing Gradle output tree before building, restores
+missing legacy files afterward, and retains each verified APK and source JSON outside
+Gradle outputs in `build/android-apks/`. Backups are retained in
+`build/android-output-backups/before-CODE/`; account for their disk usage before building.
+`android:install` installs the immutable verified file under the same pipeline lock.
 The existing `pnpm build` still strips and checks debug-only Surf/directory seeds;
 `android:apk` retains the existing debug tools/seeds for protected testing.
 
@@ -141,3 +146,66 @@ and [version-code detection](https://wiki.obtainium.imranr.dev/app_tracking/#ver
 
 Phone baseline, data preservation and a real newer YipDen Obtainium update are pending.
 Local publisher tests do not establish those results.
+
+## First candidate review: November 20, 2026
+
+Prepared, **not uploaded**:
+
+| Field               | Verified value                                                     |
+| ------------------- | ------------------------------------------------------------------ |
+| APK                 | `build/android-apks/yipden-b901.apk`                               |
+| Version             | `0.9.0` / Android versionCode `901` (previously 900)               |
+| Package             | `com.yipden.app`                                                   |
+| Certificate SHA-256 | `d9ea95b7e73fa5b50d1d8a8b3d24a30f4bf066e74436fd9296ee6a8382fda88a` |
+| APK SHA-256         | `4b1bfe20d47b1d92890d4449f6d6f06c5f9a0fccf4bdaad7d0fad0fd8f2dfcfd` |
+| Size                | 21,396,973 bytes                                                   |
+| Source commit       | `f6aacef6783c860e18f51e52af956b5b2eb447f1`, clean build source     |
+| Private bundle      | `build/apk-distribution/yipden-b901.zip`, mode 0600                |
+| Bundle SHA-256      | `bb7f3297eb0bdadc592242efd45015665e1fe29889055da9d3b900583e6045a3` |
+| Eligibility         | Debuggable; protected testing only; stable signing unconfigured    |
+
+Notes in the bundle: first KJS Apps testing candidate; fixes real version progression
+and About; same package/certificate; no account, content, game or data migration changes;
+existing debug tools/seeds retained; phone baseline/data checks and real newer update pending.
+The later archive-protection tooling fix does not change these already prepared APK bytes.
+The checked-in floor is now 901, so the next reservation is at least 902.
+
+Passed: project typecheck and lint, 983 JavaScript/TypeScript tests, directory checks,
+release web build with debug-seed exclusion, real debug APK assembly, five Python
+reservation/archive tests, and all 25 unchanged shared-publisher tests. Actual APK
+inspection confirmed code 901, same signer/package and About's real code. Local private
+bundle/receive tests confirmed exact bytes, complete-registry rendering, idempotent
+replay, conflicting-code/floor rejection and rejection of debuggable stable promotion.
+No synthetic artifact was uploaded. Live KJS Chat 76/77 and Yip Realms 1346 APK/icon
+checksums were inventoried read-only in `build/apk-distribution/existing-catalog-sha256.json`.
+
+Exact command **after explicit approval of this candidate**:
+
+```sh
+cd /home/xtreemmak/projects/node/yipden-app/apps/reader
+pnpm apk:publish --bundle ../../build/apk-distribution/yipden-b901.zip --execute
+```
+
+Equivalent existing shared CLI command (run only one):
+
+```sh
+/home/xtreemmak/projects/node/j2chat-app/scripts/publish-apk   --config /home/xtreemmak/projects/node/j2chat-app/tools/apk-distribution/apps.json   upload --bundle /home/xtreemmak/projects/node/yipden-app/build/apk-distribution/yipden-b901.zip   --host xtreemmak@192.168.10.149 --root /var/www/kjs-apps --execute
+```
+
+### Initial-build incident and outstanding recovery
+
+The first Gradle build cleaned the entire debug output directory before historical
+files were backed up. This removed YipDen's 070–072 APKs and the legacy `games/` and
+`j2chat/` directories. The Python host process remains running, but affected historical
+URLs are unavailable. Exact copies of YipDen 070–072 and the legacy Chat downloads
+were not found in the local workspace; filesystem/VM or owner-held backups are needed.
+Game build archives survive in the sibling Yip Realms checkout, but the exact contents
+of the deleted served directory were not inventoried before the build. Do not replace
+missing historical APKs with rebuilt or renamed bytes. Archive preservation is now
+implemented and tested before any further build. Live KJS Apps snapshots, history,
+icons and APKs were not changed. Retirement readiness is not established.
+
+The YipDen push also advanced the pre-existing local ancestor commit `6be665e`
+(Yip Realm extraction) along with the integration commit; no history was rewritten.
+Only integration files were newly committed in this session. The shared registry
+addition was committed separately as `6bcef69`.

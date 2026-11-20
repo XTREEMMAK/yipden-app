@@ -3944,3 +3944,10 @@ the exact candidate. Debuggable testing artifacts cannot pass stable promotion;
 compatible non-debuggable release signing remains unconfigured. Keep the old Python
 host until owner-confirmed baseline/newer Obtainium update and a separate retirement
 inventory. Operator and phone instructions: [app-updates.md](docs/app-updates.md).
+
+The first build exposed AGP output-directory cleanup: it removed the old served
+reader/game/Chat downloads before a backup existed. Exact missing historical files
+need owner/VM backup recovery; live KJS Apps was unaffected. Subsequent builds back
+up and restore the legacy output tree and retain immutable APKs outside Gradle outputs.
+An archive-cleanup regression test covers other apps and reader history. See the
+candidate review and incident record in `docs/app-updates.md`.

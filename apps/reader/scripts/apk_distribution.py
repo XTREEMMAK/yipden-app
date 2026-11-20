@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import zipfile
 
 from android_build import PUBLISHER, READER, TOOLS, inspect
 
@@ -45,6 +46,10 @@ def main():
     else:
         if not args.execute:
             sys.exit("Publication needs approval of the exact artifact, then --execute.")
+        with zipfile.ZipFile(args.bundle) as bundle:
+            record = json.loads(bundle.read("manifest.json"))
+        if record["app"] != "yipden" or record["package"] != "com.yipden.app":
+            sys.exit("This project command publishes only real YipDen bundles.")
         subprocess.run(base + ["upload", "--bundle", str(Path(args.bundle).resolve()),
                               "--host", "xtreemmak@192.168.10.149", "--root", "/var/www/kjs-apps",
                               "--execute"], check=True)

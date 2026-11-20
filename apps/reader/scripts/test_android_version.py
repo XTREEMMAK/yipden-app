@@ -6,6 +6,8 @@ import tempfile
 import unittest
 
 from android_version import claim, reserve
+from android_artifacts import backup_output, restore_missing
+import shutil
 
 
 class VersionReservations(unittest.TestCase):
@@ -38,6 +40,27 @@ class VersionReservations(unittest.TestCase):
             with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
                 codes = list(pool.map(run, range(24)))
             self.assertEqual(sorted(codes), list(range(901, 925)))
+
+    def test_output_cleanup_preserves_history_and_other_apps(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder) / "gradle-output"
+            backup = Path(folder) / "backup"
+            (output / "games").mkdir(parents=True)
+            (output / "j2chat").mkdir()
+            (output / "games/old.apk").write_bytes(b"game history")
+            (output / "j2chat/old.apk").write_bytes(b"chat history")
+            (output / "yipden-debug-072.apk").write_bytes(b"reader history")
+            (output / "app-debug.apk").write_bytes(b"old output")
+            backup_output(output, backup)
+            shutil.rmtree(output)  # Simulate AGP's output-directory cleanup.
+            output.mkdir()
+            (output / "app-debug.apk").write_bytes(b"new output")
+            restore_missing(backup, output)
+            self.assertEqual((output / "games/old.apk").read_bytes(), b"game history")
+            self.assertEqual((output / "j2chat/old.apk").read_bytes(), b"chat history")
+            self.assertEqual((output / "yipden-debug-072.apk").read_bytes(), b"reader history")
+            self.assertEqual((output / "app-debug.apk").read_bytes(), b"new output")
+            self.assertEqual((backup / "app-debug.apk").read_bytes(), b"old output")
 
     def test_corrupt_counter_fails_closed(self):
         with tempfile.TemporaryDirectory() as folder:

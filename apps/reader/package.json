@@ -14,7 +14,7 @@
     "test:e2e": "playwright test",
     "cap:sync": "pnpm build && cap sync android",
     "android:apk": "python3 scripts/android_build.py",
-    "android:install": "pnpm android:apk && adb install -r android/app/build/outputs/apk/debug/app-debug.apk",
+    "android:install": "python3 scripts/android_build.py --install",
     "android:live": "python3 scripts/android_build.py --live",
     "check:games": "node ../../tooling/games/check-build.mjs build",
     "apk:inspect": "python3 scripts/apk_distribution.py inspect",

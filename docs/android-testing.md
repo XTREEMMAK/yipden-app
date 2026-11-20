@@ -249,7 +249,8 @@ building and let Capacitor write it.
 ## KJS Apps distribution
 
 `pnpm android:apk` now reserves a real Android versionCode above the historical 900,
-shows it in About and retains `yipden-bCODE.apk` after verifying actual APK metadata.
+shows it in About and retains `build/android-apks/yipden-bCODE.apk` at the repository root after verifying
+actual APK metadata. The complete pipeline backs up legacy output before Gradle cleanup.
 It never uploads or prunes older APKs. Run the complete project command rather than
 overlapping direct Gradle builds. See [app-updates.md](app-updates.md) for persistent
 version state, private preparation, explicit publication approval and Obtainium setup.
