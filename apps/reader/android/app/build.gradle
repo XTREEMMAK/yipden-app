@@ -1,5 +1,14 @@
 apply plugin: 'com.android.application'
 
+// Every Gradle invocation reserves/consumes a unique persisted code, including direct builds.
+// Python uses flock + fsync; a failed or repeated build must not reuse an Android code.
+def versionOutput = new ByteArrayOutputStream()
+exec {
+    commandLine 'python3', file('../../scripts/android_version.py').absolutePath
+    standardOutput = versionOutput
+}
+def reservedVersionCode = versionOutput.toString().trim().toInteger()
+
 android {
     namespace = "com.yipden.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +16,8 @@ android {
         applicationId "com.yipden.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // versionCode is major * 10000 + minor * 100 + patch, so every release sorts above the last.
-        versionCode 900
+        // Independent of versionName; common to debug and release channels.
+        versionCode reservedVersionCode
         versionName "0.9.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

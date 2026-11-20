@@ -190,7 +190,8 @@ cd apps/reader && pnpm android:apk
 ```
 
 Android will ask permission to install from that source the first time. This is a debug build
-signed with the local debug key, which is fine for testing and is not something to publish.
+signed with the existing local debug key. It is eligible only for approved protected Builds,
+never public Releases; see [app-updates.md](app-updates.md).
 
 ### Debugging the WebView from a desktop
 
@@ -244,3 +245,11 @@ building and let Capacitor write it.
 
 **The build succeeds but the app shows a blank screen.** `pnpm build` was not rerun before
 `cap sync`, so the Android project is holding an older copy of the web build.
+
+## KJS Apps distribution
+
+`pnpm android:apk` now reserves a real Android versionCode above the historical 900,
+shows it in About and retains `yipden-bCODE.apk` after verifying actual APK metadata.
+It never uploads or prunes older APKs. Run the complete project command rather than
+overlapping direct Gradle builds. See [app-updates.md](app-updates.md) for persistent
+version state, private preparation, explicit publication approval and Obtainium setup.

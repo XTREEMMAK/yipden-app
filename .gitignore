@@ -49,3 +49,6 @@ apps/reader/android/app/src/main/assets/capacitor.plugins.json
 # The design prototype every screen was built against. Kept locally, not published.
 docs/reference/
 
+
+# Python distribution tooling
+__pycache__/

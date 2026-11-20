@@ -274,7 +274,7 @@ Open questions DECISIONS.md already flags as unverified, all needing a phone:
   the same white mark as the launcher icon on the same day/night background, sized to fit Android
   12's circular splash mask. Capacitor's stock `splash.png` files are gone. See DECISIONS.md and
   `brand/README.md`. Still to see on a phone, on both Android 12+ and an older version.
-- ~~Reconcile the package version (`0.0.1`) with a real release number.~~ 0.9.0 everywhere (every package, `versionName` 0.9.0, `versionCode` 900), 2026-10-08. The tag `v0.9.0` is the last release step.
+- ~~Reconcile the package version (`0.0.1`) with a real release number.~~ 0.9.0 everywhere (every package, `versionName` 0.9.0, `versionCode` 900), 2026-10-08. Android versionCodes now use an independent locked sequence above 900 (2026-11-20). The tag `v0.9.0` is the last release step.
 
 ### 7. Housekeeping
 
@@ -878,3 +878,11 @@ The header above the card stack takes much of a phone's height, and a tall card 
 under it. Collapsing it to a slim bar as the cards scroll, and bringing it back on a scroll up,
 would give the stack that room. Not started: the stack's pin offsets and the tail sizing would
 both have to follow the header's height as it changes.
+
+## Distribution follow-up (2026-11-20)
+
+KJS Apps integration and real Android version reservations are implemented. First protected
+publication requires review of the specific candidate. Owner phone baseline and a real newer
+Obtainium update with data preservation remain pending, followed by a separate old-host
+retirement inventory. Stable signing and promotion remain separate release work.
+See [app-updates.md](docs/app-updates.md).

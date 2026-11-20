@@ -10,7 +10,7 @@ const packageJson = JSON.parse(
 ) as { version: string };
 
 function buildCommit(): string {
-	// A debug APK also carries its own build number (scripts/stamp-apk.mjs), since several are
+	// A debug APK also carries its own build number (scripts/android_build.py), since several are
 	// made from one commit and the phone has no other way to say which one is installed.
 	const debugBuild = process.env.YIPDEN_DEBUG_BUILD;
 	return debugBuild ? `${commit()} · debug build ${debugBuild}` : commit();

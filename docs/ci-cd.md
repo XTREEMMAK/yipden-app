@@ -25,8 +25,10 @@ nothing about it gates correctness that the web build has not already checked.
 
 The checked-in reader CI currently does not build APKs on tags and does not run the reader
 Playwright suite. The earlier tag-artifact description was a planned workflow, not implemented.
-Local numbered APKs are built with `pnpm android:apk`; the current LAN download server serves
-that output directory directly. See [games-development.md](games-development.md) for the games
+Local APKs are built with `pnpm android:apk`, with real reserved Android versionCodes.
+KJS Apps preparation and explicit publication are described in [app-updates.md](app-updates.md).
+The old LAN download host remains running until the owner confirms a real Obtainium update
+and a separate retirement inventory is complete. See [games-development.md](games-development.md) for the games
 profile workflow.
 
 **Release signing is not set up**, deliberately. It needs a Play Console identity and an upload

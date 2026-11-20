@@ -14,7 +14,7 @@ pnpm test        # every package (vitest)
 pnpm check       # typecheck every package
 pnpm lint        # prettier --check, then eslint
 cd apps/reader && npx playwright test --project=phone   # end to end, 390x844; builds a debug build
-cd apps/reader && pnpm android:apk                      # a numbered debug APK, see below
+cd apps/reader && pnpm android:apk                      # a versioned debug APK, see below
 pnpm directory:check     # the creator directory is clean (also run by pnpm test)
 pnpm directory:resolve   # record every form of a listed person (network; run when adding)
 pnpm directory:optout    # remove someone and hash them into optouts.json
@@ -51,7 +51,7 @@ fixtures in `src/lib/partner/test-fixtures/`; restore them with `git checkout` i
 - Debug-only code sits behind `__YIPDEN_DEBUG__` (replaced by a literal, so a release drops it). The
   debug switches and the frame and media logs are in Settings of a debug build.
 - A phone test needs a fresh debug APK, not a passing Playwright run: build one with `pnpm
-android:apk`, which prints a numbered file (`yipden-debug-NNN.apk`; About shows the number). The
+android:apk`, which prints a numbered file (`yipden-bCODE.apk`; About shows the Android versionCode). The
   app's own web bundle is what a phone runs, so rebuild before saying a change is ready to try.
   Needs `JAVA_HOME` and `ANDROID_HOME` set (see [docs/android-testing.md](docs/android-testing.md)).
 - `docs/reference/` (the design prototype) is kept locally and is not in the repository.

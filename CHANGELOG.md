@@ -8,6 +8,9 @@ Every notable change to YipDen, newest first. The format follows
 
 ### Added
 
+- KJS Apps preparation/publication commands and Obtainium setup. Android APKs now reserve real
+  increasing versionCodes above 900 and show that code in About; ordinary builds never upload.
+
 - Directory entries can say where their cover is cropped (`thumb_position`, in percent as the
   ring's), so a face is not cropped off on a phone. Jericho George's test entry shows his face.
 

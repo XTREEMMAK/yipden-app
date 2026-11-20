@@ -3927,3 +3927,20 @@ served it. The Stray is tried in the reader (a debug APK built with `YIPDEN_GAME
 lab APK of its own; if its production work needs a fast separate host again, that is a new
 decision. `game-contracts` and `game-host` now exist in both repositories and may drift; neither
 imports the other's copy.
+
+## 2026-11-20: KJS Apps and real Android version reservations
+
+Reuse the existing shared KJS registry/publisher with slug `yipden`, package
+`com.yipden.app` and the certificate verified from debug APK 072. That APK's actual
+versionCode is 900; its filename counter never identified an Android update.
+One locked, persisted sequence now serves debug and release independently of 0.9.0.
+Reservations are single-use, failed builds burn codes, and the complete pipeline is
+serialized across local checkouts. Retain the existing signing key, debug seed behavior
+and release seed stripping. No app feature, account or backend changes.
+
+The shared registry gains only YipDen and its existing SVG icon. Ordinary builds do not
+upload. Preparation verifies actual APK metadata; publication requires approval of
+the exact candidate. Debuggable testing artifacts cannot pass stable promotion;
+compatible non-debuggable release signing remains unconfigured. Keep the old Python
+host until owner-confirmed baseline/newer Obtainium update and a separate retirement
+inventory. Operator and phone instructions: [app-updates.md](docs/app-updates.md).

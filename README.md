@@ -88,6 +88,9 @@ Building and running the Android app needs a JDK and the Android SDK as well. Se
 including running on a real phone from a headless machine, is in
 [docs/android-testing.md](docs/android-testing.md).
 
+Android download channels, operator commands and Obtainium phone setup:
+[App updates](docs/app-updates.md).
+
 ## Repo layout
 
 ```text
