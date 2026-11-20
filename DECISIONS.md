@@ -3951,3 +3951,12 @@ need owner/VM backup recovery; live KJS Apps was unaffected. Subsequent builds b
 up and restore the legacy output tree and retain immutable APKs outside Gradle outputs.
 An archive-cleanup regression test covers other apps and reader history. See the
 candidate review and incident record in `docs/app-updates.md`.
+
+## 2026-11-20: Historical APK recovery declined; build a fresh candidate
+
+The owner confirmed no backup is available and said retrieval is unnecessary. Close
+the recovery effort and build a fresh APK; do not reconstruct historical files under
+old names. Candidate 902 was built from clean source with the same package/certificate,
+verified and prepared privately. Publication remains subject to the original explicit
+approval gate; this instruction did not approve uploading either 901 or 902. The old
+host stays running pending the original phone-update and retirement checks.

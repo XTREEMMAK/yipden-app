@@ -147,9 +147,9 @@ and [version-code detection](https://wiki.obtainium.imranr.dev/app_tracking/#ver
 Phone baseline, data preservation and a real newer YipDen Obtainium update are pending.
 Local publisher tests do not establish those results.
 
-## First candidate review: November 20, 2026
+## Superseded candidate 901 review: November 20, 2026
 
-Prepared, **not uploaded**:
+Retained for history, **not uploaded**. Fresh candidate 902 below supersedes this candidate:
 
 | Field               | Verified value                                                     |
 | ------------------- | ------------------------------------------------------------------ |
@@ -192,13 +192,15 @@ Equivalent existing shared CLI command (run only one):
 /home/xtreemmak/projects/node/j2chat-app/scripts/publish-apk   --config /home/xtreemmak/projects/node/j2chat-app/tools/apk-distribution/apps.json   upload --bundle /home/xtreemmak/projects/node/yipden-app/build/apk-distribution/yipden-b901.zip   --host xtreemmak@192.168.10.149 --root /var/www/kjs-apps --execute
 ```
 
-### Initial-build incident and outstanding recovery
+### Initial-build incident and recovery decision
 
 The first Gradle build cleaned the entire debug output directory before historical
 files were backed up. This removed YipDen's 070–072 APKs and the legacy `games/` and
 `j2chat/` directories. The Python host process remains running, but affected historical
 URLs are unavailable. Exact copies of YipDen 070–072 and the legacy Chat downloads
-were not found in the local workspace; filesystem/VM or owner-held backups are needed.
+were not found in the local workspace. The owner confirmed no backup is available and
+explicitly declined recovery, requesting a fresh APK instead. Recovery is closed by
+that decision; missing historical URLs remain unavailable.
 Game build archives survive in the sibling Yip Realms checkout, but the exact contents
 of the deleted served directory were not inventoried before the build. Do not replace
 missing historical APKs with rebuilt or renamed bytes. Archive preservation is now
@@ -209,3 +211,41 @@ The YipDen push also advanced the pre-existing local ancestor commit `6be665e`
 (Yip Realm extraction) along with the integration commit; no history was rewritten.
 Only integration files were newly committed in this session. The shared registry
 addition was committed separately as `6bcef69`.
+
+## Current candidate 902: fresh build requested by the owner
+
+On November 20, 2026, the owner declined historical-APK recovery and requested a fresh
+APK. Build 902 supersedes unpublished 901. **No upload or promotion was authorized or
+performed.** The existing old download-server process remains running.
+
+| Field               | Verified value                                                     |
+| ------------------- | ------------------------------------------------------------------ |
+| APK                 | `build/android-apks/yipden-b902.apk`                               |
+| Version             | `0.9.0` / real Android versionCode `902`                           |
+| Package             | `com.yipden.app`                                                   |
+| Certificate SHA-256 | `d9ea95b7e73fa5b50d1d8a8b3d24a30f4bf066e74436fd9296ee6a8382fda88a` |
+| APK SHA-256         | `7758f72e04e6638eaa60cb2c94f7f89f897ec0ee8efc1b9b5df6e938418ecbdc` |
+| Size                | 21,396,937 bytes                                                   |
+| Clean source commit | `84209ed8a2967a6aaf5bbfe9078b3b2e06e48234`                         |
+| Private bundle      | `build/apk-distribution/yipden-b902.zip`, mode 0600                |
+| Bundle SHA-256      | `ce59c83036ee56762dc3c3043d7187e66b82e4a27b9211f236ed391fdfe3fa36` |
+
+Verified a real 901 → 902 increase, unchanged package/certificate, About code 902,
+successful APK assembly and private preparation, checksum-exact local receive,
+idempotent replay, conflicting-code rejection and debuggable stable-promotion rejection.
+The real Gradle build preserved build 901 and its source JSON under the old served
+output path, with matching backup checksums. No phone install/update has been performed.
+The prior project checks remain applicable; this follow-up changed only operator records
+and the checked-in reservation floor, now 902. The next reservation is at least 903.
+
+Bundle notes identify a fresh debug/testing build from clean source with output
+preservation and durable APK storage. Package/signing identity and app behavior are
+unchanged. Debug tools/seeds remain enabled. Stable signing, phone baseline and a real
+newer Obtainium update with data checks remain pending.
+
+Exact publication command **only after approval of build 902**:
+
+```sh
+cd /home/xtreemmak/projects/node/yipden-app/apps/reader
+pnpm apk:publish --bundle ../../build/apk-distribution/yipden-b902.zip --execute
+```
